@@ -1,80 +1,41 @@
 /**
- * ISourceAdapter.js — Master Common Interface Definition for Price Source Adapters
+ * ISourceAdapter.js — The contract every price source adapter keeps
  *
- * Each adapter encapsulates communication and parsing logic for a specific
- * external price source type (e.g., Telegram channels, Forex Open ER-API, Bourse BRS API, Generic JSON API).
+ * An adapter knows one kind of endpoint and nothing else: it reads it and turns the answer into
+ * items. It is chosen by the `sourceType` a source names (sources/index.js) and never writes,
+ * caches or remembers anything between calls — the pipeline (sourceSync.service.js) does all of
+ * that, the same way for every source:
+ *   fetchRaw → parse → (a catalog: merged with its previous list) → jump guard → stored →
+ *   price book → history
  *
- * ─────────────────────────────────────────────────────────────────────────────
- * FINAL ADAPTER CONTRACT (قرارداد نهایی ادپتورها):
- * ─────────────────────────────────────────────────────────────────────────────
- * Every source adapter MUST implement the following unified interface without exception:
- *
- * 1. id: string
- *    Unique identifier for the adapter (e.g. "telegram", "bourse_symbols", "emofid_funds",
- *    "charisma_funds", "charisma_plans", "forex_api", "api_url").
- *
- * 2. name: string
- *    Human-readable Persian display name.
- *
- * 3. supports(sourceConfig): boolean
- *    Determines whether this adapter handles the specified source configuration.
- *
- * 4. fetchRaw(sourceConfig, env?): Promise<any>
- *    Fetches raw payload/HTML/JSON from the external endpoint.
- *
- * 5. parse(raw, sourceConfig, env?): Promise<ParsedPriceResult> | ParsedPriceResult
- *    ALWAYS returns an object containing strictly:
- *      {
- *        items: [{ id: string, name: string, price: number }],
- *        datetime: string // ISO 8601 string
- *      }
- *    Single-output feeds return items with a single entry (e.g. USD, Gold).
- *    Multi-output or catalog feeds return items containing all parsed elements.
- *
- * 6. getItems(env?): Promise<Array<AdapterItem>>
- *    Unified method name across ALL adapters to retrieve current active items.
- *    Legacy method names (`getSymbols`, `getFunds`, `getLatestFunds`, `getLatestPlans`)
- *    have been completely retired.
- *
- * ─────────────────────────────────────────────────────────────────────────────
- * CORE ARCHITECTURAL INVARIANTS (قواعد تغییرناپذیر معماری):
- * ─────────────────────────────────────────────────────────────────────────────
- * 1. Output Shape: Strictly `{ items: [{ id, name, price }], datetime }`.
- * 2. ID Convention: a catalog item's id is its own symbol/code; the price book makes it
- *    `${market}__${symbol}` (the source's `market`), so an asset keeps its id whichever source lists it.
- * 3. Metadata Invariant: Unit, category, badge, and color are defined ONLY at source and category level
- *    (in `sources.config.js` and `categories.config.js`). Items NEVER define independent units/categories.
- * 4. Presentation Invariant: Display name is strictly formatted by `displayEngine.js` as
- *    `"{item.name} ({sourceName})"`. No hardcoded strings or brand checks in frontend components.
- * 5. Storage Invariant: parse() never writes. The sync (sourceSync.service.js) stores a source's items
- *    once, under `source_items:${sourceId}`, and only when they changed.
- *
- * Optional Hooks:
- * - test(sourceConfig, env?): Run an end-to-end test without persisting to storage.
+ * Rules:
+ * 1. parse() returns `{ items: [{ id, name, price }], datetime }` — nothing more per item, and
+ *    throws (with a message an admin can act on) when the answer holds no price.
+ * 2. `id`: a single-price source's own id; a multi-output feed's item code; a catalog item's own
+ *    symbol (the price book makes it `${market}__${symbol}`).
+ * 3. `price`: in the source's `quote` (sources.config.js) — conversion and rounding are the price
+ *    book's. Units, categories and names shown come from the config and the specs, not items.
+ * 4. Everything an adapter needs is in its source's config (endpoint, paths, maps): no default
+ *    URLs, ids or symbols in the adapter.
  */
 
 /**
  * @typedef {Object} AdapterItem
- * @property {string} id - The item's own symbol or code (the price book adds the market prefix)
- * @property {string} name - Clean Persian display name (e.g. "فولاد مبارکه", "دلار تهران سبزه میدان", "طرح طلا")
- * @property {number} price - Numerical price in Tomans (or USD for international commodities)
+ * @property {string} id - see rule 2
+ * @property {string} name - the item's name as the feed gives it
+ * @property {number} price - in the source's quote (see rule 3)
  */
 
 /**
- * Standard parse result contract returned by every adapter's parse() method.
- *
  * @typedef {Object} ParsedPriceResult
- * @property {Array<AdapterItem>} items - Array of standardized items: [{ id, name, price }]
- * @property {string} datetime - ISO 8601 date-time string of the price update
+ * @property {Array<AdapterItem>} items
+ * @property {string} datetime - ISO 8601 time of the prices
  */
 
 /**
  * @typedef {Object} SourceAdapter
- * @property {string} id - Unique identifier for the adapter
- * @property {string} name - Friendly Persian name
- * @property {(sourceConfig: object) => boolean} supports - Check if sourceConfig matches this adapter
- * @property {(sourceConfig: object, env?: object) => Promise<any>} fetchRaw - Fetch raw content from endpoint
- * @property {(raw: any, sourceConfig: object, env?: object) => Promise<ParsedPriceResult>|ParsedPriceResult} parse - Parse raw content into standard clean price result: { items: [{ id, name, price }], datetime }
- * @property {(env?: object) => Promise<Array<AdapterItem>>} getItems - Unified method to retrieve items across all adapters
- * @property {(sourceConfig: object, env?: object) => Promise<object>} [test] - Run end-to-end test without saving
+ * @property {string} id - the `sourceType` it serves
+ * @property {string} name - its Persian name (shown to the admin)
+ * @property {(src: object, env?: object) => Promise<any>} fetchRaw - read the endpoint
+ * @property {(raw: any, src: object) => ParsedPriceResult|Promise<ParsedPriceResult>} parse - the answer as items
  */

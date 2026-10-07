@@ -128,19 +128,16 @@ describe("parsingUtils — extractValueByPath with predicate filtering", () => {
     };
     expect(getAdapterForSource(telegramSource).id).toBe("telegram");
 
-    // Fallback: legacy source without sourceType defaults to api_url if endpoint is given
-    const untypedHttpSource = {
-      id: "legacy_http",
-      endpoint: "https://unknown-service.io/data.json",
-    };
-    expect(getAdapterForSource(untypedHttpSource).id).toBe("api_url");
+    // A source must name its sourceType: none (or an unknown one) has no adapter
+    expect(getAdapterForSource({ id: "legacy_http", endpoint: "https://unknown-service.io/data.json" })).toBeNull();
+    expect(getAdapterForSource({ id: "x", sourceType: "nope" })).toBeNull();
   });
 
-  it("executes customParser for bourse and returns structured catalog items", async () => {
+  it("parses the exchange's symbols through the bourse adapter its config names", async () => {
     const { getMasterPriceSourceById } = await import("../../src/config/sources.config.js");
+    const { getAdapterForSource } = await import("../../src/services/market/sources/index.js");
     const bourseSrc = getMasterPriceSourceById("src_def_bourse");
-    expect(bourseSrc).toBeDefined();
-    expect(typeof bourseSrc.customParser).toBe("function");
+    expect(bourseSrc.isCatalog).toBe(true);
 
     const sampleBourseApiData = [
       { l18: "فملی", l30: "ملی صنایع مس ایران", pl: 263900, pc: 264000 },
@@ -148,7 +145,7 @@ describe("parsingUtils — extractValueByPath with predicate filtering", () => {
       { l18: "شپنا", l30: "پالایش نفت اصفهان", pl: 48000, pc: 48200 },
     ];
 
-    const parsed = apiUrlSourceAdapter.parse(JSON.stringify(sampleBourseApiData), bourseSrc);
+    const parsed = await getAdapterForSource(bourseSrc).parse(sampleBourseApiData, bourseSrc);
     expect(parsed.items).toHaveLength(3);
     expect(parsed.items[0].id).toBe("فملی");
     expect(parsed.items[0].name).toBe("ملی صنایع مس ایران");

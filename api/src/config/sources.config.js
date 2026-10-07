@@ -1,14 +1,17 @@
 /**
- * sources.config.js — Master Code-First Price Sources Specification
+ * sources.config.js — Every price source, defined in code (the admin can only switch one off or
+ * make it primary: priceSource.repository.js)
  *
- * All price sources in RealRate are defined declaratively in code.
- * Version-controlled via Git; runtime prices are kept in Workers KV (the price book) and memory.
+ * A source names its adapter (`sourceType`, services/market/sources/index.js), where it reads
+ * (`endpoint`; secrets as ${VAR}), what its numbers are in (`quote`: toman by default, rial, usd,
+ * usd_cross), how often it is fetched (`fetchIntervalSec`) and what it gives: one price under its
+ * `priceType` (single), several items with ids of their own (`outputs: "multi"`) or a market's
+ * whole list (`isCatalog`, merged with its previous list so a partial answer never empties it).
+ * Optional: `maxJumpPct` / `confirmTicks` (the implausible-jump guard, domain/priceGuard.js),
+ * `staleAfterSec`, `displayConfig` (shown on the home page by default), reference-rate fields.
+ * The kinds, schedule and status the admin sees: domain/priceSources.js.
  */
 
-import { mergeBourseSymbols } from "../services/market/sources/bourseSymbols.source.adapter.js";
-import { mergeEmofidFunds } from "../services/market/sources/emofidFunds.source.adapter.js";
-import { mergeCharismaFunds } from "../services/market/sources/charismaFunds.source.adapter.js";
-import { mergeCharismaPlans } from "../services/market/sources/charismaPlans.source.adapter.js";
 
 export const PRICE_SOURCES_CONFIG = [
   // ── Single Output Feeds (Currencies, Gold, Coins, Ounces) ───────────
@@ -191,6 +194,7 @@ export const PRICE_SOURCES_CONFIG = [
     priceType: "tgju_bubbles",
     quote: "rial",
     sourceType: "tgju_indicators",
+    outputs: "multi",
     series: [
       { slug: "coin_blubber", id: "bubble_full_coin", name: "حباب سکه امامی" },
       { slug: "nim_blubber", id: "bubble_half_coin", name: "حباب نیم سکه" },
@@ -244,8 +248,8 @@ export const PRICE_SOURCES_CONFIG = [
     // Each currency's value in dollars: the price book turns it into tomans with the USD price
     quote: "usd_cross",
     sourceType: "forex_api",
+    outputs: "multi",
     endpoint: "https://open.er-api.com/v6/latest/USD",
-    jsonPath: "rates",
     category: "currency",
     unit: "ارز",
     fetchIntervalSec: 300,
@@ -266,18 +270,10 @@ export const PRICE_SOURCES_CONFIG = [
     endpoint: "https://api.brsapi.ir/Tsetmc/AllSymbols.php?type=1&key=${BRS_API_KEY}",
     category: "bourse",
     unit: "برگ سهم",
-    isCatalog: true, // UI display/grouping only; not for pipeline selection (scheduled for removal in Phase 4)
+    isCatalog: true, // A market's whole list: merged with its previous one, ids `${market}__${symbol}`
     fetchIntervalSec: 3600,
     isActive: true,
     isPrimary: true,
-    customParser: (data, sourceConfig) => {
-      const rawList = Array.isArray(data) ? data : (data?.symbols || data?.data || []);
-      const { mergedList } = mergeBourseSymbols([], rawList, new Date().toISOString(), sourceConfig);
-      return {
-        items: mergedList,
-        datetime: new Date().toISOString(),
-      };
-    },
   },
   {
     id: "src_def_emofid",
@@ -287,23 +283,13 @@ export const PRICE_SOURCES_CONFIG = [
     market: "bourse", // Exchange-traded funds: the same "bourse__<symbol>" as on the exchange
     sourceType: "emofid_funds",
     endpoint: "https://www.emofid.com/api/funds/",
-    jsonPath: "value",
     category: "bourse_fund",
     unit: "واحد",
     isFund: true,
-    isCatalog: true, // UI display/grouping only; not for pipeline selection (scheduled for removal in Phase 4)
-    knownSymbols: ["عیار", "پیشتاز", "پیشرو", "امید", "پیشواز", "آتیه", "حامی", "نامی"],
+    isCatalog: true, // A market's whole list: merged with its previous one, ids `${market}__${symbol}`
     fetchIntervalSec: 1800,
     isActive: true,
     isPrimary: true,
-    customParser: (data, sourceConfig) => {
-      const rawList = Array.isArray(data) ? data : (data?.value || data?.data || []);
-      const { mergedList } = mergeEmofidFunds([], rawList, new Date().toISOString(), sourceConfig);
-      return {
-        items: mergedList,
-        datetime: new Date().toISOString(),
-      };
-    },
   },
   {
     id: "src_def_charisma",
@@ -313,26 +299,21 @@ export const PRICE_SOURCES_CONFIG = [
     market: "bourse", // Exchange-traded funds: the same "bourse__<symbol>" as on the exchange
     sourceType: "charisma_funds",
     endpoint: "https://charisma.ir/funds",
-    jsonPath: "data",
+    // The funds' exchange tickers (optional), else symbolMap: the fund's English name → its ticker
+    metaEndpoint: "https://webapi.charisma.ir/api/fund",
+    symbolMap: {
+      noghran: "نقران", kahroba: "کهربا", ahrom: "اهرم", kara: "کارا", metal: "متال", kamand: "کمند",
+      kakh: "کاخ", karis: "کاریس", mazeh: "مزه", cimana: "سیمانا", zeman: "ضمان", sanam: "صنم",
+      index: "هم‌تراز", roshan: "روشن", fixedmutual: "ثابت", tazmin: "تضمین", ahromi: "اهرمی",
+      "oragh-dolati": "دولتی", tehranfund: "نیکوکاری", "pension-fund": "کاریز", kaman: "کمان", mokhtalet: "مختلط",
+    },
     category: "bourse_fund",
     unit: "واحد",
     isFund: true,
-    isCatalog: true, // UI display/grouping only; not for pipeline selection (scheduled for removal in Phase 4)
-    knownSymbols: [
-      "اهرم", "کهربا", "نقران", "کارا", "متال", "کمند", "کاخ", "کاریس", "مزه", "سیمانا",
-      "ضمان", "صنم", "هم‌تراز", "روشن", "ثابت", "تضمین", "دولتی", "نیکوکاری", "کاریز", "کمان", "مختلط"
-    ],
+    isCatalog: true, // A market's whole list: merged with its previous one, ids `${market}__${symbol}`
     fetchIntervalSec: 1800,
     isActive: true,
     isPrimary: true,
-    customParser: (data, sourceConfig) => {
-      const rawList = Array.isArray(data) ? data : (data?.funds || data?.data || []);
-      const { mergedList } = mergeCharismaFunds([], rawList, new Date().toISOString(), sourceConfig);
-      return {
-        items: mergedList,
-        datetime: new Date().toISOString(),
-      };
-    },
   },
   {
     id: "src_def_charisma_plans",
@@ -345,29 +326,18 @@ export const PRICE_SOURCES_CONFIG = [
     category: "bourse_fund",
     unit: "واحد",
     isFund: true,
-    isCatalog: true, // UI display/grouping only; not for pipeline selection (scheduled for removal in Phase 4)
-    knownSymbols: [
-      "gold", "silver", "copper", "stocks-index", "real-estate",
-      "طلا", "نقره", "مس", "استاکس", "ملک"
-    ],
+    isCatalog: true, // A market's whole list: merged with its previous one, ids `${market}__${symbol}`
+    // Names and units shown for a plan known only by its id (displayEngine), e.g. a holding
     knownItems: {
-      gold: { name: 'طرح طلا', unit: 'واحد' },
-      silver: { name: 'طرح نقره', unit: 'واحد' },
-      copper: { name: 'طرح مس', unit: 'واحد' },
-      'stocks-index': { name: 'طرح شاخص سهام', unit: 'واحد' },
-      'real-estate': { name: 'طرح ملک', unit: 'واحد' },
+      gold: { name: "طرح طلا", unit: "واحد" },
+      silver: { name: "طرح نقره", unit: "واحد" },
+      copper: { name: "طرح مس", unit: "واحد" },
+      "stocks-index": { name: "طرح شاخص سهام", unit: "واحد" },
+      "real-estate": { name: "طرح ملک", unit: "واحد" },
     },
     fetchIntervalSec: 1800,
     isActive: true,
     isPrimary: true,
-    customParser: (data, sourceConfig) => {
-      const rawList = Array.isArray(data) ? data : (data?.plans || data?.items || data?.data || []);
-      const { mergedList } = mergeCharismaPlans([], rawList, new Date().toISOString(), sourceConfig);
-      return {
-        items: mergedList,
-        datetime: new Date().toISOString(),
-      };
-    },
   },
 ];
 
@@ -377,13 +347,9 @@ export const PRICE_SOURCES_CONFIG = [
  */
 export function getMasterPriceSourcesConfig() {
   return PRICE_SOURCES_CONFIG.map((src) => ({
-    regex: "",
-    jsonPath: "",
     ...src,
-    customParser: src.customParser || null,
     displayConfig: src.displayConfig ? { ...src.displayConfig } : null,
     excludedOutputs: Array.isArray(src.excludedOutputs) ? [...src.excludedOutputs] : [],
-    fieldMapping: src.fieldMapping ? { ...src.fieldMapping } : null,
   }));
 }
 

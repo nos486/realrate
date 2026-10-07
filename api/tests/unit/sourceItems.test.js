@@ -58,9 +58,9 @@ describe('source items storage', () => {
     const sources = await dbGetPriceSources(env, { book });
     const usd = sources.find((s) => s.id === 'src_def_usd');
     const bourse = sources.find((s) => s.id === 'src_def_bourse');
-    expect(usd).toMatchObject({ lastPrice: 95500, itemsCount: 1, lastFetched: '2026-01-01T00:00:00Z' });
-    // A list has no single price: its size is itemsCount
-    expect(bourse).toMatchObject({ lastPrice: 0, itemsCount: 2, lastFetched: '' });
+    expect(usd).toMatchObject({ items: [{ id: 'src_def_usd', price: 95500 }], lastFetched: '2026-01-01T00:00:00Z' });
+    expect(bourse.items).toHaveLength(2);
+    expect(bourse.lastFetched).toBe('');
     // The stored form is kept for the unchanged-check, but never sent to a client
     expect(usd.storedItemsJson).toBe(serializeSourceItems([{ id: 'src_def_usd', price: 95500 }]));
     expect(JSON.stringify(usd)).not.toContain('storedItemsJson');

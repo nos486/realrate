@@ -22,10 +22,6 @@ export const tgjuIndicatorsSourceAdapter = {
   id: "tgju_indicators",
   name: "سری‌های tgju",
 
-  supports(sourceConfig) {
-    return String(sourceConfig?.sourceType || sourceConfig?.source_type || "").toLowerCase() === "tgju_indicators";
-  },
-
   /** @returns {Promise<Array<{ slug: string, id: string, name?: string, latest?: object, error?: string }>>} */
   async fetchRaw(sourceConfig, env = null, fetchImpl = fetch) {
     const series = seriesOf(sourceConfig);
@@ -45,9 +41,5 @@ export const tgjuIndicatorsSourceAdapter = {
       .filter((r) => r.latest && Number(r.latest.close) > 0)
       .map((r) => ({ id: r.id, name: r.name || r.id, price: Number(r.latest.close) }));
     return { items, datetime: new Date().toISOString() };
-  },
-
-  async getItems() {
-    return [];
   },
 };

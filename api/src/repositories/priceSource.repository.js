@@ -5,7 +5,7 @@
 
 import { getPriceBookCache } from "./priceBookStore.repository.js";
 import { getStateStore } from "./stateStore.repository.js";
-import { readSourceItems, readSourceItemsMany, saveSourceItems, parseStoredItems } from "./sourceItems.repository.js";
+import { readSourceItems, readSourceItemsMany, parseStoredItems } from "./sourceItems.repository.js";
 import {
   getMasterPriceSourcesConfig,
   getMasterPriceSourceById,
@@ -43,28 +43,19 @@ async function writeOverrides(env, overrides) {
 const withOverrides = (src, overrides) => ({ ...src, ...overrides?.[src.id] });
 
 /**
- * A configured source with what it last gave
+ * A configured source with what it last gave (`items`, the pipeline's previous list) and when
+ * (`lastFetched`)
  * @param {object} src - the source's config
  * @param {{ json: string|null, items: Array<object> }} stored - its stored items
  * @param {object|null} state - its entry in the price book's `sources`
  */
 function withRuntimeState(src, stored, state) {
-  const items = stored.items;
   const source = {
     ...src,
     excludedOutputs: Array.isArray(src.excludedOutputs) ? src.excludedOutputs : [],
     displayConfig: src.displayConfig || null,
-    items,
-    itemsCount: items.length,
-    // A single price, shown as the source's price (a list has none: see itemsCount)
-    lastPrice: items.length === 1 ? Number(items[0]?.price) || 0 : 0,
+    items: stored.items,
     lastFetched: state?.fetchedAt || "",
-    syncedAt: state?.syncedAt || null,
-    lastError: state?.error || null,
-    channelUsername: src.sourceType === "telegram" ? src.endpoint : "",
-    apiUrl: src.sourceType === "api_url" ? src.endpoint : "",
-    regexPattern: src.regex || "",
-    fetchIntervalMinutes: Math.round((src.fetchIntervalSec || 300) / 60),
   };
   // The stored form, to skip rewriting an unchanged list (not sent to clients)
   Object.defineProperty(source, "storedItemsJson", { value: stored.json, enumerable: false });
@@ -150,13 +141,3 @@ export async function dbSetPrimaryPriceSource(env, id) {
   return dbGetPriceSourceById(env, id);
 }
 
-/**
- * Store what an admin's test of a source returned as the source's items
- * @param {object} env
- * @param {string} id
- * @param {Array<object>} items - the test's items
- */
-export async function dbStoreTestedSourceItems(env, id, items) {
-  if (!id || !env || !Array.isArray(items) || items.length === 0) return false;
-  return saveSourceItems(env, id, items);
-}

@@ -1,5 +1,9 @@
 /**
- * sources/index.js — Registry and Factory for Price Source Adapters
+ * sources/index.js — The price source adapters, by the `sourceType` a source names in its config
+ *
+ * An adapter only reads its endpoint (`fetchRaw`) and turns the answer into items (`parse`):
+ * everything else — choosing it, merging a catalog with its previous list, the jump guard,
+ * storing, the price book — is the pipeline's (sourceSync.service.js). See ISourceAdapter.js.
  */
 
 import { telegramSourceAdapter } from "./telegramSource.adapter.js";
@@ -24,47 +28,25 @@ export {
 
 export * from "./parsingUtils.js";
 
-/**
- * List of registered price source adapters in evaluation priority order
- */
+/** Every adapter */
 export const sourceAdapters = [
+  telegramSourceAdapter,
+  apiUrlSourceAdapter,
   forexApiSourceAdapter,
+  tgjuIndicatorsSourceAdapter,
   bourseSymbolsSourceAdapter,
   emofidFundsSourceAdapter,
   charismaFundsSourceAdapter,
   charismaPlansSourceAdapter,
-  tgjuIndicatorsSourceAdapter,
-  telegramSourceAdapter,
-  apiUrlSourceAdapter,
 ];
 
+const BY_TYPE = new Map(sourceAdapters.map((a) => [a.id, a]));
+
 /**
- * Resolves the appropriate adapter for a given price source configuration
- * @param {object} sourceConfig
- * @returns {import("./ISourceAdapter.js").SourceAdapter}
+ * The adapter a source names (`sourceType`), or null for an unknown type
+ * @param {object} src
+ * @returns {import("./ISourceAdapter.js").SourceAdapter|null}
  */
-export function getAdapterForSource(sourceConfig) {
-  if (!sourceConfig) return telegramSourceAdapter;
-
-  const type = String(sourceConfig.sourceType || sourceConfig.source_type || "").toLowerCase().trim();
-
-  // 1. Direct explicit type match (highest precedence contract)
-  if (type) {
-    const directMatch = sourceAdapters.find((a) => a.id === type);
-    if (directMatch) return directMatch;
-  }
-
-  // 2. Adapter-specific supports evaluation
-  for (const adapter of sourceAdapters) {
-    if (typeof adapter.supports === "function" && adapter.supports(sourceConfig)) {
-      return adapter;
-    }
-  }
-
-  // 3. Fallback: generic HTTP API endpoint vs telegram channel
-  if (sourceConfig.endpoint || sourceConfig.apiUrl) {
-    return apiUrlSourceAdapter;
-  }
-
-  return telegramSourceAdapter;
+export function getAdapterForSource(src) {
+  return BY_TYPE.get(String(src?.sourceType || "").trim().toLowerCase()) || null;
 }

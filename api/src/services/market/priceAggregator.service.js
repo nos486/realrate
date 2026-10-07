@@ -1,8 +1,8 @@
 /**
  * priceAggregator.service.js — Reading the price book, and admin tools for price sources
  *
- * Every price is in the price book ("prices" in the state store, domain/priceBook.js), written by the sync
- * (sourceSync.service.js). Nothing here keeps another copy of a price.
+ * Every price is in the price book ("prices", domain/priceBook.js), written by the sync
+ * (sourceSync.service.js). Nothing here keeps another copy of a price; a source's test is a dry run.
  */
 
 import { dbGetPriceSources } from "../../repositories/priceSource.repository.js";
@@ -10,10 +10,8 @@ import { getPriceBookCache, setPriceBookCache } from "../../repositories/priceBo
 import { buildPriceBook } from "../../domain/priceBook.js";
 import { legacyPricesOf } from "../../domain/priceBookViews.js";
 import { getAdapterForSource } from "./sources/index.js";
-import { resolveApiUrl } from "./sources/apiUrl.source.adapter.js";
 import { logger } from "../../lib/logger.js";
 import { getMasterPriceSourceById } from "../../config/sources.config.js";
-import { WORLD_FOREX_NAMES } from "../../domain/specs/index.js";
 import { withDayRange } from "./sourceSync.service.js";
 
 /**
@@ -73,175 +71,36 @@ export async function fetchAllPrices(env, forceRefresh = false) {
   return legacyPricesOf(await getPriceBook(env));
 }
 
+/** Items a test shows (a catalog's thousands are summarized) */
+const TEST_SAMPLE = 50;
+
 /**
- * Test a price source configuration without saving
- * @param {object} config - { sourceType, priceType, endpoint, regex, jsonPath, name }
- * @returns {Promise<object>}
+ * Try a source now without keeping anything: fetch, parse, and what came back (a dry run of the
+ * sync's first two steps — nothing is stored, guarded or put in the book)
+ * @param {object} env
+ * @param {string} id - a configured source's id
+ * @returns {Promise<{ success: boolean, error?: string, count?: number, sample?: Array<object>,
+ *   price?: number|null, datetime?: string, ms: number }>}
  */
-export async function testPriceSourceConfig(config = {}, env = null) {
-  let effectiveConfig = { ...config };
-  if (config.id) {
-    const master = getMasterPriceSourceById(config.id);
-    if (master) {
-      effectiveConfig = {
-        ...master,
-        ...config,
-        customParser: config.customParser || master.customParser,
-      };
-    }
-  }
-
-  const adapter = getAdapterForSource(effectiveConfig);
-  if (typeof adapter.test === "function") {
-    return await adapter.test(effectiveConfig, env);
-  }
-
+export async function testPriceSource(env, id) {
+  const started = Date.now();
+  const src = id ? getMasterPriceSourceById(id) : null;
+  if (!src) return { success: false, error: "سورس پیدا نشد.", ms: 0 };
+  const adapter = getAdapterForSource(src);
+  if (!adapter) return { success: false, error: `آداپتری برای «${src.sourceType}» نیست.`, ms: 0 };
   try {
-    const raw = await adapter.fetchRaw(effectiveConfig, env);
-    const parsed = await adapter.parse(raw, effectiveConfig, env);
-    const rawSnippet = typeof raw === "string" && raw.length > 2500 ? raw.slice(0, 2500) + "\n... (ادامه متن کوتاه شد)" : (typeof raw === "object" ? JSON.stringify(raw, null, 2).slice(0, 2500) : String(raw || ""));
-    const firstItem = parsed?.items?.[0];
-    const price = parsed?.price !== undefined ? parsed.price : (firstItem?.price || 0);
-    const items = parsed?.items || parsed?.compactList || [];
-    const count = items.length;
-
+    const { items, datetime } = await adapter.parse(await adapter.fetchRaw(src, env), src);
+    const list = Array.isArray(items) ? items : [];
     return {
-      success: true,
-      source_type: config.sourceType || "api_url",
-      price,
-      items,
-      sampleItems: items.slice(0, 50),
-      datetime: parsed.datetime,
-      label: firstItem?.name || parsed.label || config.name || "سورس قیمت",
-      rawSnippet,
-      message: count > 1
-        ? `تعداد ${count} آیتم با موفقیت پردازش شد.`
-        : `قیمت با موفقیت دریافت شد: ${price.toLocaleString("fa-IR")}`,
+      success: list.length > 0,
+      ...(list.length ? {} : { error: "هیچ قیمتی برنگشت." }),
+      count: list.length,
+      sample: list.slice(0, TEST_SAMPLE),
+      price: list.length === 1 ? Number(list[0].price) || null : null,
+      datetime,
+      ms: Date.now() - started,
     };
-  } catch (e) {
-    return { success: false, error: e.message || "خطا در تست سورس قیمت" };
-  }
-}
-
-/**
- * Inspect an API endpoint structure to discover candidate arrays and JSON keys
- * @param {string} endpointUrl
- * @param {object} [customHeaders]
- * @param {object} [env]
- * @returns {Promise<object>}
- */
-export async function inspectApiEndpointStructure(endpointUrl, customHeaders = {}, env = null) {
-  const resolvedUrl = resolveApiUrl(endpointUrl, env);
-  if (!resolvedUrl || !resolvedUrl.startsWith("http")) {
-    throw new Error("آدرس وب‌سرویس معتبر نیست. لطفاً یک URL کامل با http یا https وارد کنید.");
-  }
-
-  const headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) RealRateWorker/1.0",
-    "Accept": "application/json, text/plain, */*",
-    ...customHeaders,
-  };
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 12000);
-
-  let res;
-  try {
-    res = await fetch(resolvedUrl, { headers, signal: controller.signal });
   } catch (err) {
-    clearTimeout(timeoutId);
-    if (err.name === 'AbortError') {
-      throw new Error("مهلت زمان اتصال به وب‌سرویس به پایان رسید (Timeout 12s).");
-    }
-    throw new Error(`خطا در اتصال به وب‌سرویس: ${err.message}`);
+    return { success: false, error: err?.message || "خطا در دریافت", ms: Date.now() - started };
   }
-  clearTimeout(timeoutId);
-
-  if (!res.ok) {
-    throw new Error(`پاسخ وب‌سرویس با خطا مواجه شد (کد وضعیت HTTP: ${res.status})`);
-  }
-
-  const rawText = await res.text();
-  let json;
-  try {
-    json = JSON.parse(rawText);
-  } catch (e) {
-    throw new Error("پاسخ وب‌سرویس در قالب معتبر JSON نیست.");
-  }
-
-  // Recursive search for candidate arrays
-  const candidateArrays = [];
-
-  function traverse(node, currentPath, depth) {
-    if (depth > 4) return;
-    if (Array.isArray(node)) {
-      if (node.length > 0) {
-        const keysSet = new Set();
-        const sampleItems = node.slice(0, 5);
-        for (const item of sampleItems) {
-          if (item && typeof item === "object") {
-            for (const k of Object.keys(item)) {
-              keysSet.add(k);
-            }
-          }
-        }
-        candidateArrays.push({
-          path: currentPath,
-          length: node.length,
-          sampleItem: node[0] && typeof node[0] === 'object' ? node[0] : null,
-          sampleItems: sampleItems.filter(x => x && typeof x === 'object'),
-          keys: Array.from(keysSet),
-        });
-      }
-      return;
-    }
-
-    if (node && typeof node === "object") {
-      const entries = Object.entries(node);
-      const isRateDict = entries.length >= 3 && entries.every(([k, v]) => typeof v === 'number' || (typeof v === 'string' && !isNaN(Number(v))));
-      if (isRateDict) {
-        const allItems = entries.slice(0, 500).map(([k, v]) => {
-          const sym = k.toUpperCase();
-          return {
-            key: k,
-            code: sym,
-            name: WORLD_FOREX_NAMES[sym] || sym,
-            rate: Number(v),
-            price: Number(v),
-          };
-        });
-        candidateArrays.push({
-          path: currentPath,
-          length: entries.length,
-          sampleItem: allItems[0] || null,
-          sampleItems: allItems.slice(0, 20),
-          allItems,
-          keys: ['symbol', 'code', 'name', 'rate', 'price'],
-          isKeyValDictionary: true,
-        });
-      }
-
-      for (const [key, val] of Object.entries(node)) {
-        const nextPath = currentPath ? `${currentPath}.${key}` : key;
-        traverse(val, nextPath, depth + 1);
-      }
-    }
-  }
-
-  traverse(json, "", 0);
-
-  candidateArrays.sort((a, b) => {
-    const aPriority = a.path === 'data' || a.path === '' || a.path === 'items' || a.path === 'result' ? 10 : 0;
-    const bPriority = b.path === 'data' || b.path === '' || b.path === 'items' || b.path === 'result' ? 10 : 0;
-    if (aPriority !== bPriority) return bPriority - aPriority;
-    return b.length - a.length;
-  });
-
-  return {
-    success: true,
-    totalArraysFound: candidateArrays.length,
-    candidateArrays,
-    rawPreview: rawText.substring(0, 500),
-  };
 }
-

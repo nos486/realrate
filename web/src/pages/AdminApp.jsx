@@ -20,7 +20,7 @@ import { APP_BASE } from '../shared/routes.js';
 import { useDocumentTitle } from '../shared/hooks/useDocumentTitle.js';
 
 const AdminPanel = lazy(() => import('../features/admin/components/AdminPanel.jsx'));
-const PriceSourcesPage = lazy(() => import('./PriceSourcesPage.jsx'));
+const AdminPriceSourcesPage = lazy(() => import('../features/admin/components/AdminPriceSourcesPage.jsx'));
 const PriceHistoryAdmin = lazy(() => import('../features/admin/components/PriceHistoryAdmin.jsx'));
 const AdminGroupsPage = lazy(() => import('../features/admin/components/AdminGroupsPage.jsx'));
 const AdminNewsPage = lazy(() => import('../features/admin/components/AdminNewsPage.jsx'));
@@ -84,7 +84,7 @@ export default function AdminApp() {
           <Suspense fallback={<SectionLoader />}>
             <Routes>
               <Route index element={<AdminPanel />} />
-              <Route path="sources" element={<PriceSourcesPage embedded />} />
+              <Route path="sources" element={<AdminPriceSourcesPage />} />
               <Route path="derived" element={<Navigate to="/admin/sources" replace />} />
               <Route path="history" element={<PriceHistoryAdmin />} />
               <Route path="groups" element={<AdminGroupsPage />} />

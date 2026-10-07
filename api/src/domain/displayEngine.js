@@ -403,13 +403,6 @@ export function getSourceDisplayName(sourceOrItem, customSources = []) {
     : PRICE_SOURCES_CONFIG;
 
   if (typeof sourceOrItem === "object") {
-    // Check knownSymbols on sources (e.g. fund matching)
-    const sym = String(sourceOrItem.symbol || sourceOrItem.s || "").trim();
-    if (sym) {
-      const match = allSources.find((s) => Array.isArray(s.knownSymbols) && s.knownSymbols.includes(sym));
-      if (match?.name) return match.name;
-    }
-
     // Check brand in item name
     const itemName = String(sourceOrItem.name || sourceOrItem.n || sourceOrItem.title || "").trim();
     if (itemName) {

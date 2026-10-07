@@ -83,7 +83,7 @@
     /**
      * @param {object} data - داده JSON دریافت شده از وب‌سرویس
      * @param {object} sourceConfig - کانفیگ همین سورس
-     * @returns {number|Array<{id: string, name: string, price: number}>}
+     * @returns {number|{ items: Array<{id: string, name: string, price: number}> }}
      */
     customParser: (data, sourceConfig) => {
       const tetherItem = data?.currency?.find(item => item.symbol === "USDT_IRT");
@@ -111,15 +111,12 @@ export const brsTetherAdapter = {
   id: "brs_tether",
   name: "آداپتور اختصاصی تتر BRS",
 
-  supports(sourceConfig) {
-    return sourceConfig.sourceType === "brs_tether";
-  },
-
   async fetchRaw(sourceConfig) {
     const res = await fetch(sourceConfig.endpoint, {
       headers: { "User-Agent": USER_AGENT },
     });
-    if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
+    // پیامی که مدیر بفهمد: همین در صفحه‌ی سورس‌ها دیده می‌شود
+    if (!res.ok) throw new Error(`پاسخ وب‌سرویس تتر: ${res.status}`);
     return await res.json();
   },
 
@@ -129,6 +126,7 @@ export const brsTetherAdapter = {
   parse(rawJson, sourceConfig) {
     const item = rawJson.currency?.find((c) => c.symbol === "USDT_IRT");
     const price = item ? Number(item.price) : 0;
+    if (!(price > 0)) throw new Error("قیمت تتر در پاسخ نبود.");
 
     return {
       items: [
@@ -142,13 +140,6 @@ export const brsTetherAdapter = {
     };
   },
 
-  /**
-   * متد واحد دریافت اقلام منبع
-   */
-  async getItems(env) {
-    // بازگرداندن داده‌های کش‌شده یا فراخوانی مستقیم
-    return [];
-  },
 };
 ```
 
@@ -159,15 +150,10 @@ export const brsTetherAdapter = {
 import { brsTetherAdapter } from "./brsTether.source.adapter.js";
 
 export const sourceAdapters = [
+  // ... آداپترهای موجود
   brsTetherAdapter,
-  forexApiSourceAdapter,
-  bourseSymbolsSourceAdapter,
-  emofidFundsSourceAdapter,
-  charismaFundsSourceAdapter,
-  charismaPlansSourceAdapter,
-  telegramSourceAdapter,
-  apiUrlSourceAdapter,
 ];
+// انتخاب آداپتر فقط با sourceType سورس است: sourceType: "brs_tether" در کانفیگ
 ```
 
 ---
@@ -181,4 +167,4 @@ export const sourceAdapters = [
    تست‌های `adaptersContract.test.js` به صورت خودکار آداپتور شما را ارزیابی کرده و انطباق فرمت خروجی `{ items: [{ id, name, price }], datetime }` را تایید می‌کنند.
 
 2. **تست آنلاین در پنل مدیریت (`/admin`):**
-   سورس جدید بلافاصله در جدول فیدها ظاهر شده و با دکمه **«بروزرسانی نرخ»** تست استخراج زنده را اجرا خواهد کرد.
+   سورس جدید در صفحه‌ی «سورس‌های قیمت» (`/admin/sources`) دیده می‌شود: **«تست»** آن را همین حالا می‌خواند و پارس می‌کند بی‌آنکه چیزی ذخیره کند، و **«دریافت الان»** آن را از کل خط لوله (محافظ جهش، ذخیره، دفتر قیمت) می‌گذراند. دوره‌ی دریافت، آخرین و دریافت بعدی و خطای آخر هم همان‌جاست.

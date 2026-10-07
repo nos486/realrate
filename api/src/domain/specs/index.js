@@ -18,6 +18,5 @@ export {
   resolveAssetDisplayWithSource,
   getSourceShortBrand,
   resolveAssetUnit,
-  getSourceParser,
   resolveCategory,
 } from '../../config/sourceRegistry.js';

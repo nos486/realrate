@@ -32,15 +32,12 @@ export const PRICE_SOURCES_CONFIG = [
     // maxJumpPct: 25,              // largest change between two fetches (%); more is held until it repeats
     // confirmTicks: 3,             // fetches in a row before a real jump is accepted
     // staleAfterSec: 1800,         // after this long without a successful fetch the price is marked "stale"
+    // optional: what the source gives (see "Source kinds" below)
+    // outputs: "multi",            // several items with ids of their own (a feed)
+    // isCatalog: true,             // a market's whole list (needs `market`)
     isActive: true,
     isPrimary: false,
     displayConfig: { showOnHomePage: true },
-
-    // when the raw data needs custom processing:
-    customParser: (data, cfg) => {
-      // must return an array of items or a number
-      return data.rates.map(r => ({ id: r.code, name: r.title, price: r.lastPrice }));
-    },
   },
 ];
 ```
@@ -48,6 +45,26 @@ export const PRICE_SOURCES_CONFIG = [
 > [!NOTE]
 > **Metadata ownership (an architecture rule):**
 > `badge`, `badgeColor` and `iconName` are no longer set on a source; they come automatically from the category in [`categories.config.js`](../../api/src/config/categories.config.js), so the data can't drift.
+
+### Source kinds
+
+What a source gives is read from its config alone (`domain/priceSources.js`, `sourceKindOf`):
+
+| Kind | Config | Example | Items |
+|---|---|---|---|
+| single (تک‌نرخی) | neither of the two | the free-market dollar, 18k gold | one, under the source's `priceType` |
+| multi-output (چندخروجی) | `outputs: "multi"` | world currencies (forex), tgju series | several, each with its own id |
+| catalog (کاتالوگ) | `isCatalog: true` + `market` | exchange symbols, Mofid and Charisma funds | a market's whole list, ids `${market}__${symbol}` |
+
+A catalog's list is **merged with its previous one** (`mergeCatalogItems`): a symbol a fetch leaves out, or gives without a price, keeps its last price, so a partial answer never empties a market.
+
+Everything a source needs lives in its config, never in its adapter: the endpoint, `jsonPath`/`regex` (api_url), `series` (tgju), `metaEndpoint` and `symbolMap` (Charisma funds: English name → exchange ticker), and `knownItems` (the names and units shown for an item known only by its id, e.g. Charisma's plans). An api_url source whose answer `jsonPath` can't reach may set `customParser(data, src)` returning a number.
+
+### Fetch schedule and status
+
+- **Interval:** `fetchIntervalSec` (at least 15 s, default 60). The cron runs every minute and fetches every source due: one interval after its **last try, successful or not** — so a failing source waits its interval too and doesn't hammer the endpoint every minute.
+- **Stale:** after `staleAfterSec` (default: 5 intervals, at least 30 minutes) without a successful fetch.
+- **Status** (`sourceScheduleOf`): `off` (switched off), `pending` (never synced), `error` (its last try failed; the server's own error is kept), `stale`, or `ok`.
 
 In the admin panel a source can only be switched off or made the primary one for its id (kept in D1, key `price_source_overrides`); sources are never created or deleted there.
 
@@ -65,12 +82,13 @@ In the admin panel a source can only be switched off or made the primary one for
 Every source adapter (in `api/src/services/market/sources/` or a custom one) **must** follow this contract:
 
 ### The `ISourceAdapter` interface
-1. `id`: the adapter's unique id (e.g. `telegram`, `api_url`, `forex_api`).
-2. `name`: the adapter's Persian name.
-3. `supports(sourceConfig)`: whether this source belongs to this adapter.
-4. `fetchRaw(sourceConfig, env?)`: fetches the raw payload (HTML/JSON/array) from the external server.
-5. `parse(raw, sourceConfig, env?)`: turns the raw payload into the standard shape.
-6. `getItems(env?)`: the one function that returns the adapter's current items.
+An adapter knows one kind of endpoint and nothing else. It is chosen by the `sourceType` a source names (`sources/index.js`; an unknown type has no adapter and the sync reports it), and it keeps no state between calls.
+1. `id`: the `sourceType` it serves (e.g. `telegram`, `api_url`, `forex_api`).
+2. `name`: its Persian name (shown on the admin page).
+3. `fetchRaw(sourceConfig, env?)`: reads the endpoint; a failed request **throws** with a message an admin can act on (e.g. `پاسخ وب‌سرویس بورس: 503`) — that message is what the admin page shows.
+4. `parse(raw, sourceConfig)`: turns the answer into the standard shape, and throws when it holds no price.
+
+An adapter never writes, caches, merges or reads stored data, and has no default URLs, ids or symbols: the pipeline does the rest, the same way for every source. Its item extraction is a pure exported function (e.g. `bourseItemsOf`, `charismaFundItemsOf`), tested on its own.
 
 ### The required output of `parse()`:
 ```javascript
@@ -90,7 +108,7 @@ Every source adapter (in `api/src/services/market/sources/` or a custom one) **m
 > **Single- and multi-price sources:**
 > Even single-value sources (the free-market dollar, 18k gold, the Emami coin) return `parse` output as a one-item array `items: [{ id, name, price }]`.
 
-Adapters never write: `parse()` only returns items; the sync stores them.
+Adapters never write: `parse()` only returns items; the sync merges (a catalog), guards and stores them.
 
 ---
 
@@ -143,24 +161,22 @@ const badge = getItemBadge("src_def_charisma__اهرم");
 ## 5. Storage and orchestration
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│ Cloudflare Cron Trigger (every minute)                  │
-└───────────────────────────┬─────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────┐
-│ syncAllSources(env) in sourceSync.service.js            │
-│ (one request per endpoint shared by several sources)    │
-└─────────┬───────────────────────────────────────────────┘
-          │
-          ├─► fetchRaw()  ──► parse() ──► { items, datetime }
-          │
-          ▼
-┌─────────────────────────────────────────────────────────┐
-│ saveSourceItems(env, sourceId, items)                   │
-│ (source_items:<id>, only when changed) → price book     │
-│ (prices) → price history (KV and D1)                    │
-└─────────────────────────────────────────────────────────┘
+Cloudflare Cron Trigger (every minute)
+  └─ syncAllSources(env)                       sourceSync.service.js
+       ├─ due sources only (isSourceDue: one interval after the last try)
+       ├─ one request per endpoint shared by several sources
+       ├─ fetchRaw() → parse() → { items, datetime }
+       ├─ a catalog: mergeCatalogItems(previous, fresh)
+       ├─ guardSourceItems(): an implausible jump is held until it repeats
+       ├─ saveSourceItems(): source_items:<id>, only when changed
+       ├─ the price book ("prices", with each source's syncedAt / failedAt / error)
+       └─ the price history
 ```
+
+A failed source keeps its last prices in the book; its error and time are recorded under the book's `sources`.
+
+## 6. The admin's price sources page
+
+`/admin/sources` (`web/src/features/admin/components/AdminPriceSourcesPage.jsx`) shows every source in two groups — «سورس‌های نرخ پایه (طلا، ارز، سکه)» (single) and «هاب سورس‌های چند خروجی و فیدها» (multi-output and catalogs) — with a status summary. For each source: its status and last error, its fetch interval («هر ۵ دقیقه»), last successful fetch, next fetch, when it turns stale, quote, kind, adapter, category and unit, jump guard, endpoint or tgju series, and what it gave (its price, or its size and a three-item preview). Actions: on/off, make primary (only where several sources give the same id), **test** (a dry run: fetched and parsed now, nothing kept), **fetch now** (through the full pipeline) and **all items** (a feed's stored list, searchable). The server builds the rows (`services/market/priceSourcesAdmin.service.js`); a catalog's thousands of items are only sent when asked for.
 
 With this design a new source only needs its entry in `sources.config.js` (and an adapter if its `sourceType` is new); polling, caching, the price book, the history, the catalog API and the UI all pick it up with no other code.
