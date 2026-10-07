@@ -40,7 +40,9 @@ export function setPriceHistoryWriter(writer) {
 /** Seconds between two fetches of a source */
 export const fetchIntervalSecOf = (src) => Math.max(15, Number(src.fetchIntervalSec) || 60);
 
-const endpointKeyOf = (src) => `${src.sourceType}::${src.endpoint || src.apiUrl || ""}`;
+// Sources reading the same endpoint share one request; one without an endpoint (it names its
+// own requests, e.g. tgju series) is a request of its own
+const endpointKeyOf = (src) => `${src.sourceType}::${src.endpoint || src.apiUrl || src.id}`;
 
 /**
  * Synchronizes the active sources whose fetch interval is due, then rebuilds the price book.

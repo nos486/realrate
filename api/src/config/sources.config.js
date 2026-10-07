@@ -181,6 +181,31 @@ export const PRICE_SOURCES_CONFIG = [
       return price;
     },
   })),
+  // ── Coin bubbles (tgju.org): market indicators, not assets (category `bubble`, not holdable) ──
+  // Each series is tgju's «حباب» of a coin (tgju.org/profile/<slug>), in rials; the price book
+  // adds its percent of the coin's gold value (bubble.spec.js `bubbleOf`)
+  {
+    id: "src_def_tgju_bubbles",
+    name: "حباب سکه (tgju)",
+    brand: "tgju",
+    priceType: "tgju_bubbles",
+    quote: "rial",
+    sourceType: "tgju_indicators",
+    series: [
+      { slug: "coin_blubber", id: "bubble_full_coin", name: "حباب سکه امامی" },
+      { slug: "nim_blubber", id: "bubble_half_coin", name: "حباب نیم سکه" },
+      { slug: "rob_blubber", id: "bubble_quarter_coin", name: "حباب ربع سکه" },
+      { slug: "gerami_blubber", id: "bubble_gerami_coin", name: "حباب سکه گرمی" },
+    ],
+    category: "bubble",
+    unit: "عدد",
+    fetchIntervalSec: 600,
+    // A bubble is the difference of two prices: in percent it moves far more than a price does
+    maxJumpPct: 100,
+    isActive: true,
+    isPrimary: true,
+    displayConfig: { showOnHomePage: true },
+  },
   // ── سورس تتر با فانکشن پارسر اختصاصی ──
   {
     id: "src_brs_usdt",

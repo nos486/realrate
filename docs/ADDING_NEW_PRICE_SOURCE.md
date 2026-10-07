@@ -66,6 +66,19 @@ export const PRICE_SOURCES_CONFIG = [
 - **تاریخچه:** بسته‌ی تومانی زیر شناسه و بسته‌ی دلاری زیر `<id>@usd` (`usdSeriesKey`) ثبت می‌شود؛ نمودار کارت از سری دلاری خوانده می‌شود. پاک‌کردن «شناسه‌های بی‌صاحب» در پنل این کلیدها را نگه می‌دارد و بک‌فیل tgju با واحد دلار هر دو را پر می‌کند.
 - مشخصات دارایی (نام، واحد، نام‌های جستجو) در `api/src/domain/specs/` است؛ کالاهای جهانی در `commodity.spec.js` و دسته‌ی `commodity` («کالا»).
 
+## ۱.۲ سری‌های tgju و شاخص‌هایی که دارایی نیستند
+
+- **سورس tgju** (`sourceType: "tgju_indicators"`): هر سری tgju (`tgju.org/profile/<slug>`) با یک شناسه در `series` تعریف می‌شود و آخرین مقدار جدول روزانه‌اش خوانده می‌شود (`services/market/tgju.client.js`، همان خواننده‌ی بک‌فیل تاریخچه). واحد با `quote` سورس است (tgju معمولاً ریال). سری‌ای که خطا بدهد کنار می‌ماند و بقیه به‌روز می‌شوند:
+
+```javascript
+{ id: "src_def_tgju_bubbles", sourceType: "tgju_indicators", quote: "rial", category: "bubble",
+  series: [{ slug: "coin_blubber", id: "bubble_full_coin", name: "حباب سکه امامی" }, ...] }
+```
+
+- **دسته‌ی غیرقابل نگهداری:** دسته‌ای با `holdable: false` در `categories.config.js` (مثل `bubble`) روی کارت‌ها و نمودارها هست ولی در پورتفو و جستجوی خرید نیست (`isHoldableCategory`).
+- **شاخصِ یک دارایی دیگر:** مشخصه‌ای با `bubbleOf` (مثل `bubble.spec.js`) درصدش از ارزش آن دارایی بدون خودش را در `params.bubblePct` می‌گیرد.
+- برای تاریخچه‌ی گذشته، همان slug را با `suggest` به `config/tgjuCatalog.js` اضافه کنید تا در پنل تاریخچه قابل انتخاب باشد.
+
 ## ۲. قرارداد نهایی ادپتورها (Universal Adapter Contract)
 
 هر ادپتور سورس (خواه در `api/src/services/market/sources/` یا به عنوان ادپتور سفارشی) **بدون استثنا** باید قرارداد استاندارد زیر را رعایت کند:

@@ -21,6 +21,8 @@ function describe(item) {
   // A dollar-priced asset shows its dollar price; the line under it is the toman equivalent
   if (currencyOf(item) === 'usd') return `≈ ${fa(item.price)} تومان`;
   if (p.usd !== undefined) return `${fa(p.usd, 2)} دلار`;
+  // A coin's bubble (tgju): its percent of the coin's gold value
+  if (p.bubbleOf && p.bubblePct !== undefined) return `${fa(p.bubblePct, 1)}٪ بالاتر از ارزش طلای سکه`;
   if (p.derived === 'intrinsic') return 'ارزش ذاتی (محاسبه از انس و دلار)';
   if (p.symbol) return p.sourceName ? `نماد: ${p.symbol} • ${p.sourceName}` : `نماد: ${p.symbol}`;
   return p.sourceName || '';
