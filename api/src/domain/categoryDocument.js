@@ -11,7 +11,7 @@
  * `excluded`: the category's records are listed but not counted in the totals, charts and budgets
  * — money that is still the user's (moving it between their own accounts: «مدیریت نقدینگی») or
  * money put to work rather than spent («سرمایه‌گذاری») or an asset turned back into cash («فروش
- * دارایی»). Those are excluded by default; any
+ * دارایی») or a deposit that pays a bank credit's debt («تسویه بدهی اعتباری», creditAccount.js). Those are excluded by default; any
  * category can be switched. A stored item without the field keeps the built-in's default.
  *
  * The stored list is laid over the built-ins (mergeCategories): it gives the order and the
@@ -80,6 +80,7 @@ export const BUILTIN_CATEGORIES = {
     { value: 'gift', label: 'هدیه و کمک', icon: 'Gift', color: '#f472b6' },
     { value: 'cash_management', label: 'مدیریت نقدینگی', icon: 'Wallet', color: '#22d3ee', excluded: true },
     { value: 'asset_sale', label: 'فروش دارایی', icon: 'PiggyBank', color: '#34d399', excluded: true },
+    { value: 'credit_settlement', label: 'تسویه بدهی اعتباری', icon: 'CreditCard', color: '#60a5fa', excluded: true },
     { value: 'other', label: 'سایر', icon: 'CircleDollarSign', color: '#94a3b8' },
   ],
 };

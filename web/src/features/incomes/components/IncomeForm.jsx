@@ -3,6 +3,8 @@
  *
  * An income in «فروش دارایی» can take what was sold out of a portfolio («کم کردن از پورتفو»: the
  * asset and its quantity) — a «sell» there at the income's tomans (PortfolioLinkFields, `soldFrom`).
+ * A deposit in «تسویه بدهی اعتباری» names the bank credit whose debt it pays (`creditAccountId`):
+ * that credit's debt goes down by it (utils/creditAccount.js).
  *
  * Mounted only while open (keyed by what it edits), so its state is initialized straight from
  * props instead of being reset in an effect.
@@ -23,6 +25,8 @@ import CategoryManagerModal from '../../../shared/categories/CategoryManagerModa
 import PortfolioLinkFields from '../../../shared/vault/PortfolioLinkFields.jsx';
 import { isLinkComplete } from '../../../utils/portfolioLink.js';
 import { newLinkTxId } from '../../../shared/vault/portfolioFunds.js';
+import { CREDIT_SETTLEMENT_CATEGORY } from '../../../utils/creditAccount.js';
+import CreditAccountPicker from './CreditAccountPicker.jsx';
 
 /** The category whose incomes can be a sale from a portfolio */
 const SALE_CATEGORY = 'asset_sale';
@@ -55,6 +59,9 @@ export default function IncomeForm({
   // «فروش دارایی»: what was sold, out of a portfolio (null: not taken out)
   const [saleLink, setSaleLink] = useState(editingIncome?.soldFrom || null);
   const selling = category === SALE_CATEGORY && Boolean(saleLink);
+  // «تسویه بدهی اعتباری»: the credit whose debt it pays
+  const [creditAccountId, setCreditAccountId] = useState(source?.creditAccountId || '');
+  const settling = category === CREDIT_SETTLEMENT_CATEGORY;
 
   const amountNum = parseInputNumber(amount);
   // The Shamsi value is the single source of truth; the stored Gregorian date is derived from it
@@ -62,7 +69,8 @@ export default function IncomeForm({
   const dateIso = shamsiToGregorian(dateShamsi);
   const isAmountValid = amountNum !== null && amountNum > 0;
   const isFormValid = Boolean(title.trim()) && isAmountValid && Boolean(dateIso) && !submitting
-    && (!selling || isLinkComplete(saleLink));
+    && (!selling || isLinkComplete(saleLink))
+    && (!settling || Boolean(creditAccountId));
 
   const handleSubmit = async (e) => {
     e?.preventDefault?.();
@@ -76,6 +84,7 @@ export default function IncomeForm({
         amount: amountNum,
         incomeDate: dateIso,
         notes: notes.trim(),
+        creditAccountId: settling ? creditAccountId : '',
         soldFrom: selling
           ? {
             portfolioId: saleLink.portfolioId,
@@ -159,6 +168,7 @@ export default function IncomeForm({
           value={dateShamsi}
           onChange={setDateShamsi}
         />
+        {settling && <CreditAccountPicker value={creditAccountId} onChange={setCreditAccountId} />}
         {category === SALE_CATEGORY && (
           <PortfolioLinkFields
             mode="sell"

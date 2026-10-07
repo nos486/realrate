@@ -44,6 +44,9 @@ vi.mock('../../../web/src/shared/vault/vaultExpenses.js', () => ({
 vi.mock('../../../web/src/shared/vault/vaultTransfers.js', () => ({
   getTransfers: vi.fn(async () => ({ transfers: store.transfers })),
 }));
+vi.mock('../../../web/src/shared/vault/vaultIncomes.js', () => ({
+  getIncomes: vi.fn(async () => ({ incomes: [] })),
+}));
 vi.mock('../../../web/src/features/expenses/hooks/useDailyExpenses.js', () => ({ useDailyExpenses: () => ({ expenses: [] }) }));
 vi.mock('../../../web/src/shared/features/useFeature.js', () => ({ useFeature: () => true }));
 vi.mock('../../../web/src/features/demo/index.js', () => ({ useDemo: () => ({ readOnly: false }), isDemoReadOnly: () => false }));
