@@ -92,13 +92,21 @@ describe('RiskToleranceModal', () => {
     expect(screen.getByText('چقدر ریسک‌پذیر هستید؟')).toBeTruthy();
   });
 
-  it('tests the portfolio value, not a typed amount, and needs one', () => {
-    const { unmount } = render(<RiskToleranceModal portfolioValue={2500000} onSave={vi.fn()} onClose={() => {}} />);
-    expect(screen.getByText(/۲٬۵۰۰٬۰۰۰ تومان/)).toBeTruthy();
-    expect(screen.queryByRole('textbox')).toBeNull();
-    unmount();
+  it('starts from the portfolio value and lets the user change it', () => {
+    render(<RiskToleranceModal portfolioValue={2500000} onSave={vi.fn()} onClose={() => {}} />);
+    const input = screen.getByRole('textbox');
+    expect(input.value.replace(/\D/g, '')).toBe('2500000');
+    fireEvent.change(input, { target: { value: '4000000' } });
+    expect(screen.getByText(/برگشت به ارزش پورتفو/)).toBeTruthy();
+    expect(screen.getByText('شروع آزمون').closest('button').disabled).toBe(false);
+  });
+
+  it('asks for an amount when the portfolio is empty', () => {
     render(<RiskToleranceModal portfolioValue={0} onSave={vi.fn()} onClose={() => {}} />);
-    expect(screen.getByText('شروع آزمون').closest('button').disabled).toBe(true);
+    const start = screen.getByText('شروع آزمون').closest('button');
+    expect(start.disabled).toBe(true);
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: '1000000' } });
+    expect(start.disabled).toBe(false);
   });
 });
 

@@ -10,7 +10,8 @@
 
 import React, { useMemo, useState } from 'react';
 import { Gauge, ArrowLeft, RotateCcw, PiggyBank, ChartColumn } from 'lucide-react';
-import { AlertBanner, Button, Modal } from '../../../shared/ui/index.js';
+import { AlertBanner, Button, Modal, NumericInput } from '../../../shared/ui/index.js';
+import { formatThousands, toEnglishDigits } from '../../../shared/utils/formatters.js';
 import RiskMixPie from './RiskMixPie.jsx';
 import {
   RISK_RATIOS,
@@ -23,6 +24,7 @@ import {
 } from '../../../utils/riskProfile.js';
 
 const fa = (n, digits = 0) => Number(n || 0).toLocaleString('fa-IR', { maximumFractionDigits: digits });
+const parseAmount = (text) => Math.round(Number(toEnglishDigits(String(text || '')).replace(/[,،\s]/g, '')) || 0);
 const toman = (n) => `${fa(Math.round(n))} تومان`;
 
 const GAUGE = { w: 240, h: 130, cx: 120, cy: 120, r: 100, thick: 26 };
@@ -56,15 +58,18 @@ function RiskGauge({ score }) {
 }
 
 export default function RiskToleranceModal({ portfolioValue = 0, result = null, readOnly = false, onSave, onClose }) {
+  const portfolioAmount = Math.round(Number(portfolioValue) || 0);
   const [step, setStep] = useState(result ? 'result' : 'intro'); // intro | guide | 0..5 | result
   const [answers, setAnswers] = useState([]); // confirmed amounts, one per question
   const [slider, setSlider] = useState(0); // 0..RISK_SLIDER_STEPS
+  const [totalText, setTotalText] = useState(() => (portfolioAmount > 0 ? formatThousands(String(portfolioAmount)) : ''));
   const [done, setDone] = useState(result); // the result being shown
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  // The test is always about the portfolio's value today
-  const total = Math.round(Number(portfolioValue) || 0);
+  // The amount the test is about: the portfolio's value today unless the user sets another
+  // (an empty portfolio has no value, so the user gives one)
+  const total = parseAmount(totalText);
   const isQuestion = typeof step === 'number';
 
   const start = () => {
@@ -116,11 +121,15 @@ export default function RiskToleranceModal({ portfolioValue = 0, result = null, 
           در هر سرمایه‌گذاری امکان زیان وجود دارد. برای انتخاب سبد مناسب باید سطح ریسک‌پذیری شما مشخص شود.
           با پاسخ به {fa(RISK_RATIOS.length)} سؤال کوتاه ریسک‌پذیری خود را بسنجید.
         </p>
-        <div className="risk-amount">
-          <span className="risk-label">دارایی‌ای که آزمون برای آن انجام می‌شود (ارزش این پورتفو)</span>
-          <strong>{toman(total)}</strong>
-        </div>
-        {!(total > 0) && <AlertBanner type="info" message="برای انجام آزمون ابتدا دارایی‌ای به این پورتفو اضافه کنید." />}
+        <label className="risk-label" htmlFor="risk-total">
+          {portfolioAmount > 0 ? 'دارایی‌ای که آزمون برای آن انجام می‌شود (پیش‌فرض: ارزش این پورتفو)' : 'این پورتفو خالی است؛ مبلغ دارایی‌ای که آزمون برای آن انجام می‌شود را وارد کنید'}
+        </label>
+        <NumericInput id="risk-total" value={totalText} onValueChange={setTotalText} placeholder="۰" affix="تومان" />
+        {portfolioAmount > 0 && total !== portfolioAmount && (
+          <button type="button" className="risk-link" onClick={() => setTotalText(formatThousands(String(portfolioAmount)))}>
+            برگشت به ارزش پورتفو ({toman(portfolioAmount)})
+          </button>
+        )}
       </div>
     );
     footer = (
