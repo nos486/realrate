@@ -1,9 +1,10 @@
 import React, { useMemo } from 'react';
-import { ArrowUpRight, ArrowDownRight, Lock } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Lock, Gauge } from 'lucide-react';
 import { CategoryIcon, formatNum } from '../utils/holdingHelpers.js';
 import { formatPct } from '../../../shared/utils/formatters.js';
 import DonutChart from '../../../shared/ui/DonutChart.jsx';
 import AllocationTargetsCard from './AllocationTargetsCard.jsx';
+import { profileOf } from '../../../utils/riskProfile.js';
 import { DollarPnl } from '../../../shared/ui/DollarValue.jsx';
 
 const otherCategoriesLabel = (count) => `سایر (${count.toLocaleString('fa-IR')} دسته)`;
@@ -19,6 +20,9 @@ export default function PortfolioOverviewCards({
   // Category targets against today's mix (utils/allocationTargets.js); null hides the card
   allocation = null,
   onEditTargets = null,
+  // The risk-tolerance test (utils/riskProfile.js): its latest result and the opener; null hides the card
+  riskResult = null,
+  onOpenRisk = null,
   // The open positions in dollars (utils/assetLedger.js sumDollarPnl), or null
   dollarPnl = null,
 }) {
@@ -173,6 +177,25 @@ export default function PortfolioOverviewCards({
       {/* Card 5: target shares per category */}
       {allocation && !isVaultLocked && (
         <AllocationTargetsCard allocation={allocation} onEdit={onEditTargets} readOnly={!onEditTargets} hideValues={hideValues} />
+      )}
+      {/* Card 6: risk-tolerance test */}
+      {onOpenRisk && !isVaultLocked && (
+        <div className="portfolio-stat-card risk-profile-card">
+          <div className="stat-header">
+            <span className="stat-label"><Gauge size={13} /> آزمون ریسک‌پذیری</span>
+          </div>
+          {riskResult ? (
+            <p className="stat-sub risk-profile-card-result">
+              <strong>{profileOf(riskResult.score).title}</strong>
+              {' '}— {riskResult.score.toLocaleString('fa-IR', { maximumFractionDigits: 1 })}٪
+            </p>
+          ) : (
+            <p className="stat-sub">با چند سؤال کوتاه بسنجید چقدر ریسک‌پذیر هستید و چه ترکیبی برای این پورتفو مناسب است.</p>
+          )}
+          <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={onOpenRisk}>
+            <Gauge size={14} /> {riskResult ? 'مشاهدهٔ نتیجه' : 'شروع آزمون'}
+          </button>
+        </div>
       )}
     </div>
   );

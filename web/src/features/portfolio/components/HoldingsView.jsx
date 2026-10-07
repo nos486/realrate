@@ -32,6 +32,8 @@ import VaultLockCard from './VaultLockCard.jsx';
 import HoldingsCustomizeEditor from './HoldingsCustomizeEditor.jsx';
 import AssetLedgerDetails from './AssetLedgerDetails.jsx';
 import TargetAllocationModal from './TargetAllocationModal.jsx';
+import RiskToleranceModal from './RiskToleranceModal.jsx';
+import { useRiskProfile } from '../hooks/useRiskProfile.js';
 import AlertStack from '../../../shared/alerts/AlertStack.jsx';
 import { useAlertSource } from '../../../shared/alerts/alertStore.js';
 import { portfolioAlerts } from '../../../shared/alerts/alertRules.js';
@@ -86,6 +88,9 @@ const HoldingsView = forwardRef(function HoldingsView(
     setLayout: setCustomLayout,
     resetLayout: resetCustomLayout,
   } = usePortfolioLayout(activePortfolio, activeVaultKey, isVaultLocked);
+
+  const { result: riskResult, save: saveRiskResult } = useRiskProfile(activePortfolio, activeVaultKey, isVaultLocked);
+  const [riskOpen, setRiskOpen] = useState(false);
 
   const [isCustomizing, setIsCustomizing] = useState(false);
 
@@ -395,6 +400,8 @@ const HoldingsView = forwardRef(function HoldingsView(
             realizedPnl={ledger.summary.hasRealizedPnl ? ledger.summary.totalRealizedPnl : null}
             allocation={portfolioMetrics.items.length > 0 ? allocation : null}
             onEditTargets={readOnly ? null : () => setTargetsOpen(true)}
+            riskResult={riskResult}
+            onOpenRisk={readOnly && !riskResult ? null : () => setRiskOpen(true)}
             dollarPnl={dollarTotal}
           />
         }
@@ -498,6 +505,15 @@ const HoldingsView = forwardRef(function HoldingsView(
       />
 
       {/* User & Share Settings Modal */}
+      {riskOpen && (
+        <RiskToleranceModal
+          portfolioValue={portfolioMetrics.totalRealValue || 0}
+          result={riskResult}
+          readOnly={readOnly}
+          onSave={saveRiskResult}
+          onClose={() => setRiskOpen(false)}
+        />
+      )}
       {targetsOpen && (
         <TargetAllocationModal
           groups={allCategoryGroups}
