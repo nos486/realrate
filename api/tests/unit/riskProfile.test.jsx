@@ -49,6 +49,11 @@ describe('profiles', () => {
     expect(profileOf(75).id).toBe('bold');
     expect(profileOf(100).id).toBe('aggressive');
   });
+  it('hold the standard five-level mixes', () => {
+    expect(RISK_PROFILES.map((p) => Object.values(p.allocation))).toEqual([
+      [80, 10, 10, 0], [60, 15, 23, 2], [40, 15, 40, 5], [20, 15, 55, 10], [5, 10, 65, 20],
+    ]);
+  });
   it('gives the gain as ratio × loss', () => {
     expect(outcomeOf(1000, 2.75)).toEqual({ loss: 1000, gain: 2750 });
   });
@@ -115,5 +120,10 @@ describe('RiskMixPie', () => {
     render(<RiskMixPie items={mixItemsOf(profileOf(30).allocation)} />);
     expect(screen.getByText('درآمد ثابت')).toBeTruthy();
     expect(screen.getByText('۶۰٪')).toBeTruthy();
+    expect(screen.getByText('ارز دیجیتال')).toBeTruthy();
+    // A class with a zero share is left out of the pie
+    cleanup();
+    render(<RiskMixPie items={mixItemsOf(profileOf(0).allocation)} />);
+    expect(screen.queryByText('ارز دیجیتال')).toBeNull();
   });
 });
