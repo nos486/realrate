@@ -2,9 +2,9 @@
  * useCreditStatus.js — Where each of the user's bank credits stands (utils/creditAccount.js)
  *
  * A credit's debt is worked out from what was spent from it and paid into it, from its start
- * date: one download of the expenses and one of the transfers since the earliest credit's start
- * (nothing without a credit account). Read again on the accounts tab's refresh, after the vault
- * changes, and by `reload` after a payment.
+ * date: one download each of the expenses, the transfers and the incomes (deposits that pay a
+ * credit) since the earliest credit's start (nothing without a credit account). Read again on
+ * the accounts tab's refresh, after the vault changes, and by `reload` after a payment.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -13,6 +13,7 @@ import { useVault } from '../../../shared/vault/useVault.js';
 import { todayIso } from '../../../shared/utils/dates.js';
 import { getExpenses } from '../../../shared/vault/vaultExpenses.js';
 import { getTransfers } from '../../../shared/vault/vaultTransfers.js';
+import { getIncomes } from '../../../shared/vault/vaultIncomes.js';
 import { isCreditAccount } from '../../../utils/accountDocument.js';
 import { creditStatus, creditCostsPaid } from '../../../utils/creditAccount.js';
 
@@ -27,7 +28,7 @@ export function useCreditStatus(accounts) {
     () => credits.map((a) => a.credit.startDate).filter(Boolean).sort()[0] || '',
     [credits]
   );
-  const [records, setRecords] = useState({ expenses: [], transfers: [] });
+  const [records, setRecords] = useState({ expenses: [], transfers: [], incomes: [] });
   const [loading, setLoading] = useState(false);
 
   const reload = useCallback(async () => {
@@ -35,8 +36,8 @@ export function useCreditStatus(accounts) {
     setLoading(true);
     try {
       const filters = since ? { from: since } : {};
-      const [e, t] = await Promise.all([getExpenses(filters), getTransfers(filters)]);
-      setRecords({ expenses: e?.expenses || [], transfers: t?.transfers || [] });
+      const [e, t, i] = await Promise.all([getExpenses(filters), getTransfers(filters), getIncomes(filters)]);
+      setRecords({ expenses: e?.expenses || [], transfers: t?.transfers || [], incomes: i?.incomes || [] });
     } catch (err) {
       console.warn('Reading the credit accounts failed:', err);
     } finally {

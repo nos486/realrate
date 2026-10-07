@@ -7,9 +7,12 @@
  *
  * An income that is a sale from a portfolio (`soldFrom`, utils/portfolioLink.js) also writes,
  * moves or deletes its «sell» transaction there (portfolioFunds.js): the transaction first.
+ * A deposit that pays a bank credit's debt («تسویه بدهی اعتباری») names the credit
+ * (`creditAccountId`): it is a payment into that credit (utils/creditAccount.js).
  */
 
 import { isCategoryValue } from '../../utils/categoryDocument.js';
+import { CREDIT_SETTLEMENT_CATEGORY } from '../../utils/creditAccount.js';
 import { validatePortfolioLink, sameLink } from '../../utils/portfolioLink.js';
 import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
 import { putRecord, backfillRecordDates, repairRecordDates } from './vaultRecordMeta.js';
@@ -36,6 +39,10 @@ export function parseIncomeInput(body = {}) {
   const category = isCategoryValue('income', body.category) ? body.category : 'other';
   // Recorded from a bank SMS: the transaction's key (bankSms.js), so it is not recorded twice
   const smsKey = String(body.smsKey ?? '').trim().slice(0, 120);
+  // «تسویه بدهی اعتباری»: the credit whose debt this deposit pays
+  const creditAccountId = category === CREDIT_SETTLEMENT_CATEGORY && /^[A-Za-z0-9_-]{1,80}$/.test(String(body.creditAccountId || ''))
+    ? String(body.creditAccountId)
+    : '';
 
   if (!title) throw new IncomeValidationError('عنوان درآمد الزامی است.');
   if (title.length > TITLE_MAX_LENGTH) throw new IncomeValidationError(`عنوان درآمد نباید بیشتر از ${TITLE_MAX_LENGTH} کاراکتر باشد.`);
@@ -48,7 +55,12 @@ export function parseIncomeInput(body = {}) {
   const sold = validatePortfolioLink(body.soldFrom);
   if (sold.error) throw new IncomeValidationError(sold.error);
 
-  return { title, category, amount, incomeDate, notes, soldFrom: sold.link, ...(smsKey ? { smsKey } : {}) };
+  return {
+    title, category, amount, incomeDate, notes, soldFrom: sold.link,
+    ...(smsKey ? { smsKey } : {}),
+    // Always returned, so an edit to another category drops it
+    creditAccountId,
+  };
 }
 
 function newIncomeId() {

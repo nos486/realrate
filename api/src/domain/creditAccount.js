@@ -11,6 +11,9 @@
  *   - «تسویه بدهی»: a transfer from another account into the credit of what was actually paid,
  *     its `fee` the part beyond the debt settled (settlementOf) — and that fee as an expense of
  *     its own (category CREDIT_COST_CATEGORY, `creditAccountId`), paid from the same account.
+ *   - A deposit that pays the debt («تسویه بدهی اعتباری»): an income in CREDIT_SETTLEMENT_CATEGORY
+ *     naming the credit (`creditAccountId`) — paid into it, like a transfer (left out of the
+ *     income totals by default, categoryDocument.js).
  *   - «تبدیل به قسط»: the user turns an amount of the debt into installments, each with its own
  *     day and amount, as the bank set them (`credit.conversions`). What they add up to beyond
  *     the amount is the installments' fee (conversionCost), recorded then as an expense charged
@@ -19,7 +22,7 @@
  *
  * Terms (`account.credit`): { limit, openingDebt, startDate, conversions }. What is owed is the
  * opening debt, plus what was spent or taken from the credit since `startDate`, less what was
- * paid into it (creditStatus). Shared by the browser and the API, like the other domain modules.
+ * paid into it — transfers and settlement deposits (creditStatus). Shared by the browser and the API, like the other domain modules.
  */
 
 import { gregorianToJalali, jalaliToGregorian, getJalaliMonthLength } from './loanCalculator.js';
@@ -27,6 +30,9 @@ import { expensePaidInToman } from './expenseDocument.js';
 
 /** The expense category of a credit's fees (categoryDocument.js) */
 export const CREDIT_COST_CATEGORY = 'credit_fees';
+
+/** The income category of a deposit that pays a credit's debt (categoryDocument.js) */
+export const CREDIT_SETTLEMENT_CATEGORY = 'credit_settlement';
 
 export const CREDIT_LIMITS = {
   maxAmount: 1e13,
@@ -163,8 +169,8 @@ export function validateCreditTerms(body = {}, today = '') {
   return { value: { limit, openingDebt, startDate, ...(conversions.length ? { conversions } : {}) } };
 }
 
-/** What was charged to the credit and paid into it, from its expenses and transfers */
-function movementsOf(account, expenses, transfers, today) {
+/** What was charged to the credit and paid into it, from its expenses, transfers and incomes */
+function movementsOf(account, expenses, transfers, incomes, today) {
   const since = account.credit.startDate || '';
   const inRange = (date) => DATE_RE.test(date || '') && date >= since && date <= today;
   let charged = account.credit.openingDebt || 0;
@@ -180,14 +186,20 @@ function movementsOf(account, expenses, transfers, today) {
     if (t.toAccountId === account.id) paid += Math.round((Number(t.amount) || 0) - (Number(t.fee) || 0));
     else if (t.fromAccountId === account.id) charged += Math.round(Number(t.amount) || 0);
   }
+  // Deposits that pay its debt («تسویه بدهی اعتباری»)
+  for (const i of incomes) {
+    if (i.creditAccountId === account.id && i.category === CREDIT_SETTLEMENT_CATEGORY && inRange(i.incomeDate)) {
+      paid += Math.round(Number(i.amount) || 0);
+    }
+  }
   return { charged, paid };
 }
 
 /**
  * Where a credit stands today
  * @param {{ id: string, credit: object }} account - a credit account (type 'credit')
- * @param {{ expenses?: object[], transfers?: object[] }} records - its expenses and transfers
- *   (any others are ignored), from its start date
+ * @param {{ expenses?: object[], transfers?: object[], incomes?: object[] }} records - its expenses,
+ *   transfers and settlement deposits (any others are ignored), from its start date
  * @param {string} today - YYYY-MM-DD
  * @returns {{
  *   limit: number, debt: number, available: number, prepaid: number,
@@ -199,10 +211,10 @@ function movementsOf(account, expenses, transfers, today) {
  *   overdue: { count: number, amount: number },
  * }|null}
  */
-export function creditStatus(account, { expenses = [], transfers = [] } = {}, today) {
+export function creditStatus(account, { expenses = [], transfers = [], incomes = [] } = {}, today) {
   const terms = account?.credit;
   if (!terms) return null;
-  const { charged, paid } = movementsOf(account, expenses, transfers, today);
+  const { charged, paid } = movementsOf(account, expenses, transfers, incomes, today);
   const balance = charged - paid;
   const debt = Math.max(0, balance);
 
