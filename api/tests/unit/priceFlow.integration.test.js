@@ -63,9 +63,10 @@ describe('a price from its source to every screen', () => {
     const tick = await syncAllSources(env, { forceAll: true });
     expect(tick.syncedCount).toBeGreaterThanOrEqual(5);
 
-    // Only the book (its sync state also kept apart for the cron) and one list per source are stored
+    // Only the book (its sync state also kept apart for the cron), the averages' running sums and
+    // one list per source are stored
     const keys = [...env.DB.rows.keys()];
-    expect(keys.filter((k) => !k.startsWith('source_items:')).sort()).toEqual(['prices', 'source_states']);
+    expect(keys.filter((k) => !k.startsWith('source_items:')).sort()).toEqual(['price_averages', 'prices', 'source_states']);
 
     const book = await json(await handleGetPriceBook(env, new Request('https://x/api/prices/book')));
     expect(book.items.usd.price).toBe(234000);

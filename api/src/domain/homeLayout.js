@@ -18,7 +18,14 @@
  * A section can also say how a dollar-priced asset's card shows its price (the ounce, oil):
  * `display: { ons_gold: "toman" }` — its toman price large and the dollar one under it. Absent
  * means its own currency, dollars. Only the display changes: the item and its id stay the same.
+ *
+ * And what each card shows (cardMetrics.js): `cards: { full_coin: { main: "avg:30d",
+ * slots: ["intrinsic", "bubble/price", "bubble/avg:30d"] } }` — its main figure (absent: the last
+ * price) and a full card's slots (absent: the default, the bubble analysis for gold and coins; an
+ * empty list: none). Only cards of the section's own items are kept.
  */
+
+import { MAIN_METRICS, CARD_SLOT_LIMIT, parseSlotKey } from "./cardMetrics.js";
 
 export const HOME_LAYOUT_VERSION = 1;
 
@@ -50,7 +57,8 @@ const SECTION_ID_RE = /^[A-Za-z0-9_-]{1,40}$/;
  * Normalize a layout into the valid shape, dropping anything malformed. Returns null when the
  * input isn't a layout at all (so callers can fall back to the default home page).
  * @param {unknown} input
- * @returns {{ version: number, sections: Array<{ id: string, title: string, style: string, items: string[], display?: Record<string, "toman"> }> }|null}
+ * @returns {{ version: number, sections: Array<{ id: string, title: string, style: string, items: string[],
+ *   display?: Record<string, "toman">, cards?: Record<string, { main?: string, slots?: string[] }> }> }|null}
  */
 export function sanitizeHomeLayout(input) {
   if (!input || typeof input !== "object" || !Array.isArray(input.sections)) return null;
@@ -86,8 +94,39 @@ export function sanitizeHomeLayout(input) {
       if (Object.hasOwn(rawDisplay, assetId) && rawDisplay[assetId] === "toman") display[assetId] = "toman";
     }
 
-    sections.push({ id, title, style, items, ...(Object.keys(display).length ? { display } : {}) });
+    const cards = sanitizeCards(raw.cards, items);
+
+    sections.push({
+      id,
+      title,
+      style,
+      items,
+      ...(Object.keys(display).length ? { display } : {}),
+      ...(Object.keys(cards).length ? { cards } : {}),
+    });
   }
 
   return { version: HOME_LAYOUT_VERSION, sections };
+}
+
+/**
+ * What each card shows: a main figure other than the last price, and chosen slots (valid keys,
+ * no repeats, at most CARD_SLOT_LIMIT). A card with neither is left out.
+ * @param {unknown} input
+ * @param {string[]} items - the section's items
+ */
+function sanitizeCards(input, items) {
+  const cards = {};
+  if (!input || typeof input !== "object") return cards;
+  for (const assetId of items) {
+    const raw = Object.hasOwn(input, assetId) ? input[assetId] : null;
+    if (!raw || typeof raw !== "object") continue;
+    const card = {};
+    if (MAIN_METRICS.includes(raw.main) && raw.main !== "price") card.main = raw.main;
+    if (Array.isArray(raw.slots)) {
+      card.slots = [...new Set(raw.slots.map(String).filter((key) => parseSlotKey(key)))].slice(0, CARD_SLOT_LIMIT);
+    }
+    if (Object.keys(card).length) cards[assetId] = card;
+  }
+  return cards;
 }

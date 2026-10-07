@@ -232,7 +232,9 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
   });
 
   it('cronPolling.job.js purges expired sessions only on the top-of-hour tick', async () => {
-    const ctxFor = () => ({ waitUntil: vi.fn() });
+    // Each tick's queued work is awaited, so none of it runs into the next test
+    const pending = [];
+    const ctxFor = () => ({ waitUntil: vi.fn((p) => pending.push(p)) });
 
     const atMinute5 = ctxFor();
     await runCronPolling({ scheduledTime: Date.UTC(2026, 0, 1, 10, 5) }, mockEnv, atMinute5);
@@ -243,6 +245,7 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
     await runCronPolling({ scheduledTime: Date.UTC(2026, 0, 1, 11, 0) }, mockEnv, atMinute0);
     // the sync, the news, expired sessions and the other hourly cleanups
     expect(atMinute0.waitUntil).toHaveBeenCalledTimes(4);
+    await Promise.allSettled(pending);
   });
 
   it('records the tick\'s prices in one history write, catalog items under their market id', async () => {
@@ -274,9 +277,10 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
 
   it('writes nothing but the source lists and the book: no second copy of any price', async () => {
     await syncAllSources(mockEnv);
-    // Source lists go through saveSourceItems (mocked here); the book, and its sync state apart
-    expect([...mockEnv.DB.rows.keys()].sort()).toEqual(['prices', 'source_states']);
-    expect(mockEnv.DB.calls.filter((c) => c === 'put')).toHaveLength(2);
+    // Source lists go through saveSourceItems (mocked here); the book, and its sync state apart;
+    // the averages' running sums once (the first tick of a day)
+    expect([...mockEnv.DB.rows.keys()].sort()).toEqual(['price_averages', 'prices', 'source_states']);
+    expect(mockEnv.DB.calls.filter((c) => c === 'put')).toHaveLength(3);
     expect(mockEnv.DB.json('source_states')).toEqual(mockEnv.DB.json('prices').sources);
     const book = mockEnv.DB.json('prices');
     expect(book.items.usd).toMatchObject({ price: 95000, sourceId: 'src_def_usd' });

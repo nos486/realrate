@@ -292,6 +292,19 @@
   margin-top: 3px;
 }
 
+/* When a full card's price was last updated («۳۰ دقیقه پیش») */
+.pro-card-updated {
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+/* A compact card's main figure when it isn't the last price («میانگین ۳۰ روز») */
+.curr-main-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 /* A price whose source hasn't updated for a while */
 .home-stale-mark {
   align-self: flex-start;
@@ -1264,9 +1277,9 @@
 .pro-card-price .bubble-pill { margin-inline-start: auto; align-self: center; }
 .pro-metrics {
   display: grid;
-  /* As many equal columns as there are figures (one figure takes the whole row) */
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
+  /* Equal columns, as many as fit a figure in full (a narrow card wraps to a second row; one
+     figure takes the whole row) */
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
   gap: 6px;
 }
 .pro-metric {
@@ -1278,7 +1291,16 @@
   border-radius: 10px;
   background: color-mix(in srgb, var(--bg-input, rgba(255, 255, 255, 0.04)) 80%, transparent);
 }
-.pro-metric span { font-size: 10.5px; color: var(--text-muted); white-space: nowrap; }
+.pro-metric span,
+.pro-metric small {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* A linked asset's name, under the slot's label («حباب سکه امامی») */
+.pro-metric small { margin-top: -3px; font-size: 9.5px; }
 .pro-metric strong {
   font-size: 12.5px;
   font-weight: 800;
@@ -1434,3 +1456,85 @@
   .pro-card-inner { transition: none; }
 }
 
+
+/* ── «تنظیم کارت» (CardSettingsModal.jsx) ──────────────────────────────────── */
+.card-settings-group {
+  margin: 0 0 16px;
+  padding: 0;
+  border: none;
+}
+
+.card-settings-group legend {
+  margin-bottom: 8px;
+  color: var(--text-heading);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.card-settings-group legend small {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.card-settings-links + .card-settings-links {
+  margin-top: 12px;
+}
+
+.card-settings-links .card-settings-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+
+.card-settings-links h4 {
+  margin: 0 0 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.card-settings-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.card-settings-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-control);
+  color: var(--text-primary);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.card-settings-option.is-active {
+  border-color: var(--color-primary-border);
+  background: var(--color-primary-soft);
+}
+
+.card-settings-option.is-disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.card-settings-option span {
+  flex: 1;
+  min-width: 0;
+}
+
+.card-settings-option bdi {
+  color: var(--text-muted);
+  font-variant-numeric: proportional-nums;
+  white-space: nowrap;
+}
+
+.card-settings-hint {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}

@@ -25,6 +25,7 @@ import { logger } from "../../lib/logger.js";
 import { buildPriceBook, currencyOf, usdSeriesKey } from "../../domain/priceBook.js";
 import { tehranDay } from "../../repositories/priceHistory.repository.js";
 import { guardSourceItems } from "../../domain/priceGuard.js";
+import { withAverages } from "./priceAverages.service.js";
 import { fetchIntervalSecOf, isSourceDue, sourceKindOf, mergeCatalogItems } from "../../domain/priceSources.js";
 
 export { fetchIntervalSecOf };
@@ -293,6 +294,8 @@ export async function syncAllSources(env, options = {}) {
     ...src,
     lastFetched: states[src.id]?.fetchedAt || src.lastFetched || null,
   })), { now: nowIso, sourceStates: states }), previousBook, Date.parse(nowIso) || Date.now());
+  // Each item's 30-day and one-year averages: carried, moved forward once a day (priceAverages)
+  await withAverages(env, book, previousBook, Date.parse(nowIso) || Date.now());
   await setPriceBookCache(env, book);
 
   // 5. Price history, keyed by the book's ids (the writer never throws): only what moved since

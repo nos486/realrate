@@ -5,7 +5,8 @@
  * (detailed or compact). The header holds search, the base rates (USD / ounce inputs) and
  * "شخصی‌سازی", which switches to edit mode: drag cards and sections to reorder them, add or
  * remove assets, rename, change card style, show a dollar-priced asset in dollars or tomans,
- * start from a ready-made preset, or reset to default.
+ * set what a card shows («تنظیم کارت»: its main figure — the last price or an average — and a full
+ * card's slots, CardSettingsModal), start from a ready-made preset, or reset to default.
  * The layout is saved per user on the server (synced across devices); collapsed sections are
  * remembered per browser.
  */
@@ -40,6 +41,7 @@ import {
   GripVertical,
   ChevronDown,
   LayoutTemplate,
+  Settings2,
 } from 'lucide-react';
 import { SearchBar, EmptyState, Modal } from '../../shared/ui/index.js';
 import { SkeletonCards } from '../../shared/ui/Skeleton.jsx';
@@ -51,7 +53,8 @@ import { HOME_LAYOUT_LIMITS, HOME_PRICE_DISPLAYS } from '../../utils/homeLayout.
 import HomeAssetCard from './HomeAssetCard.jsx';
 import AssetPickerModal from './AssetPickerModal.jsx';
 import { useHomeLayout } from './useHomeLayout.js';
-import { buildAssetIndex, resolveHomeAsset } from './homeAssets.js';
+import { buildAssetIndex, resolveHomeAsset, cardOptionsOf } from './homeAssets.js';
+import CardSettingsModal from './CardSettingsModal.jsx';
 import {
   HOME_PRESETS,
   buildDefaultLayout,
@@ -62,6 +65,7 @@ import {
   addItem,
   removeItem,
   setItemDisplay,
+  setCardSettings,
   reorderSections,
   reorderItems,
 } from './homeLayoutModel.js';
@@ -133,7 +137,7 @@ function PriceDisplayToggle({ asset, onChange }) {
   );
 }
 
-function SortableItem({ asset, section, isBest, onRemove, onDisplay }) {
+function SortableItem({ asset, section, isBest, onRemove, onDisplay, onSettings }) {
   const { setNodeRef, setActivatorNodeRef, attributes, listeners, style, isDragging } = useSortableStyle(asset.id);
   const name = asset.name || asset.id;
   return (
@@ -151,6 +155,11 @@ function SortableItem({ asset, section, isBest, onRemove, onDisplay }) {
           <GripVertical size={15} />
         </button>
         {asset.usdPriced && <PriceDisplayToggle asset={asset} onChange={onDisplay} />}
+        {asset.found && (
+          <button type="button" className="home-item-tool" onClick={onSettings} aria-label={`تنظیم کارت ${name}`} title="تنظیم کارت">
+            <Settings2 size={15} />
+          </button>
+        )}
         <button type="button" className="home-item-tool is-danger" onClick={onRemove} aria-label={`حذف ${name}`}>
           <X size={15} />
         </button>
@@ -159,7 +168,7 @@ function SortableItem({ asset, section, isBest, onRemove, onDisplay }) {
   );
 }
 
-function SectionItems({ section, editing, recommendation, onReorder, onRemoveItem, onItemDisplay, onAdd }) {
+function SectionItems({ section, editing, recommendation, onReorder, onRemoveItem, onItemDisplay, onItemSettings, onAdd }) {
   const sensors = useDndSensors();
   const gridClass = section.style === 'compact' ? 'currency-cards-grid home-compact-list' : 'cards-modern-grid';
   const ids = section.resolved.map((a) => a.id);
@@ -196,6 +205,7 @@ function SectionItems({ section, editing, recommendation, onReorder, onRemoveIte
               isBest={recommendation?.best_id === asset.id}
               onRemove={() => onRemoveItem(asset.id)}
               onDisplay={(display) => onItemDisplay(asset.id, display)}
+              onSettings={() => onItemSettings(asset.id)}
             />
           ))}
           {section.items.length < HOME_LAYOUT_LIMITS.itemsPerSection && (
@@ -291,6 +301,8 @@ export default function HomeDashboard({
   const [presetsOpen, setPresetsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [pickerSectionId, setPickerSectionId] = useState(null);
+  // The card whose «تنظیم کارت» is open: { sectionId, assetId }
+  const [cardSettingsOf, setCardSettingsOf] = useState(null);
   const [collapsed, toggleCollapsed] = useCollapsedSections();
   const sectionSensors = useDndSensors();
 
@@ -306,12 +318,14 @@ export default function HomeDashboard({
   // Search only filters the normal view; edit mode always shows everything
   const q = !editing && searchOpen ? query.trim().toLowerCase() : '';
   const sections = useMemo(() => effective.sections.map((section) => {
-    const items = section.items.map((id) => resolveHomeAsset(id, index, section.display?.[id]));
+    const items = section.items.map((id) => resolveHomeAsset(id, index, section.display?.[id], section.cards?.[id]));
     return { ...section, resolved: q ? items.filter((a) => a.found && a.searchText.includes(q)) : items };
   }), [effective, index, q]);
 
   const commit = (fn) => setLayout(fn(effective));
   const pickerSection = effective.sections.find((s) => s.id === pickerSectionId) || null;
+  const settingsSection = cardSettingsOf ? effective.sections.find((s) => s.id === cardSettingsOf.sectionId) || null : null;
+  const settingsAsset = settingsSection ? sections.find((s) => s.id === settingsSection.id)?.resolved.find((a) => a.id === cardSettingsOf.assetId) || null : null;
   const hasData = Boolean(analysis?.length || currencies?.length || assets?.length);
 
   const startEditing = () => {
@@ -380,6 +394,7 @@ export default function HomeDashboard({
       onReorder={(activeId, overId) => commit((l) => reorderItems(l, section.id, activeId, overId))}
       onRemoveItem={(assetId) => commit((l) => removeItem(l, section.id, assetId))}
       onItemDisplay={(assetId, display) => commit((l) => setItemDisplay(l, section.id, assetId, display))}
+      onItemSettings={(assetId) => setCardSettingsOf({ sectionId: section.id, assetId })}
       onAdd={() => setPickerSectionId(section.id)}
     />
   );
@@ -524,6 +539,21 @@ export default function HomeDashboard({
             <span>پایان</span>
           </button>
         </div>
+      )}
+
+      {settingsAsset && (
+        <CardSettingsModal
+          key={`${settingsSection.id}:${settingsAsset.id}`}
+          asset={settingsAsset}
+          options={cardOptionsOf(settingsAsset.id, index, settingsSection.display?.[settingsAsset.id])}
+          settings={settingsSection.cards?.[settingsAsset.id] || null}
+          detailed={settingsSection.style !== 'compact'}
+          onClose={() => setCardSettingsOf(null)}
+          onSave={(settings) => {
+            commit((l) => setCardSettings(l, settingsSection.id, settingsAsset.id, settings));
+            setCardSettingsOf(null);
+          }}
+        />
       )}
 
       <PresetsModal isOpen={presetsOpen} onClose={() => setPresetsOpen(false)} onPick={applyPreset} />

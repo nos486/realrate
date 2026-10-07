@@ -1,7 +1,7 @@
 /**
  * homeLayoutModel.js — Default home page, ready-made presets and pure edit operations
  *
- * A layout is `{ version, sections: [{ id, title, style, items: [assetId], display? }] }` (validated by
+ * A layout is `{ version, sections: [{ id, title, style, items: [assetId], display?, cards? }] }` (validated by
  * utils/homeLayout.js, shared with the API). Every operation returns a new layout.
  */
 
@@ -29,6 +29,7 @@ const layoutOf = (sections) => sanitizeHomeLayout({
     ...s,
     items: (s.items || []).map((id) => toPriceId(id)),
     ...(s.display ? { display: Object.fromEntries(Object.entries(s.display).map(([id, v]) => [toPriceId(id), v])) } : {}),
+    ...(s.cards ? { cards: Object.fromEntries(Object.entries(s.cards).map(([id, v]) => [toPriceId(id), v])) } : {}),
   })),
 });
 
@@ -164,7 +165,7 @@ export function moveSection(layout, sectionId, delta) {
 }
 
 export function updateSection(layout, sectionId, patch) {
-  return mapSection(layout, sectionId, (s) => ({ ...s, ...patch, id: s.id, items: s.items, display: s.display }));
+  return mapSection(layout, sectionId, (s) => ({ ...s, ...patch, id: s.id, items: s.items, display: s.display, cards: s.cards }));
 }
 
 /**
@@ -177,6 +178,23 @@ export function setItemDisplay(layout, sectionId, assetId, display) {
     if (display === 'toman') next[assetId] = 'toman';
     else delete next[assetId];
     return { ...s, display: next };
+  });
+}
+
+/**
+ * What one card shows (utils/cardMetrics.js): its main figure (`main`, absent = the last price)
+ * and a full card's slots (`slots`, absent = the default). `null` settings restore the defaults.
+ * @param {{ main?: string, slots?: string[] }|null} settings
+ */
+export function setCardSettings(layout, sectionId, assetId, settings) {
+  return mapSection(layout, sectionId, (s) => {
+    const cards = { ...(s.cards || {}) };
+    const next = {};
+    if (settings?.main && settings.main !== 'price') next.main = settings.main;
+    if (Array.isArray(settings?.slots)) next.slots = settings.slots;
+    if (Object.keys(next).length) cards[assetId] = next;
+    else delete cards[assetId];
+    return { ...s, cards };
   });
 }
 

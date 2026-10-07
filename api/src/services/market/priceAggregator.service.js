@@ -8,6 +8,7 @@
 import { dbGetPriceSources } from "../../repositories/priceSource.repository.js";
 import { getPriceBookCache, setPriceBookCache } from "../../repositories/priceBookStore.repository.js";
 import { buildPriceBook } from "../../domain/priceBook.js";
+import { carryAverages } from "../../domain/priceAverages.js";
 import { legacyPricesOf } from "../../domain/priceBookViews.js";
 import { getAdapterForSource } from "./sources/index.js";
 import { logger } from "../../lib/logger.js";
@@ -16,7 +17,7 @@ import { withDayRange } from "./sourceSync.service.js";
 
 /**
  * Rebuild the price book from what every source last gave (no fetching), keeping each source's
- * sync state and each item's day range and change (withDayRange). Called after an admin changes a
+ * sync state and each item's day range, change (withDayRange) and averages (carryAverages). Called after an admin changes a
  * source.
  * @param {object} env
  * @returns {Promise<object|null>} the book
@@ -30,6 +31,7 @@ export async function refreshPriceBook(env) {
       ...s,
       lastFetched: s.lastFetched || null,
     })), { sourceStates: previous?.sources || {} }), previous, Date.now());
+    carryAverages(book, previous);
     await setPriceBookCache(env, book);
     return book;
   } catch (e) {
