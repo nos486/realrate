@@ -219,7 +219,7 @@ export function resolveFormulaCard(id, formula, index) {
     id,
     found: true,
     name: formula.name,
-    formula: { tree: parsed.tree, expr: parsed.expr, text: formatFormula(parsed.expr), format: formula.format, vars },
+    formula: { tree: parsed.tree, expr: parsed.expr, text: formatFormula(parsed.expr), format: formula.format, stats: formula.stats || null, vars },
     value,
     valueText: formatFormulaValue(value, formula.format),
     updatedAt: times.length ? new Date(Math.min(...times)).toISOString() : null,

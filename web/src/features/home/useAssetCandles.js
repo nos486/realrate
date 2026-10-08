@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from 'react';
 import { getSparklines } from '../market/api/marketApi.js';
-import { formulaSeries, formulaShownValue } from '../../utils/cardFormula.js';
+import { formulaSeries, formulaShownValue, seriesStats } from '../../utils/cardFormula.js';
 
 const TTL_MS = 5 * 60 * 1000;
 const cache = new Map(); // `${ids}|${range}` → { at, promise }
@@ -56,11 +56,28 @@ export function clearAssetCandlesCache() {
  * @param {'30d'|'180d'|'1y'} [range]
  * @returns {{ status: 'idle'|'loading'|'ready'|'empty'|'error', series: object|null }}
  */
+const formulaKey = (asset, range) => {
+  const f = asset.formula;
+  return `${asset.id}:${f.expr}:${f.vars.map((v) => v.id).join(',')}:${f.format}|${range}`;
+};
+
 export function useCardCandles(asset, enabled, range = '30d') {
   const formula = asset?.formula || null;
   const assetId = String(asset?.seriesId || asset?.id || '').toLowerCase();
-  const key = formula ? `${asset.id}:${formula.expr}:${formula.vars.map((v) => v.id).join(',')}:${formula.format}|${range}` : assetId ? `${assetId}|${range}` : '';
+  const key = formula ? formulaKey(asset, range) : assetId ? `${assetId}|${range}` : '';
   return useSeries(key, enabled, () => (formula ? loadFormula(formula, range) : load(assetId, range)));
+}
+
+/**
+ * A formula card's highest, lowest and average value over its statistics window (`formula.stats`),
+ * from the same series as its chart (one request, cached); nothing for any other card
+ * @param {object} asset - a resolved home card (homeAssets.js)
+ * @returns {{ status: string, stats: { max: number, min: number, avg: number, days: number }|null }}
+ */
+export function useFormulaStats(asset) {
+  const range = asset?.formula?.stats || null;
+  const { status, series } = useSeries(range ? formulaKey(asset, range) : '', Boolean(range), () => loadFormula(asset.formula, range));
+  return { status, stats: status === 'ready' ? seriesStats(series?.points) : null };
 }
 
 /** A series loaded once per key while enabled */

@@ -13,6 +13,8 @@ import {
   formulaSeries,
   sanitizeFormulaCard,
   isFormulaId,
+  seriesStats,
+  formatFormulaShown,
   FORMULA_PRESETS,
 } from '../../src/domain/cardFormula.js';
 import { sanitizeHomeLayout } from '../../src/domain/homeLayout.js';
@@ -61,14 +63,42 @@ describe('parsing a formula', () => {
   });
 });
 
-describe('the coin bubble percent (the ready formula)', () => {
+describe('the ready formulas: each coin\'s bubble percent', () => {
+  it('one per coin bubble in the specs: x = the bubble, y = its coin, a percent with 30-day stats', () => {
+    expect(FORMULA_PRESETS.map((p) => p.vars)).toEqual([
+      { x: 'bubble_full_coin', y: 'full_coin' },
+      { x: 'bubble_half_coin', y: 'half_coin' },
+      { x: 'bubble_quarter_coin', y: 'quarter_coin' },
+      { x: 'bubble_gerami_coin', y: 'gerami_coin' },
+    ]);
+    for (const p of FORMULA_PRESETS) {
+      expect(p).toMatchObject({ expr: 'x/(y-x)', format: 'percent', stats: '30d' });
+      expect(sanitizeFormulaCard({ name: p.label, ...p })).toBeTruthy();
+    }
+    expect(FORMULA_PRESETS.map((p) => p.label)).toContain('درصد حباب نیم سکه');
+  });
+
   it('x / (y - x): the bubble over the coin\'s gold value, as a percent', () => {
-    const preset = FORMULA_PRESETS.find((p) => p.key === 'bubble_pct');
+    const preset = FORMULA_PRESETS[0];
     expect(formatFormula(preset.expr)).toBe('x / (y - x)');
-    expect(preset.vars).toEqual({ x: 'bubble_full_coin', y: 'full_coin' });
     const value = evaluateFormula(parseFormula(preset.expr).tree, { x: 12_496_000, y: 76_100_000 });
     expect(formatFormulaValue(value, preset.format)).toBe('۱۹٫۶۵٪');
     expect(formatFormulaValue(value, 'number')).toBe('۰٫۱۹۶۵');
+  });
+});
+
+describe('a formula card\'s statistics', () => {
+  it('the highest, lowest and average value of its series', () => {
+    expect(seriesStats([18, 22, 20])).toEqual({ max: 22, min: 18, avg: 20, days: 3 });
+    expect(seriesStats([])).toBeNull();
+    expect(formatFormulaShown(19.6, 'percent')).toBe('۱۹٫۶٪');
+  });
+
+  it('a window of 30 days or a year is kept; any other is dropped', () => {
+    const base = { name: 'n', expr: 'x', vars: { x: 'usd' } };
+    expect(sanitizeFormulaCard({ ...base, stats: '1y' }).stats).toBe('1y');
+    expect(sanitizeFormulaCard({ ...base, stats: '7d' })).not.toHaveProperty('stats');
+    expect(sanitizeFormulaCard(base)).not.toHaveProperty('stats');
   });
 });
 

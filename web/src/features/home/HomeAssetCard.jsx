@@ -13,17 +13,20 @@
  * (`asset.display: 'toman'`, homeAssets.js): then the dollar price is the small line under it.
  * A section saved with the older "trend" style is shown as full cards.
  * A card the user built with a formula (homeAssets.js resolveFormulaCard) shows the formula's
- * value, the formula with which asset each letter is, and — turned — the formula's daily chart.
+ * value, the formula with which asset each letter is, its highest, lowest and average value over
+ * 30 days or a year when set (the one card that reads a series in front: its assets' series in one
+ * request, which its chart then reuses), and — turned — the formula's daily chart.
  */
 
 import React, { useState } from 'react';
 import { ChartCandlestick, Sigma } from 'lucide-react';
 import { CategoryIcon } from '../portfolio/utils/holdingHelpers.js';
 import TrendCandles from './TrendCandles.jsx';
-import { useCardCandles } from './useAssetCandles.js';
+import { useCardCandles, useFormulaStats } from './useAssetCandles.js';
 import { formatPrice } from '../market/assetPrice.js';
 import { AVERAGE_WINDOWS } from '../../utils/priceAverages.js';
 import { timeAgo } from '../../shared/utils/timeAgo.js';
+import { FORMULA_STATS, formatFormulaShown } from '../../utils/cardFormula.js';
 
 // In the asset's own currency: dollars keep their cents, tomans are whole (a coin worth 0.37
 // toman is not 0)
@@ -114,6 +117,32 @@ function FormulaCaption({ formula }) {
         <span key={v.key}> · <bdi dir="ltr">{v.key}</bdi>: {v.name}</span>
       ))}
     </span>
+  );
+}
+
+/**
+ * A formula card's highest, lowest and average value over its window («بیشینه ۳۰ روز»): from the
+ * series its chart reads (one request for its assets, cached)
+ */
+function FormulaStats({ asset }) {
+  const { status, stats } = useFormulaStats(asset);
+  const range = asset.formula.stats;
+  if (!range || status === 'empty' || status === 'error') return null;
+  const label = FORMULA_STATS[range];
+  const cells = [
+    { key: 'max', label: `بیشینه ${label}` },
+    { key: 'min', label: `کمینه ${label}` },
+    { key: 'avg', label: `میانگین ${label}` },
+  ];
+  return (
+    <div className="pro-metrics" aria-busy={!stats}>
+      {cells.map((c) => (
+        <div key={c.key} className="pro-metric" title={stats ? `${c.label} (از ${stats.days.toLocaleString('fa-IR')} روز ثبت‌شده)` : c.label}>
+          <span>{c.label}</span>
+          <strong><bdi>{stats ? formatFormulaShown(stats[c.key], asset.formula.format) : '…'}</bdi></strong>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -312,7 +341,7 @@ function FullCard({ asset, isBest = false, flippable = true }) {
               به‌روزرسانی {timeAgo(asset.updatedAt)}
             </span>
           )}
-          <CardSlots slots={asset.slots} />
+          {formula ? <FormulaStats asset={asset} /> : <CardSlots slots={asset.slots} />}
           <div className="pro-card-foot">
             <DayRange range={asset.dayRange} currency={asset.currency} />
             {flippable && (
