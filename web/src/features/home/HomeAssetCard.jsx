@@ -105,13 +105,13 @@ function CompactCard({ asset }) {
   );
 }
 
-/** A formula card's formula, and which asset each letter is («الف: حباب سکه امامی») */
+/** A formula card's formula, and which asset each letter is («x: حباب سکه امامی») */
 function FormulaCaption({ formula }) {
   return (
     <span className="home-price-caption home-formula-caption">
-      <bdi>{formula.text}</bdi>
+      <bdi dir="ltr">{formula.text}</bdi>
       {formula.vars.map((v) => (
-        <span key={v.key}> · {v.label}: {v.name}</span>
+        <span key={v.key}> · <bdi dir="ltr">{v.key}</bdi>: {v.name}</span>
       ))}
     </span>
   );
