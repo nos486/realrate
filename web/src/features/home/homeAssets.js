@@ -23,6 +23,7 @@ import {
   metricValue,
   parseSlotKey,
 } from '../../utils/cardMetrics.js';
+import { FORMULA_VARS, parseFormula, evaluateFormula, formatFormula, formatFormulaValue } from '../../utils/cardFormula.js';
 
 /**
  * Lookup tables built once per data refresh
@@ -188,4 +189,44 @@ export function cardOptionsOf(id, index, display = null) {
     display: shownIn,
   }).map((o) => ({ ...o, linkedName: o.linkedId ? assetOf(index.itemMap, o.linkedId)?.name || o.linkedId : '' }));
   return { main, slots };
+}
+
+/**
+ * A card the user built with a formula (utils/cardFormula.js): its value at the book's prices
+ * (tomans), its formula as read («الف ÷ (ب − الف)») with which asset each letter is, and when it was
+ * last updated — as fresh as its stalest asset
+ * @param {string} id - the card's id (fx_…)
+ * @param {{ name: string, expr: string, vars: Record<string, string>, format: string }} formula
+ * @param {object} index - buildAssetIndex()
+ */
+export function resolveFormulaCard(id, formula, index) {
+  const parsed = parseFormula(formula?.expr);
+  if (!parsed.ok) return { id, found: false };
+  const vars = parsed.vars.map((key) => {
+    const asset = assetOf(index.itemMap, formula.vars?.[key]);
+    return {
+      key,
+      label: FORMULA_VARS.find((v) => v.key === key).label,
+      id: asset?.id || formula.vars?.[key] || '',
+      name: asset?.name || formula.vars?.[key] || '',
+      price: Number(asset?.price) > 0 ? Number(asset.price) : null,
+      updatedAt: asset?.updatedAt || null,
+      stale: Boolean(asset?.stale),
+    };
+  });
+  const value = evaluateFormula(parsed.tree, Object.fromEntries(vars.map((v) => [v.key, v.price])));
+  const times = vars.map((v) => Date.parse(v.updatedAt || '')).filter(Number.isFinite);
+  return {
+    id,
+    found: true,
+    name: formula.name,
+    formula: { tree: parsed.tree, expr: parsed.expr, text: formatFormula(parsed.expr), format: formula.format, vars },
+    value,
+    valueText: formatFormulaValue(value, formula.format),
+    updatedAt: times.length ? new Date(Math.min(...times)).toISOString() : null,
+    stale: vars.some((v) => v.stale),
+    staleSince: null,
+    searchText: [formula.name, ...vars.map((v) => v.name)].join(' ').toLowerCase(),
+    slots: [],
+  };
 }

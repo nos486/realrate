@@ -73,7 +73,7 @@ realrate/
 | `utils/clientInfo.js` | `domain/clientInfo.js` — سرآیند کلاینت (اپ/وب و نسخه) |
 | `utils/userGroups.js` | `domain/userGroups.js` — گروه‌های کاربران (شناسه، اعتبارسنجی) |
 | `utils/homeLayout.js`، `portfolioLayout.js` | `domain/` — چیدمان صفحه اصلی و دسته‌های پورتفو |
-| `utils/cardMetrics.js`، `priceAverages.js` | `domain/` — آنچه کارت صفحه اصلی نشان می‌دهد (مقدارها، جایگاه‌ها، دارایی‌های مرتبط) و میانگین‌های دفتر قیمت |
+| `utils/cardMetrics.js`، `priceAverages.js`، `cardFormula.js` | `domain/` — آنچه کارت صفحه اصلی نشان می‌دهد (مقدارها، جایگاه‌ها، دارایی‌های مرتبط)، میانگین‌های دفتر قیمت و کارت‌های ترکیبی با فرمول |
 | `utils/financialSpecs.js` | `lib/financialSpecs.js` |
 
 برای تغییر هر کدام، فایل مبدأ در `api/` را ویرایش کنید. `utils/calculator.js` و `utils/pricingEngine.js` مال خود وب‌اند (ارزش ذاتی و حباب با نرخ زنده).

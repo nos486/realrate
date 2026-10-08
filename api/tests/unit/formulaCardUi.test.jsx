@@ -1,0 +1,112 @@
+// @vitest-environment happy-dom
+/**
+ * formulaCardUi.test.jsx — A home card built with a formula: its value at the book's prices and the
+ * formula with which asset each letter is; turned, its chart from its assets' series in one request;
+ * «کارت ترکیبی» fills the ready coin-bubble formula and saves a complete card only
+ */
+import React from 'react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, cleanup, screen, fireEvent, within, waitFor } from '@testing-library/react';
+
+const api = vi.hoisted(() => ({ getSparklines: vi.fn() }));
+vi.mock('../../../web/src/features/market/api/marketApi.js', () => api);
+
+const minutesAgo = (m) => new Date(Date.now() - m * 60_000).toISOString();
+const itemMap = {
+  full_coin: { id: 'full_coin', name: 'سکه امامی', price: 76_100_000, updatedAt: minutesAgo(5) },
+  bubble_full_coin: { id: 'bubble_full_coin', name: 'حباب سکه امامی', price: 12_496_000, updatedAt: minutesAgo(20) },
+};
+const searchAssets = (q) => Object.values(itemMap).filter((a) => !q || a.name.includes(q));
+vi.mock('../../../web/src/features/market/context/PricingContext.jsx', () => ({ usePricing: () => ({ itemMap, searchAssets }) }));
+
+const { default: HomeAssetCard } = await import('../../../web/src/features/home/HomeAssetCard.jsx');
+const { default: FormulaCardModal } = await import('../../../web/src/features/home/FormulaCardModal.jsx');
+const { buildAssetIndex, resolveFormulaCard } = await import('../../../web/src/features/home/homeAssets.js');
+const { clearAssetCandlesCache } = await import('../../../web/src/features/home/useAssetCandles.js');
+const { saveFormulaCard, removeItem } = await import('../../../web/src/features/home/homeLayoutModel.js');
+
+afterEach(() => {
+  cleanup();
+  clearAssetCandlesCache();
+  api.getSparklines.mockReset();
+});
+
+const index = buildAssetIndex({ itemMap, analysis: [] });
+const def = { name: 'درصد حباب سکه', expr: 'a/(b-a)', vars: { a: 'bubble_full_coin', b: 'full_coin' }, format: 'percent' };
+
+describe('a formula card', () => {
+  it('shows the formula\'s value, the formula with its assets, and its stalest asset\'s time', () => {
+    const card = resolveFormulaCard('fx_abcd', def, index);
+    const { container } = render(<HomeAssetCard asset={card} style="detailed" />);
+    expect(container.querySelector('.pro-card-price-value').textContent).toBe('۱۹٫۶۵٪');
+    expect(screen.getByText('الف ÷ (ب − الف)')).toBeTruthy();
+    expect(screen.getByText(/الف: حباب سکه امامی/)).toBeTruthy();
+    expect(screen.getByText(/ب: سکه امامی/)).toBeTruthy();
+    expect(screen.getByText('به‌روزرسانی ۲۰ دقیقه پیش')).toBeTruthy();
+  });
+
+  it('turned, draws the formula of its assets\' daily candles, fetched in one request', async () => {
+    api.getSparklines.mockResolvedValue({ available: true, sparklines: {
+      bubble_full_coin: { days: ['2026-10-06', '2026-10-07'], points: [10, 20], candles: [[10, 10, 10, 10], [10, 20, 10, 20]] },
+      full_coin: { days: ['2026-10-06', '2026-10-07'], points: [110, 120], candles: [[110, 110, 110, 110], [110, 120, 110, 120]] },
+    } });
+    const { container } = render(<HomeAssetCard asset={resolveFormulaCard('fx_abcd', def, index)} style="detailed" />);
+    fireEvent.click(container.querySelector('.home-pro-card'));
+    await waitFor(() => expect(container.querySelector('.pro-card-chart')).toBeTruthy());
+    expect(api.getSparklines).toHaveBeenCalledTimes(1);
+    expect(api.getSparklines.mock.calls[0][0]).toEqual(['bubble_full_coin', 'full_coin']);
+  });
+
+  it('a compact card shows its value', () => {
+    const { container } = render(<HomeAssetCard asset={resolveFormulaCard('fx_abcd', def, index)} style="compact" />);
+    expect(container.querySelector('.curr-price-val').textContent).toBe('۱۹٫۶۵٪');
+  });
+
+  it('a missing asset: no value', () => {
+    const card = resolveFormulaCard('fx_abcd', { ...def, vars: { a: 'gone', b: 'full_coin' } }, index);
+    expect(card.value).toBeNull();
+    render(<HomeAssetCard asset={card} style="detailed" />);
+    expect(screen.getByText('نرخ در دسترس نیست')).toBeTruthy();
+  });
+});
+
+describe('«کارت ترکیبی»', () => {
+  it('the ready formula fills the card; it is saved as stored', () => {
+    const onSave = vi.fn();
+    render(<FormulaCardModal formula={null} onSave={onSave} onClose={() => {}} />);
+    expect(screen.getByRole('button', { name: 'افزودن کارت' }).disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: /درصد حباب — الف ÷ \(ب − الف\)/ }));
+    expect(screen.getByRole('status').textContent).toContain('۱۹٫۶۵٪');
+    fireEvent.click(screen.getByRole('button', { name: 'افزودن کارت' }));
+    expect(onSave).toHaveBeenCalledWith({ name: 'درصد حباب', expr: 'a/(b-a)', vars: { a: 'bubble_full_coin', b: 'full_coin' }, format: 'percent' });
+  });
+
+  it('says what is wrong with a formula and saves nothing until each letter has an asset', () => {
+    render(<FormulaCardModal formula={null} onSave={() => {}} onClose={() => {}} />);
+    const [name, formula] = screen.getAllByRole('textbox');
+    fireEvent.change(name, { target: { value: 'نسبت' } });
+    fireEvent.change(formula, { target: { value: 'الف ÷ (' } });
+    expect(screen.getByText(/ناتمام/)).toBeTruthy();
+    fireEvent.change(formula, { target: { value: 'الف ÷ ب' } });
+    expect(screen.getByRole('button', { name: 'افزودن کارت' }).disabled).toBe(true);
+    const pickers = document.querySelectorAll('.formula-var');
+    expect(pickers).toHaveLength(2);
+    fireEvent.click(within(pickers[0]).getByRole('button', { name: /حباب سکه امامی/ }));
+    fireEvent.click(within(document.querySelectorAll('.formula-var')[1]).getByRole('button', { name: /^سکه امامی/ }));
+    expect(screen.getByRole('button', { name: 'افزودن کارت' }).disabled).toBe(false);
+  });
+});
+
+describe('the layout', () => {
+  it('adds a formula card to a section, edits it, and drops its definition with the card', () => {
+    const layout = { version: 1, sections: [{ id: 's1', title: '', style: 'detailed', items: ['usd'] }] };
+    const added = saveFormulaCard(layout, 's1', null, def);
+    const id = added.sections[0].items[1];
+    expect(id).toMatch(/^fx_[a-z0-9]+$/);
+    expect(added.sections[0].formulas[id]).toEqual(def);
+    const edited = saveFormulaCard(added, 's1', id, { ...def, name: 'تازه' });
+    expect(edited.sections[0].items).toHaveLength(2);
+    expect(edited.sections[0].formulas[id].name).toBe('تازه');
+    expect(removeItem(edited, 's1', id).sections[0].formulas).toBeUndefined();
+  });
+});

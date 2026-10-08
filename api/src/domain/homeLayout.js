@@ -23,9 +23,15 @@
  * slots: ["intrinsic", "bubble/price", "bubble/avg:30d"] } }` — its main figure (absent: the last
  * price) and a full card's slots (absent: the default, the bubble analysis for gold and coins; an
  * empty list: none). Only cards of the section's own items are kept.
+ *
+ * A section can also hold cards the user built from several assets with a formula (cardFormula.js):
+ * `formulas: { fx_ab12: { name, expr: "a/(b-a)", vars: { a: "bubble_full_coin", b: "full_coin" },
+ * format: "percent" } }`, each placed by its id in `items`. A formula card without a valid
+ * definition is dropped, and so is a definition whose card isn't in the section.
  */
 
 import { MAIN_METRICS, CARD_SLOT_LIMIT, parseSlotKey } from "./cardMetrics.js";
+import { isFormulaId, sanitizeFormulaCard, FORMULA_ID_RE } from "./cardFormula.js";
 
 export const HOME_LAYOUT_VERSION = 1;
 
@@ -58,7 +64,8 @@ const SECTION_ID_RE = /^[A-Za-z0-9_-]{1,40}$/;
  * input isn't a layout at all (so callers can fall back to the default home page).
  * @param {unknown} input
  * @returns {{ version: number, sections: Array<{ id: string, title: string, style: string, items: string[],
- *   display?: Record<string, "toman">, cards?: Record<string, { main?: string, slots?: string[] }> }> }|null}
+ *   display?: Record<string, "toman">, cards?: Record<string, { main?: string, slots?: string[] }>,
+ *   formulas?: Record<string, object> }> }|null}
  */
 export function sanitizeHomeLayout(input) {
   if (!input || typeof input !== "object" || !Array.isArray(input.sections)) return null;
@@ -77,12 +84,19 @@ export function sanitizeHomeLayout(input) {
     const rawStyle = LEGACY_STYLES[raw.style] || raw.style;
     const style = Object.hasOwn(HOME_SECTION_STYLES, rawStyle) ? rawStyle : "compact";
 
+    const rawFormulas = raw.formulas && typeof raw.formulas === "object" ? raw.formulas : {};
     const seenItems = new Set();
     const items = [];
+    const formulas = {};
     for (const item of Array.isArray(raw.items) ? raw.items : []) {
       if (items.length >= HOME_LAYOUT_LIMITS.itemsPerSection) break;
       const assetId = String(item ?? "").trim();
       if (!assetId || assetId.length > HOME_LAYOUT_LIMITS.idLength || seenItems.has(assetId)) continue;
+      if (isFormulaId(assetId)) {
+        const formula = FORMULA_ID_RE.test(assetId) && Object.hasOwn(rawFormulas, assetId) ? sanitizeFormulaCard(rawFormulas[assetId]) : null;
+        if (!formula) continue;
+        formulas[assetId] = formula;
+      }
       seenItems.add(assetId);
       items.push(assetId);
     }
@@ -103,6 +117,7 @@ export function sanitizeHomeLayout(input) {
       items,
       ...(Object.keys(display).length ? { display } : {}),
       ...(Object.keys(cards).length ? { cards } : {}),
+      ...(Object.keys(formulas).length ? { formulas } : {}),
     });
   }
 

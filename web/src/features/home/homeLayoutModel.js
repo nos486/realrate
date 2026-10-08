@@ -7,6 +7,7 @@
 
 import { sanitizeHomeLayout, HOME_LAYOUT_VERSION, HOME_LAYOUT_LIMITS } from '../../utils/homeLayout.js';
 import { toPriceId } from '../../utils/priceIds.js';
+import { isFormulaId, sanitizeFormulaCard } from '../../utils/cardFormula.js';
 
 /** A stored layout with its items as price book ids (older layouts saved "USD", "src_def_…") */
 export function normalizeLayoutIds(layout) {
@@ -27,7 +28,11 @@ const layoutOf = (sections) => sanitizeHomeLayout({
   version: HOME_LAYOUT_VERSION,
   sections: sections.map((s) => ({
     ...s,
-    items: (s.items || []).map((id) => toPriceId(id)),
+    // A formula card's id is its own; the assets its formula reads are price book ids
+    items: (s.items || []).map((id) => (isFormulaId(id) ? id : toPriceId(id))),
+    ...(s.formulas ? {
+      formulas: Object.fromEntries(Object.entries(s.formulas).map(([id, f]) => [id, sanitizeFormulaCard(f, (v) => toPriceId(v))])),
+    } : {}),
     ...(s.display ? { display: Object.fromEntries(Object.entries(s.display).map(([id, v]) => [toPriceId(id), v])) } : {}),
     ...(s.cards ? { cards: Object.fromEntries(Object.entries(s.cards).map(([id, v]) => [toPriceId(id), v])) } : {}),
   })),
@@ -165,7 +170,7 @@ export function moveSection(layout, sectionId, delta) {
 }
 
 export function updateSection(layout, sectionId, patch) {
-  return mapSection(layout, sectionId, (s) => ({ ...s, ...patch, id: s.id, items: s.items, display: s.display, cards: s.cards }));
+  return mapSection(layout, sectionId, (s) => ({ ...s, ...patch, id: s.id, items: s.items, display: s.display, cards: s.cards, formulas: s.formulas }));
 }
 
 /**
@@ -195,6 +200,25 @@ export function setCardSettings(layout, sectionId, assetId, settings) {
     if (Object.keys(next).length) cards[assetId] = next;
     else delete cards[assetId];
     return { ...s, cards };
+  });
+}
+
+export const newFormulaId = () => `fx_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+
+/**
+ * Add a card built with a formula (utils/cardFormula.js) to a section, or change one
+ * @param {string|null} cardId - the card's id, or null for a new card
+ * @param {{ name: string, expr: string, vars: Record<string, string>, format: string }} formula
+ */
+export function saveFormulaCard(layout, sectionId, cardId, formula) {
+  return mapSection(layout, sectionId, (s) => {
+    const id = cardId || newFormulaId();
+    if (!cardId && s.items.length >= HOME_LAYOUT_LIMITS.itemsPerSection) return s;
+    return {
+      ...s,
+      items: s.items.includes(id) ? s.items : [...s.items, id],
+      formulas: { ...(s.formulas || {}), [id]: formula },
+    };
   });
 }
 
