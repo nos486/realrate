@@ -197,9 +197,9 @@ export default function MainPage() {
     ['reports', isReports],
   ].find(([, matches]) => matches)?.[0] || 'market';
 
-  // The header's refresh button and the window getting focus again read only what this tab
-  // shows (shared/refresh): never the prices on the news tab, never on a timer
-  usePageScopes(refreshScopesOf(activeTab, { appLayout, hasMarket }));
+  // The header's refresh button, the window getting focus again and opening the tab again read
+  // only what this tab shows (shared/refresh): never the prices on the news tab, never on a timer
+  usePageScopes(refreshScopesOf(activeTab, { appLayout, hasMarket }), activeTab);
   useEffect(() => startFocusRefresh(), []);
 
   const tabTitle = useMemo(() => {

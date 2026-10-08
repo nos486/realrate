@@ -51,8 +51,8 @@ const flush = () => act(async () => {
 });
 
 /** A tab: names its scopes, and mounts a loader for each kind of data given */
-function Page({ scopes, loaders }) {
-  usePageScopes(scopes);
+function Page({ scopes, loaders, tab }) {
+  usePageScopes(scopes, tab);
   return Object.entries(loaders).map(([scope, fn]) => <Loader key={scope} scope={scope} fn={fn} />);
 }
 function Loader({ scope, fn }) {
@@ -204,6 +204,49 @@ describe('the window getting focus again', () => {
       await refreshOnFocus();
     });
     expect(news).toHaveBeenCalledTimes(2);
+    stop();
+  });
+});
+
+describe('opening a tab again', () => {
+  it('reads the prices and news it shows again (kept for the visit), not its records — at most once per gap', async () => {
+    vi.useFakeTimers();
+    const prices = vi.fn();
+    const news = vi.fn();
+    const expenses = vi.fn();
+    const home = { scopes: refreshScopesOf('market', { appLayout: true }), tab: 'market' };
+    const other = { scopes: refreshScopesOf('expenses'), tab: 'expenses' };
+    const loaders = { prices, news, expenses };
+    const { rerender } = render(<Page {...home} loaders={loaders} />);
+    let stop;
+    act(() => {
+      stop = startFocusRefresh();
+    });
+
+    // A quick switch away and back: what the page just loaded is still fresh
+    rerender(<Page {...other} loaders={loaders} />);
+    rerender(<Page {...home} loaders={loaders} />);
+    await flush();
+    expect(prices).not.toHaveBeenCalled();
+
+    await act(async () => {
+      vi.advanceTimersByTime(AUTO_REFRESH_GAP_MS);
+    });
+    rerender(<Page {...other} loaders={loaders} />);
+    await flush();
+    // The expenses tab loads its own records on opening; nothing is kept for it
+    expect(expenses).not.toHaveBeenCalled();
+    rerender(<Page {...home} loaders={loaders} />);
+    await flush();
+    expect(prices).toHaveBeenCalledTimes(1);
+    expect(news).toHaveBeenCalledTimes(1);
+    expect(expenses).not.toHaveBeenCalled();
+
+    // Back again right away: read a moment ago
+    rerender(<Page {...other} loaders={loaders} />);
+    rerender(<Page {...home} loaders={loaders} />);
+    await flush();
+    expect(prices).toHaveBeenCalledTimes(1);
     stop();
   });
 });
