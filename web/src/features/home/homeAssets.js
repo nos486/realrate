@@ -23,7 +23,7 @@ import {
   metricValue,
   parseSlotKey,
 } from '../../utils/cardMetrics.js';
-import { FORMULA_VARS, parseFormula, evaluateFormula, formatFormula, formatFormulaValue } from '../../utils/cardFormula.js';
+import { parseFormula, evaluateFormula, formatFormula, formatFormulaValue } from '../../utils/cardFormula.js';
 
 /**
  * Lookup tables built once per data refresh
@@ -193,7 +193,7 @@ export function cardOptionsOf(id, index, display = null) {
 
 /**
  * A card the user built with a formula (utils/cardFormula.js): its value at the book's prices
- * (tomans), its formula as read («الف ÷ (ب − الف)») with which asset each letter is, and when it was
+ * (tomans), its formula as read ("x / (y - x)") with which asset each letter is, and when it was
  * last updated — as fresh as its stalest asset
  * @param {string} id - the card's id (fx_…)
  * @param {{ name: string, expr: string, vars: Record<string, string>, format: string }} formula
@@ -206,7 +206,6 @@ export function resolveFormulaCard(id, formula, index) {
     const asset = assetOf(index.itemMap, formula.vars?.[key]);
     return {
       key,
-      label: FORMULA_VARS.find((v) => v.key === key).label,
       id: asset?.id || formula.vars?.[key] || '',
       name: asset?.name || formula.vars?.[key] || '',
       price: Number(asset?.price) > 0 ? Number(asset.price) : null,

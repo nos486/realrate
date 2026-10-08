@@ -32,16 +32,17 @@ afterEach(() => {
 });
 
 const index = buildAssetIndex({ itemMap, analysis: [] });
-const def = { name: 'درصد حباب سکه', expr: 'a/(b-a)', vars: { a: 'bubble_full_coin', b: 'full_coin' }, format: 'percent' };
+const def = { name: 'درصد حباب سکه', expr: 'x/(y-x)', vars: { x: 'bubble_full_coin', y: 'full_coin' }, format: 'percent' };
 
 describe('a formula card', () => {
   it('shows the formula\'s value, the formula with its assets, and its stalest asset\'s time', () => {
     const card = resolveFormulaCard('fx_abcd', def, index);
     const { container } = render(<HomeAssetCard asset={card} style="detailed" />);
     expect(container.querySelector('.pro-card-price-value').textContent).toBe('۱۹٫۶۵٪');
-    expect(screen.getByText('الف ÷ (ب − الف)')).toBeTruthy();
-    expect(screen.getByText(/الف: حباب سکه امامی/)).toBeTruthy();
-    expect(screen.getByText(/ب: سکه امامی/)).toBeTruthy();
+    expect(screen.getByText('x / (y - x)')).toBeTruthy();
+    const caption = document.querySelector('.home-formula-caption').textContent;
+    expect(caption).toContain('x: حباب سکه امامی');
+    expect(caption).toContain('y: سکه امامی');
     expect(screen.getByText('به‌روزرسانی ۲۰ دقیقه پیش')).toBeTruthy();
   });
 
@@ -63,7 +64,7 @@ describe('a formula card', () => {
   });
 
   it('a missing asset: no value', () => {
-    const card = resolveFormulaCard('fx_abcd', { ...def, vars: { a: 'gone', b: 'full_coin' } }, index);
+    const card = resolveFormulaCard('fx_abcd', { ...def, vars: { x: 'gone', y: 'full_coin' } }, index);
     expect(card.value).toBeNull();
     render(<HomeAssetCard asset={card} style="detailed" />);
     expect(screen.getByText('نرخ در دسترس نیست')).toBeTruthy();
@@ -75,19 +76,19 @@ describe('«کارت ترکیبی»', () => {
     const onSave = vi.fn();
     render(<FormulaCardModal formula={null} onSave={onSave} onClose={() => {}} />);
     expect(screen.getByRole('button', { name: 'افزودن کارت' }).disabled).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: /درصد حباب — الف ÷ \(ب − الف\)/ }));
+    fireEvent.click(screen.getByRole('button', { name: /درصد حباب — x \/ \(y - x\)/ }));
     expect(screen.getByRole('status').textContent).toContain('۱۹٫۶۵٪');
     fireEvent.click(screen.getByRole('button', { name: 'افزودن کارت' }));
-    expect(onSave).toHaveBeenCalledWith({ name: 'درصد حباب', expr: 'a/(b-a)', vars: { a: 'bubble_full_coin', b: 'full_coin' }, format: 'percent' });
+    expect(onSave).toHaveBeenCalledWith({ name: 'درصد حباب', expr: 'x/(y-x)', vars: { x: 'bubble_full_coin', y: 'full_coin' }, format: 'percent' });
   });
 
   it('says what is wrong with a formula and saves nothing until each letter has an asset', () => {
     render(<FormulaCardModal formula={null} onSave={() => {}} onClose={() => {}} />);
     const [name, formula] = screen.getAllByRole('textbox');
     fireEvent.change(name, { target: { value: 'نسبت' } });
-    fireEvent.change(formula, { target: { value: 'الف ÷ (' } });
+    fireEvent.change(formula, { target: { value: 'x / (' } });
     expect(screen.getByText(/ناتمام/)).toBeTruthy();
-    fireEvent.change(formula, { target: { value: 'الف ÷ ب' } });
+    fireEvent.change(formula, { target: { value: 'x / y' } });
     expect(screen.getByRole('button', { name: 'افزودن کارت' }).disabled).toBe(true);
     const pickers = document.querySelectorAll('.formula-var');
     expect(pickers).toHaveLength(2);

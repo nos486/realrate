@@ -2,9 +2,9 @@
  * FormulaCardModal.jsx — «کارت ترکیبی»: a home card the user builds from several assets with a
  * formula (utils/cardFormula.js), new or edited
  *
- * The user names the card, writes the formula with الف، ب، ج، د for the assets and + − × ÷ and
+ * The user names the card, writes the formula with x, y, z, w for the assets and + - * / and
  * parentheses, picks the asset each letter is, and shows the value as a number or a percent. A
- * ready formula (FORMULA_PRESETS: the coin bubble percent, «الف ÷ (ب − الف)») fills it all in. The
+ * ready formula (FORMULA_PRESETS: the coin bubble percent, "x / (y - x)") fills it all in. The
  * value at today's prices is shown as it is written; the card is saved only when it is complete.
  */
 
@@ -41,7 +41,7 @@ function VarPicker({ variable, assetId, onPick }) {
 
   return (
     <div className="formula-var">
-      <span className="formula-var-letter">{variable.label}</span>
+      <span className="formula-var-letter">{variable}</span>
       {!picking && asset ? (
         <>
           <span className="formula-var-asset">
@@ -52,7 +52,7 @@ function VarPicker({ variable, assetId, onPick }) {
         </>
       ) : (
         <div className="formula-var-search">
-          <SearchBar value={query} onChange={(e) => setQuery(e.target.value)} placeholder={`دارایی «${variable.label}» را جستجو کنید…`} />
+          <SearchBar value={query} onChange={(e) => setQuery(e.target.value)} placeholder={`دارایی ${variable} را جستجو کنید…`} />
           <ul>
             {results.map((a) => (
               <li key={a.id}>
@@ -81,12 +81,13 @@ export default function FormulaCardModal({ formula, onSave, onClose }) {
   const [format, setFormat] = useState(formula?.format || 'number');
 
   const parsed = parseFormula(text);
-  const used = parsed.ok ? FORMULA_VARS.filter((v) => parsed.vars.includes(v.key)) : [];
+  // The variables the formula uses, in order (x, y, …)
+  const used = parsed.ok ? parsed.vars : [];
   const priceOf = (key) => {
     const price = Number(assetOf(pricing?.itemMap, vars[key])?.price);
     return price > 0 ? price : null;
   };
-  const value = parsed.ok ? evaluateFormula(parsed.tree, Object.fromEntries(used.map((v) => [v.key, priceOf(v.key)]))) : null;
+  const value = parsed.ok ? evaluateFormula(parsed.tree, Object.fromEntries(used.map((v) => [v, priceOf(v)]))) : null;
   const card = sanitizeFormulaCard({ name, expr: text, vars, format });
 
   const applyPreset = (preset) => {
@@ -110,7 +111,7 @@ export default function FormulaCardModal({ formula, onSave, onClose }) {
         <span>نمونه:</span>
         {FORMULA_PRESETS.map((p) => (
           <button key={p.key} type="button" className="tx-filter-pill" title={p.hint} onClick={() => applyPreset(p)}>
-            {p.label} — <bdi>{formatFormula(p.expr)}</bdi>
+            {p.label} — <bdi dir="ltr">{formatFormula(p.expr)}</bdi>
           </button>
         ))}
       </div>
@@ -133,16 +134,17 @@ export default function FormulaCardModal({ formula, onSave, onClose }) {
           value={text}
           maxLength={FORMULA_LIMITS.exprLength}
           onChange={(e) => setText(e.target.value)}
-          placeholder="الف ÷ (ب − الف)"
+          placeholder="x / (y - x)"
+          dir="ltr"
           error={parsed.ok || !text.trim() ? undefined : parsed.error}
-          hint={`دارایی‌ها: ${FORMULA_VARS.map((v) => v.label).join('، ')} — عملگرها: + − × ÷ و پرانتز (* و / هم پذیرفته است)`}
+          hint={`دارایی‌ها: ${FORMULA_VARS.join(', ')} — عملگرها: + - * / و پرانتز`}
         />
       </div>
 
       {used.length > 0 && (
         <div className="formula-vars">
           {used.map((v) => (
-            <VarPicker key={`${v.key}:${vars[v.key] || ''}`} variable={v} assetId={vars[v.key]} onPick={(id) => setVars((prev) => ({ ...prev, [v.key]: id }))} />
+            <VarPicker key={`${v}:${vars[v] || ''}`} variable={v} assetId={vars[v]} onPick={(id) => setVars((prev) => ({ ...prev, [v]: id }))} />
           ))}
         </div>
       )}
@@ -156,7 +158,7 @@ export default function FormulaCardModal({ formula, onSave, onClose }) {
       </div>
 
       <p className="formula-preview" role="status">
-        مقدار امروز: <strong>{parsed.ok && used.every((v) => vars[v.key]) ? formatFormulaValue(value, format) : '—'}</strong>
+        مقدار امروز: <strong>{parsed.ok && used.every((v) => vars[v]) ? formatFormulaValue(value, format) : '—'}</strong>
         {format === 'percent' && <small> (مقدار فرمول × ۱۰۰)</small>}
       </p>
     </Modal>

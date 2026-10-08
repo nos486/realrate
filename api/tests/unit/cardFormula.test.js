@@ -1,6 +1,6 @@
 /**
  * cardFormula.test.js — A home card built from several assets with a formula: the formula is
- * parsed (never run as code) in Persian or Latin, kept in one form and shown in Persian; its value,
+ * parsed (never run as code) with x, y, z, w, kept in one form and shown left to right; its value,
  * its daily series from its assets' series, and its place in a saved layout
  */
 
@@ -18,47 +18,55 @@ import {
 import { sanitizeHomeLayout } from '../../src/domain/homeLayout.js';
 
 describe('parsing a formula', () => {
-  it('reads Persian letters, digits and signs, and keeps one stored form', () => {
-    const p = parseFormula('الف ÷ (ب − الف) × ۱۰۰');
-    expect(p).toMatchObject({ ok: true, expr: 'a/(b-a)*100', vars: ['a', 'b'] });
-    expect(parseFormula('A / ( b - a ) * 100').expr).toBe('a/(b-a)*100');
-    expect(formatFormula('a/(b-a)*100')).toBe('الف ÷ (ب − الف) × ۱۰۰');
-    expect(parseFormula('-a + ۲٫۵ * د').vars).toEqual(['a', 'd']);
+  it('reads x, y, z, w (any case), Persian digits and signs, and keeps one stored form', () => {
+    const p = parseFormula('x / (Y - x) * ۱۰۰');
+    expect(p).toMatchObject({ ok: true, expr: 'x/(y-x)*100', vars: ['x', 'y'] });
+    expect(parseFormula('x ÷ (y − x) × 100').expr).toBe('x/(y-x)*100');
+    expect(formatFormula('x/(y-x)*100')).toBe('x / (y - x) * 100');
+    expect(parseFormula('-x + 2.5 * w').vars).toEqual(['x', 'w']);
+  });
+
+  it('a card saved with the first letters (a, b, c, d) reads as x, y, z, w', () => {
+    expect(parseFormula('a/(b-a)').expr).toBe('x/(y-x)');
+    expect(sanitizeFormulaCard({ name: 'n', expr: 'a/(b-a)', vars: { a: 'bubble_full_coin', b: 'full_coin' }, format: 'percent' }))
+      .toEqual({ name: 'n', expr: 'x/(y-x)', vars: { x: 'bubble_full_coin', y: 'full_coin' }, format: 'percent' });
   });
 
   it('follows operator precedence and parentheses', () => {
     const v = (text, values) => evaluateFormula(parseFormula(text).tree, values);
-    expect(v('a + b * c', { a: 1, b: 2, c: 3 })).toBe(7);
-    expect(v('(a + b) * c', { a: 1, b: 2, c: 3 })).toBe(9);
-    expect(v('a - b - c', { a: 10, b: 2, c: 3 })).toBe(5);
-    expect(v('a / b / c', { a: 12, b: 2, c: 3 })).toBe(2);
-    expect(v('-a * -b', { a: 2, b: 3 })).toBe(6);
+    expect(v('x + y * z', { x: 1, y: 2, z: 3 })).toBe(7);
+    expect(v('(x + y) * z', { x: 1, y: 2, z: 3 })).toBe(9);
+    expect(v('x - y - z', { x: 10, y: 2, z: 3 })).toBe(5);
+    expect(v('x / y / z', { x: 12, y: 2, z: 3 })).toBe(2);
+    expect(v('-x * -y', { x: 2, y: 3 })).toBe(6);
   });
 
   it('says what is wrong, never runs anything else', () => {
     expect(parseFormula('').ok).toBe(false);
     expect(parseFormula('1 + 2').error).toMatch(/دست‌کم یک دارایی/);
-    expect(parseFormula('a / (b').error).toMatch(/پرانتز/);
-    expect(parseFormula('a +').error).toMatch(/ناتمام/);
-    expect(parseFormula('a b').error).toBe('«ب» بی‌جا آمده است');
+    expect(parseFormula('x / (y').error).toMatch(/پرانتز/);
+    expect(parseFormula('x +').error).toMatch(/ناتمام/);
+    expect(parseFormula('x y').error).toBe('«y» بی‌جا آمده است');
     expect(parseFormula('alert(1)').ok).toBe(false);
+    expect(parseFormula('max(x)').ok).toBe(false);
     expect(parseFormula('e').error).toMatch(/معتبر نیست/);
-    expect(parseFormula('a'.repeat(81)).ok).toBe(false);
+    expect(parseFormula('x'.repeat(81)).ok).toBe(false);
   });
 
   it('a value that is missing, or a division by zero, is no value', () => {
-    const tree = parseFormula('a / b').tree;
-    expect(evaluateFormula(tree, { a: 1, b: 0 })).toBeNull();
-    expect(evaluateFormula(tree, { a: 1, b: null })).toBeNull();
-    expect(evaluateFormula(tree, { a: 1 })).toBeNull();
+    const tree = parseFormula('x / y').tree;
+    expect(evaluateFormula(tree, { x: 1, y: 0 })).toBeNull();
+    expect(evaluateFormula(tree, { x: 1, y: null })).toBeNull();
+    expect(evaluateFormula(tree, { x: 1 })).toBeNull();
   });
 });
 
 describe('the coin bubble percent (the ready formula)', () => {
-  it('الف ÷ (ب − الف): the bubble over the coin\'s gold value, as a percent', () => {
+  it('x / (y - x): the bubble over the coin\'s gold value, as a percent', () => {
     const preset = FORMULA_PRESETS.find((p) => p.key === 'bubble_pct');
-    expect(formatFormula(preset.expr)).toBe('الف ÷ (ب − الف)');
-    const value = evaluateFormula(parseFormula(preset.expr).tree, { a: 12_496_000, b: 76_100_000 });
+    expect(formatFormula(preset.expr)).toBe('x / (y - x)');
+    expect(preset.vars).toEqual({ x: 'bubble_full_coin', y: 'full_coin' });
+    const value = evaluateFormula(parseFormula(preset.expr).tree, { x: 12_496_000, y: 76_100_000 });
     expect(formatFormulaValue(value, preset.format)).toBe('۱۹٫۶۵٪');
     expect(formatFormulaValue(value, 'number')).toBe('۰٫۱۹۶۵');
   });
@@ -66,10 +74,10 @@ describe('the coin bubble percent (the ready formula)', () => {
 
 describe('a formula\'s daily series', () => {
   it('the formula of each day\'s opens and closes, on the days every asset has', () => {
-    const tree = parseFormula('a / (b - a)').tree;
+    const tree = parseFormula('x / (y - x)').tree;
     const series = formulaSeries(tree, {
-      a: { days: ['d1', 'd2', 'd3'], points: [10, 20, 30], candles: [[8, 11, 7, 10], [10, 21, 9, 20], [20, 31, 19, 30]] },
-      b: { days: ['d2', 'd3'], points: [120, 130], candles: [[110, 125, 100, 120], [120, 140, 115, 130]] },
+      x: { days: ['d1', 'd2', 'd3'], points: [10, 20, 30], candles: [[8, 11, 7, 10], [10, 21, 9, 20], [20, 31, 19, 30]] },
+      y: { days: ['d2', 'd3'], points: [120, 130], candles: [[110, 125, 100, 120], [120, 140, 115, 130]] },
     });
     expect(series.days).toEqual(['d2', 'd3']);
     expect(series.points).toEqual([0.2, 0.3]);
@@ -78,20 +86,20 @@ describe('a formula\'s daily series', () => {
   });
 
   it('no series without every asset\'s', () => {
-    expect(formulaSeries(parseFormula('a+b').tree, { a: { days: ['d1'], points: [1] }, b: { days: [], points: [] } })).toBeNull();
+    expect(formulaSeries(parseFormula('x+y').tree, { x: { days: ['d1'], points: [1] }, y: { days: [], points: [] } })).toBeNull();
   });
 });
 
 describe('a formula card in a saved layout', () => {
-  const def = { name: 'درصد حباب', expr: 'الف ÷ (ب − الف)', vars: { a: 'bubble_full_coin', b: 'full_coin', c: 'usd' }, format: 'percent' };
+  const def = { name: 'درصد حباب', expr: 'x / (y - x)', vars: { x: 'bubble_full_coin', y: 'full_coin', z: 'usd' }, format: 'percent' };
 
   it('is kept in one form, with only the assets its formula uses', () => {
-    expect(sanitizeFormulaCard(def)).toEqual({ name: 'درصد حباب', expr: 'a/(b-a)', vars: { a: 'bubble_full_coin', b: 'full_coin' }, format: 'percent' });
-    expect(sanitizeFormulaCard({ ...def, vars: { a: 'bubble_full_coin' } })).toBeNull(); // ب has no asset
+    expect(sanitizeFormulaCard(def)).toEqual({ name: 'درصد حباب', expr: 'x/(y-x)', vars: { x: 'bubble_full_coin', y: 'full_coin' }, format: 'percent' });
+    expect(sanitizeFormulaCard({ ...def, vars: { x: 'bubble_full_coin' } })).toBeNull(); // y has no asset
     expect(sanitizeFormulaCard({ ...def, name: ' ' })).toBeNull();
-    expect(sanitizeFormulaCard({ ...def, expr: 'a +' })).toBeNull();
-    expect(sanitizeFormulaCard({ ...def, format: 'x' }).format).toBe('number');
-    expect(sanitizeFormulaCard({ ...def, vars: { a: 'fx_abcd', b: 'usd' } })).toBeNull(); // not a card of a card
+    expect(sanitizeFormulaCard({ ...def, expr: 'x +' })).toBeNull();
+    expect(sanitizeFormulaCard({ ...def, format: 'q' }).format).toBe('number');
+    expect(sanitizeFormulaCard({ ...def, vars: { x: 'fx_abcd', y: 'usd' } })).toBeNull(); // not a card of a card
   });
 
   it('a section keeps a formula card only with its definition, and a definition only with its card', () => {
