@@ -12,13 +12,15 @@
  * A dollar-priced asset (the ounce, oil) reads in dollars, or in tomans when its card is set so
  * (`asset.display: 'toman'`, homeAssets.js): then the dollar price is the small line under it.
  * A section saved with the older "trend" style is shown as full cards.
+ * A card the user built with a formula (homeAssets.js resolveFormulaCard) shows the formula's
+ * value, the formula with which asset each letter is, and — turned — the formula's daily chart.
  */
 
 import React, { useState } from 'react';
-import { ChartCandlestick } from 'lucide-react';
+import { ChartCandlestick, Sigma } from 'lucide-react';
 import { CategoryIcon } from '../portfolio/utils/holdingHelpers.js';
 import TrendCandles from './TrendCandles.jsx';
-import { useAssetCandles } from './useAssetCandles.js';
+import { useCardCandles } from './useAssetCandles.js';
 import { formatPrice } from '../market/assetPrice.js';
 import { AVERAGE_WINDOWS } from '../../utils/priceAverages.js';
 import { timeAgo } from '../../shared/utils/timeAgo.js';
@@ -50,6 +52,7 @@ function changeBadge(changePercent) {
 
 function AssetIcon({ asset }) {
   if (asset.flag) return <span className="home-asset-flag" aria-hidden="true">{asset.flag}</span>;
+  if (asset.formula) return <span className="home-asset-icon" aria-hidden="true"><Sigma size={15} /></span>;
   return (
     <span className="home-asset-icon" aria-hidden="true">
       <CategoryIcon category={asset.category} size={15} />
@@ -82,6 +85,12 @@ function CompactCard({ asset }) {
           {asset.note && <span className="curr-desc" title={asset.note}>{asset.note}</span>}
         </div>
       </div>
+      {asset.formula ? (
+        <div className="curr-price-block">
+          <div className="curr-price-val" title={asset.formula.text}>{asset.valueText}</div>
+          <StaleMark asset={asset} />
+        </div>
+      ) : (
       <div className="curr-price-block">
         <div className="curr-price-val" title={asset.main ? `${asset.main.label} — آخرین قیمت ${formatNum(asset.price, asset.currency)}` : undefined}>
           {asset.main ? formatNum(asset.main.value, asset.main.currency) : asset.price ? formatNum(asset.price, asset.currency) : '—'}
@@ -91,7 +100,20 @@ function CompactCard({ asset }) {
         {change && <span className={`home-change ${change.className}`}>{change.text}</span>}
         <StaleMark asset={asset} />
       </div>
+      )}
     </div>
+  );
+}
+
+/** A formula card's formula, and which asset each letter is («الف: حباب سکه امامی») */
+function FormulaCaption({ formula }) {
+  return (
+    <span className="home-price-caption home-formula-caption">
+      <bdi>{formula.text}</bdi>
+      {formula.vars.map((v) => (
+        <span key={v.key}> · {v.label}: {v.name}</span>
+      ))}
+    </span>
   );
 }
 
@@ -202,7 +224,8 @@ function FullCard({ asset, isBest = false, flippable = true }) {
   const [shown, setShown] = useState(null); // the last series drawn (kept while another window loads)
   // Only while the back is asked for: the front never fetches
   // A dollar-priced asset's chart is its dollar closes (`${id}@usd`)
-  const { status, series } = useAssetCandles(asset.seriesId || asset.id, flippable && requested, range);
+  // (a formula card's: the formula of its assets' series, fetched together)
+  const { status, series } = useCardCandles(asset, flippable && requested, range);
   const loading = status === 'loading';
   const settled = status === 'ready' || status === 'empty' || status === 'error';
   // The first answer turns the card; later windows redraw it in place
@@ -212,7 +235,8 @@ function FullCard({ asset, isBest = false, flippable = true }) {
   const item = asset.analysis || null;
   const hasMarket = item ? item.market !== null && item.market !== undefined : true;
   const price = asset.price || (item ? (hasMarket ? item.market : item.intrinsic) : null) || null;
-  const unit = item ? 'تومان' : asset.unit;
+  const formula = asset.formula || null;
+  const unit = formula ? (formula.format === 'percent' ? '٪' : '') : item ? 'تومان' : asset.unit;
   const currency = item ? 'toman' : asset.currency;
   // The book's change of its last session (params.changePercent, set by the sync)
   const change = changeBadge(asset.changePercent);
@@ -262,7 +286,9 @@ function FullCard({ asset, isBest = false, flippable = true }) {
         <div className="pro-card-face is-front" aria-hidden={isFlipped}>
           <CardHead asset={asset} pill={pill} />
           <div className="pro-card-price">
-            {asset.main ? (
+            {formula ? (
+              asset.value !== null ? <span className="pro-card-price-value">{asset.valueText}</span> : <span className="price-unavailable">نرخ در دسترس نیست</span>
+            ) : asset.main ? (
               <>
                 <span className="pro-card-price-value">{formatNum(asset.main.value, asset.main.currency)}</span>
                 <span className="pro-card-price-unit">{unit}</span>
@@ -277,7 +303,7 @@ function FullCard({ asset, isBest = false, flippable = true }) {
             )}
             {item && changePill}
           </div>
-          <MainCaption asset={asset} price={price} currency={currency} />
+          {formula ? <FormulaCaption formula={formula} /> : <MainCaption asset={asset} price={price} currency={currency} />}
           {asset.display === 'toman' && asset.note && <span className="home-price-caption">{asset.note}</span>}
           {item && !hasMarket && <span className="home-price-caption">ارزش ذاتی — نرخ بازار فعلاً در دسترس نیست</span>}
           <StaleMark asset={asset} />

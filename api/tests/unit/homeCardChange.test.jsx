@@ -7,7 +7,7 @@ import React from 'react';
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, cleanup, screen } from '@testing-library/react';
 
-vi.mock('../../../web/src/features/home/useAssetCandles.js', () => ({ useAssetCandles: () => ({ status: 'idle', series: null }) }));
+vi.mock('../../../web/src/features/home/useAssetCandles.js', () => ({ useCardCandles: () => ({ status: 'idle', series: null }) }));
 import HomeAssetCard from '../../../web/src/features/home/HomeAssetCard.jsx';
 
 afterEach(cleanup);

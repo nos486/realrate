@@ -75,7 +75,7 @@ realrate/
 | `utils/clientInfo.js` | `domain/clientInfo.js` — the client header (app/web and version) |
 | `utils/userGroups.js` | `domain/userGroups.js` — user groups (keys, validation) |
 | `utils/homeLayout.js`, `portfolioLayout.js` | `domain/` — home layout and portfolio categories |
-| `utils/cardMetrics.js`, `priceAverages.js` | `domain/` — what a home card shows (metrics, slots, linked items) and the price book's averages |
+| `utils/cardMetrics.js`, `priceAverages.js`, `cardFormula.js` | `domain/` — what a home card shows (metrics, slots, linked items), the price book's averages, and cards built with a formula |
 | `utils/financialSpecs.js` | `lib/financialSpecs.js` |
 
 To change any of them, edit the source in `api/`. `utils/calculator.js` and `utils/pricingEngine.js` belong to the web app (intrinsic value and bubble at the live rates).

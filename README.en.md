@@ -26,7 +26,7 @@ The interface is in Persian (right-to-left, Shamsi calendar, amounts in tomans).
 
 ## Features
 
-- **Market**: intrinsic value and bubble of gold and coins (and the coins' bubble from tgju), 16 currencies and USDT, Tehran Stock Exchange symbols and funds — updated automatically, on a home page each user lays out (the rates page is for Pro users)
+- **Market**: intrinsic value and bubble of gold and coins (and the coins' bubble from tgju), 16 currencies and USDT, Tehran Stock Exchange symbols and funds — updated automatically, on a home page each user lays out (averages, linked assets, and cards combining assets with a formula) (the rates page is for Pro users)
 - **Portfolio**: multiple portfolios, buy/sell transactions with weighted average cost, live profit and loss, custom categories, public sharing
 - **Expenses**: everyday expenses by category with monthly budgets, projects in tomans or dollars, the account that paid («پرداخت از») and the loan that funded it («تأمین از»)
 - **Accounts**: bank accounts, cash and wallets; the source of every expense and the match for bank SMS
