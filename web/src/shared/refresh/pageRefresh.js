@@ -15,7 +15,10 @@
  *    by one return are merged (RETURN_MERGE_MS)
  *  - the window gets focus again (the website, the page still visible): the open tab's scopes, at
  *    most once per AUTO_REFRESH_GAP_MS
- * Nothing runs on a timer and switching tabs refreshes nothing else.
+ *  - opening a tab again: a tab's records load with it, but the prices and the news are kept for
+ *    the whole visit (KEPT_SCOPES) — so the tab opened reads those of its scopes again, each at
+ *    most once per AUTO_REFRESH_GAP_MS (back on the home, its rates and news are fresh)
+ * Nothing runs on a timer.
  *
  * With the Android app's offline copy (shared/offline), records are read from the device: a
  * refresh of record scopes first runs one sync round with the server, then the loaders re-read
@@ -41,6 +44,10 @@ export const REFRESH_SCOPES = {
 /** Scopes whose records live in the vault (synced as one with the Android app's offline copy) */
 const RECORD_SCOPES = new Set(['portfolio', 'loans', 'cheques', 'incomes', 'expenses', 'accounts']);
 
+/** Scopes whose data outlives a tab (PricingContext's book, useNews' answers): a tab opened
+ *  again would show them as they were, so opening it reads them again */
+export const KEPT_SCOPES = new Set(['prices', 'news']);
+
 /** Focus refreshes closer together than this are skipped (a quick switch away and back) */
 export const AUTO_REFRESH_GAP_MS = 30 * 1000;
 
@@ -51,6 +58,8 @@ const handlers = new Map(); // scope → Set<() => unknown>
 const listeners = new Set();
 let state = { scopes: [], refreshing: false };
 let lastRefreshAt = 0;
+let openedAt = 0; // when the app page opened: what it loaded then counts as fresh
+const readAt = new Map(); // scope → when it was last read again
 let running = null;
 
 function setState(patch) {
@@ -98,15 +107,23 @@ export function useRefreshToken(scope) {
 }
 
 /**
- * The open tab's scopes (MainPage). While set, the window's focus refreshes them.
+ * The open tab's scopes (MainPage). While set, the window's focus refreshes them; when another
+ * tab opens, its kept scopes are read again (refreshOnTabOpen).
  * @param {string[]} scopes
+ * @param {string} [tab] - the open tab (default: its scopes)
  */
-export function usePageScopes(scopes) {
+export function usePageScopes(scopes, tab) {
   const key = scopes.join(',');
+  const openKey = tab ?? key;
+  const lastOpenRef = useRef(null);
   useEffect(() => {
-    setState({ scopes: key ? key.split(',') : [] });
+    const list = key ? key.split(',') : [];
+    setState({ scopes: list });
+    // Another tab than the one before (not the page's first one: it has just loaded)
+    if (lastOpenRef.current !== null && lastOpenRef.current !== openKey) refreshOnTabOpen(list);
+    lastOpenRef.current = openKey;
     return () => setState({ scopes: [] });
-  }, [key]);
+  }, [key, openKey]);
 }
 
 /**
@@ -118,6 +135,7 @@ export function refreshScopes({ scopes = state.scopes } = {}) {
   if (running) return running;
   if (!scopes.length) return Promise.resolve();
   lastRefreshAt = Date.now();
+  scopes.forEach((s) => readAt.set(s, lastRefreshAt));
   setState({ refreshing: true });
   running = (async () => {
     try {
@@ -139,6 +157,16 @@ export function refreshOnFocus(now = Date.now()) {
   return refreshScopes();
 }
 
+/**
+ * A tab opened (switching tabs): its kept scopes (KEPT_SCOPES) not read in the last
+ * AUTO_REFRESH_GAP_MS — what it loads itself (its records) it has just loaded
+ * @param {string[]} scopes - the tab's
+ */
+export function refreshOnTabOpen(scopes, now = Date.now()) {
+  const due = scopes.filter((s) => KEPT_SCOPES.has(s) && now - (readAt.get(s) ?? openedAt) >= AUTO_REFRESH_GAP_MS);
+  return due.length ? refreshScopes({ scopes: due }) : Promise.resolve();
+}
+
 /** Back from the background (minimized, another app): the open tab's scopes, every time */
 export function refreshOnReturn(now = Date.now()) {
   if (now - lastRefreshAt < RETURN_MERGE_MS) return Promise.resolve();
@@ -154,6 +182,7 @@ export function startFocusRefresh() {
   if (typeof window === 'undefined') return () => {};
   // What the page loaded on opening counts as fresh
   lastRefreshAt = Date.now();
+  openedAt = lastRefreshAt;
   let wasHidden = document.visibilityState === 'hidden';
   let stopped = false;
   const stops = [];
@@ -204,5 +233,7 @@ export function resetPageRefresh() {
   handlers.clear();
   running = null;
   lastRefreshAt = 0;
+  openedAt = 0;
+  readAt.clear();
   state = { scopes: [], refreshing: false };
 }
