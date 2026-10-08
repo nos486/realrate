@@ -1539,12 +1539,7 @@
   line-height: 1.7;
 }
 
-/* ── «کارت ترکیبی» (FormulaCardModal.jsx) and a formula card's caption ───────── */
-.home-formula-caption bdi {
-  color: var(--text-secondary);
-  font-weight: 700;
-}
-
+/* ── «کارت ترکیبی» (FormulaCardModal.jsx) ─────────────────────────────────── */
 .formula-presets {
   display: flex;
   flex-wrap: wrap;

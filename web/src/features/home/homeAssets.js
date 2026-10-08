@@ -193,7 +193,7 @@ export function cardOptionsOf(id, index, display = null) {
 
 /**
  * A card the user built with a formula (utils/cardFormula.js): its value at the book's prices
- * (tomans), its formula as read ("x / (y - x)") with which asset each letter is, and when it was
+ * (tomans), its formula as read ("x / (y - x)", the compact card's tooltip), and when it was
  * last updated — as fresh as its stalest asset
  * @param {string} id - the card's id (fx_…)
  * @param {{ name: string, expr: string, vars: Record<string, string>, format: string }} formula

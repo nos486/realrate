@@ -13,7 +13,7 @@
  * (`asset.display: 'toman'`, homeAssets.js): then the dollar price is the small line under it.
  * A section saved with the older "trend" style is shown as full cards.
  * A card the user built with a formula (homeAssets.js resolveFormulaCard) shows the formula's
- * value, the formula with which asset each letter is, its highest, lowest and average value over
+ * value, its highest, lowest and average value over
  * 30 days or a year when set (the one card that reads a series in front: its assets' series in one
  * request, which its chart then reuses), and — turned — the formula's daily chart.
  */
@@ -105,18 +105,6 @@ function CompactCard({ asset }) {
       </div>
       )}
     </div>
-  );
-}
-
-/** A formula card's formula, and which asset each letter is («x: حباب سکه امامی») */
-function FormulaCaption({ formula }) {
-  return (
-    <span className="home-price-caption home-formula-caption">
-      <bdi dir="ltr">{formula.text}</bdi>
-      {formula.vars.map((v) => (
-        <span key={v.key}> · <bdi dir="ltr">{v.key}</bdi>: {v.name}</span>
-      ))}
-    </span>
   );
 }
 
@@ -332,7 +320,7 @@ function FullCard({ asset, isBest = false, flippable = true }) {
             )}
             {item && changePill}
           </div>
-          {formula ? <FormulaCaption formula={formula} /> : <MainCaption asset={asset} price={price} currency={currency} />}
+          {!formula && <MainCaption asset={asset} price={price} currency={currency} />}
           {asset.display === 'toman' && asset.note && <span className="home-price-caption">{asset.note}</span>}
           {item && !hasMarket && <span className="home-price-caption">ارزش ذاتی — نرخ بازار فعلاً در دسترس نیست</span>}
           <StaleMark asset={asset} />
