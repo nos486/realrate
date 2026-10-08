@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 /**
  * formulaCardUi.test.jsx — A home card built with a formula: its value at the book's prices and the
- * formula with which asset each letter is; turned, its chart from its assets' series in one request;
+ * update time; turned, its chart from its assets' series in one request;
  * «کارت ترکیبی» fills the ready coin-bubble formula and saves a complete card only
  */
 import React from 'react';
@@ -35,14 +35,12 @@ const index = buildAssetIndex({ itemMap, analysis: [] });
 const def = { name: 'درصد حباب سکه', expr: 'x/(y-x)', vars: { x: 'bubble_full_coin', y: 'full_coin' }, format: 'percent' };
 
 describe('a formula card', () => {
-  it('shows the formula\'s value, the formula with its assets, and its stalest asset\'s time', () => {
+  it('shows the formula\'s value and its stalest asset\'s time, with no line under it', () => {
     const card = resolveFormulaCard('fx_abcd', def, index);
     const { container } = render(<HomeAssetCard asset={card} style="detailed" />);
     expect(container.querySelector('.pro-card-price-value').textContent).toBe('۱۹٫۶۵٪');
-    expect(screen.getByText('x / (y - x)')).toBeTruthy();
-    const caption = document.querySelector('.home-formula-caption').textContent;
-    expect(caption).toContain('x: حباب سکه امامی');
-    expect(caption).toContain('y: سکه امامی');
+    // No line under the value (the formula and its assets are in the card's builder)
+    expect(screen.queryByText(/x \/ \(y - x\)/)).toBeNull();
     expect(screen.getByText('به‌روزرسانی ۲۰ دقیقه پیش')).toBeTruthy();
   });
 
