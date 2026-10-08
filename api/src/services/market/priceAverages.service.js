@@ -4,6 +4,7 @@
  * Every sync tick carries the previous book's averages. Once a Tehran day they move one day
  * forward: the running sums (state key "price_averages", D1 app_state — it must read back exactly)
  * take in yesterday's closes and drop the closes that left each window, reading three days of rows.
+ * A failed update is tried again after AVERAGES_RETRY_MS — never every minute.
  * The first tick of every hour also looks at the state, so averages summed again after past days
  * changed (resetPriceAverages, called by the history backfill) reach the book within the hour.
  * Without the database nothing changes and the book keeps what it had.
@@ -26,6 +27,10 @@ import {
 } from "../../domain/priceAverages.js";
 
 export const AVERAGES_STATE_KEY = "price_averages";
+
+/** After a failed update, how long until the averages are tried again (not every minute: a full
+ *  sum reads a year of rows) */
+export const AVERAGES_RETRY_MS = 15 * 60 * 1000;
 
 const hourOf = (iso) => String(iso || "").slice(0, 13);
 
@@ -71,7 +76,12 @@ export async function withAverages(env, book, previousBook, nowMs = Date.now()) 
   carryAverages(book, previousBook);
   const through = shiftDay(tehranDay(nowMs), -1);
   const newHour = hourOf(previousBook?.updatedAt) !== hourOf(book.updatedAt);
-  if (book.averagesThrough === through && !newHour) return book;
+  // Behind (a new day, or a failed try): once, then again only after AVERAGES_RETRY_MS
+  const lastTry = Date.parse(previousBook?.averagesTriedAt || "") || 0;
+  const due = book.averagesThrough === through ? newHour : nowMs - lastTry >= AVERAGES_RETRY_MS;
+  if (previousBook?.averagesTriedAt) book.averagesTriedAt = previousBook.averagesTriedAt;
+  if (!due) return book;
+  book.averagesTriedAt = new Date(nowMs).toISOString();
   try {
     const state = await averageStateThrough(env, historyKeysOf(book.items), through);
     if (state) applyAverages(book, averagesOf(state), through);

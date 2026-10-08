@@ -20,7 +20,7 @@ import {
   AVERAGE_REBUILD_DAYS,
 } from '../../src/domain/priceAverages.js';
 import { readAverageSums, readDayCloses, importDailyCandles } from '../../src/repositories/priceHistory.repository.js';
-import { averageStateThrough, withAverages, resetPriceAverages, AVERAGES_STATE_KEY } from '../../src/services/market/priceAverages.service.js';
+import { averageStateThrough, withAverages, resetPriceAverages, AVERAGES_STATE_KEY, AVERAGES_RETRY_MS } from '../../src/services/market/priceAverages.service.js';
 
 const close = (day, value) => ({ day, open: value, high: value, low: value, close: value });
 
@@ -97,7 +97,10 @@ describe('averages: on the real SQL', () => {
   let db;
   // Each test has its own database: the schema is created in each
   beforeEach(() => resetD1SchemaCache());
-  afterEach(() => db?.close());
+  afterEach(() => {
+    db?.close();
+    db = null;
+  });
 
   it('moved a day at a time, the sums agree with summing the windows again', async () => {
     db = sqliteD1();
@@ -151,5 +154,29 @@ describe('averages: on the real SQL', () => {
     expect(later.items.usd.params.avg).toEqual(book.items.usd.params.avg);
     // Still forgotten: summed again on the next hour's first tick
     expect(await env.DB.prepare('SELECT key FROM app_state WHERE key = ?').bind(AVERAGES_STATE_KEY).first()).toBeNull();
+  });
+
+  it('a failed update is tried again after a pause, never every minute', async () => {
+    let reads = 0;
+    // A database whose every query fails (a year of rows that times out)
+    const failing = { prepare: () => { reads += 1; throw new Error('timeout'); }, batch: async () => { reads += 1; throw new Error('timeout'); } };
+    const env = { DB: failing };
+    const now = Date.parse('2026-05-20T12:00:00+03:30');
+    const book = (at) => ({ updatedAt: new Date(at).toISOString(), items: { usd: { id: 'usd', price: 1, params: {} } } });
+
+    const first = await withAverages(env, book(now), null, now);
+    expect(first.averagesTriedAt).toBe(new Date(now).toISOString());
+    const afterFirst = reads;
+    expect(afterFirst).toBeGreaterThan(0);
+
+    // The next minutes in the same hour: not tried again
+    const next = await withAverages(env, book(now + 60_000), first, now + 60_000);
+    expect(reads).toBe(afterFirst);
+    expect(next.averagesTriedAt).toBe(first.averagesTriedAt);
+
+    // After the pause: tried again
+    const later = now + AVERAGES_RETRY_MS;
+    await withAverages(env, book(later), next, later);
+    expect(reads).toBeGreaterThan(afterFirst);
   });
 });
