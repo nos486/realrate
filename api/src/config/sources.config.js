@@ -61,7 +61,7 @@ export const PRICE_SOURCES_CONFIG = [
       { slug: "rob_blubber", id: "bubble_quarter_coin", name: "حباب ربع سکه", maxJumpPct: 100 },
       { slug: "gerami_blubber", id: "bubble_gerami_coin", name: "حباب سکه گرمی", maxJumpPct: 100 },
     ],
-    fetchIntervalSec: 60,
+    fetchIntervalSec: 600, // every 10 minutes: ten requests a run, kept light on tgju
     isActive: true,
     isPrimary: true,
     displayConfig: { showOnHomePage: true },
