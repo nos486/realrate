@@ -29,6 +29,8 @@ const tgju = (bySlug) => async (url) => {
 describe('the tgju source', () => {
   it('is one multi-output source of tgju series in rials: gold, coins and every coin bubble', () => {
     expect(source).toMatchObject({ sourceType: 'tgju_indicators', quote: 'rial', outputs: 'multi', isActive: true, isPrimary: true });
+    // Read every 10 minutes: one request per series, so a run is ten requests
+    expect(source.fetchIntervalSec).toBe(600);
     const ids = source.series.map((s) => s.id);
     expect(ids).toEqual(expect.arrayContaining(['gold_18k', 'mesghal', 'full_coin', 'half_coin', 'quarter_coin', 'gerami_coin', ...Object.keys(BUBBLE_SPECS)]));
     expect(getAdapterForSource(source)).toBe(adapter);
