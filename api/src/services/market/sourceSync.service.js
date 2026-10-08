@@ -26,7 +26,7 @@ import { buildPriceBook, currencyOf, usdSeriesKey } from "../../domain/priceBook
 import { tehranDay } from "../../repositories/priceHistory.repository.js";
 import { guardSourceItems } from "../../domain/priceGuard.js";
 import { withAverages } from "./priceAverages.service.js";
-import { fetchIntervalSecOf, isSourceDue, sourceKindOf, mergeCatalogItems } from "../../domain/priceSources.js";
+import { fetchIntervalSecOf, isSourceDue, sourceKindOf, mergeCatalogItems, guardOf } from "../../domain/priceSources.js";
 
 export { fetchIntervalSecOf };
 
@@ -259,8 +259,7 @@ export async function syncAllSources(env, options = {}) {
       // A catalog keeps the symbols a fetch left out (or gave without a price) at their last price
       const parsedItems = sourceKindOf(src) === "catalog" ? mergeCatalogItems(src.items, fresh) : fresh;
       const { items, held, rejected } = guardSourceItems(src.items, parsedItems, {
-        maxJumpPct: src.maxJumpPct,
-        confirmTicks: src.confirmTicks,
+        ...guardOf(src),
         held: states[src.id]?.held,
       });
       if (rejected.length > 0) {

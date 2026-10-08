@@ -2,6 +2,14 @@ import { describe, it, test, expect } from 'vitest';
 import { PRICE_SOURCES_CONFIG } from '../../src/config/sources.config.js';
 import { CATEGORY_MAP, CATEGORIES_CONFIG } from '../../src/config/categories.config.js';
 import { getAdapterForSource } from '../../src/services/market/sources/index.js';
+import { SPEC_BY_ID, normalizePriceId } from '../../src/domain/priceBook.js';
+
+/**
+ * A multi-output source whose every output has a spec: the item's category and unit are its spec's
+ * (priceBook.js toItem), so the source names neither
+ */
+const outputsHaveSpecs = (source) => source.outputs === 'multi' && Array.isArray(source.series) && source.series.length > 0
+  && source.series.every((s) => SPEC_BY_ID.has(normalizePriceId(s.id)));
 
 describe('Master Sources Configuration & Schema Validation Tests (CI / Integrity)', () => {
   test('all sources have non-empty unique IDs and names', () => {
@@ -27,6 +35,10 @@ describe('Master Sources Configuration & Schema Validation Tests (CI / Integrity
     expect(validCategoryKeys.size).toBeGreaterThan(0);
 
     for (const source of PRICE_SOURCES_CONFIG) {
+      if (outputsHaveSpecs(source)) {
+        for (const s of source.series) expect(validCategoryKeys.has(SPEC_BY_ID.get(normalizePriceId(s.id)).category), `${source.id}: ${s.id}`).toBe(true);
+        continue;
+      }
       // Must have category
       expect(
         source.category,
@@ -53,6 +65,10 @@ describe('Master Sources Configuration & Schema Validation Tests (CI / Integrity
 
   test('every source has exactly one valid unit (non-empty string)', () => {
     for (const source of PRICE_SOURCES_CONFIG) {
+      if (outputsHaveSpecs(source)) {
+        for (const s of source.series) expect(String(SPEC_BY_ID.get(normalizePriceId(s.id)).unit || '').length, `${source.id}: ${s.id}`).toBeGreaterThan(0);
+        continue;
+      }
       // Must have unit
       expect(
         source.unit,

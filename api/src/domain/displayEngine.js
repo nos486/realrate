@@ -87,7 +87,7 @@ export function getSourceConfig(key) {
 }
 
 /**
- * Returns the short brand or presentation label of a source (e.g. "بورس", "مفید", "کاریزما", "زرما", "سبزه میدان").
+ * Returns the short brand or presentation label of a source (e.g. "بورس", "مفید", "کاریزما", "tgju", "سبزه میدان").
  * Purely data-driven from sourceConfig.brand or sourceConfig.name. Zero hardcoded string checks.
  *
  * @param {string|object} sourceOrKey
@@ -328,7 +328,7 @@ export function getItemBadge(item, sourceConfig = null) {
 }
 
 /**
- * Resolves the brand/source label of an item (e.g. "مفید", "کاریزما", "بورس", "زرما").
+ * Resolves the brand/source label of an item (e.g. "مفید", "کاریزما", "بورس", "tgju").
  * Contract: Defined ONLY at the source level (sourceConfig.brand/name via getSourceBrand).
  * Falls back to the category badge when no source can be resolved (e.g. custom holdings).
  *

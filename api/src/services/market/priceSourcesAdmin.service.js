@@ -12,8 +12,7 @@ import { getSourceItems } from "../../repositories/sourceItems.repository.js";
 import { getPriceBookCache } from "../../repositories/priceBookStore.repository.js";
 import { getMasterPriceSourceById } from "../../config/sources.config.js";
 import { CATEGORY_MAP } from "../../config/categories.config.js";
-import { sourceKindOf, sourceScheduleOf, SOURCE_KIND_LABELS, QUOTE_LABELS } from "../../domain/priceSources.js";
-import { DEFAULT_MAX_JUMP_PCT, DEFAULT_CONFIRM_TICKS } from "../../domain/priceGuard.js";
+import { sourceKindOf, sourceScheduleOf, guardOf, SOURCE_KIND_LABELS, QUOTE_LABELS } from "../../domain/priceSources.js";
 import { getAdapterForSource } from "./sources/index.js";
 import { syncAllSources } from "./sourceSync.service.js";
 
@@ -55,7 +54,7 @@ export function priceSourceView(src, state, nowMs = Date.now()) {
     isPrimary: Boolean(src.isPrimary),
     isReferenceRate: Boolean(src.isReferenceRate),
     // The jump guard as the sync applies it (domain/priceGuard.js)
-    guard: { maxJumpPct: src.maxJumpPct ?? DEFAULT_MAX_JUMP_PCT, confirmTicks: src.confirmTicks ?? DEFAULT_CONFIRM_TICKS },
+    guard: guardOf(src),
     schedule: sourceScheduleOf(src, state, nowMs),
     count: items.length,
     held: Object.keys(state?.held || {}).length,

@@ -3,7 +3,8 @@
  *
  * A source can suddenly give a wrong number: rials instead of tomans (×10), a placeholder 0 or 1,
  * a typo in a Telegram post. Each value a source gives is compared with the value it gave last
- * time for the same item. A jump beyond the source's `maxJumpPct` is held back: the item keeps its
+ * time for the same item. A jump beyond the source's `maxJumpPct` (or the item's own, for an
+ * output that moves more than a price — a bubble) is held back: the item keeps its
  * last value, and the new one waits. Only when the source keeps giving (about) the same new value
  * for `confirmTicks` syncs in a row is it accepted as a real move — a devaluation or a stock's
  * capital increase is real, a one-off glitch is not.
@@ -38,14 +39,17 @@ const priceFieldOf = (item) => PRICE_FIELDS.find((f) => positive(item?.[f])) || 
  * Check a source's new items against its previous ones
  * @param {Array<object>} previousItems - what the source gave last time (stored)
  * @param {Array<object>} nextItems - what it gives now
- * @param {{ maxJumpPct?: number, confirmTicks?: number, held?: Record<string, { value: number, ticks: number }> }} [options]
- *   `held`: values waiting from earlier syncs (book.sources[id].held)
+ * @param {{ maxJumpPct?: number, maxJumpPctByKey?: Record<string, number>, confirmTicks?: number,
+ *   held?: Record<string, { value: number, ticks: number }> }} [options]
+ *   `maxJumpPctByKey`: an item's own limit, over the source's; `held`: values waiting from earlier
+ *   syncs (book.sources[id].held)
  * @returns {{ items: Array<object>, held: Record<string, { value: number, ticks: number }>,
  *   rejected: Array<{ key: string, previous: number, value: number }> }}
  *   `items`: the new list with every held-back item at its previous value
  */
 export function guardSourceItems(previousItems, nextItems, {
   maxJumpPct = DEFAULT_MAX_JUMP_PCT,
+  maxJumpPctByKey = {},
   confirmTicks = DEFAULT_CONFIRM_TICKS,
   held = {},
 } = {}) {
@@ -63,7 +67,8 @@ export function guardSourceItems(previousItems, nextItems, {
 
     const value = positive(item[field]);
     const last = positive(before[field]);
-    if (changePct(last, value) <= maxJumpPct) return item;
+    const limit = Number(maxJumpPctByKey?.[key]) > 0 ? Number(maxJumpPctByKey[key]) : maxJumpPct;
+    if (changePct(last, value) <= limit) return item;
 
     // The same jumped value as last time: one more sync confirming it
     const waiting = held[key];
