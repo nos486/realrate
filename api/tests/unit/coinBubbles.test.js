@@ -61,6 +61,16 @@ describe('the tgju source', () => {
     expect(raw.find((r) => r.slug === 'geram18').error).toBeTruthy();
   });
 
+  it('a request to tgju has a time limit: a slow tgju never holds the minute\'s sync up', async () => {
+    const signals = [];
+    await adapter.fetchRaw({ ...source, series: [source.series[0]] }, null, async (url, init) => {
+      signals.push(init?.signal);
+      return new Response(JSON.stringify({ data: [['1', '1', '1', '1', '2026/10/06']] }));
+    });
+    expect(signals).toHaveLength(1);
+    expect(signals[0]).toBeInstanceOf(AbortSignal);
+  });
+
   it('fails only when no series answered', async () => {
     await expect(adapter.fetchRaw(source, null, tgju({}))).rejects.toThrow(/هیچ سری tgju خوانده نشد/);
     await expect(adapter.fetchRaw({ ...source, series: [] }, null, tgju({}))).rejects.toThrow(/تعریف نشده/);

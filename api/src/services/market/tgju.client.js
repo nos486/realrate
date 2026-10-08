@@ -13,6 +13,9 @@ import { jalaliToGregorian } from "../../domain/loanCalculator.js";
 
 export const TGJU_URL = "https://api.tgju.org/v1/market/indicator/summary-table-data/";
 const PAGE = 500;
+/** How long one tgju request may take: the live source is read every minute, with every other
+ *  source, so a slow tgju must never hold the sync up */
+export const TGJU_TIMEOUT_MS = 10_000;
 const MAX_PAGES = 12;
 
 const toLatinDigits = (s) =>
@@ -62,6 +65,7 @@ export function parseTgjuRows(rows, divisor = 1) {
 export async function fetchTgjuPage(slug, start, length, fetchImpl) {
   const url = `${TGJU_URL}${slug}?start=${start}&length=${length}&order_dir=desc`;
   const res = await fetchImpl(url, {
+    signal: AbortSignal.timeout(TGJU_TIMEOUT_MS),
     headers: { Accept: "application/json", "User-Agent": "Mozilla/5.0 (RealRate price history)" },
   });
   if (res.status === 404) throw new AppError(`سری «${slug}» در tgju پیدا نشد`, 404, "TGJU_NOT_FOUND");
