@@ -16,6 +16,7 @@
  */
 
 import { staleAfterSecOf, catalogItemPriceToman } from "./priceBook.js";
+import { DEFAULT_MAX_JUMP_PCT, DEFAULT_CONFIRM_TICKS } from "./priceGuard.js";
 
 /** The shortest time between two fetches of a source */
 export const MIN_FETCH_INTERVAL_SEC = 15;
@@ -108,4 +109,22 @@ export function mergeCatalogItems(previous, fresh) {
     else if (before) byId.set(it.id, { ...before, name: it.name || before.name });
   }
   return [...byId.values()];
+}
+
+/**
+ * A source's jump guard (priceGuard.js): its limit and confirmations, and the outputs with a
+ * limit of their own (`series: [{ id, maxJumpPct }]` — a bubble moves far more than a price)
+ * @param {object} src
+ * @returns {{ maxJumpPct: number, confirmTicks: number, maxJumpPctByKey: Record<string, number> }}
+ */
+export function guardOf(src) {
+  const maxJumpPctByKey = {};
+  for (const s of Array.isArray(src?.series) ? src.series : []) {
+    if (s?.id && Number(s.maxJumpPct) > 0) maxJumpPctByKey[s.id] = Number(s.maxJumpPct);
+  }
+  return {
+    maxJumpPct: Number(src?.maxJumpPct) > 0 ? Number(src.maxJumpPct) : DEFAULT_MAX_JUMP_PCT,
+    confirmTicks: Number(src?.confirmTicks) > 0 ? Number(src.confirmTicks) : DEFAULT_CONFIRM_TICKS,
+    maxJumpPctByKey,
+  };
 }

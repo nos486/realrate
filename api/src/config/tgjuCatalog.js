@@ -55,7 +55,7 @@ export const TGJU_CATALOG = [
   { slug: "gerami", label: "سکه گرمی", group: "سکه", unit: "rial", suggest: "gerami_coin" },
 
   // Coin bubbles (rials): the coin's price above its gold's value — the live source is
-  // src_def_tgju_bubbles; these fill their past days
+  // src_def_tgju (with gold and coins); these fill their past days
   { slug: "coin_blubber", label: "حباب سکه امامی", group: "حباب سکه", unit: "rial", suggest: "bubble_full_coin" },
   { slug: "nim_blubber", label: "حباب نیم سکه", group: "حباب سکه", unit: "rial", suggest: "bubble_half_coin" },
   { slug: "rob_blubber", label: "حباب ربع سکه", group: "حباب سکه", unit: "rial", suggest: "bubble_quarter_coin" },

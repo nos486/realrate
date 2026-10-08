@@ -143,7 +143,7 @@ export function resolveAssetDisplayName(assetId, rawItem = null) {
 }
 
 /**
- * Extracts a clean, concise source brand/label for display (e.g. "کاریزما", "مفید", "بورس", "زرما", "سبزه میدان").
+ * Extracts a clean, concise source brand/label for display (e.g. "کاریزما", "مفید", "بورس", "tgju", "سبزه میدان").
  * Purely data-driven via displayEngine.
  *
  * @param {string|object} sourceOrKey

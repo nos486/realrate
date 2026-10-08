@@ -97,8 +97,8 @@ describe('Phase 2 — Central Display Engine (موتور مرکزی نمایش)'
       expect(getItemDisplayName({ id: 'src_def_usd', name: 'دلار تهران سبزه میدان' }))
         .toBe('دلار تهران سبزه میدان');
 
-      expect(getItemDisplayName({ id: 'src_def_gold_18k', name: 'طلا ۱۸ عیار (زرما)' }))
-        .toBe('طلا ۱۸ عیار (زرما)');
+      expect(getItemDisplayName({ id: 'src_def_usd', name: 'دلار آمریکا (سبزه میدان)' }))
+        .toBe('دلار آمریکا (سبزه میدان)');
     });
   });
 
@@ -153,7 +153,7 @@ describe('Phase 2 — Central Display Engine (موتور مرکزی نمایش)'
       expect(getSourceBrand('src_def_charisma')).toBe('کاریزما');
       expect(getSourceBrand('src_def_charisma_plans')).toBe('کاریزما');
       expect(getSourceBrand('src_def_usd')).toBe('سبزه میدان');
-      expect(getSourceBrand('src_def_gold_18k')).toBe('زرما');
+      expect(getSourceBrand('src_def_tgju')).toBe('tgju');
       expect(getSourceBrand('src_def_forex')).toBe('فارکس');
     });
   });

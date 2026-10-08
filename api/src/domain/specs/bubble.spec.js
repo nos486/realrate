@@ -1,6 +1,6 @@
 /**
  * bubble.spec.js — Coin bubbles as market indicators: how much a coin trades above the value of
- * its gold, in tomans per coin (tgju's «حباب» series, sources.config.js `src_def_tgju_bubbles`).
+ * its gold, in tomans per coin (tgju's «حباب» series, sources.config.js `src_def_tgju`).
  *
  * Not assets: their category (`bubble`) is not holdable, so they stay out of the portfolio and
  * its search, and show on cards and charts only. `bubbleOf` names the coin they belong to: the

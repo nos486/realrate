@@ -1,7 +1,8 @@
 /**
- * coinBubbles.test.js — Coin bubbles from tgju: a source of tgju series (each series' latest
- * value), items in tomans with their percent of the coin's gold value, a category that is shown
- * but never held, and the series offered for the history backfill
+ * coinBubbles.test.js — Gold, coins and coin bubbles from tgju: one multi-output source of tgju
+ * series (each series' latest value) whose items take their category from their spec (a coin, a
+ * bubble), bubbles in tomans with their percent of the coin's gold value and a jump limit of their
+ * own, a category that is shown but never held, and the series offered for the history backfill
  */
 import { describe, it, expect } from 'vitest';
 import { tgjuIndicatorsSourceAdapter as adapter } from '../../src/services/market/sources/tgjuIndicators.source.adapter.js';
@@ -12,9 +13,11 @@ import { isHoldableCategory, CATEGORY_MAP } from '../../src/config/categories.co
 import { PORTFOLIO_CATEGORIES } from '../../src/domain/specs/registry.js';
 import { BUBBLE_SPECS } from '../../src/domain/specs/bubble.spec.js';
 import { buildPriceBook } from '../../src/domain/priceBook.js';
+import { guardOf } from '../../src/domain/priceSources.js';
+import { guardSourceItems } from '../../src/domain/priceGuard.js';
 import { toAsset } from '../../../web/src/features/market/priceBookAssets.js';
 
-const source = PRICE_SOURCES_CONFIG.find((s) => s.id === 'src_def_tgju_bubbles');
+const source = PRICE_SOURCES_CONFIG.find((s) => s.id === 'src_def_tgju');
 
 /** tgju's summary table: the newest day first, prices in rials */
 const tgju = (bySlug) => async (url) => {
@@ -23,24 +26,39 @@ const tgju = (bySlug) => async (url) => {
   return new Response(JSON.stringify({ data: [[...bySlug[slug], '2026/10/06']] }));
 };
 
-describe('the tgju bubbles source', () => {
-  it('is configured as tgju series of coin bubbles, in rials', () => {
-    expect(source).toMatchObject({ sourceType: 'tgju_indicators', quote: 'rial', category: 'bubble', isActive: true });
-    expect(source.series.map((s) => s.id)).toEqual(Object.keys(BUBBLE_SPECS));
+describe('the tgju source', () => {
+  it('is one multi-output source of tgju series in rials: gold, coins and every coin bubble', () => {
+    expect(source).toMatchObject({ sourceType: 'tgju_indicators', quote: 'rial', outputs: 'multi', isActive: true, isPrimary: true });
+    const ids = source.series.map((s) => s.id);
+    expect(ids).toEqual(expect.arrayContaining(['gold_18k', 'mesghal', 'full_coin', 'half_coin', 'quarter_coin', 'gerami_coin', ...Object.keys(BUBBLE_SPECS)]));
     expect(getAdapterForSource(source)).toBe(adapter);
+    // No other source gives these prices
+    for (const other of PRICE_SOURCES_CONFIG.filter((s) => s !== source)) {
+      expect(ids).not.toContain(String(other.priceType || '').toLowerCase());
+    }
+  });
+
+  it('a bubble has a jump limit of its own; a price keeps the source\'s', () => {
+    const guard = guardOf(source);
+    expect(guard.maxJumpPctByKey).toEqual(Object.fromEntries(Object.keys(BUBBLE_SPECS).map((id) => [id, 100])));
+    const prev = [{ id: 'full_coin', price: 1000 }, { id: 'bubble_full_coin', price: 100 }];
+    const next = [{ id: 'full_coin', price: 1500 }, { id: 'bubble_full_coin', price: 170 }];
+    const { items, rejected } = guardSourceItems(prev, next, guard);
+    expect(items).toEqual([{ id: 'full_coin', price: 1000 }, { id: 'bubble_full_coin', price: 170 }]);
+    expect(rejected.map((r) => r.key)).toEqual(['full_coin']);
   });
 
   it('reads each series\' latest close; a series that fails is left out, the rest still update', async () => {
     const raw = await adapter.fetchRaw(source, null, tgju({
+      sekee: ['1,000,000,000', '990,000,000', '1,010,000,000', '1,005,000,000'],
       coin_blubber: ['9,000,000', '8,500,000', '9,500,000', '9,200,000'],
-      nim_blubber: ['6,000,000', '5,800,000', '6,100,000', '6,050,000'],
     }));
     const { items } = adapter.parse(raw);
     expect(items).toEqual([
+      { id: 'full_coin', name: 'سکه امامی', price: 1005000000 },
       { id: 'bubble_full_coin', name: 'حباب سکه امامی', price: 9200000 },
-      { id: 'bubble_half_coin', name: 'حباب نیم سکه', price: 6050000 },
     ]);
-    expect(raw.find((r) => r.slug === 'rob_blubber').error).toBeTruthy();
+    expect(raw.find((r) => r.slug === 'geram18').error).toBeTruthy();
   });
 
   it('fails only when no series answered', async () => {
@@ -49,13 +67,17 @@ describe('the tgju bubbles source', () => {
   });
 });
 
-describe('coin bubbles in the price book', () => {
+describe('gold, coins and bubbles in the price book', () => {
+  // One source: the coin and its bubble, in rials
   const book = buildPriceBook([
-    { id: 'src_def_full_coin', priceType: 'full_coin', isActive: true, isPrimary: true, category: 'coin', items: [{ id: 'src_def_full_coin', price: 100000000 }] },
-    { ...source, items: [{ id: 'bubble_full_coin', name: 'حباب سکه امامی', price: 92000000 }] },
+    { ...source, items: [{ id: 'full_coin', name: 'سکه امامی', price: 1000000000 }, { id: 'bubble_full_coin', name: 'حباب سکه امامی', price: 92000000 }] },
   ]);
 
-  it('is a toman item of the bubble category with its percent of the coin\'s gold value', () => {
+  it('the coin is a coin and the bubble a bubble, each from its spec, in tomans', () => {
+    expect(book.items.full_coin).toMatchObject({ price: 100000000, category: 'coin', sourceId: 'src_def_tgju' });
+  });
+
+  it('a bubble is a toman item of the bubble category with its percent of the coin\'s gold value', () => {
     // 9,200,000 tomans above a coin of 100,000,000: its gold is worth 90,800,000 → 10.13%
     expect(book.items.bubble_full_coin).toMatchObject({
       price: 9200000,
@@ -82,8 +104,8 @@ describe('a bubble is shown, never held', () => {
   });
 });
 
-describe('the history backfill offers the bubbles', () => {
-  it('every bubble has its tgju series in the catalog, in rials, suggested for its item', () => {
+describe('the history backfill offers every series', () => {
+  it('each series has its tgju slug in the catalog, in rials, suggested for its item', () => {
     for (const s of source.series) {
       expect(TGJU_CATALOG.find((c) => c.slug === s.slug)).toMatchObject({ unit: 'rial', suggest: s.id });
     }
