@@ -10,8 +10,12 @@
  * The formula is parsed — never evaluated as code: numbers, the variables, + - * / and parentheses
  * (Persian digits and × ÷ − are read too). It is stored in one form ("x/(y-x)") and shown spaced
  * ("x / (y - x)"). Cards saved with the first letters (a, b, c, d) read as x, y, z, w.
+ * A card can also show its highest, lowest and average value over 30 days or a year (`stats`),
+ * from the same daily series as its chart (seriesStats).
  * Pure: shared by the API (which validates a saved layout) and the web app.
  */
+
+import { SPEC_BY_ID, normalizePriceId } from "./priceBook.js";
 
 /** The variables, in order */
 export const FORMULA_VARS = ["x", "y", "z", "w"];
@@ -27,18 +31,31 @@ export const FORMULA_FORMATS = {
 
 export const FORMULA_LIMITS = { nameLength: 40, exprLength: 80 };
 
-/** A ready formula to start from */
-export const FORMULA_PRESETS = [
-  {
-    key: "bubble_pct",
-    label: "درصد حباب",
+/**
+ * The windows a formula card's statistics can cover — its highest, lowest and average value over
+ * the window's days (the chart's own windows: one request serves both)
+ */
+export const FORMULA_STATS = {
+  "30d": "۳۰ روز",
+  "1y": "یک سال",
+};
+
+/**
+ * Ready formulas: the bubble percent of every coin whose bubble is an asset (a spec with
+ * `bubbleOf`, bubble.spec.js) — the bubble over the coin's gold value, x = the bubble, y = the
+ * coin. A new coin bubble in the specs is a new ready formula.
+ */
+export const FORMULA_PRESETS = [...SPEC_BY_ID.values()]
+  .filter((spec) => spec?.bubbleOf)
+  .map((spec) => ({
+    key: `bubble_pct_${normalizePriceId(spec.id)}`,
+    label: `درصد ${spec.name}`,
     expr: "x/(y-x)",
     format: "percent",
-    // A starting choice of assets: the user can pick another coin and its bubble
-    vars: { x: "bubble_full_coin", y: "full_coin" },
-    hint: "x: حباب سکه، y: قیمت همان سکه — حباب نسبت به ارزش طلای سکه",
-  },
-];
+    stats: "30d",
+    vars: { x: normalizePriceId(spec.id), y: normalizePriceId(spec.bubbleOf) },
+    hint: `x: ${spec.name}، y: ${SPEC_BY_ID.get(normalizePriceId(spec.bubbleOf))?.name || spec.bubbleOf} — حباب نسبت به ارزش طلای سکه`,
+  }));
 
 /** A formula card's id in a layout section: the prefix is reserved (never a price book id) */
 export const FORMULA_ID_PREFIX = "fx_";
@@ -264,7 +281,23 @@ export function sanitizeFormulaCard(input, normalizeId = (id) => String(id || ""
   const name = String(input.name ?? "").trim().slice(0, FORMULA_LIMITS.nameLength);
   if (!name) return null;
   const format = Object.hasOwn(FORMULA_FORMATS, input.format) ? input.format : "number";
-  return { name, expr: parsed.expr, vars, format };
+  return { name, expr: parsed.expr, vars, format, ...(Object.hasOwn(FORMULA_STATS, input.stats) ? { stats: input.stats } : {}) };
+}
+
+/**
+ * A series' highest, lowest and average value (over the days it has)
+ * @param {number[]} points
+ * @returns {{ max: number, min: number, avg: number, days: number }|null}
+ */
+export function seriesStats(points) {
+  const values = (points || []).filter(Number.isFinite);
+  if (!values.length) return null;
+  return {
+    max: Math.max(...values),
+    min: Math.min(...values),
+    avg: values.reduce((a, b) => a + b, 0) / values.length,
+    days: values.length,
+  };
 }
 
 /** The number a formula card shows: a percent is the value × 100 */
@@ -277,8 +310,12 @@ export const formulaShownValue = (value, format) => (value === null || value ===
  * @param {'number'|'percent'} format
  */
 export function formatFormulaValue(value, format = "number") {
-  const shown = formulaShownValue(value, format);
-  if (shown === null || !Number.isFinite(shown)) return "—";
+  return formatFormulaShown(formulaShownValue(value, format), format);
+}
+
+/** A value already as the card shows it (a percent × 100), in its format */
+export function formatFormulaShown(shown, format = "number") {
+  if (shown === null || shown === undefined || !Number.isFinite(shown)) return "—";
   if (format === "percent") return `${shown.toLocaleString("fa-IR", { maximumFractionDigits: 2 })}٪`;
   return Math.abs(shown) >= 100
     ? Math.round(shown).toLocaleString("fa-IR")

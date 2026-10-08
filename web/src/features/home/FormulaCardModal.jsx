@@ -4,7 +4,8 @@
  *
  * The user names the card, writes the formula with x, y, z, w for the assets and + - * / and
  * parentheses, picks the asset each letter is, and shows the value as a number or a percent. A
- * ready formula (FORMULA_PRESETS: the coin bubble percent, "x / (y - x)") fills it all in. The
+ * ready formula (FORMULA_PRESETS: each coin's bubble percent, "x / (y - x)") fills it all in, and
+ * the card can show the formula's highest, lowest and average value over 30 days or a year. The
  * value at today's prices is shown as it is written; the card is saved only when it is complete.
  */
 
@@ -18,6 +19,7 @@ import {
   FORMULA_VARS,
   FORMULA_FORMATS,
   FORMULA_PRESETS,
+  FORMULA_STATS,
   FORMULA_LIMITS,
   parseFormula,
   evaluateFormula,
@@ -79,6 +81,8 @@ export default function FormulaCardModal({ formula, onSave, onClose }) {
   const [text, setText] = useState(formula ? formatFormula(formula.expr) : '');
   const [vars, setVars] = useState(formula?.vars || {});
   const [format, setFormat] = useState(formula?.format || 'number');
+  // A new card shows its 30-day statistics; an edited one keeps its choice (none: '')
+  const [stats, setStats] = useState(formula ? formula.stats || '' : '30d');
 
   const parsed = parseFormula(text);
   // The variables the formula uses, in order (x, y, …)
@@ -88,13 +92,14 @@ export default function FormulaCardModal({ formula, onSave, onClose }) {
     return price > 0 ? price : null;
   };
   const value = parsed.ok ? evaluateFormula(parsed.tree, Object.fromEntries(used.map((v) => [v, priceOf(v)]))) : null;
-  const card = sanitizeFormulaCard({ name, expr: text, vars, format });
+  const card = sanitizeFormulaCard({ name, expr: text, vars, format, stats });
 
   const applyPreset = (preset) => {
     setName(preset.label);
     setText(formatFormula(preset.expr));
     setFormat(preset.format);
     setVars({ ...preset.vars });
+    setStats(preset.stats || '');
   };
 
   return (
@@ -107,11 +112,11 @@ export default function FormulaCardModal({ formula, onSave, onClose }) {
       maxWidth="560px"
       footer={<Button disabled={!card} onClick={() => onSave(card)}>{formula ? 'ذخیره' : 'افزودن کارت'}</Button>}
     >
-      <div className="formula-presets" role="group" aria-label="فرمول آماده">
-        <span>نمونه:</span>
+      <div className="formula-presets" role="group" aria-label="نمونه‌ی آماده">
+        <span>نمونه‌ی آماده:</span>
         {FORMULA_PRESETS.map((p) => (
-          <button key={p.key} type="button" className="tx-filter-pill" title={p.hint} onClick={() => applyPreset(p)}>
-            {p.label} — <bdi dir="ltr">{formatFormula(p.expr)}</bdi>
+          <button key={p.key} type="button" className="tx-filter-pill" title={`${formatFormula(p.expr)} — ${p.hint}`} onClick={() => applyPreset(p)}>
+            {p.label}
           </button>
         ))}
       </div>
@@ -152,6 +157,15 @@ export default function FormulaCardModal({ formula, onSave, onClose }) {
       <div className="formula-format" role="group" aria-label="نمایش مقدار">
         {Object.entries(FORMULA_FORMATS).map(([key, label]) => (
           <button key={key} type="button" className={`tx-filter-pill ${format === key ? 'active' : ''}`} aria-pressed={format === key} onClick={() => setFormat(key)}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="formula-format" role="group" aria-label="آمار روی کارت">
+        <span>بیشینه، کمینه و میانگین:</span>
+        {[...Object.entries(FORMULA_STATS), ['', 'بدون']].map(([key, label]) => (
+          <button key={key || 'none'} type="button" className={`tx-filter-pill ${stats === key ? 'active' : ''}`} aria-pressed={stats === key} onClick={() => setStats(key)}>
             {label}
           </button>
         ))}

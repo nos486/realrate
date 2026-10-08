@@ -58,6 +58,20 @@ describe('a formula card', () => {
     expect(api.getSparklines.mock.calls[0][0]).toEqual(['bubble_full_coin', 'full_coin']);
   });
 
+  it('shows its highest, lowest and average value over its window, from the chart\'s one request', async () => {
+    api.getSparklines.mockResolvedValue({ available: true, sparklines: {
+      bubble_full_coin: { days: ['d1', 'd2', 'd3'], points: [10, 20, 15], candles: [[10, 10, 10, 10], [20, 20, 20, 20], [15, 15, 15, 15]] },
+      full_coin: { days: ['d1', 'd2', 'd3'], points: [110, 120, 115], candles: [[110, 110, 110, 110], [120, 120, 120, 120], [115, 115, 115, 115]] },
+    } });
+    const { container } = render(<HomeAssetCard asset={resolveFormulaCard('fx_abcd', { ...def, stats: '30d' }, index)} style="detailed" />);
+    // 10/100 = 10%, 20/100 = 20%, 15/100 = 15%
+    await waitFor(() => expect(container.querySelector('.pro-metric strong').textContent).toBe('۲۰٪'));
+    const cells = [...container.querySelectorAll('.pro-metric')].map((el) => [...el.children].map((c) => c.textContent));
+    expect(cells).toEqual([['بیشینه ۳۰ روز', '۲۰٪'], ['کمینه ۳۰ روز', '۱۰٪'], ['میانگین ۳۰ روز', '۱۵٪']]);
+    expect(api.getSparklines).toHaveBeenCalledTimes(1);
+    expect(api.getSparklines.mock.calls[0][1]).toBe('30d');
+  });
+
   it('a compact card shows its value', () => {
     const { container } = render(<HomeAssetCard asset={resolveFormulaCard('fx_abcd', def, index)} style="compact" />);
     expect(container.querySelector('.curr-price-val').textContent).toBe('۱۹٫۶۵٪');
@@ -76,10 +90,14 @@ describe('«کارت ترکیبی»', () => {
     const onSave = vi.fn();
     render(<FormulaCardModal formula={null} onSave={onSave} onClose={() => {}} />);
     expect(screen.getByRole('button', { name: 'افزودن کارت' }).disabled).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: /درصد حباب — x \/ \(y - x\)/ }));
+    // One ready formula per coin
+    for (const name of ['درصد حباب سکه امامی', 'درصد حباب نیم سکه', 'درصد حباب ربع سکه']) expect(screen.getByRole('button', { name })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'درصد حباب سکه امامی' }));
     expect(screen.getByRole('status').textContent).toContain('۱۹٫۶۵٪');
     fireEvent.click(screen.getByRole('button', { name: 'افزودن کارت' }));
-    expect(onSave).toHaveBeenCalledWith({ name: 'درصد حباب', expr: 'x/(y-x)', vars: { x: 'bubble_full_coin', y: 'full_coin' }, format: 'percent' });
+    expect(onSave).toHaveBeenCalledWith({
+      name: 'درصد حباب سکه امامی', expr: 'x/(y-x)', vars: { x: 'bubble_full_coin', y: 'full_coin' }, format: 'percent', stats: '30d',
+    });
   });
 
   it('says what is wrong with a formula and saves nothing until each letter has an asset', () => {

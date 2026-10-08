@@ -1632,8 +1632,15 @@
 
 .formula-format {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
   margin-bottom: 12px;
+}
+
+.formula-format > span {
+  color: var(--text-muted);
+  font-size: 12px;
 }
 
 .formula-preview {
