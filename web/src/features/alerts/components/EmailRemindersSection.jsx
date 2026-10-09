@@ -1,5 +1,6 @@
 /**
- * EmailRemindersSection.jsx — Account email reminder settings for loans and cheques
+ * EmailRemindersSection.jsx — Account email reminder settings for loans, cheques and subscription
+ * renewals (the kinds: utils/reminders.js REMINDER_SOURCES)
  *
  * Configures server-side daily email reminders at 08:00 Asia/Tehran.
  * Zero-knowledge guarantee: emails only ever include counts and item kinds; titles, counterparties,
@@ -16,11 +17,9 @@ import {
   sendTestAlertEmail,
 } from '../../../shared/alerts/emailAlertsApi.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
+import { REMINDER_SOURCES, REMINDER_KINDS } from '../../../utils/reminders.js';
 
-const SOURCE_OPTIONS = [
-  { id: 'loan', label: 'اقساط وام' },
-  { id: 'cheque', label: 'چک‌ها' },
-];
+const SOURCE_OPTIONS = REMINDER_SOURCES;
 
 const LEAD_DAY_OPTIONS = [
   { days: 7, label: '۷ روز قبل' },
@@ -41,7 +40,7 @@ export default function EmailRemindersSection() {
   const [userEmail, setUserEmail] = useState('');
 
   const [enabled, setEnabled] = useState(false);
-  const [sources, setSources] = useState(['loan', 'cheque']);
+  const [sources, setSources] = useState(REMINDER_KINDS);
   const [leadDays, setLeadDays] = useState([1, 0]);
   const [sendOverdue, setSendOverdue] = useState(true);
   const [includeChequeDirection, setIncludeChequeDirection] = useState(false);

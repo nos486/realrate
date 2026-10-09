@@ -9,7 +9,7 @@ place.
 ```js
 {
   id: 'loan:overdue',          // stable: what it is about
-  source: 'loan',              // ALERT_SOURCES: loan, cheque, budget, portfolio, app, system
+  source: 'loan',              // ALERT_SOURCES: loan, cheque, subscription, budget, portfolio, app, system
   severity: 'critical',        // critical | warning | info
   title: '۲ قسط معوق',
   message: '…',                // optional
@@ -27,12 +27,12 @@ email is sent once for.
 
 ## Raising alerts — `web/src/shared/alerts/alertRules.js`
 
-Pure functions from data to alerts: `loanAlerts`, `chequeAlerts`, `portfolioAlerts`. They run in
+Pure functions from data to alerts: `loanAlerts`, `chequeAlerts`, `subscriptionAlerts`, `portfolioAlerts`. They run in
 the browser because the data is end-to-end encrypted (the server cannot read it).
 
 They are published to the store by:
-- `AppAlertSources.jsx` (mounted once in `MainPage`): loans, cheques, the app update, the
-  announcement
+- `AppAlertSources.jsx` (mounted once in `MainPage`): loans, cheques, subscriptions (renewals in
+  the next 7 days, and those renewed by hand that ran out), the app update, the announcement
 - the page that holds the data: `HoldingsView` publishes its portfolio's drift and deficit
   (`portfolio:<id>`)
 
@@ -50,9 +50,10 @@ They are published to the store by:
 - `AlertCenter.jsx`: the bell in `Header` and in the app's top bar, with a counter and a panel that
   lists every alert (dismissed ones dimmed).
 - `AlertStack.jsx`: banners for some sources on the page they concern:
-  - home: loans and cheques
+  - home: loans, cheques and subscriptions
   - loans page: loans
   - cheques page: cheques
+  - subscriptions page: subscriptions
   - portfolio: its own alerts
   - top of the page: the announcement
 
@@ -64,7 +65,8 @@ Transient feedback ("saved", "failed") is not an alert: it stays a toast (`Feedb
 - **Email reminders**: server-driven via the minimal plaintext reminder index (`vault_reminders`) and daily cron (08:00 Asia/Tehran).
   - Sent to opted-in accounts with a verified email address (`alert_email_prefs`).
   - Digested into one email per user per day: counts and item kinds only («۱ قسط وام فردا سررسید می‌شود»).
-  - Each lead day is sent on its own (`alert_email_sent.reason` = `lead:7`, `lead:3`, `lead:1`, `due`, `overdue`),, so the 1-day reminder still comes after the 3-day one. Loans and cheques only (fixed incomes were removed; leftover index rows and email sources of that kind are ignored).
+  - Each lead day is sent on its own (`alert_email_sent.reason` = `lead:7`, `lead:3`, `lead:1`, `due`, `overdue`),, so the 1-day reminder still comes after the 3-day one. Loans, cheques and subscriptions only (`REMINDER_SOURCES` in `domain/reminders.js`; fixed incomes were removed, so leftover index rows and email sources of that kind are ignored).
+  - A subscription that renews by itself is a repeating row (`interval_months` = its cycle) and is never overdue (`reminderCanBeOverdue`): its date simply moves on. One renewed by hand is a one-off row on the day it runs out, overdue after it.
   - Verification is read from the account row (`users.email_verified`), the same column the cron filters on.
   - The cron runs every minute; the digest runs at the tick where Tehran's clock reads 08:00 (Tehran is UTC+3:30, so it is not on the hourly UTC gate).
   - Server sees: dates, intervals, remaining counts, muted flags, and optionally cheque direction (`include_cheque_direction`).

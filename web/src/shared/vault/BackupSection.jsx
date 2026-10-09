@@ -35,6 +35,7 @@ const KIND_LABELS = {
   bank_account: 'حساب',
   transfer: 'انتقال بین حساب‌ها',
   category_settings: 'تنظیم دسته‌ها',
+  subscription: 'اشتراک',
 };
 
 export default function BackupSection() {

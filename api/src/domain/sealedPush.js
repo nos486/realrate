@@ -9,9 +9,11 @@
  * The server only ever sees the opaque sealed ciphertext and fire date, never the plaintext.
  */
 
+import { REMINDER_KINDS } from './reminders.js';
+
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 export const DEVICE_ID_RE = /^[a-zA-Z0-9_\-.]{8,64}$/;
-const PUSH_KINDS = ['loan', 'cheque'];
+const PUSH_KINDS = REMINDER_KINDS;
 const PUSH_REASONS = ['due', 'overdue'];
 /** Each lead day has its own reason ("lead:3", "lead:1"): one row per notification */
 const LEAD_REASON_RE = /^lead:([1-9]|[12]\d|30)$/;

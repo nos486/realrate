@@ -9,6 +9,7 @@
 
 import { createAlert } from '../../utils/alerts.js';
 import { buildChequeReminders, getChequeDirection, CHEQUE_REMINDER_DAYS } from '../../utils/chequeDocument.js';
+import { subscriptionView, SUBSCRIPTION_REMINDER_DAYS } from '../../utils/subscriptionDocument.js';
 import { formatShamsiDisplay } from '../../features/portfolio/components/ShamsiDatePicker.jsx';
 import { appPath } from '../routes.js';
 
@@ -101,6 +102,55 @@ export function chequeAlerts(cheques = [], today) {
       items: upcoming.map(toItem),
       dueDate: upcoming[0].dueDate,
       action: action('مشاهده چک‌ها'),
+    }),
+  ].filter(Boolean);
+}
+
+/**
+ * Subscriptions: run out without being renewed (critical — renewed by hand, past its day) and
+ * renewing within SUBSCRIPTION_REMINDER_DAYS (warning). Active ones whose reminders are on only.
+ * A dollar subscription's amount is in tomans at `usdToman` (its dollars in the detail); without a
+ * rate it has none, so the totals stay in tomans.
+ */
+export function subscriptionAlerts(subscriptions = [], today, { usdToman = 0 } = {}) {
+  const expired = [];
+  const upcoming = [];
+  for (const sub of subscriptions || []) {
+    if (!sub?.id || sub.remindersMuted) continue;
+    const view = subscriptionView(sub, today);
+    if (view.state !== 'expired' && view.state !== 'due') continue;
+    const money = sub.currency === 'USD' ? `${faNum(sub.amount)} دلار` : null;
+    const item = {
+      key: `${sub.id}_${view.nextRenewal}`,
+      title: sub.name,
+      detail: `${view.state === 'expired' ? 'اعتبار تا' : 'تمدید'} ${formatShamsiDisplay(`${view.nextRenewal}T00:00:00`)}، ${describeDays(view.daysLeft)}${money ? `، ${money}` : ''}`,
+      amount: sub.currency !== 'USD' ? sub.amount : usdToman > 0 ? Math.round(sub.amount * usdToman) : undefined,
+      due: view.nextRenewal,
+    };
+    (view.state === 'expired' ? expired : upcoming).push(item);
+  }
+  const byDue = (a, b) => a.due.localeCompare(b.due);
+  expired.sort(byDue);
+  upcoming.sort(byDue);
+  const action = (label) => ({ label, path: appPath('/subscriptions') });
+  return [
+    expired.length && createAlert({
+      id: 'subscription:expired',
+      source: 'subscription',
+      severity: 'critical',
+      title: `${faNum(expired.length)} اشتراک تمدید نشده`,
+      items: expired,
+      dueDate: expired[0].due,
+      action: action('تمدید اشتراک‌ها'),
+    }),
+    upcoming.length && createAlert({
+      id: 'subscription:upcoming',
+      source: 'subscription',
+      severity: 'warning',
+      title: `${faNum(upcoming.length)} تمدید اشتراک تا ${faNum(SUBSCRIPTION_REMINDER_DAYS)} روز آینده`,
+      items: upcoming,
+      dueDate: upcoming[0].due,
+      action: action('مشاهده اشتراک‌ها'),
     }),
   ].filter(Boolean);
 }

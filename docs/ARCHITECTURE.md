@@ -162,6 +162,7 @@ web/src/
 │   ├── loans/               # Loans, installments, loan usage («تأمین از»)
 │   ├── incomes/             # Incomes
 │   ├── cheques/             # Cheques, tracking, AI scan
+│   ├── subscriptions/       # Subscriptions, renewals, monthly total
 │   ├── sms-inbox/           # Android: bank SMS waiting to be recorded, quick/auto record
 │   ├── app-settings/        # Android: SMS, fingerprint and recording settings
 │   ├── auth/, demo/, admin/ # Sign-in, demo account, admin panel
@@ -184,7 +185,7 @@ web/src/
 Each tab reads only what it shows, and only when needed:
 - **Opening a tab** loads its own data (its hooks). News answers are kept for the visit, so a tab opened again shows them without a request.
 - **The header's refresh button** (`PageRefreshButton`), **coming back to the app** and **the window getting focus again** read the open tab's data again — nothing on a timer. **Opening a tab** loads its records with it; the prices and the news are kept for the whole visit (`PricingContext`, `useNews`' answers: `KEPT_SCOPES`), so opening a tab again also reads those of its scopes again, each at most once per `AUTO_REFRESH_GAP_MS` (`refreshOnTabOpen`) — back on the home, its rates and news are fresh. Coming back means the Android app's `resume` (Capacitor `App`; the web view's own events are not reliable there) or the page becoming visible after being hidden: it refreshes every time, the events of one return merged into one refresh (`RETURN_MERGE_MS`, 2 s). A plain window focus (the website, the page still visible) refreshes at most once per `AUTO_REFRESH_GAP_MS` (30 s).
-- Every loader registers under the kind of data it reads — a *scope*: `prices`, `news`, `portfolio`, `loans`, `cheques`, `incomes`, `expenses`, `accounts` — with `useRefreshHandler(scope, load)` (or `useRefreshToken(scope)` in an effect's dependencies). `tabScopes.js` (`TAB_REFRESH_SCOPES`) names each tab's scopes; MainPage sets them (`usePageScopes`). Only mounted loaders run, so the news tab never reads the price book and the incomes tab never reads the loans (loaded app-wide for the due alerts). A tab with no scope (settings) hides the button.
+- Every loader registers under the kind of data it reads — a *scope*: `prices`, `news`, `portfolio`, `loans`, `cheques`, `incomes`, `expenses`, `accounts`, `subscriptions` — with `useRefreshHandler(scope, load)` (or `useRefreshToken(scope)` in an effect's dependencies). `tabScopes.js` (`TAB_REFRESH_SCOPES`) names each tab's scopes; MainPage sets them (`usePageScopes`). Only mounted loaders run, so the news tab never reads the price book and the incomes tab never reads the loans (loaded app-wide for the due alerts). A tab with no scope (settings) hides the button.
 - With the Android app's offline copy, a refresh of record scopes runs one `syncNow()` round first, then the loaders re-read the copy.
 - The opt-in Android news notifications (`features/news/newsAlerts.js`) are the one check that runs on its own (every two minutes, only when turned on).
 
@@ -296,7 +297,7 @@ Costly features (like the cheque scan, which calls Gemini on every use) have a d
 
 ## 5. Vault Records, Incremental Sync and the Offline Copy
 
-- **One table for all encrypted data**: `vault_records (user_id, kind, id, payload, record_date, parent_id, created_at, updated_at)`. Kinds: `loan`, `income`, `recurring_income`, `cheque`, `holding`, `transaction`, `portfolio_layout`, `risk_profile`, `expense_group`, `expense`, `bank_account`. Only `record_date` (the record's main date) and `parent_id` (portfolio or expense section) are plaintext, so the server can filter by date range and page lists without seeing amounts.
+- **One table for all encrypted data**: `vault_records (user_id, kind, id, payload, record_date, parent_id, created_at, updated_at)`. Kinds: `loan`, `income`, `recurring_income`, `cheque`, `holding`, `transaction`, `portfolio_layout`, `risk_profile`, `expense_group`, `expense`, `bank_account`, `transfer`, `subscription`. Only `record_date` (the record's main date) and `parent_id` (portfolio or expense section) are plaintext, so the server can filter by date range and page lists without seeing amounts.
 - **Tombstones**: deleting a record writes `vault_tombstones (user_id, kind, id, deleted_at)`; saving it again removes the tombstone. Tombstones older than 180 days are pruned.
 - **`GET /api/vault/sync?cursor=`** returns every change after the cursor (`updated_at|kind|id`), oldest first, a page at a time: saved records (the same ciphertext) and deletions, plus the vault's `epoch` (its creation time). The index `idx_vault_records_updated` keeps this proportional to the new changes, not to the data.
 - **Offline client (Android)** — `web/src/shared/offline/`:

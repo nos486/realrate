@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import ErrorBoundary from '../shared/ui/ErrorBoundary.jsx';
-import { TrendingUp, Briefcase, ShieldCheck, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards, Smartphone, MessageSquareText, FolderKanban, Newspaper, ChartColumn } from 'lucide-react';
+import { TrendingUp, Briefcase, ShieldCheck, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards, Smartphone, MessageSquareText, FolderKanban, Newspaper, ChartColumn, CalendarSync } from 'lucide-react';
 import { AppLayout, FilterPills, AlertBanner, Button } from '../shared/ui/index.js';
 import { PriceRefreshStatus } from '../features/market/components/index.js';
 import HomeDashboard from '../features/home/HomeDashboard.jsx';
@@ -35,6 +35,7 @@ const PortfolioTracker = lazy(() => import('../features/portfolio/components/Por
 const LoansPage = lazy(() => import('../features/loans/components/LoansPage.jsx'));
 const IncomesPage = lazy(() => import('../features/incomes/components/IncomesPage.jsx'));
 const ChequesPage = lazy(() => import('../features/cheques/components/ChequesPage.jsx'));
+const SubscriptionsPage = lazy(() => import('../features/subscriptions/components/SubscriptionsPage.jsx'));
 const ExpensesPage = lazy(() => import('../features/expenses/components/ExpensesPage.jsx'));
 const ProjectsPage = lazy(() => import('../features/expenses/components/ProjectsPage.jsx'));
 const AccountsPage = lazy(() => import('../features/accounts/components/AccountsPage.jsx'));
@@ -126,6 +127,13 @@ export default function MainPage() {
       searchParams.get('tab') === 'cheques'
     );
 
+  // Subscriptions: what renews, when, and what they cost a month
+  const isSubscriptions =
+    Boolean(user) && !isSettings && (
+      subPath.startsWith('/subscriptions') ||
+      searchParams.get('tab') === 'subscriptions'
+    );
+
   // Projects have their own part (/projects); old /expenses/projects and /expenses/:id links are
   // sent there below
   const oldProjectSegment = subPath.match(/^\/expenses\/([^/]+)/)?.[1] || null;
@@ -187,6 +195,7 @@ export default function MainPage() {
     ['sms', isSms],
     ['incomes', isIncomes],
     ['cheques', isCheques],
+    ['subscriptions', isSubscriptions],
     ['projects', isProjects],
     ['expenses', isExpenses],
     ['accounts', isAccounts],
@@ -212,6 +221,8 @@ export default function MainPage() {
         return 'درآمدها | RealRate';
       case 'cheques':
         return 'مدیریت چک‌ها | RealRate';
+      case 'subscriptions':
+        return 'اشتراک‌ها | RealRate';
       case 'expenses':
         return 'هزینه‌ها | RealRate';
       case 'projects':
@@ -268,6 +279,7 @@ export default function MainPage() {
   const TAB_PATHS = {
     incomes: '/incomes',
     cheques: '/cheques',
+    subscriptions: '/subscriptions',
     expenses: '/expenses',
     projects: '/projects',
     accounts: '/accounts',
@@ -318,6 +330,7 @@ export default function MainPage() {
       { value: 'portfolio', label: 'پورتفو', icon: <Briefcase size={16} strokeWidth={2} /> },
       { value: 'loans', label: 'وام و اقساط', icon: <Landmark size={16} strokeWidth={2} /> },
       { value: 'cheques', label: 'چک‌ها', icon: <ReceiptText size={16} strokeWidth={2} /> },
+      ...(user ? [{ value: 'subscriptions', label: 'اشتراک‌ها', icon: <CalendarSync size={16} strokeWidth={2} /> }] : []),
       ...(user ? [{ value: 'reports', label: 'گزارش‌ها', icon: <ChartColumn size={16} strokeWidth={2} /> }] : []),
     ];
     if (user && !isDemo) {
@@ -423,9 +436,10 @@ export default function MainPage() {
 
         {/* Due-date alerts: on the home page, and each on its own page — not repeated on every
             other page (the bell lists them all) */}
-        {activeTab === 'market' && <AlertStack sources={['loan', 'cheque']} />}
+        {activeTab === 'market' && <AlertStack sources={['loan', 'cheque', 'subscription']} />}
         {activeTab === 'loans' && <AlertStack sources={['loan']} />}
         {activeTab === 'cheques' && <AlertStack sources={['cheque']} />}
+        {activeTab === 'subscriptions' && <AlertStack sources={['subscription']} />}
 
         {activeTab === 'market' && appLayout && (
           <Suspense fallback={<TabLoader />}>
@@ -476,6 +490,8 @@ export default function MainPage() {
         {activeTab === 'cheques' && (
           <ChequesPage />
         )}
+
+        {activeTab === 'subscriptions' && <SubscriptionsPage />}
 
         {activeTab === 'accounts' && <AccountsPage />}
 

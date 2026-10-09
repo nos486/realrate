@@ -9,6 +9,7 @@ import {
   handleSendTestEmailAlert,
 } from '../../src/handlers/alertEmailRoutes.js';
 import { runReminderEmailDigest } from '../../src/jobs/reminderEmail.job.js';
+import { REMINDER_KINDS } from '../../src/domain/reminders.js';
 import {
   dbGetAlertEmailPrefs,
   dbSaveAlertEmailPrefs,
@@ -38,7 +39,7 @@ vi.mock('../../src/repositories/account.repository.js', () => ({
 
 import { getAuthenticatedUser } from '../../src/lib/auth.js';
 import { dbGetUserAuthById } from '../../src/repositories/account.repository.js';
-import { sendEmail, isEmailConfigured } from '../../src/lib/email.js';
+import { sendEmail, isEmailConfigured, reminderDigestEmail } from '../../src/lib/email.js';
 
 function createMockDb() {
   const prefs = new Map();
@@ -201,7 +202,8 @@ describe('Alert Email System (Part A)', () => {
       expect(data.emailVerified).toBe(true);
       expect(data.emailConfigured).toBe(true);
       expect(data.prefs.enabled).toBe(false);
-      expect(data.prefs.sources).toEqual(['loan', 'cheque']);
+      // Every reminder kind by default (loans, cheques, subscriptions)
+      expect(data.prefs.sources).toEqual(REMINDER_KINDS);
     });
 
     it('updates preferences and clears cheque direction when disabled', async () => {
@@ -412,6 +414,34 @@ describe('Alert Email System (Part A)', () => {
           reason: 'due',
         }),
       ]);
+    });
+
+    it('subscriptions: one renewing by itself rolls on and is never overdue; one renewed by hand runs out', async () => {
+      const userId = 'u_subs';
+      db.users.set(userId, { email: 'subs@example.com', email_verified: 1, disabled: 0 });
+      db.prefs.set(userId, {
+        user_id: userId,
+        enabled: 1,
+        sources: JSON.stringify(['subscription']),
+        lead_days: JSON.stringify([1, 0]),
+        send_overdue: 1,
+        include_cheque_direction: 0,
+      });
+      // Renews by itself every month from 2026-08-05 (14 Mordad, stored long ago): its next renewal is
+      // 14 Mehr, tomorrow — never overdue
+      db.reminders.push({ user_id: userId, kind: 'subscription', record_id: 'sub_auto', due_date: '2026-08-05', interval_months: 1, remaining: null, direction: '', muted: 0 });
+      // Renewed by hand, ran out on 2026-10-01
+      db.reminders.push({ user_id: userId, kind: 'subscription', record_id: 'sub_manual', due_date: '2026-10-01', interval_months: 0, remaining: 1, direction: '', muted: 0 });
+
+      const res = await runReminderEmailDigest(env, '2026-10-05');
+      expect(res.emailsSent).toBe(1);
+      expect(db.sent).toEqual(expect.arrayContaining([
+        expect.objectContaining({ record_id: 'sub_auto', due_date: '2026-10-06', reason: 'lead:1' }),
+        expect.objectContaining({ record_id: 'sub_manual', reason: 'overdue' }),
+      ]));
+      expect(db.sent.filter((r) => r.record_id === 'sub_auto' && r.reason === 'overdue')).toEqual([]);
+      const { items } = reminderDigestEmail.mock.calls.at(-1)[0];
+      expect(items).toEqual(expect.arrayContaining(['۱ اشتراک تمدید نشده و تمام شده است', 'موعد تمدید ۱ اشتراک فرداست']));
     });
 
     it('sends each lead day on its own (3 days before, then 1 day before)', async () => {
