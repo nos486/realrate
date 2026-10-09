@@ -9,7 +9,7 @@
  *                                                       user's financial data ({ confirm: "RESET_ALL_DATA",
  *                                                       password } — the account password when it has one)
  *   GET    /api/vault/records/:kind                  — Encrypted records of a kind (loan | income | cheque | recurring_income | holding | transaction |
- *                                                       expense_group | expense | bank_account | transfer — each only with its feature: config/features.js);
+ *                                                       expense_group | expense | bank_account | transfer | subscription — each only with its feature: config/features.js);
  *                                                       ?from&to&parent&undated=1&order=asc|desc&limit&offset (a page adds `total`)
  *   PUT    /api/vault/records/:kind                  — Create/replace several of one kind at once
  *                                                       ({ records: [{ id, payload, recordDate,

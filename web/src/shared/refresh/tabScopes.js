@@ -3,8 +3,8 @@
  * getting focus again) reads that and nothing else (pageRefresh.js)
  *
  * A scope only reads where a loader of it is mounted, so a tab never reads what it doesn't show.
- * Loans and cheques are also loaded for the whole app (the due-date alerts), so only their own
- * tabs name them.
+ * Loans, cheques and subscriptions are also loaded for the whole app (the due-date alerts), so
+ * only their own tabs name them.
  */
 
 /** Tab → the scopes its refresh reads */
@@ -18,6 +18,8 @@ export const TAB_REFRESH_SCOPES = {
   portfolio: ['prices', 'portfolio'],
   loans: ['loans'],
   cheques: ['cheques'],
+  // Their dollar costs are shown in tomans at the live rate
+  subscriptions: ['subscriptions', 'prices'],
   incomes: ['incomes'],
   expenses: ['expenses', 'accounts'],
   projects: ['expenses'],

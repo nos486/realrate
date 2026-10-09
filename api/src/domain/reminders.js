@@ -1,16 +1,17 @@
 /**
  * reminders.js — Plaintext reminder index metadata and occurrence schedule calculation
  *
- * RealRate financial records (loans, cheques) are client-side encrypted in the
+ * RealRate financial records (loans, cheques, subscriptions) are client-side encrypted in the
  * vault. To deliver due-date reminders (via server email cron, local notifications, or Web Push)
  * without ever decrypting or leaking financial values, each due record maintains a minimal,
  * plaintext reminder row:
  *
  *   {
- *     kind: 'loan' | 'cheque',
+ *     kind: 'loan' | 'cheque' | 'subscription',
  *     recordId: string,
  *     dueDate: 'YYYY-MM-DD',  // next unpaid date (Gregorian)
- *     intervalMonths: 0..12,  // 0 = one-off (cheques); >0 = repeats (loan installments)
+ *     intervalMonths: 0..12,  // 0 = one-off (cheques, a subscription renewed by hand); >0 = repeats
+ *                             // (loan installments, a subscription that renews by itself)
  *     remaining: 0..600 | null, // occurrences left including dueDate; null for open-ended
  *     direction: 'issued' | 'received' | '', // cheques only, and only if explicitly opted-in
  *     muted: boolean,         // per-record reminder disable flag
@@ -31,8 +32,23 @@ import {
 } from './loanCalculator.js';
 import { buildLoanView } from './loanDocument.js';
 import { isChequeOpen } from './chequeDocument.js';
+import { subscriptionView, renewalsBetween } from './subscriptionDocument.js';
 
-export const REMINDER_KINDS = ['loan', 'cheque'];
+/** The kinds of records that carry a reminder, and how the settings name them */
+export const REMINDER_SOURCES = [
+  { id: 'loan', label: 'اقساط وام' },
+  { id: 'cheque', label: 'چک‌ها' },
+  { id: 'subscription', label: 'تمدید اشتراک‌ها' },
+];
+export const REMINDER_KINDS = REMINDER_SOURCES.map((s) => s.id);
+
+/**
+ * Whether a reminder can be overdue (its date passed, still owed): a subscription that renews by
+ * itself never is — its date simply moves on; one renewed by hand has run out
+ */
+export function reminderCanBeOverdue(reminder) {
+  return reminder?.kind !== 'subscription' || !(reminder.intervalMonths > 0);
+}
 const RECORD_ID_RE = /^[A-Za-z0-9_-]{1,80}$/;
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -106,14 +122,15 @@ export function validateReminder(input) {
 
 /**
  * Derives a minimal plaintext reminder row from a decrypted record. Pure.
- * Returns null if no reminder is needed (loan fully paid, cheque closed, inactive rule).
+ * Returns null if no reminder is needed (loan fully paid, cheque closed, subscription not running).
  *
- * @param {'loan'|'cheque'} kind
+ * @param {'loan'|'cheque'|'subscription'} kind
  * @param {object} plainRecord
- * @param {{ includeDirection?: boolean }} [options]
+ * @param {{ includeDirection?: boolean, today?: string }} [options] - today: a subscription's next
+ *   renewal is the first on or after it (default: today, UTC)
  * @returns {object|null}
  */
-export function reminderOf(kind, plainRecord, { includeDirection = false } = {}) {
+export function reminderOf(kind, plainRecord, { includeDirection = false, today = new Date().toISOString().slice(0, 10) } = {}) {
   if (!plainRecord || typeof plainRecord !== 'object') return null;
 
   if (kind === 'loan') {
@@ -187,6 +204,22 @@ export function reminderOf(kind, plainRecord, { includeDirection = false } = {})
       direction,
       muted,
     };
+  }
+
+  if (kind === 'subscription') {
+    const view = subscriptionView(plainRecord, today);
+    if (!view.running && view.state !== 'expired') return null;
+    if (!view.nextRenewal || !ISO_DATE_RE.test(view.nextRenewal)) return null;
+    const recordId = String(plainRecord.id || '');
+    const muted = Boolean(plainRecord.remindersMuted);
+    // Renewed by itself: its renewals from the next one, up to its end; by hand: the day it runs out
+    if (plainRecord.autoRenew) {
+      const remaining = plainRecord.endDate
+        ? Math.min(600, renewalsBetween(plainRecord, view.nextRenewal, plainRecord.endDate).length)
+        : null;
+      return { kind: 'subscription', recordId, dueDate: view.nextRenewal, intervalMonths: plainRecord.cycleMonths, remaining, direction: '', muted };
+    }
+    return { kind: 'subscription', recordId, dueDate: view.nextRenewal, intervalMonths: 0, remaining: 1, direction: '', muted };
   }
 
   return null;

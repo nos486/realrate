@@ -32,6 +32,7 @@ const SEVERITY_RANK = { critical: 0, warning: 1, info: 2 };
 export const ALERT_SOURCES = {
   loan: { label: 'اقساط وام', email: true },
   cheque: { label: 'چک‌ها', email: true },
+  subscription: { label: 'اشتراک‌ها', email: true },
   budget: { label: 'بودجه', email: false },
   portfolio: { label: 'پورتفو', email: false },
   app: { label: 'برنامه', email: false },
@@ -101,7 +102,11 @@ export function summarizeAlerts(alerts = []) {
 }
 
 /** Email preferences (off until the user turns it on) */
-export const DEFAULT_EMAIL_PREFS = { enabled: false, sources: ['loan', 'cheque'], includeAmounts: false };
+export const DEFAULT_EMAIL_PREFS = {
+  enabled: false,
+  sources: Object.keys(ALERT_SOURCES).filter((key) => ALERT_SOURCES[key].email),
+  includeAmounts: false,
+};
 
 /**
  * The alerts an email should carry: critical, from a source the user chose (and that may be

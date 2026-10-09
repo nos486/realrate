@@ -28,6 +28,8 @@ export const VAULT_RECORD_KINDS = [
   "transfer",
   // The user's expense and income categories (domain/categoryDocument.js), one record
   "category_settings",
+  // The user's subscriptions (domain/subscriptionDocument.js), with a renewal reminder
+  "subscription",
 ];
 
 /** Kinds that exist only for users of a feature (config/features.js); others get 404 */

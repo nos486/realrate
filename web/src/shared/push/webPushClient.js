@@ -294,6 +294,7 @@ export async function signOutWebPush() {
 export async function syncSealedReminders({
   loans = [],
   cheques = [],
+  subscriptions = [],
   isVaultUnlocked = false,
   today,
   hideAmounts = false,
@@ -308,6 +309,7 @@ export async function syncSealedReminders({
   const planned = planDueNotifications({
     loans,
     cheques,
+    subscriptions,
     today,
     settings: {
       enabled: true,

@@ -1,11 +1,11 @@
 /**
- * dueNotifications.js — Android local notifications for due loans and cheques
+ * dueNotifications.js — Android local notifications for due loans, cheques and subscription renewals
  *
  * Uses @capacitor/local-notifications with inexact scheduling (no SCHEDULE_EXACT_ALARM needed).
  * All decrypted data (titles, amounts, counterparties) stays entirely on the device.
  */
 
-import { reminderOf, occurrencesBetween } from '../../utils/reminders.js';
+import { reminderOf, occurrencesBetween, reminderCanBeOverdue } from '../../utils/reminders.js';
 import { isNativeApp } from './nativeApp.js';
 import { isPrivacyMode } from '../../hooks/usePrivacyMode.js';
 import { buildLoanView } from '../../utils/loanDocument.js';
@@ -76,7 +76,7 @@ export function addDaysIso(isoDate, days) {
 /**
  * Build notification title and body text in Persian.
  */
-function buildNotificationText({ kind, title, counterparty, direction, amount, reason, leadDays, showAmount }) {
+function buildNotificationText({ kind, title, counterparty, direction, amount, currency, autoRenew, reason, leadDays, showAmount }) {
   let headline = '';
   if (kind === 'loan') {
     if (reason === 'overdue') headline = 'قسط وام سررسیدش گذشته است';
@@ -89,12 +89,19 @@ function buildNotificationText({ kind, title, counterparty, direction, amount, r
     else if (reason === 'due' || leadDays === 0) headline = `${dirLabel} امروز سررسید است`;
     else if (leadDays === 1) headline = `${dirLabel} فردا سررسید می‌شود`;
     else headline = `${dirLabel} در ${faNum(leadDays)} روز آینده سررسید می‌شود`;
+  } else if (kind === 'subscription') {
+    // Renewed by itself it is charged; by hand it runs out
+    const verb = autoRenew ? 'تمدید می‌شود' : 'تمام می‌شود';
+    if (reason === 'overdue') headline = 'اشتراک تمدید نشده و تمام شده است';
+    else if (reason === 'due' || leadDays === 0) headline = `اشتراک امروز ${verb}`;
+    else if (leadDays === 1) headline = `اشتراک فردا ${verb}`;
+    else headline = `اشتراک ${faNum(leadDays)} روز دیگر ${verb}`;
   }
 
   const namePart = (counterparty || title || '').trim();
   let body = namePart;
   if (showAmount && amount > 0) {
-    const amountStr = `${faNum(amount)} تومان`;
+    const amountStr = currency === 'USD' ? `${faNum(amount)} دلار` : `${faNum(amount)} تومان`;
     body = namePart ? `${namePart} — ${amountStr}` : amountStr;
   }
 
@@ -102,10 +109,70 @@ function buildNotificationText({ kind, title, counterparty, direction, amount, r
 }
 
 /**
+ * One record's notifications: the morning after a missed date (when it can be overdue), and for
+ * each occurrence within the window its lead days and the morning after
+ * @param {{ kind: string, record: object, reminder: object, text: object, path: string }} item
+ *   text: buildNotificationText's fields other than reason / leadDays
+ */
+function planRecord({ kind, record, reminder, text, path }, { today, maxDate, leadDays, showAmount, now }) {
+  const out = [];
+  const overdueAllowed = reminderCanBeOverdue(reminder);
+  const push = (dueDate, reason, d, fireAt) => {
+    const t = buildNotificationText({ kind, ...text, reason, leadDays: d, showAmount });
+    out.push({
+      id: notificationId(kind, record.id, dueDate, reason === 'overdue' ? 'overdue' : `${reason}_${d}`),
+      kind,
+      recordId: record.id,
+      dueDate,
+      reason,
+      leadDays: d,
+      fireAt,
+      title: t.title,
+      body: t.body,
+      extra: { kind: 'due', path, recordId: record.id, dueDate, reason },
+    });
+  };
+  // The morning after `day`, when it is still ahead and within the window
+  const overdueAfter = (day) => {
+    if (!overdueAllowed) return;
+    const morning = addDaysIso(day, 1);
+    const fireAt = new Date(`${morning}T09:00:00`);
+    if (fireAt.getTime() > now.getTime() && morning <= maxDate) push(day, 'overdue', 0, fireAt);
+  };
+
+  if (reminder.dueDate < today) overdueAfter(reminder.dueDate);
+  for (const occ of occurrencesBetween(reminder, today, maxDate)) {
+    for (const d of leadDays) {
+      const fireAt = new Date(`${addDaysIso(occ, -d)}T09:00:00`);
+      if (fireAt.getTime() > now.getTime()) push(occ, d === 0 ? 'due' : 'lead', d, fireAt);
+    }
+    overdueAfter(occ);
+  }
+  return out;
+}
+
+/** A loan's next installment amount and its title */
+function loanFigures(loan) {
+  let title = (loan.title || '').trim();
+  if (loan.nextDueInstallment) return { title, amount: Number(loan.nextDueInstallment.totalAmount || 0) };
+  try {
+    const view = loan.installments
+      ? loan
+      : buildLoanView(loan.loan ? loan : { loan, states: loan.states || [] });
+    const nextInst = view?.installments?.find((i) => !i.isPaid);
+    if (!title && view?.title) title = view.title;
+    return { title, amount: Number(nextInst?.totalAmount || 0) };
+  } catch {
+    return { title, amount: 0 };
+  }
+}
+
+/**
  * Pure planning function for upcoming local notifications.
  * @param {object} params
  * @param {object[]} [params.loans]
  * @param {object[]} [params.cheques]
+ * @param {object[]} [params.subscriptions]
  * @param {string} params.today - YYYY-MM-DD
  * @param {object} [params.settings]
  * @param {boolean} [params.hideAmounts]
@@ -115,6 +182,7 @@ function buildNotificationText({ kind, title, counterparty, direction, amount, r
 export function planDueNotifications({
   loans = [],
   cheques = [],
+  subscriptions = [],
   today,
   settings = {},
   hideAmounts = false,
@@ -124,227 +192,47 @@ export function planDueNotifications({
   if (!currentSettings.enabled) return [];
 
   const effectiveHideAmounts = hideAmounts || !currentSettings.showAmount;
-  const leadDays = currentSettings.leadDays || [1, 0];
-  const maxDate = addDaysIso(today, MAX_PLANNING_DAYS);
+  const span = {
+    today,
+    maxDate: addDaysIso(today, MAX_PLANNING_DAYS),
+    leadDays: currentSettings.leadDays || [1, 0],
+    showAmount: !effectiveHideAmounts,
+    now,
+  };
 
-  const planned = [];
-
-  // 1. Loans
+  const items = [];
   for (const loan of loans) {
     const reminder = reminderOf('loan', loan);
     if (!reminder || reminder.muted) continue;
-
-    let amount = 0;
-    let title = (loan.title || '').trim();
-    if (loan.nextDueInstallment) {
-      amount = Number(loan.nextDueInstallment.totalAmount || 0);
-    } else {
-      try {
-        const view = loan.installments
-          ? loan
-          : buildLoanView(loan.loan ? loan : { loan, states: loan.states || [] });
-        const nextInst = view?.installments?.find((i) => !i.isPaid);
-        amount = Number(nextInst?.totalAmount || 0);
-        if (!title && view?.title) title = view.title;
-      } catch {
-        amount = 0;
-      }
-    }
-    const deepLinkPath = `/loans/${reminder.recordId || loan.id}`;
-
-    // Overdue check
-    if (reminder.dueDate < today) {
-      // Overdue notification scheduled for the morning after due date
-      const overdueDate = addDaysIso(reminder.dueDate, 1);
-      const fireAt = new Date(`${overdueDate}T09:00:00`);
-      if (fireAt.getTime() > now.getTime() && overdueDate <= maxDate) {
-        const text = buildNotificationText({
-          kind: 'loan',
-          title,
-          amount,
-          reason: 'overdue',
-          leadDays: 0,
-          showAmount: !effectiveHideAmounts,
-        });
-        planned.push({
-          id: notificationId('loan', loan.id, reminder.dueDate, 'overdue'),
-          kind: 'loan',
-          recordId: loan.id,
-          dueDate: reminder.dueDate,
-          reason: 'overdue',
-          leadDays: 0,
-          fireAt,
-          title: text.title,
-          body: text.body,
-          extra: { kind: 'due', path: deepLinkPath, recordId: loan.id, dueDate: reminder.dueDate, reason: 'overdue' },
-        });
-      }
-    }
-
-    // Upcoming occurrences
-    const occurrences = occurrencesBetween(reminder, today, maxDate);
-    for (const occ of occurrences) {
-      for (const d of leadDays) {
-        const reason = d === 0 ? 'due' : 'lead';
-        const triggerDay = addDaysIso(occ, -d);
-        const fireAt = new Date(`${triggerDay}T09:00:00`);
-        if (fireAt.getTime() > now.getTime()) {
-          const text = buildNotificationText({
-            kind: 'loan',
-            title,
-            amount,
-            reason,
-            leadDays: d,
-            showAmount: !effectiveHideAmounts,
-          });
-          planned.push({
-            id: notificationId('loan', loan.id, occ, `${reason}_${d}`),
-            kind: 'loan',
-            recordId: loan.id,
-            dueDate: occ,
-            reason,
-            leadDays: d,
-            fireAt,
-            title: text.title,
-            body: text.body,
-            extra: { kind: 'due', path: deepLinkPath, recordId: loan.id, dueDate: occ, reason },
-          });
-        }
-      }
-
-      // Next morning overdue reminder for upcoming occurrence
-      const nextMorning = addDaysIso(occ, 1);
-      const overdueFireAt = new Date(`${nextMorning}T09:00:00`);
-      if (overdueFireAt.getTime() > now.getTime() && nextMorning <= maxDate) {
-        const text = buildNotificationText({
-          kind: 'loan',
-          title,
-          amount,
-          reason: 'overdue',
-          leadDays: 0,
-          showAmount: !effectiveHideAmounts,
-        });
-        planned.push({
-          id: notificationId('loan', loan.id, occ, 'overdue'),
-          kind: 'loan',
-          recordId: loan.id,
-          dueDate: occ,
-          reason: 'overdue',
-          leadDays: 0,
-          fireAt: overdueFireAt,
-          title: text.title,
-          body: text.body,
-          extra: { kind: 'due', path: deepLinkPath, recordId: loan.id, dueDate: occ, reason: 'overdue' },
-        });
-      }
-    }
+    items.push({ kind: 'loan', record: loan, reminder, text: loanFigures(loan), path: `/loans/${reminder.recordId || loan.id}` });
   }
-
-  // 2. Cheques
   for (const cheque of cheques) {
     const reminder = reminderOf('cheque', cheque, { includeDirection: true });
     if (!reminder || reminder.muted) continue;
-
-    const amount = Number(cheque.amount || 0);
-    const counterparty = (cheque.counterparty || '').trim();
-    const direction = cheque.direction || '';
-    const deepLinkPath = '/cheques';
-
-    // Overdue check
-    if (reminder.dueDate < today) {
-      const overdueDate = addDaysIso(reminder.dueDate, 1);
-      const fireAt = new Date(`${overdueDate}T09:00:00`);
-      if (fireAt.getTime() > now.getTime() && overdueDate <= maxDate) {
-        const text = buildNotificationText({
-          kind: 'cheque',
-          counterparty,
-          direction,
-          amount,
-          reason: 'overdue',
-          leadDays: 0,
-          showAmount: !effectiveHideAmounts,
-        });
-        planned.push({
-          id: notificationId('cheque', cheque.id, reminder.dueDate, 'overdue'),
-          kind: 'cheque',
-          recordId: cheque.id,
-          dueDate: reminder.dueDate,
-          reason: 'overdue',
-          leadDays: 0,
-          fireAt,
-          title: text.title,
-          body: text.body,
-          extra: { kind: 'due', path: deepLinkPath, recordId: cheque.id, dueDate: reminder.dueDate, reason: 'overdue' },
-        });
-      }
-    }
-
-    const occurrences = occurrencesBetween(reminder, today, maxDate);
-    for (const occ of occurrences) {
-      for (const d of leadDays) {
-        const reason = d === 0 ? 'due' : 'lead';
-        const triggerDay = addDaysIso(occ, -d);
-        const fireAt = new Date(`${triggerDay}T09:00:00`);
-        if (fireAt.getTime() > now.getTime()) {
-          const text = buildNotificationText({
-            kind: 'cheque',
-            counterparty,
-            direction,
-            amount,
-            reason,
-            leadDays: d,
-            showAmount: !effectiveHideAmounts,
-          });
-          planned.push({
-            id: notificationId('cheque', cheque.id, occ, `${reason}_${d}`),
-            kind: 'cheque',
-            recordId: cheque.id,
-            dueDate: occ,
-            reason,
-            leadDays: d,
-            fireAt,
-            title: text.title,
-            body: text.body,
-            extra: { kind: 'due', path: deepLinkPath, recordId: cheque.id, dueDate: occ, reason },
-          });
-        }
-      }
-
-      // Next morning overdue
-      const nextMorning = addDaysIso(occ, 1);
-      const overdueFireAt = new Date(`${nextMorning}T09:00:00`);
-      if (overdueFireAt.getTime() > now.getTime() && nextMorning <= maxDate) {
-        const text = buildNotificationText({
-          kind: 'cheque',
-          counterparty,
-          direction,
-          amount,
-          reason: 'overdue',
-          leadDays: 0,
-          showAmount: !effectiveHideAmounts,
-        });
-        planned.push({
-          id: notificationId('cheque', cheque.id, occ, 'overdue'),
-          kind: 'cheque',
-          recordId: cheque.id,
-          dueDate: occ,
-          reason: 'overdue',
-          leadDays: 0,
-          fireAt: overdueFireAt,
-          title: text.title,
-          body: text.body,
-          extra: { kind: 'due', path: deepLinkPath, recordId: cheque.id, dueDate: occ, reason: 'overdue' },
-        });
-      }
-    }
+    items.push({
+      kind: 'cheque',
+      record: cheque,
+      reminder,
+      text: { counterparty: (cheque.counterparty || '').trim(), direction: cheque.direction || '', amount: Number(cheque.amount || 0) },
+      path: '/cheques',
+    });
+  }
+  for (const sub of subscriptions) {
+    const reminder = reminderOf('subscription', sub, { today });
+    if (!reminder || reminder.muted) continue;
+    items.push({
+      kind: 'subscription',
+      record: sub,
+      reminder,
+      text: { title: (sub.name || '').trim(), amount: Number(sub.amount || 0), currency: sub.currency, autoRenew: sub.autoRenew !== false },
+      path: '/subscriptions',
+    });
   }
 
   // Deduplicate by ID and sort chronologically
   const uniqueMap = new Map();
-  for (const item of planned) {
-    if (!uniqueMap.has(item.id)) {
-      uniqueMap.set(item.id, item);
-    }
+  for (const item of items.flatMap((i) => planRecord(i, span))) {
+    if (!uniqueMap.has(item.id)) uniqueMap.set(item.id, item);
   }
 
   const sorted = [...uniqueMap.values()].sort((a, b) => a.fireAt.getTime() - b.fireAt.getTime());
@@ -358,6 +246,7 @@ export function planDueNotifications({
 export async function scheduleDueNotifications({
   loans = [],
   cheques = [],
+  subscriptions = [],
   isVaultUnlocked = false,
   today,
   settings,
@@ -372,6 +261,7 @@ export async function scheduleDueNotifications({
   const planned = planDueNotifications({
     loans,
     cheques,
+    subscriptions,
     today,
     settings: currentSettings,
     hideAmounts: privacyActive,

@@ -12,7 +12,7 @@ import {
   dbGetSentHistoryForUsers,
   dbRecordAlertEmailSent,
 } from '../repositories/alertEmail.repository.js';
-import { occurrencesBetween } from '../domain/reminders.js';
+import { occurrencesBetween, reminderCanBeOverdue } from '../domain/reminders.js';
 import { sendEmail, reminderDigestEmail, isEmailConfigured } from '../lib/email.js';
 import { siteOrigin } from '../lib/siteOrigin.js';
 import { logger } from '../lib/logger.js';
@@ -47,6 +47,35 @@ export function tehranTime(date = new Date()) {
   };
 }
 
+/**
+ * How each reminder kind reads in the digest: what it is («قسط وام», «چک صادره»…) and, per
+ * group, its line. A new kind adds its entry here.
+ */
+const chequeLabel = (direction) => (direction === 'issued' ? 'چک صادره' : direction === 'received' ? 'چک دریافتی' : 'چک');
+export const REMINDER_DIGEST_TEXT = {
+  loan: {
+    overdue: (cnt) => `${cnt} قسط وام سررسیدش گذشته است`,
+    due: (cnt) => `${cnt} قسط وام امروز سررسید است`,
+    tomorrow: (cnt) => `${cnt} قسط وام فردا سررسید می‌شود`,
+    inDays: (cnt, days) => `${cnt} قسط وام در ${days} روز آینده سررسید می‌شود`,
+  },
+  cheque: {
+    overdue: (cnt, dir) => `${cnt} ${chequeLabel(dir)} سررسیدش گذشته است`,
+    due: (cnt, dir) => (dir === 'issued'
+      ? `${cnt} چک صادره امروز سررسید است — موجودی حسابتان را بررسی کنید`
+      : dir === 'received' ? `${cnt} چک دریافتی امروز سررسید است — برای وصول آماده کنید` : `${cnt} چک امروز سررسید است`),
+    tomorrow: (cnt, dir) => `${cnt} ${chequeLabel(dir)} فردا سررسید می‌شود`,
+    inDays: (cnt, days, dir) => `${cnt} ${chequeLabel(dir)} در ${days} روز آینده سررسید می‌شود`,
+  },
+  // Renewed by itself or by hand alike (the row does not say which): the renewal's day
+  subscription: {
+    overdue: (cnt) => `${cnt} اشتراک تمدید نشده و تمام شده است`,
+    due: (cnt) => `موعد تمدید ${cnt} اشتراک امروز است`,
+    tomorrow: (cnt) => `موعد تمدید ${cnt} اشتراک فرداست`,
+    inDays: (cnt, days) => `موعد تمدید ${cnt} اشتراک ${days} روز دیگر است`,
+  },
+};
+
 function formatGroupLines(groupKey, items) {
   // Group by kind + direction
   const counts = new Map();
@@ -58,42 +87,14 @@ function formatGroupLines(groupKey, items) {
   const lines = [];
   for (const [key, count] of counts.entries()) {
     const [kind, direction] = key.split('|');
+    const text = REMINDER_DIGEST_TEXT[kind];
+    if (!text) continue;
     const cnt = toFa(count);
-
-    if (groupKey === 'overdue') {
-      if (kind === 'loan') {
-        lines.push(`${cnt} قسط وام سررسیدش گذشته است`);
-      } else if (kind === 'cheque') {
-        if (direction === 'issued') lines.push(`${cnt} چک صادره سررسیدش گذشته است`);
-        else if (direction === 'received') lines.push(`${cnt} چک دریافتی سررسیدش گذشته است`);
-        else lines.push(`${cnt} چک سررسیدش گذشته است`);
-      }
-    } else if (groupKey === 'due') {
-      if (kind === 'loan') {
-        lines.push(`${cnt} قسط وام امروز سررسید است`);
-      } else if (kind === 'cheque') {
-        if (direction === 'issued') lines.push(`${cnt} چک صادره امروز سررسید است — موجودی حسابتان را بررسی کنید`);
-        else if (direction === 'received') lines.push(`${cnt} چک دریافتی امروز سررسید است — برای وصول آماده کنید`);
-        else lines.push(`${cnt} چک امروز سررسید است`);
-      }
-    } else if (groupKey.startsWith('lead:')) {
+    if (groupKey === 'overdue') lines.push(text.overdue(cnt, direction));
+    else if (groupKey === 'due') lines.push(text.due(cnt, direction));
+    else if (groupKey.startsWith('lead:')) {
       const d = parseInt(groupKey.split(':')[1], 10);
-      if (d === 1) {
-        if (kind === 'loan') lines.push(`${cnt} قسط وام فردا سررسید می‌شود`);
-        else if (kind === 'cheque') {
-          if (direction === 'issued') lines.push(`${cnt} چک صادره فردا سررسید می‌شود`);
-          else if (direction === 'received') lines.push(`${cnt} چک دریافتی فردا سررسید می‌شود`);
-          else lines.push(`${cnt} چک فردا سررسید می‌شود`);
-        }
-      } else {
-        const dFa = toFa(d);
-        if (kind === 'loan') lines.push(`${cnt} قسط وام در ${dFa} روز آینده سررسید می‌شود`);
-        else if (kind === 'cheque') {
-          if (direction === 'issued') lines.push(`${cnt} چک صادره در ${dFa} روز آینده سررسید می‌شود`);
-          else if (direction === 'received') lines.push(`${cnt} چک دریافتی در ${dFa} روز آینده سررسید می‌شود`);
-          else lines.push(`${cnt} چک در ${dFa} روز آینده سررسید می‌شود`);
-        }
-      }
+      lines.push(d === 1 ? text.tomorrow(cnt, direction) : text.inDays(cnt, toFa(d), direction));
     }
   }
   return lines;
@@ -168,7 +169,8 @@ export async function runReminderEmailDigest(env, options = {}) {
         const remItem = { ...rem, direction: dir };
 
         // 1. Overdue: due_date < today
-        if (prefs.sendOverdue && rem.dueDate < today) {
+        // (a subscription that renews by itself is never overdue: its date moves on)
+        if (prefs.sendOverdue && rem.dueDate < today && reminderCanBeOverdue(rem)) {
           const sentKey = `${userId}|${rem.kind}|${rem.recordId}|${rem.dueDate}|overdue`;
           if (!sentSet.has(sentKey)) {
             toSendGroups.overdue.push(remItem);

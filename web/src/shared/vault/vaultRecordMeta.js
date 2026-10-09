@@ -27,6 +27,7 @@ const PRIMARY_DATE = {
   expense: (e) => e?.date,
   bank_account: (a) => a?.createdAt,
   transfer: (t) => t?.date,
+  subscription: (s) => s?.startDate,
 };
 
 /**

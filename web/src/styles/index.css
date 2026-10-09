@@ -23,6 +23,7 @@
  *   incomes.css         — Incomes page, summary cards, category/monthly report
  *   reports.css         — Reports page, month bar chart, picking rows, move to project
  *   cheques.css         — Cheques page, status badges, tracking timeline
+ *   subscriptions.css   — Subscriptions page, cards, state badges
  *   expenses.css        — Expenses page, section chips
  *   app-settings.css    — Settings of the Android app
  *   offline.css         — The offline / syncing bar
@@ -56,6 +57,7 @@
 @import './alerts.css';
 @import './incomes.css';
 @import './cheques.css';
+@import './subscriptions.css';
 @import './expenses.css';
 @import './app-settings.css';
 @import './offline.css';

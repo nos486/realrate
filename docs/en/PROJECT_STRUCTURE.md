@@ -70,6 +70,7 @@ realrate/
 | `utils/loanCalculator.js`, `loanDocument.js` | `domain/` — loan schedule and loan document |
 | `utils/loanFunding.js` | `domain/loanFunding.js` — loan usage and the return on purchases |
 | `utils/chequeDocument.js`, `chequeScan.js` | `domain/` — cheque validation and scanning |
+| `utils/subscriptionDocument.js` | `domain/` — subscriptions: validation, renewals, monthly totals |
 | `utils/expenseDocument.js`, `accountDocument.js`, `creditAccount.js` | `domain/` — expenses, accounts and bank credit |
 | `utils/bankSms.js`, `bankSmsTemplates.js` | `domain/` — reading bank SMS |
 | `utils/clientInfo.js` | `domain/clientInfo.js` — the client header (app/web and version) |

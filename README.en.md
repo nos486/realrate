@@ -18,7 +18,7 @@
 
 **RealRate** is a market analysis and personal finance app for Iran, running on Cloudflare's edge.
 It computes the intrinsic value and the bubble of gold and coins, tracks currencies, stocks and funds, and manages
-portfolios, expenses, accounts, loans, incomes and cheques — all end-to-end encrypted.
+portfolios, expenses, accounts, loans, incomes, cheques and subscriptions — all end-to-end encrypted.
 The web app is at [realrate.geekio.org](https://realrate.geekio.org); the Android app (which records expenses from bank SMS) is on the
 [app page](https://realrate.geekio.org/android) or the [latest release](https://github.com/nos486/realrate/releases/latest/download/realrate.apk).
 
@@ -34,6 +34,7 @@ The interface is in Persian (right-to-left, Shamsi calendar, amounts in tomans).
 - **Loans**: installment schedule, payments and extra payments, banks with logos, and loan usage (what the loan paid for, and how those purchases did against the loan's rate)
 - **Incomes**: by source and month, and fixed incomes (salary, rent) that repeat on their own
 - **Cheques**: received and issued, due dates, status tracking with history, reminders, and AI cheque scanning
+- **Subscriptions** (new): every subscription in tomans or dollars with its renewal cycle, start and end; the monthly and yearly total, recording a payment, and a reminder before each renewal
 - **Market news** (new): dollar, gold, oil and economy news from news channels, checked and sorted every minute by AI (Workers AI) — no ads, signals or duplicates; importance 1–3, the day's and week's top stories, and notifications for the important ones
 - **AI day's analysis** (new): what today's news says, how the stories connect and what to watch — no price predictions; the latest analysis is also on the website's landing page
 - **Yearly report** (new): a Shamsi year on one page — income and expenses, savings rate, the share of income invested, dollar value and the year's highlights; PDF and CSV export

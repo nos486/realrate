@@ -39,7 +39,7 @@ export const BACKUP_VERSION = 1;
 /** Kinds encrypted with the account key (in the order they are restored) */
 export const ACCOUNT_KINDS = [
   'category_settings', 'bank_account', 'loan', 'income', 'cheque',
-  'expense_group', 'expense', 'transfer',
+  'expense_group', 'expense', 'transfer', 'subscription',
 ];
 /** Kinds of a portfolio, encrypted with its own key */
 export const PORTFOLIO_KINDS = ['holding', 'transaction', 'portfolio_layout', 'risk_profile'];

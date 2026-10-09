@@ -14,6 +14,7 @@ import { APP_BASE, LANDING_PATH, AUTH_PATHS, DEMO_PATH, DEMO_ENABLED } from './s
 import { PricingProvider } from './features/market/context/PricingContext.jsx';
 import { LoansProvider } from './features/loans/context/LoansContext.jsx';
 import { ChequesProvider } from './features/cheques/context/ChequesContext.jsx';
+import { SubscriptionsProvider } from './features/subscriptions/context/SubscriptionsContext.jsx';
 
 // Route-level code splitting: a visitor only downloads the page they open
 const MainPage = lazy(() => import('./pages/MainPage.jsx'));
@@ -107,12 +108,17 @@ function PricingScope() {
   );
 }
 
-/** Data with due dates (loan installments, cheques), shared by its page and the home reminders */
+/**
+ * Data with due dates (loan installments, cheques, subscription renewals), shared by its page and
+ * the reminders
+ */
 function DueDataScope() {
   return (
     <LoansProvider>
       <ChequesProvider>
-        <Outlet />
+        <SubscriptionsProvider>
+          <Outlet />
+        </SubscriptionsProvider>
       </ChequesProvider>
     </LoansProvider>
   );
@@ -159,6 +165,7 @@ export default function App() {
               <Route path="/loans/:loanId" element={<MainPage />} />
               <Route path="/incomes" element={<MainPage />} />
               <Route path="/cheques" element={<MainPage />} />
+              <Route path="/subscriptions" element={<MainPage />} />
               <Route path="/expenses" element={<MainPage />} />
               <Route path="/expenses/:groupId" element={<MainPage />} />
               <Route path="/projects" element={<MainPage />} />
