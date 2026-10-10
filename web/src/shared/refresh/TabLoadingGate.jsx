@@ -7,27 +7,23 @@
  * in flight (httpClient.js subscribeRequests). After a tab change the gate looks again after
  * SHOW_DELAY_MS — on a quick connection the data is in by then and nothing shows — and, while
  * requests are still on their way, blocks until none is left. A request that can't reach the
- * server fails at once (and the tab shows its error), which lets the gate go; on a connection
- * that is only very slow, «ادامه بدون صبر» appears after SLOW_AFTER_MS so the app is never stuck.
+ * server fails at once (and the tab shows its error), which lets the gate go; a read with no
+ * answer gives up after httpClient's READ_TIMEOUT_MS, so the app is never stuck behind it.
  * The Android app's offline copy reads from the device: no request, nothing shown.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
 import { subscribeRequests } from '../api/httpClient.js';
 import BlockingOverlay from '../ui/BlockingOverlay.jsx';
-import { Button } from '../ui/index.js';
 
 /** A tab's data loading quicker than this shows no loader */
 export const SHOW_DELAY_MS = 300;
-
-/** After this long, a way out (the connection is only slow) */
-export const SLOW_AFTER_MS = 12 * 1000;
 
 /**
  * @param {{ tab: string }} props — the open tab (MainPage's): each change arms the gate
  */
 export default function TabLoadingGate({ tab }) {
-  const [state, setState] = useState({ tab: null, blocking: false, slow: false });
+  const [state, setState] = useState({ tab: null, blocking: false });
   const lastTab = useRef(tab);
 
   useEffect(() => {
@@ -36,13 +32,11 @@ export default function TabLoadingGate({ tab }) {
     let busy = false;
     let shown = false;
     let showTimer = null;
-    let slowTimer = null;
     let unsubscribe = () => {};
     const release = () => {
       window.clearTimeout(showTimer);
-      window.clearTimeout(slowTimer);
       unsubscribe();
-      if (shown) setState({ tab, blocking: false, slow: false });
+      if (shown) setState({ tab, blocking: false });
       shown = false;
     };
     unsubscribe = subscribeRequests((count) => {
@@ -55,8 +49,7 @@ export default function TabLoadingGate({ tab }) {
         return;
       }
       shown = true;
-      setState({ tab, blocking: true, slow: false });
-      slowTimer = window.setTimeout(() => setState({ tab, blocking: true, slow: true }), SLOW_AFTER_MS);
+      setState({ tab, blocking: true });
     }, SHOW_DELAY_MS);
     return release;
   }, [tab]);
@@ -66,12 +59,7 @@ export default function TabLoadingGate({ tab }) {
   return (
     <BlockingOverlay
       title="در حال باز کردن صفحه"
-      subtitle={state.slow ? 'اتصال کند است؛ اطلاعات هنوز در راه است.' : 'اطلاعات این صفحه در حال دریافت است...'}
-      action={state.slow && (
-        <Button size="sm" variant="secondary" onClick={() => setState({ tab, blocking: false, slow: false })}>
-          ادامه بدون صبر
-        </Button>
-      )}
+      subtitle="اطلاعات این صفحه در حال دریافت است..."
     />
   );
 }

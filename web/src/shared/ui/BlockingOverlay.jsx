@@ -3,7 +3,7 @@
  * while the app waits on the server: nothing behind it can be opened or sent again
  *
  * Shown by FullscreenLoader (a write on its way) and TabLoadingGate (a tab being opened). `action`:
- * an optional way out (e.g. «ادامه بدون صبر» on a slow connection).
+ * an optional button under it.
  */
 
 import React, { useEffect } from 'react';

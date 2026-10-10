@@ -44,5 +44,5 @@ Text uses the classes `.text-positive`, `.text-negative`, `.text-warning` and `.
   - cheques: on home.
 
   The price update status also appears only on home and the portfolio.
-- **Waiting on the server:** a write on its way (`FullscreenLoader`) and a newly opened tab still waiting for its data (`TabLoadingGate`) show the same `BlockingOverlay` (`shared/ui/BlockingOverlay.jsx`, `styles/loading.css`): a loader in the middle of the screen that takes every tap, key and scroll, so nothing behind it can be opened or sent again. The tab's loader shows only when its data takes longer than 300 ms, and on a very slow connection offers «ادامه بدون صبر».
+- **Waiting on the server:** a write on its way (`FullscreenLoader`) and a newly opened tab still waiting for its data (`TabLoadingGate`) show the same `BlockingOverlay` (`shared/ui/BlockingOverlay.jsx`, `styles/loading.css`): a loader in the middle of the screen that takes every tap, key and scroll, so nothing behind it can be opened or sent again. The tab's loader shows only when its data takes longer than 300 ms; a read with no answer gives up after 20 s (`READ_TIMEOUT_MS`), which lets it go.
 - **In the Android app** (`styles/app-shell.css`): dialogs open as bottom sheets that close by swiping down, forms have even footer buttons, and on phones lists come before the summary cards and charts.
