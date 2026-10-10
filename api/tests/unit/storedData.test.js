@@ -1,7 +1,7 @@
 /**
  * storedData.test.js — What is stored and exported is only what was recorded: the rates older
  * expenses stored are dropped from the store (once, dropStoredRates; and on every save or move),
- * and the expense CSV holds the expense's own fields — nothing computed from a rate
+ * and the expense CSV holds the expense's own fields — nothing computed from a rate — and reads back
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -19,12 +19,15 @@ vi.mock('../../../web/src/shared/vault/vaultStore.js', () => ({
   encryptVaultRecord: vi.fn(async (v) => JSON.stringify(v)),
   decryptVaultRecord: vi.fn(async (p) => JSON.parse(p)),
 }));
-vi.mock('../../../web/src/features/portfolio/components/ShamsiDatePicker.jsx', () => ({ formatShamsiDisplay: (iso) => iso.slice(0, 10) }));
+vi.mock('../../../web/src/features/portfolio/components/ShamsiDatePicker.jsx', async (importOriginal) => ({
+  ...(await importOriginal()),
+  formatShamsiDisplay: (iso) => iso.slice(0, 10),
+}));
 vi.mock('../../../web/src/features/accounts/constants/accountDisplay.js', () => ({ accountLabel: (a) => a?.name || 'حساب حذف‌شده' }));
 vi.mock('../../../web/src/features/expenses/constants/expenseCategories.js', () => ({ getExpenseCategory: (c) => ({ label: c }) }));
 
 const { dropStoredRates, moveExpenses } = await import('../../../web/src/shared/vault/vaultExpenses.js');
-const { expenseCsvHeaders, expenseCsvRow } = await import('../../../web/src/features/expenses/utils/expenseCsv.js');
+const { expenseCsvHeaders, expenseCsvRow, parseExpenseCsvRow } = await import('../../../web/src/features/expenses/utils/expenseCsv.js');
 
 const expense = (id, extra = {}) => ({ id, groupId: 'exg_d', title: `هزینه ${id}`, amount: 10, currency: 'USD', date: '2026-10-01', category: 'other', ...extra });
 
@@ -68,5 +71,32 @@ describe('the expense CSV', () => {
       withCategory: true, accountById: new Map([['acc_1', { name: 'وایز' }]]),
     });
     expect(row).toEqual(['2026-10-01', 'other', 'هزینه a', 10, 10, 'دلار', 'سفر', '', 'وایز', '', '', 'هتل']);
+  });
+});
+
+describe('reading an expense CSV back', () => {
+  const headers = expenseCsvHeaders({ withCategory: true });
+  const headerIndex = Object.fromEntries(headers.map((h, i) => [h, i]));
+  const lookups = { categoryOf: (label) => ({ dining: 'dining' })[label] || 'other', accountOf: (label) => (label === 'وایز' ? 'acc_1' : '') };
+
+  it('gets back what was exported: day, category, title, amount and share, currency, tags, account, note', () => {
+    const original = { ...expense('a', { category: 'dining', currency: 'IRT', amount: 900_000, myShare: 300_000, tags: ['سفر', 'شام'], accountId: 'acc_1', notes: 'هتل' }) };
+    const row = expenseCsvRow(original, { withCategory: true, accountById: new Map([['acc_1', { name: 'وایز' }]]) }).map(String);
+    // The day as the file writes it (Shamsi, Persian digits) reads back too
+    row[0] = '۱۴۰۵/۰۷/۰۹';
+    const parsed = parseExpenseCsvRow(row, headerIndex, 0, lookups);
+    expect(parsed).toMatchObject({ status: 'ok', name: 'هزینه a' });
+    expect(parsed.data).toEqual({
+      title: 'هزینه a', category: 'dining', amount: 900_000, currency: 'IRT', date: '2026-10-01', myShare: 300_000,
+      tags: ['سفر', 'شام'], accountId: 'acc_1', notes: 'هتل',
+    });
+  });
+
+  it('a dollar row keeps its currency (no share); a row without amount, day or name is left out', () => {
+    const row = ['2026-10-01', '', 'هاست', '20', '20', 'دلار', '', '', '', '', '', ''];
+    expect(parseExpenseCsvRow(row, headerIndex, 0, lookups).data).toMatchObject({ currency: 'USD', amount: 20, myShare: null, date: '2026-10-01' });
+    expect(parseExpenseCsvRow(['2026-10-01', '', 'x', '0'], headerIndex, 1, lookups).status).toBe('invalid');
+    expect(parseExpenseCsvRow(['', '', 'x', '10'], headerIndex, 2, lookups).status).toBe('invalid');
+    expect(parseExpenseCsvRow(['2026-10-01', '', '', '10'], headerIndex, 3, { ...lookups, categoryOf: () => '' })).toMatchObject({ status: 'invalid', name: 'ردیف ۵'.replace('۵', '5') });
   });
 });
