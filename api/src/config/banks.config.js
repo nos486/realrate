@@ -1,5 +1,7 @@
 /**
- * banks.config.js — Standard registry of Iranian banks and credit institutions
+ * banks.config.js — Standard registry of banks: Iranian banks and credit institutions, and the
+ * foreign banks and online accounts Iranians commonly hold (Turkey, the UAE, Armenia, Georgia,
+ * Europe and North America; Wise, Revolut, PayPal, …)
  *
  * Single source of truth for every feature that references a bank (loans today; bank accounts,
  * cards, ... later). Shared with the web client through a symlink, like the other config files.
@@ -8,7 +10,9 @@
  * banks live in the `custom_banks` table and use ids prefixed with CUSTOM_BANK_PREFIX, so a
  * `bankId` value is always either a standard id below or a custom bank id.
  *
- * Logos: /banks/<id>.svg in the web app's public folder (MIT, @iran-utils/iranian-banks-icons-core).
+ * Logos: /banks/<id>.svg in the web app's public folder (Iranian banks: MIT,
+ * @iran-utils/iranian-banks-icons-core; foreign ones: CC0, Simple Icons — see its LICENSE.txt).
+ * A bank with no logo there says `noLogo` and shows its initial instead.
  */
 
 export const CUSTOM_BANK_PREFIX = "cb_";
@@ -20,6 +24,8 @@ export const BANK_TYPES = {
   institution: "مؤسسات اعتباری",
   digital: "بانک‌های دیجیتال",
   joint: "بانک‌های مشترک",
+  online: "حساب‌های آنلاین بین‌المللی",
+  foreign: "بانک‌های خارجی",
 };
 
 /**
@@ -31,6 +37,7 @@ export const BANK_TYPES = {
  * @property {keyof BANK_TYPES} type
  * @property {string[]} [aliases] Extra names that should resolve to this bank (merged banks, spellings)
  * @property {boolean} [legacy]   Dissolved/merged — still resolves for old records, hidden from pickers
+ * @property {boolean} [noLogo]   No logo file in /banks: shown with its initial
  */
 
 /** @type {BankSpec[]} */
@@ -82,6 +89,56 @@ export const BANKS = [
   { id: "iran-europe", name: "بانک ایران و اروپا", shortName: "ایران و اروپا", enName: "Europäisch-Iranische Handelsbank", type: "joint" },
   { id: "iran-venezuela", name: "بانک ایران و ونزوئلا", shortName: "ایران و ونزوئلا", enName: "Iran-Venezuela Bi-National Bank", type: "joint" },
   { id: "taavon-eslami", name: "بانک همکاری اسلامی", shortName: "همکاری اسلامی", enName: "Islamic Cooperation Bank", type: "joint" },
+
+  // ── International online accounts & payment services ─────────────────────
+  { id: "wise", name: "وایز", shortName: "وایز", enName: "Wise", type: "online", aliases: ["TransferWise", "ترنسفروایز"] },
+  { id: "revolut", name: "رولوت", shortName: "رولوت", enName: "Revolut", type: "online", aliases: ["ریولوت"] },
+  { id: "paypal", name: "پی‌پل", shortName: "پی‌پل", enName: "PayPal", type: "online", aliases: ["پی پال", "پی‌پال"] },
+  { id: "payoneer", name: "پایونیر", shortName: "پایونیر", enName: "Payoneer", type: "online" },
+  { id: "n26", name: "ان۲۶", shortName: "N26", enName: "N26", type: "online", aliases: ["ان 26", "ان‌۲۶"] },
+  { id: "monzo", name: "مونزو", shortName: "مونزو", enName: "Monzo", type: "online" },
+  { id: "starling", name: "استارلینگ بانک", shortName: "استارلینگ", enName: "Starling Bank", type: "online" },
+  { id: "bunq", name: "bunq", shortName: "bunq", enName: "bunq", type: "online", aliases: ["بانق"] },
+
+  // ── Foreign banks ─────────────────────────────────────────────────────────
+  // Turkey
+  { id: "ziraat", name: "بانک زراعت ترکیه", shortName: "زراعت", enName: "Ziraat Bankası", type: "foreign", aliases: ["Ziraat Bankasi", "Ziraat", "زراعات"], noLogo: true },
+  { id: "vakifbank", name: "واکیف بانک", shortName: "واکیف", enName: "VakıfBank", type: "foreign", aliases: ["VakifBank", "Vakif Bank", "Vakıflar Bankası", "وقف بانک"], noLogo: true },
+  { id: "halkbank", name: "هالک بانک", shortName: "هالک", enName: "Halkbank", type: "foreign", aliases: ["Halk Bankası", "Halk Bankasi"], noLogo: true },
+  { id: "isbank", name: "ایش بانک", shortName: "ایش", enName: "İş Bankası", type: "foreign", aliases: ["Is Bankasi", "Türkiye İş Bankası", "isbank"], noLogo: true },
+  { id: "garanti", name: "گارانتی BBVA", shortName: "گارانتی", enName: "Garanti BBVA", type: "foreign", aliases: ["Garanti"], noLogo: true },
+  { id: "akbank", name: "آک بانک", shortName: "آک", enName: "Akbank", type: "foreign", noLogo: true },
+  { id: "yapikredi", name: "یاپی کردی", shortName: "یاپی کردی", enName: "Yapı Kredi", type: "foreign", aliases: ["Yapi Kredi"], noLogo: true },
+  { id: "qnb", name: "QNB ترکیه", shortName: "QNB", enName: "QNB Türkiye", type: "foreign", aliases: ["QNB Finansbank", "Finansbank", "کیو ان بی"], noLogo: true },
+  { id: "denizbank", name: "دنیز بانک", shortName: "دنیز", enName: "DenizBank", type: "foreign", noLogo: true },
+  { id: "enpara", name: "انپارا", shortName: "انپارا", enName: "Enpara", type: "foreign", noLogo: true },
+  // UAE
+  { id: "emirates-nbd", name: "امارات ان‌بی‌دی", shortName: "امارات NBD", enName: "Emirates NBD", type: "foreign", aliases: ["ENBD"], noLogo: true },
+  { id: "fab", name: "فرست ابوظبی بانک", shortName: "FAB", enName: "First Abu Dhabi Bank", type: "foreign", aliases: ["FAB"], noLogo: true },
+  { id: "adcb", name: "بانک تجاری ابوظبی", shortName: "ADCB", enName: "Abu Dhabi Commercial Bank", type: "foreign", aliases: ["ADCB"], noLogo: true },
+  { id: "mashreq", name: "بانک مشرق", shortName: "مشرق", enName: "Mashreq", type: "foreign", aliases: ["Mashreq Bank"], noLogo: true },
+  // Armenia & Georgia
+  { id: "ameriabank", name: "آمریا بانک", shortName: "آمریا", enName: "Ameriabank", type: "foreign", noLogo: true },
+  { id: "ardshinbank", name: "آردشین بانک", shortName: "آردشین", enName: "Ardshinbank", type: "foreign", noLogo: true },
+  { id: "tbc", name: "TBC بانک گرجستان", shortName: "TBC", enName: "TBC Bank", type: "foreign", aliases: ["تی بی سی"], noLogo: true },
+  { id: "bank-of-georgia", name: "بانک جورجیا", shortName: "جورجیا", enName: "Bank of Georgia", type: "foreign", aliases: ["بانک گرجستان"], noLogo: true },
+  // Europe
+  { id: "hsbc", name: "اچ‌اس‌بی‌سی", shortName: "HSBC", enName: "HSBC", type: "foreign" },
+  { id: "barclays", name: "بارکلیز", shortName: "بارکلیز", enName: "Barclays", type: "foreign" },
+  { id: "deutsche-bank", name: "دویچه بانک", shortName: "دویچه", enName: "Deutsche Bank", type: "foreign" },
+  { id: "commerzbank", name: "کومرتس بانک", shortName: "کومرتس", enName: "Commerzbank", type: "foreign" },
+  { id: "sparkasse", name: "اشپارکاسه", shortName: "اشپارکاسه", enName: "Sparkasse", type: "foreign", aliases: ["شپارکاسه"] },
+  { id: "ing", name: "آی‌ان‌جی", shortName: "ING", enName: "ING", type: "foreign", noLogo: true },
+  { id: "santander", name: "سانتاندر", shortName: "سانتاندر", enName: "Santander", type: "foreign", noLogo: true },
+  { id: "bnp-paribas", name: "بی‌ان‌پی پاریبا", shortName: "BNP", enName: "BNP Paribas", type: "foreign", noLogo: true },
+  { id: "unicredit", name: "یونی‌کردیت", shortName: "یونی‌کردیت", enName: "UniCredit", type: "foreign", noLogo: true },
+  // North America
+  { id: "chase", name: "چیس", shortName: "چیس", enName: "Chase", type: "foreign", aliases: ["JPMorgan Chase"] },
+  { id: "bank-of-america", name: "بانک آو آمریکا", shortName: "بانک آو آمریکا", enName: "Bank of America", type: "foreign", aliases: ["BofA"] },
+  { id: "wells-fargo", name: "ولز فارگو", shortName: "ولز فارگو", enName: "Wells Fargo", type: "foreign" },
+  { id: "citi", name: "سیتی بانک", shortName: "سیتی", enName: "Citibank", type: "foreign", aliases: ["Citi"], noLogo: true },
+  { id: "rbc", name: "آر‌بی‌سی", shortName: "RBC", enName: "RBC Royal Bank", type: "foreign", aliases: ["Royal Bank of Canada"], noLogo: true },
+  { id: "td", name: "تی‌دی بانک", shortName: "TD", enName: "TD Bank", type: "foreign", aliases: ["TD Canada Trust"], noLogo: true },
 
   // ── Legacy (dissolved — kept so older records still resolve) ──────────────
   { id: "ayandeh", name: "بانک آینده", shortName: "آینده", enName: "Ayandeh Bank", type: "private", legacy: true },

@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import {
   BANKS,
   getBankById,
@@ -70,9 +72,20 @@ describe('standard bank registry', () => {
   it('has unique, stable ids and a logo-safe id format', () => {
     const ids = BANKS.map((b) => b.id);
     expect(new Set(ids).size).toBe(ids.length);
-    for (const id of ids) expect(id).toMatch(/^[a-z]+(-[a-z]+)*$/);
+    for (const id of ids) expect(id).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
     expect(getBankById('mellat').name).toBe('بانک ملت');
     expect(getBankById('nope')).toBeNull();
+  });
+
+  it('has a logo file for every bank that does not say noLogo, and none for those that do', () => {
+    const logo = (id) => existsSync(fileURLToPath(new URL(`../../../web/public/banks/${id}.svg`, import.meta.url)));
+    for (const bank of BANKS) expect([bank.id, logo(bank.id)]).toEqual([bank.id, !bank.noLogo]);
+  });
+
+  it('lists the foreign banks and international online accounts Iranians use', () => {
+    for (const id of ['ziraat', 'vakifbank', 'wise', 'revolut', 'paypal', 'emirates-nbd', 'hsbc']) expect(getBankById(id)).toBeTruthy();
+    expect(getBankById('wise').type).toBe('online');
+    expect(getBankById('vakifbank').type).toBe('foreign');
   });
 
   it('never gives two banks the same normalized name', () => {
@@ -97,6 +110,14 @@ describe('standard bank registry', () => {
     ['Bank Mellat', 'mellat'],
     ['توسعه صادرات', 'tosee-saderat'],
     ['بانک صادرات', 'saderat'],
+    ['وایز', 'wise'],
+    ['TransferWise', 'wise'],
+    ['Revolut', 'revolut'],
+    ['واکیف بانک', 'vakifbank'],
+    ['VakifBank', 'vakifbank'],
+    ['بانک زراعت', 'ziraat'],
+    ['Ziraat Bankası', 'ziraat'],
+    ['پی پال', 'paypal'],
   ])('matches free-text "%s" to %s', (text, id) => {
     expect(matchBankIdByName(text)).toBe(id);
   });
