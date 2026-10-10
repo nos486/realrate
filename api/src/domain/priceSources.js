@@ -18,8 +18,8 @@
 import { staleAfterSecOf, catalogItemPriceToman } from "./priceBook.js";
 import { DEFAULT_MAX_JUMP_PCT, DEFAULT_CONFIRM_TICKS } from "./priceGuard.js";
 
-/** The shortest time between two fetches of a source */
-export const MIN_FETCH_INTERVAL_SEC = 15;
+/** The shortest time between two fetches of a source (5 minutes: kept light on the feeds) */
+export const MIN_FETCH_INTERVAL_SEC = 300;
 
 /** What a source's numbers are in, as the admin reads it */
 export const QUOTE_LABELS = { toman: "تومان", rial: "ریال", usd: "دلار", usd_cross: "نرخ در برابر دلار" };
@@ -37,7 +37,7 @@ export function sourceKindOf(src) {
 }
 
 /** Seconds between two fetches of a source */
-export const fetchIntervalSecOf = (src) => Math.max(MIN_FETCH_INTERVAL_SEC, Number(src?.fetchIntervalSec) || 60);
+export const fetchIntervalSecOf = (src) => Math.max(MIN_FETCH_INTERVAL_SEC, Number(src?.fetchIntervalSec) || MIN_FETCH_INTERVAL_SEC);
 
 /** The time of a source's last try (its last sync or failure), in ms, or 0 */
 const lastTryOf = (state) => Math.max(Date.parse(state?.syncedAt || "") || 0, Date.parse(state?.failedAt || "") || 0);

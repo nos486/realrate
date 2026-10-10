@@ -36,7 +36,7 @@ describe('a card set to show more', () => {
     const front = container.querySelector('.pro-card-face.is-front');
     expect(front.querySelector('.pro-card-price-value').textContent).toBe('۹۵٬۰۰۰٬۰۰۰');
     expect(within(front).getByText(/میانگین ۳۰ روز · آخرین قیمت ۱۰۰٬۰۰۰٬۰۰۰/)).toBeTruthy();
-    expect(within(front).getByText('به‌روزرسانی ۳۰ دقیقه پیش')).toBeTruthy();
+    expect(within(front).getByText('آخرین تغییر ۳۰ دقیقه پیش')).toBeTruthy();
 
     // Each slot: its label, the linked asset's name (a linked slot) and its value
     const slots = [...front.querySelectorAll('.pro-metric')].map((el) => [...el.children].map((c) => c.textContent));

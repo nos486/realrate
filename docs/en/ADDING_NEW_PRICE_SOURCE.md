@@ -23,7 +23,7 @@ export const PRICE_SOURCES_CONFIG = [
     category: "bourse_fund",        // a category from categories.config.js
     unit: "واحد",                   // counting unit (toman, gram, piece, share, unit, dollar, USDT)
     isFund: true,                   // is it a fund or plan?
-    fetchIntervalSec: 60,           // polling period in seconds
+    fetchIntervalSec: 300,          // polling period in seconds (at least 300)
     // optional: what the source quotes in — "toman" (default), "rial", "usd", "usd_cross"
     // quote: "usd",
     // optional: for a catalog, the market its ids belong to ("bourse" → "bourse__<symbol>")
@@ -62,7 +62,7 @@ Everything a source needs lives in its config, never in its adapter: the endpoin
 
 ### Fetch schedule and status
 
-- **Interval:** `fetchIntervalSec` (at least 15 s, default 60). The cron runs every minute and fetches every source due: one interval after its **last try, successful or not** — so a failing source waits its interval too and doesn't hammer the endpoint every minute.
+- **Interval:** `fetchIntervalSec` (at least 5 minutes, i.e. 300 s, which is also the default). The cron runs every minute and fetches every source due: one interval after its **last try, successful or not** — so a failing source waits its interval too and doesn't hammer the endpoint every minute.
 - **Stale:** after `staleAfterSec` (default: 5 intervals, at least 30 minutes) without a successful fetch.
 - **Status** (`sourceScheduleOf`): `off` (switched off), `pending` (never synced), `error` (its last try failed; the server's own error is kept), `stale`, or `ok`.
 

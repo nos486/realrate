@@ -41,7 +41,7 @@ describe('a formula card', () => {
     expect(container.querySelector('.pro-card-price-value').textContent).toBe('۱۹٫۶۵٪');
     // No line under the value (the formula and its assets are in the card's builder)
     expect(screen.queryByText(/x \/ \(y - x\)/)).toBeNull();
-    expect(screen.getByText('به‌روزرسانی ۵ دقیقه پیش')).toBeTruthy();
+    expect(screen.getByText('آخرین تغییر ۵ دقیقه پیش')).toBeTruthy();
   });
 
   it('turned, draws the formula of its assets\' daily candles, fetched in one request', async () => {

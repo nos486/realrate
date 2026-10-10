@@ -109,7 +109,7 @@ Every feature in detail. For a summary see the [README](../../README.en.md). Per
 - A display engine shared by server and client (`displayEngine.js`) for names, units, categories and icons.
 - Each source's items are stored under one key (Workers KV), with one price book, and one polling tick without duplicate requests.
 - Three kinds of source, read from the config alone: single, multi-output (`outputs: "multi"`) and catalog (`isCatalog`); a symbol a catalog fetch leaves out keeps its last price.
-- Each source is fetched on its own interval (`fetchIntervalSec`), one interval after its last try — a failing source isn't retried every minute; the endpoint's real error is recorded.
+- Each source is fetched on its own interval (`fetchIntervalSec`, at least 5 minutes), one interval after its last try — a failing source isn't retried every minute; the endpoint's real error is recorded.
 - The admin's price sources page: a status summary, two groups ("base rates: gold, currency, coins" and "multi-output feeds"), and for each source its status and last error, fetch interval, last and next fetch, when it turns stale, quote, kind, adapter, category, jump guard, endpoint and its price or a preview of its items.
 - Actions: on/off, choosing the primary source, "test" (a dry run, nothing kept), "fetch now", and a feed's full item list with search (no manual editing).
 
