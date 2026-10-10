@@ -103,7 +103,7 @@ export const BANKS = [
   // ── Foreign banks ─────────────────────────────────────────────────────────
   // Turkey
   { id: "ziraat", name: "بانک زراعت ترکیه", shortName: "زراعت", enName: "Ziraat Bankası", type: "foreign", aliases: ["Ziraat Bankasi", "Ziraat", "زراعات"], noLogo: true },
-  { id: "vakifbank", name: "واکیف بانک", shortName: "واکیف", enName: "VakıfBank", type: "foreign", aliases: ["VakifBank", "Vakif Bank", "Vakıflar Bankası", "وقف بانک"], noLogo: true },
+  { id: "vakifbank", name: "واکیف بانک", shortName: "واکیف", enName: "VakıfBank", type: "foreign", aliases: ["VakifBank", "Vakif Bank", "Vakıflar Bankası", "وقف بانک"] },
   { id: "halkbank", name: "هالک بانک", shortName: "هالک", enName: "Halkbank", type: "foreign", aliases: ["Halk Bankası", "Halk Bankasi"], noLogo: true },
   { id: "isbank", name: "ایش بانک", shortName: "ایش", enName: "İş Bankası", type: "foreign", aliases: ["Is Bankasi", "Türkiye İş Bankası", "isbank"], noLogo: true },
   { id: "garanti", name: "گارانتی BBVA", shortName: "گارانتی", enName: "Garanti BBVA", type: "foreign", aliases: ["Garanti"], noLogo: true },
