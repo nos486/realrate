@@ -156,3 +156,10 @@
   to { transform: scale(1); opacity: 1; }
 }
 
+
+/* A way out of the blocking loader (TabLoadingGate on a slow connection) */
+.fullscreen-loader-action {
+  margin-top: 18px;
+  pointer-events: auto;
+  cursor: default;
+}

@@ -62,10 +62,10 @@ Ready-made pieces in `P` in the same file: `P.amount`, `P.balance`, `P.date`, `P
 
 `{ bankId, templateId, direction: 'debit'|'credit', amount /* tomans */, balance /* tomans or null */, account, accountLast4, cardLast4, date /* Gregorian YYYY-MM-DD */, time, description, fingerprint }`
 
-- Amounts are always **tomans** (rials ÷ 10).
+- Amounts are always **tomans** (rials ÷ 10); an expense or income recorded from an SMS is always in tomans too.
 - `fingerprint`: a hash of the normalized text (the same message).
 - `key` (`smsTransactionKey`): "bank|direction|toman amount|day|time" — the same transaction, however it is worded. An expense or income recorded from an SMS keeps it in `smsKey` (encrypted); the SMS page removes a message whose key is recorded (even from another device or after reinstalling), and marks one with a manual expense/income of the same day and amount as "probably recorded".
-- `matchSmsAccount(tx, accounts)`: the user's account with the same bank and the same last 4 digits of the account or card number; otherwise, if the user has only one account at that bank, that one.
+- `matchSmsAccount(tx, accounts)`: among the user's accounts at that bank that hold tomans (`accountHolds`), the one with the same last 4 digits of the account or card number; otherwise, if there is only one such account at that bank, that one.
 
 ## Adding a bank
 

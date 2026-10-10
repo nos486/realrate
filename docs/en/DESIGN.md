@@ -30,7 +30,7 @@ Text uses the classes `.text-positive`, `.text-negative`, `.text-warning` and `.
 
 - **No shadows or glows:** no outer `box-shadow`, no colored glow, no `text-shadow`, no `drop-shadow`. Surfaces are separated by borders. The shadow tokens (`--card-shadow`, `--primary-glow`, `--shadow-*`) are `none`.
 - **Card inside a card:** a card inside another (like each loan inside its bank group) uses `--card-inner-bg` and `--card-inner-border`, one step lighter than the outer card, so layers separate without shadows. Its hover only lightens the background and border a little.
-- **Row cards:** a record that runs over time (a loan, a subscription) is one full-width row, `RowCard` (`shared/ui/RowCard.jsx`, `styles/row-card.css`): icon, title, a line under it and a badge; then columns of figures (`RowCardBlock`), one a growing progress bar (`RowCardProgress`); then the icon actions (`RowCardAction`, the rest in a «⋮» `ActionMenu`). Tones are the semantic ones (`warning`, `positive`, `negative`, `primary`, `muted`). A new list of such records uses it rather than a card of its own.
+- **Row cards:** a record that runs over time (a loan, a subscription) is one full-width row, `RowCard` (`shared/ui/RowCard.jsx`, `styles/row-card.css`): icon, title, a line under it and a badge (`RowCardBadge`); then columns of figures (`RowCardBlock`), one a growing progress bar (`RowCardProgress`); then the icon actions (`RowCardAction`, the rest in a «⋮» `ActionMenu`). Tones are the semantic ones (`warning`, `positive`, `negative`, `primary`, `muted`). A new list of such records uses it rather than a card of its own.
 - **Exception:** `box-shadow` is used only for rings acting as borders (`inset 0 0 0 1px` or `0 0 0 Npx`) and the focus ring of form fields.
 - **No gradients:** buttons and numbers are one color. `--primary-gradient` and `--gold-gradient` are both a plain color, so a page's main number and the other gold values are exactly the same color.
 
@@ -44,4 +44,5 @@ Text uses the classes `.text-positive`, `.text-negative`, `.text-warning` and `.
   - cheques: on home.
 
   The price update status also appears only on home and the portfolio.
+- **Waiting on the server:** a write on its way (`FullscreenLoader`) and a newly opened tab still waiting for its data (`TabLoadingGate`) show the same `BlockingOverlay` (`shared/ui/BlockingOverlay.jsx`, `styles/loading.css`): a loader in the middle of the screen that takes every tap, key and scroll, so nothing behind it can be opened or sent again. The tab's loader shows only when its data takes longer than 300 ms, and on a very slow connection offers «ادامه بدون صبر».
 - **In the Android app** (`styles/app-shell.css`): dialogs open as bottom sheets that close by swiping down, forms have even footer buttons, and on phones lists come before the summary cards and charts.

@@ -17,10 +17,11 @@ English: [docs/en/PROJECT_STRUCTURE.md](../docs/en/PROJECT_STRUCTURE.md) · [doc
 ```text
 src/
 ├── pages/           # MainPage (همه‌ی بخش‌ها)، LandingPage، SharedPortfolioPage، AdminPage، MaintenancePage
-├── features/        # home، market، portfolio، transactions، expenses، accounts، loans، incomes، cheques،
-│                    #   sms-inbox و app-settings (فقط اپ)، auth، demo، admin
-├── shared/          # ui، api (httpClient)، vault (رمزنگاری)، offline (نسخه‌ی محلی)، native (پل‌های بومی)،
-│                    #   app (قاب اپ)، banks، features (Feature Flags)، hooks، utils، pwa
+├── features/        # home، market، news، portfolio، transactions، expenses، accounts، loans، incomes، cheques،
+│                    #   subscriptions، reports، alerts، sms-inbox و app-settings (فقط اپ)، auth، demo، admin
+├── shared/          # ui (از جمله RowCard و BlockingOverlay)، api (httpClient)، vault (رمزنگاری)، offline (نسخه‌ی محلی)،
+│                    #   native (پل‌های بومی)، app (قاب اپ)، refresh (تازه‌سازی و TabLoadingGate)، currency (نرخ روز رکورد)،
+│                    #   categories، banks، features (Feature Flags)، hooks، utils، pwa
 ├── components/      # Header، Footer، MobileNavDrawer، UniversalAssetSearch، تنظیمات حساب
 ├── config/, utils/  # symlink به api/src (پیکربندی و منطق مشترک) — PROJECT_STRUCTURE.md
 ├── seo/pages.js     # محتوای صفحه‌های ایستای SEO (از جمله /android)
@@ -29,6 +30,8 @@ src/
 
 - **قیمت‌ها** فقط از `GET /api/prices/book` می‌آیند (`features/market/priceBookAssets.js`، `PricingContext`)؛ مرورگر قیمتی حساب نمی‌کند جز ماشین‌حساب «نرخ مبنا».
 - **داده‌ی مالی** از مسیر `shared/vault/*` رمز و ذخیره می‌شود؛ هر بخش یک `...Api.js` با امضای ثابت دارد.
+- **ارزها**: جدول ارزها `utils/currencies.js` است (symlink)؛ تبدیل به تومان با «کیف نرخ‌ها»ی `features/market/useFxRates.js` از تاریخچه‌ی روزانه‌ی قیمت در روز هر رکورد، و فرم‌ها نرخ همان روز را فقط نمایش می‌دهند (`shared/currency/useDayRate.js`، `DayRateHint.jsx`) — هیچ رکوردی نرخ ذخیره نمی‌کند.
+- **بارگذاری تب**: تا وقتی تبِ تازه‌باز‌شده منتظر سرور است، `shared/refresh/TabLoadingGate.jsx` صفحه را با یک لودر می‌پوشاند (درخواست‌های در جریان از `httpClient.subscribeRequests`)؛ پس از ۱۲ ثانیه «ادامه بدون صبر».
 - **اپ** (`isNativeApp()`): قاب با نوار پایین (`shared/app/`)، داشبورد شخصی در خانه، پیامک بانک، اثر انگشت و نسخه‌ی آفلاین — [ANDROID.md](../docs/ANDROID.md).
 
 ## دستورها

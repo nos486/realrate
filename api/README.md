@@ -8,7 +8,7 @@ English: [docs/en/PROJECT_STRUCTURE.md](../docs/en/PROJECT_STRUCTURE.md) · [doc
 | اجرا | Cloudflare Workers | REST API (`/api/...` و `/api/v1/...`) و جاب کرون |
 | پایگاه‌داده | Cloudflare D1 (`DB`) | کاربران، نشست‌ها، گاوصندوق و رکوردهای رمزشده، تاریخچه‌ی قیمت |
 | کش | Workers KV (`KV`) | دفتر قیمت (`prices`) و خروجی هر سورس (`source_items:*`)؛ شمارنده‌ها و سهمیه‌ها در D1 (`app_state`) |
-| زمان‌بندی | Cron Triggers | همگام‌سازی قیمت‌ها هر دقیقه (`jobs/cronPolling.job.js`) |
+| زمان‌بندی | Cron Triggers | همگام‌سازی قیمت‌ها: بررسی هر دقیقه، هر سورس حداکثر هر ۵ دقیقه (`jobs/cronPolling.job.js`، `domain/priceSources.js`) |
 | هوش مصنوعی | Gemini (`GEMINI_API_KEY`) | اسکن چک |
 | ایمیل | Resend (`RESEND_API_KEY`) | تأیید ایمیل و بازیابی رمز |
 | تست | Vitest | آزمون‌های واحد و یکپارچه در `tests/unit` |
@@ -21,7 +21,8 @@ src/
 ├── config/          # سورس‌های قیمت، دسته‌ها، بانک‌ها، ویژگی‌ها (features.js)، محدودیت استفاده، هوش مصنوعی، env
 ├── domain/          # منطق خالص، بیشترش مشترک با وب (symlink): دفتر قیمت (priceBook، priceGuard، priceIds)،
 │                    #   فرمول‌ها و موتور نمایش، وام (loanCalculator، loanDocument، loanFunding)، چک،
-│                    #   هزینه و حساب، پیامک بانک (bankSms، bankSmsTemplates)، clientInfo، چیدمان‌ها
+│                    #   هزینه و حساب، درآمد (incomeDocument)، ارزها (currencies)، پیوند دسته‌ها با رکوردها
+│                    #   (categoryLinks)، پیامک بانک (bankSms، bankSmsTemplates)، clientInfo، چیدمان‌ها
 ├── handlers/        # کنترلرهای HTTP هر بخش (auth، portfolio، transaction، loan، income، cheque،
 │                    #   chequeScan، bank، vault، homeLayout، demo، admin، adminUser، market)
 ├── repositories/    # دسترسی به D1 و KV؛ جدول‌ها در d1Schema.js و خودکار ساخته می‌شوند
@@ -36,6 +37,7 @@ src/
 
 - **قیمت‌ها**: هر سورس (کد-محور در `config/sources.config.js`) با یک ادپتور `ISourceAdapter` خوانده می‌شود؛ `sourceSync.service.js` در هر تیک سورس‌های سررسیده را می‌گیرد، قیمت‌های نامعقول را نگه می‌دارد (`priceGuard`) و **دفتر قیمت** یکپارچه (`domain/priceBook.js`) را در KV (کلید `prices`) می‌نویسد. همه‌ی مسیرها و صفحه‌ها فقط از همین دفتر می‌خوانند.
 - **داده‌ی مالی فقط رمزشده**: `lib/encryptionGate.js` هیچ ذخیره‌ی بدون رمزی را نمی‌پذیرد؛ رکوردها در `vault_records` با فقط تاریخ و والد بدون رمز ([E2EE_VAULT.md](../docs/E2EE_VAULT.md)).
+- **ارزها و نرخ‌ها**: ارزهای رکوردها (تومان، دلار، یورو، لیر، درهم) فقط در جدول `domain/currencies.js` تعریف شده‌اند؛ هیچ رکوردی نرخ ذخیره نمی‌کند و نرخ هر ارز در روز رکورد از تاریخچه‌ی روزانه‌ی قیمت خوانده می‌شود.
 - **همگام‌سازی افزایشی** برای نسخه‌ی آفلاین اپ: `GET /api/vault/sync` با سنگ‌قبر حذف‌ها.
 - **ویژگی‌ها** با `requireFeature` و **سهمیه‌ها** با `consumeQuota`.
 - مرجع کامل مسیرها: [docs/API.md](../docs/API.md).

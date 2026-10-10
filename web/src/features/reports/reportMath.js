@@ -7,8 +7,8 @@
  *   records are not read
  * - The share of income invested: what was invested ÷ the month's income (the incomes counted in
  *   the totals: «سرمایه‌گذاری» and the like are left out by the caller).
- * - Income and expenses in dollars: each one at the dollar's rate on its own day (its stored rate
- *   first, else the price history); one without a rate is counted apart, never at today's rate.
+ * - Income and expenses in dollars: each one at the dollar's rate on its own day, from the price
+ *   history (no record stores a rate); one without a rate is counted apart, never at today's rate.
  * - Subscriptions: what was paid for each in the year — the expenses that name it
  *   (`subscriptionId`), and the ones in «اینترنت و اشتراک‌ها» that name none, apart.
  * - What is left out of the totals, shown apart: the excluded categories of incomes and expenses

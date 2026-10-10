@@ -39,14 +39,20 @@ realrate/
         ├── components/           # هدر، فوتر، منوی موبایل، جستجوی دارایی، تنظیمات حساب
         ├── features/             # ماژول‌های قابلیت‌محور:
         │                         #   home، market، portfolio، transactions، expenses، accounts، loans،
-        │                         #   incomes، cheques، sms-inbox، app-settings، auth، demo، admin
+        │                         #   incomes، cheques، subscriptions، reports، news، alerts، sms-inbox،
+        │                         #   app-settings، auth، demo، admin
         ├── shared/
-        │   ├── ui/               # کامپوننت‌های پایه (Modal، Button، DonutChart، Skeleton، ...)
+        │   ├── ui/               # کامپوننت‌های پایه (Modal، Button، DonutChart، Skeleton، RowCard، BlockingOverlay، ...)
+        │   ├── refresh/          # تازه‌سازی تب: scopeها، دکمه‌ی تازه‌سازی، TabLoadingGate
+        │   ├── currency/         # useDayRate و DayRateHint: نرخ ارز در روز فرم (نمایش، بدون ذخیره)
+        │   ├── links/            # CategoryLinkField: رکوردی که درآمد یا هزینه با دسته‌اش به آن وصل است
+        │   ├── categories/       # دسته‌های هزینه و درآمد کاربر
         │   ├── api/              # httpClient (توکن، سرآیند X-RealRate-Client، خطاها)
         │   ├── app/              # قاب اپ اندروید: نوار پایین، ثبت سریع، «بیشتر»
         │   ├── native/           # پل‌های بومی: پیامک، اثر انگشت، لرزش، تشخیص اپ
         │   ├── offline/          # نسخه‌ی رمزشده‌ی محلی (IndexedDB)، همگام‌سازی و صف آفلاین
-        │   ├── vault/            # رمزنگاری سرتاسری (وضعیت، مهاجرت، ذخیره‌ی رمزشده‌ی هر نوع رکورد)
+        │   ├── vault/            # رمزنگاری سرتاسری (وضعیت، مهاجرت، ذخیره‌ی رمزشده‌ی هر نوع رکورد)،
+        │   │                     #   پیوند رکوردها، ثبت خرج‌ها، recordRates.js (نرخ رکورد از تاریخچه)
         │   ├── banks/            # انتخاب‌گر و لوگوی بانک، بانک‌های سفارشی
         │   ├── features/         # Feature Flags (useFeature، <Feature>)
         │   ├── hooks/, utils/    # هوک‌ها و ابزارهای مشترک (تاریخ، CSV، ...)
@@ -55,7 +61,7 @@ realrate/
         ├── lib/e2ee.js           # توابع رمزنگاری (Web Crypto)
         ├── config/               # symlink به api/src/config و موتور نمایش
         ├── utils/                # symlink به منطق مشترک api/src/domain (+ ابزارهای خود وب)
-        └── styles/               # توکن‌ها و استایل‌ها (تم تیره، app-shell.css برای اپ)
+        └── styles/               # توکن‌ها و استایل‌ها (تم تیره، app-shell.css برای اپ، row-card.css برای RowCard)
 ```
 
 ## فایل‌های مشترک (symlink)
@@ -67,8 +73,16 @@ realrate/
 | `utils/priceBook.js`، `priceBookViews.js`، `priceIds.js` | `domain/` — دفتر قیمت و شناسه‌ها |
 | `utils/loanCalculator.js`، `loanDocument.js` | `domain/` — محاسبه و سند وام |
 | `utils/loanFunding.js` | `domain/loanFunding.js` — مصرف وام و بازده خریدها |
-| `utils/chequeDocument.js`، `chequeScan.js` | `domain/` — اعتبارسنجی و اسکن چک |
+| `utils/chequeDocument.js` | `domain/` — اعتبارسنجی چک (دسته، حساب و تسویه‌ی چک) |
+| `utils/subscriptionDocument.js` | `domain/` — اشتراک‌ها: اعتبارسنجی، تمدیدها، جمع ماهانه |
+| `utils/categoryLinks.js` | `domain/` — رکوردی که درآمد یا هزینه با دسته‌اش به آن وصل می‌شود (چک، قسط وام، اشتراک، پورتفو، اعتبار) |
 | `utils/expenseDocument.js`، `accountDocument.js`، `creditAccount.js` | `domain/` — هزینه‌ها، حساب‌ها و اعتبار بانکی |
+| `utils/currencies.js` | `domain/` — ارزهایی که پول با آن‌ها ثبت می‌شود (تومان، دلار، یورو، لیر، درهم) و تبدیل به تومان |
+| `utils/incomeDocument.js` | `domain/` — اعتبارسنجی درآمد (به هر ارز) و ارزش آن به تومان و دلار |
+| `utils/categoryDocument.js`، `transferDocument.js` | `domain/` — دسته‌های هزینه و درآمد کاربر؛ جابه‌جایی پول بین حساب‌های خود کاربر |
+| `utils/dollarValue.js`، `portfolioLink.js` | `domain/` — مبلغی در روزی گذشته به دلار؛ هزینه یا درآمدی که ثبت پورتفو هم هست |
+| `utils/alerts.js`، `reminders.js`، `sealedPush.js` | `domain/` — هشدارها، یادآوری سررسیدها و وب‌پوش مهرشده |
+| `utils/news.js`، `riskProfile.js` | `domain/` — قواعد بخش اخبار؛ آزمون ریسک‌پذیری |
 | `utils/bankSms.js`، `bankSmsTemplates.js` | `domain/` — خواندن پیامک بانک |
 | `utils/clientInfo.js` | `domain/clientInfo.js` — سرآیند کلاینت (اپ/وب و نسخه) |
 | `utils/userGroups.js` | `domain/userGroups.js` — گروه‌های کاربران (شناسه، اعتبارسنجی) |

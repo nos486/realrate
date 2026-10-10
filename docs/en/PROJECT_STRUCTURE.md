@@ -41,14 +41,20 @@ realrate/
         ├── components/           # Header, footer, mobile menu, asset search, account settings
         ├── features/             # Feature modules:
         │                         #   home, market, portfolio, transactions, expenses, accounts, loans,
-        │                         #   incomes, cheques, sms-inbox, app-settings, auth, demo, admin
+        │                         #   incomes, cheques, subscriptions, reports, news, alerts, sms-inbox,
+        │                         #   app-settings, auth, demo, admin
         ├── shared/
-        │   ├── ui/               # Base components (Modal, Button, DonutChart, Skeleton, …)
+        │   ├── ui/               # Base components (Modal, Button, DonutChart, Skeleton, RowCard, BlockingOverlay, …)
+        │   ├── refresh/          # Refreshing a tab: scopes, the refresh button, TabLoadingGate
+        │   ├── currency/         # useDayRate, DayRateHint: a currency's rate on a form's day (shown, never stored)
+        │   ├── links/            # CategoryLinkField: the record an income or expense links to by its category
+        │   ├── categories/       # The user's expense and income categories
         │   ├── api/              # httpClient (token, X-RealRate-Client header, errors)
         │   ├── app/              # Android app shell: bottom navigation, quick add, "more"
         │   ├── native/           # Native bridges: SMS, fingerprint, haptics, app detection
         │   ├── offline/          # Encrypted local copy (IndexedDB), sync and the offline queue
-        │   ├── vault/            # End-to-end encryption (state, migration, one encrypted store per record kind)
+        │   ├── vault/            # End-to-end encryption (state, migration, one encrypted store per record kind),
+        │   │                     #   record links, spending records, recordRates.js (a record's rate from the history)
         │   ├── banks/            # Bank picker and logos, custom banks
         │   ├── features/         # Feature flags (useFeature, <Feature>)
         │   ├── hooks/, utils/    # Shared hooks and helpers (dates, CSV, …)
@@ -57,7 +63,7 @@ realrate/
         ├── lib/e2ee.js           # Crypto primitives (Web Crypto)
         ├── config/               # Symlinks to api/src/config and the display engine
         ├── utils/                # Symlinks to shared logic in api/src/domain (+ the web app's own helpers)
-        └── styles/               # Tokens and styles (dark theme; app-shell.css for the app)
+        └── styles/               # Tokens and styles (dark theme; app-shell.css for the app, row-card.css for RowCard)
 ```
 
 ## Shared files (symlinks)
@@ -69,12 +75,16 @@ realrate/
 | `utils/priceBook.js`, `priceBookViews.js`, `priceIds.js` | `domain/` — price book and ids |
 | `utils/loanCalculator.js`, `loanDocument.js` | `domain/` — loan schedule and loan document |
 | `utils/loanFunding.js` | `domain/loanFunding.js` — loan usage and the return on purchases |
-| `utils/chequeDocument.js`, `chequeScan.js` | `domain/` — cheque validation and scanning |
+| `utils/chequeDocument.js` | `domain/` — cheque validation (a cheque's category, account and settlement) |
 | `utils/subscriptionDocument.js` | `domain/` — subscriptions: validation, renewals, monthly totals |
 | `utils/categoryLinks.js` | `domain/` — which records an income or expense links to by its category (cheque, loan installment, subscription, portfolio, credit) |
 | `utils/expenseDocument.js`, `accountDocument.js`, `creditAccount.js` | `domain/` — expenses, accounts and bank credit |
-| `utils/currencies.js` | `domain/` — the currencies money is recorded in, and converting to tomans |
-| `utils/incomeDocument.js` | `domain/` — an income's validation, and its value in tomans and dollars |
+| `utils/currencies.js` | `domain/` — the currencies money is recorded in (toman, dollar, euro, lira, dirham), and converting to tomans |
+| `utils/incomeDocument.js` | `domain/` — an income's validation (in any currency), and its value in tomans and dollars |
+| `utils/categoryDocument.js`, `transferDocument.js` | `domain/` — the user's expense and income categories; money moved between their own accounts |
+| `utils/dollarValue.js`, `portfolioLink.js` | `domain/` — an amount on a past day in dollars; an expense or income that is also a portfolio entry |
+| `utils/alerts.js`, `reminders.js`, `sealedPush.js` | `domain/` — alerts, due reminders and sealed Web Push |
+| `utils/news.js`, `riskProfile.js` | `domain/` — the news section's rules; the risk-tolerance test |
 | `utils/bankSms.js`, `bankSmsTemplates.js` | `domain/` — reading bank SMS |
 | `utils/clientInfo.js` | `domain/clientInfo.js` — the client header (app/web and version) |
 | `utils/userGroups.js` | `domain/userGroups.js` — user groups (keys, validation) |

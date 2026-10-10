@@ -2,7 +2,7 @@
 
 ## مرحله ۱
 
-بخش‌های هزینه (پروژه و ...) و هزینه‌های هر بخش، به تومان یا دلار.
+بخش‌های هزینه (پروژه و ...) و هزینه‌های هر بخش، به تومان یا هر ارز جدول ارزها (دلار، یورو، لیر، درهم؛ `api/src/domain/currencies.js`).
 
 ### ذخیره‌سازی
 
@@ -11,9 +11,11 @@
 | نوع رکورد (`kind`) | `parent_id` | `record_date` | محتوای رمزشده |
 |---|---|---|---|
 | `expense_group` | — | روز ساخت | `{ id, name, type, notes, archived, createdAt, updatedAt }` |
-| `expense` | شناسه بخش | تاریخ هزینه | `{ id, groupId, title, amount, currency, usdRate, date, notes, category, accountId, loanId, source, bankId, smsFingerprint, smsKey, myShare, reimbursements, paidFrom, investedIn, createdAt, updatedAt }` — `paidFrom: { portfolioId, portfolioName, assetId, txId }`: هزینه‌ی دلاری که از دلار یک پورتفو پرداخت شده (تراکنش «spend» در آن پورتفو؛ `portfolioFunds.js`)؛ `investedIn: { portfolioId, portfolioName, assetId, quantity, txId }`: هزینه‌ی سرمایه‌گذاری که در پورتفو «خرید» ثبت کرده (`portfolioLink.js`) |
+| `expense` | شناسه بخش | تاریخ هزینه | `{ id, groupId, title, amount, currency, date, notes, category, accountId, loanId, subscriptionId, loanInstallment, chequeId, creditAccountId, source, bankId, smsFingerprint, smsKey, myShare, reimbursements, paidFrom, investedIn, tags, createdAt, updatedAt }` — `paidFrom: { portfolioId, portfolioName, assetId, txId }`: هزینه‌ی ارزی که از همان ارز در یک پورتفو پرداخت شده (تراکنش «spend» در آن پورتفو؛ `portfolioFunds.js`)؛ `investedIn: { portfolioId, portfolioName, assetId, quantity, txId }`: هزینه‌ی سرمایه‌گذاری که در پورتفو «خرید» ثبت کرده (`portfolioLink.js`) |
 
-- `currency`: `IRT` (تومان) یا `USD`. `usdRate`: نرخ دلار روز هزینه به تومان (اختیاری، فقط برای دلار).
+- `currency`: `IRT` (تومان)، `USD`، `EUR`، `TRY` یا `AED` (`currencies.js`). هیچ نرخی ذخیره نمی‌شود: معادل تومانی هزینه‌ی ارزی با نرخ همان ارز در روز هزینه از تاریخچه‌ی روزانه‌ی قیمت خوانده می‌شود (نبودِ آن روز: نرخ امروز). نرخ‌هایی که هزینه‌های قدیمی داشتند (`usdRate`، `rate`؛ `LEGACY_RATE_FIELDS`) خوانده نمی‌شوند و یک‌بار از همه پاک می‌شوند (`dropStoredRates` در `vaultExpenses.js`).
+- `groupId`: بخش هزینه (پروژه، یا بخش روزمره)؛ هزینه‌ای که بدون بخش ذخیره شود به بخش روزمره می‌رود (`saveExpense`).
+- پیوندها: `subscriptionId` (پرداخت اشتراک)، `loanInstallment` (قسط وام)، `chequeId` (پرداخت با چک، فقط تومانی)، `creditAccountId` (کارمزد اعتبار) — `categoryLinks.js`.
 - `source`: `manual` یا `sms`؛ هزینه‌ی پیامکی `bankId`، `smsFingerprint` و `smsKey` تراکنش را دارد تا دو بار ثبت نشود ([BANK_SMS.md](BANK_SMS.md)).
 - هزینه‌ی روزمره‌ی بدون عنوان، نام دسته‌اش را می‌گیرد (`validateExpense`).
 - اعتبارسنجی و محاسبه جمع‌ها: `api/src/domain/expenseDocument.js` (مشترک مرورگر و سرور، از طریق `web/src/utils/expenseDocument.js`).
@@ -23,15 +25,15 @@
 ## مرحله ۲ — هزینه‌های روزمره (انجام شد)
 
 - یک بخش از نوع `type: 'daily'` برای هر کاربر («هزینه‌های روزمره»)، که با اولین هزینه روزمره ساخته می‌شود (`ensureDailyGroup`) و در نمای پروژه‌ها نمایش داده نمی‌شود.
-- `category` روی هر هزینه روزمره، از `DAILY_EXPENSE_CATEGORIES` در `expenseDocument.js` (آیکون و رنگ: `web/src/features/expenses/constants/expenseCategories.js`). دسته نامعتبر ذخیره نمی‌شود (`''`، در گزارش «سایر»).
+- `category` روی هر هزینه (روزمره یا پروژه؛ هزینه‌ی پروژه می‌تواند بدون دسته باشد)، از `DAILY_EXPENSE_CATEGORIES` در `expenseDocument.js` (آیکون و رنگ: `web/src/features/expenses/constants/expenseCategories.js`). دسته نامعتبر ذخیره نمی‌شود (`''`، در گزارش «سایر»).
 - بارگذاری ماه به ماه: `getExpenses({ parent, from, to })` روی متادیتای رمزنشده (`parent_id`، `record_date`) فیلتر می‌کند؛ نمای روزمره فقط ماه نمایش‌داده‌شده و ماه قبلش را می‌گیرد، و نمای پروژه‌ها هزینه‌ها را بخش به بخش — پس با زیاد شدن هزینه‌های روزمره حجم بارگذاری ثابت می‌ماند.
 - محاسبات مشترک: `summarizeByCategory`، `shamsiMonthRange`، `shiftShamsiMonth`، `shamsiMonthOf`.
 - دسته‌ها: خوراک و خواربار، رستوران و کافه، رفت‌وآمد و سوخت، قبوض و شارژ، مسکن و اجاره، خرید و پوشاک، سلامت و درمان، آموزش، تفریح و سفر، اینترنت و اشتراک‌ها، هدیه و خیریه، پرداخت قسط، سرمایه‌گذاری، سایر. «سرمایه‌گذاری» به‌طور پیش‌فرض «خارج از جمع» است: در فهرست هستند ولی در جمع ماه، بودجه‌ی کل و نمودار حساب نمی‌شوند (قابل تغییر برای هر دسته در «دسته‌ها»؛ `excluded` در `categoryDocument.js`).
-- بعداً: دسته سفارشی.
+- دسته‌های شخصی و «خارج از جمع» در رکورد `category_settings` (`categoryDocument.js`). «مدیریت نقدینگی» (`cash_management`) کنار گذاشته شده (`retired`): در هیچ فرمی نیست و ثبت‌های قدیمی‌اش خارج از جمع نمایش داده می‌شوند؛ جابه‌جایی بین حساب‌ها فقط `transfer` است.
 
 ## حساب‌ها و بودجه (انجام شد)
 
-- **حساب‌ها** (`bank_account`، ویژگی `bank_accounts`): `{ id, name, type: bank|credit|cash|wallet|other, bankId, bankName, cardLast4, accountNumber, currency, notes, archived }` — `api/src/domain/accountDocument.js`، صفحه `web/src/features/accounts/`.
+- **حساب‌ها** (`bank_account`، ویژگی `bank_accounts`): `{ id, name, type: bank|credit|cash|wallet|other, bankId, bankName, cardLast4, accountNumber, currencies, currency, notes, archived }` — `currencies`: ارزهای حساب (یک یا چند؛ `currency` اولینِ آن‌ها برای نسخه‌های قدیمی) — `api/src/domain/accountDocument.js`، صفحه `web/src/features/accounts/`.
 - هزینه: `accountId` (حسابی که از آن پرداخت شده).
 - **اعتبار بانکی**: حسابی با `type: 'credit'` و `credit: { limit, openingDebt, startDate, conversions }` (فقط تومانی؛ بانک و کارت مثل حساب بانکی) — بدون قانون بانک. بدهی در مرورگر حساب می‌شود (`creditStatus` در `api/src/domain/creditAccount.js`): بدهی اولیه، به‌علاوه‌ی هزینه‌هایی که از آن پرداخت شده (`accountId`، کل مبلغ پرداختی) و انتقال‌ها از آن (برداشت نقدی)، منهای آنچه از انتقال‌ها به آن رسیده (`amount − fee`، مثل `transferDocument.js`) و درآمدهای دسته‌ی `credit_settlement` («تسویه بدهی اعتباری») که آن را انتخاب کرده‌اند (`creditAccountId`)، از `startDate`. «تسویه بدهی» انتقالی به اعتبار از مبلغ پرداختی است با `fee` برابر بخشی که بیش از بدهی تسویه‌شده است (`settlementOf`)، به‌علاوه‌ی همان کارمزد به‌عنوان هزینه از حساب پرداخت‌کننده. «تبدیل به قسط» یک قسط‌بندی در `conversions: [{ id, date, principal, installments: [{ dueDate, amount, paidOn?, transferId? }], feeExpenseId? }]` ذخیره می‌کند (`validateConversion`؛ `monthlyDates` ردیف‌ها را پر می‌کند)؛ کارمزدش — جمع اقساط منهای مبلغ (`conversionCost`) — هزینه‌ای روی خود اعتبار است (`feeExpenseId`). هر قسط با انتقالی به اعتبار پرداخت و با `paidOn` علامت‌گذاری می‌شود. هزینه‌های کارمزد: دسته‌ی `credit_fees` («کارمزد و سود اعتبار») با `creditAccountId` (`creditCostsPaid`). صفحه‌ی حساب‌ها یک بار هزینه‌ها و یک بار انتقال‌ها را از شروع قدیمی‌ترین اعتبار می‌خواند (`useCreditStatus`).
 - هزینه: `loanId` («تأمین از»؛ خالی = پول خود کاربر). وام درآمد نیست؛ آنچه با آن خریده می‌شود با این فیلد به وام وصل می‌شود و `api/src/domain/loanFunding.js` مصرف هر وام را حساب می‌کند (خرج‌شده، مانده، بیش از اصل). جزئیات وام «مصرف وام» را نشان می‌دهد و فقط هزینه‌های از تاریخ شروع وام را می‌گیرد. دارایی‌های پورتفو هم `loanId` دارند (`holdingRecord` در `vaultPortfolioItems.js`)؛ `listAccountHoldings` دارایی‌های همه‌ی پورتفوهای زیر گاوصندوق حساب را برای این گزارش می‌خواند. برای این خریدها `loanInvestmentReturn` ارزش امروز، سود و بازده سالانه‌ی ساده (با میانگین مدت نگهداری وزن‌دار به بها، از ۳۰ روز به بالا) را در برابر نرخ وام می‌دهد.
@@ -42,7 +44,7 @@
 اپ اندروید پیامک‌های برداشت و واریز بانک را می‌خواند، مبلغ، تاریخ و بانک را طبق قالب هر بانک درمی‌آورد و فقط دسته/عنوان را از کاربر می‌پرسد — یا هزینه‌های کوچک را خودش ثبت می‌کند. همه‌چیز رمزنگاری سرتاسری می‌ماند:
 
 1. **تجزیه روی گوشی**: قالب‌های بانک‌ها در `domain/bankSmsTemplates.js` (و موتور `domain/bankSms.js`)، مشترک با اپ؛ متن پیامک هرگز به سرور نمی‌رود و ذخیره هم نمی‌شود.
-2. **رمزنگاری روی گوشی**: اپ همان برنامه‌ی وب است؛ هزینه با کلید گاوصندوق روی گوشی رمز و با `PUT /api/vault/records/expense/:id` فرستاده می‌شود، با `source: 'sms'`، `bankId`، `smsKey` و `accountId` (حسابی که بانک و چهار رقم آخرش با پیامک می‌خواند). توکن جدای دستگاه لازم نشد: اپ با نشست عادی کاربر کار می‌کند.
+2. **رمزنگاری روی گوشی**: اپ همان برنامه‌ی وب است؛ هزینه با کلید گاوصندوق روی گوشی رمز و با `PUT /api/vault/records/expense/:id` فرستاده می‌شود، با `source: 'sms'`، `bankId`، `smsKey` و `accountId` (حساب تومانی‌ای که بانک و چهار رقم آخرش با پیامک می‌خواند). هزینه و درآمد پیامکی همیشه تومانی است. توکن جدای دستگاه لازم نشد: اپ با نشست عادی کاربر کار می‌کند.
 3. **صف پیامک‌ها**: برداشت‌ها و واریزهای ثبت‌نشده روی خود گوشی در صفحه‌ی «پیامک‌ها» منتظر می‌مانند (اعلان روی گوشی)؛ «ثبت» فرم را پر می‌کند، «ثبت سریع» (اگر در تنظیمات اپ روشن باشد) بی‌فرم ثبت می‌کند و «ثبت خودکار» برداشت‌های کوچک را خودش ثبت می‌کند.
 4. **بدون تکرار**: `smsKey` (بانک، جهت، مبلغ، روز و ساعت) در خود هزینه/درآمد رمزشده است؛ پس معیار «ثبت شده» خود گاوصندوق است، حتی از دستگاه دیگر یا پس از نصب دوباره.
 5. **واریزِ وام**: واریز می‌تواند وام دریافتی باشد، نه درآمد (به وامی موجود وصل می‌شود یا وام جدید با همان مبلغ ثبت می‌شود).
@@ -53,8 +55,8 @@
 
 وقتی پول کل جمع را شما می‌دهید (مثلاً ۱۰ میلیون شام) و سهم خودتان فقط بخشی از آن است (مثلاً ۳ میلیون):
 
-- روی هزینه: `myShare` (سهم کاربر، به ارز همان هزینه؛ `null` = هزینه‌ی عادی) و `reimbursements`: `[{ id, amount, date, accountId, notes, source: manual|sms, bankId, smsKey }]` — آنچه از دیگران برگشته، به هر تعداد بخش و به هر حساب.
-- جمع‌ها، دسته‌ها، بودجه‌ها، داشبورد خانه، «هزینه روزمره این ماه» حساب‌ها و مصرف وام فقط سهم کاربر را می‌شمارند (`expenseInToman`)؛ کل پرداختی با `expensePaidInToman` (مثلاً برای تطبیق پیامک برداشت).
+- روی هزینه: `myShare` (سهم کاربر؛ فقط هزینه‌ی تومانی؛ `null` = هزینه‌ی عادی) و `reimbursements`: `[{ id, amount, date, accountId, notes, source: manual|sms, bankId, smsKey }]` — آنچه از دیگران برگشته، به هر تعداد بخش و به هر حساب.
+- جمع‌ها، دسته‌ها، بودجه‌ها، داشبورد خانه، «هزینه‌های این ماه» حساب‌ها و مصرف وام فقط سهم کاربر را می‌شمارند (`expenseInToman`)؛ کل پرداختی با `expensePaidInToman` (مثلاً برای تطبیق پیامک برداشت).
 - مانده‌ی طلب: `expenseReceivable` (`owed` = مبلغ − سهم، `received`، `remaining`) و `summarizeReceivables`. جمع دریافتی‌ها نمی‌تواند از سهم دیگران بیشتر شود و تا دریافتی هست، «دنگ» خاموش نمی‌شود.
 - دریافتی‌ها هرگز درآمد نیستند: داخل همان رکورد رمزشده‌ی هزینه می‌مانند.
 - رابط: در فرم هزینه «سهم: با دیگران (دنگ)» و «سهم من»؛ در جدول «سهم شما» و «طلب …/تسویه شد»؛ «دریافتی‌ها» (`ReimbursementsModal.jsx`)؛ کارت «طلب‌های دنگ» در هزینه‌های روزمره و «همه‌ی طلب‌ها» (`OpenSharesModal.jsx`، از همه‌ی بخش‌ها و ماه‌ها).

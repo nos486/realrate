@@ -4,7 +4,8 @@
  * Features:
  * - Environment-aware API_BASE resolution
  * - Automatic Authorization header injection for authenticated requests
- * - Global network loading status pub/sub
+ * - Global network loading status pub/sub: writes (the blocking loader) and every request in
+ *   flight (subscribeRequests: what a tab being opened is still waiting for, TabLoadingGate)
  * - Standardized HttpError handling preserving backend response format
  */
 
@@ -111,6 +112,33 @@ export function stopGlobalLoading() {
   emitLoadingChange();
 }
 
+let activeRequestCount = 0;
+const requestListeners = new Set();
+
+function emitRequestChange() {
+  requestListeners.forEach((fn) => {
+    try {
+      fn(activeRequestCount);
+    } catch (err) {
+      console.error('Request listener error:', err);
+    }
+  });
+}
+
+/**
+ * Subscribe to the number of requests in flight (reads and writes; identical reads shared by
+ * several callers count once) — called at once with the current number
+ * @param {(count: number) => void} listener
+ * @returns {() => void} unsubscribe
+ */
+export function subscribeRequests(listener) {
+  requestListeners.add(listener);
+  listener(activeRequestCount);
+  return () => {
+    requestListeners.delete(listener);
+  };
+}
+
 /**
  * Low-level HTTP request method
  */
@@ -152,6 +180,8 @@ async function sendRequest(path, options = {}) {
   if (!isSilent) {
     startGlobalLoading();
   }
+  activeRequestCount++;
+  emitRequestChange();
 
   try {
     const token = getToken();
@@ -238,6 +268,8 @@ async function sendRequest(path, options = {}) {
     if (!isSilent) {
       stopGlobalLoading();
     }
+    activeRequestCount = Math.max(0, activeRequestCount - 1);
+    emitRequestChange();
   }
 }
 
