@@ -35,7 +35,7 @@ import ProjectPickSheet from './ProjectPickSheet.jsx';
 import TransferForm from '../accounts/components/TransferForm.jsx';
 import { saveTransfer } from '../../shared/vault/vaultTransfers.js';
 import { smsExpenseDraft, smsProjectExpenseDraft, smsIncomeDraft, smsTransferDraft } from './smsDrafts.js';
-import { saveDailyExpense, saveProjectExpense, recordSmsExpense, dropAlreadyRecorded } from './smsRecord.js';
+import { saveSmsExpense, recordSmsExpense, dropAlreadyRecorded } from './smsRecord.js';
 import { getExpenseCategory } from '../expenses/constants/expenseCategories.js';
 import { bumpVaultEpoch } from '../../shared/vault/vaultStore.js';
 
@@ -209,7 +209,7 @@ export default function SmsInboxPage() {
           accounts={accounts.filter((a) => !a.archived)}
           submitting={saving}
           onClose={() => setExpenseDraft(null)}
-          onSubmit={record(saveDailyExpense, expenseDraft, 'هزینه ثبت شد.')}
+          onSubmit={record(saveSmsExpense, expenseDraft, 'هزینه ثبت شد.')}
           onCashMove={() => {
             setExpenseDraft(null);
             handleTransfer(draftItem);
@@ -235,7 +235,7 @@ export default function SmsInboxPage() {
           accounts={accounts.filter((a) => !a.archived)}
           submitting={saving}
           onClose={() => setProjectDraft(null)}
-          onSubmit={record((input) => saveProjectExpense(projectDraft.project.id, input), projectDraft.draft, `هزینه در «${projectDraft.project.name}» ثبت شد.`)}
+          onSubmit={record(saveSmsExpense, projectDraft.draft, 'هزینه ثبت شد.')}
         />
       )}
       {transferDraft && (

@@ -504,13 +504,14 @@ export function summarizeByTag(expenses = [], { usdToman = 0, usdAt = null } = {
 export const hasTag = (expense, tag) => normalizeTags(expense?.tags).some((t) => t.toLowerCase() === String(tag).toLowerCase());
 
 /**
- * Per-category totals in tomans, largest first (expenses without a category count as 'other')
+ * Per-category totals in tomans, largest first (expenses without a category count as `none`:
+ * 'other' among the everyday expenses; a project keeps them apart with '')
  * @returns {Array<{ category: string, totalToman: number, count: number }>}
  */
-export function summarizeByCategory(expenses = [], { usdToman = 0, usdAt = null } = {}) {
+export function summarizeByCategory(expenses = [], { usdToman = 0, usdAt = null, none = 'other' } = {}) {
   const byCategory = new Map();
   for (const e of expenses) {
-    const key = e.category || 'other';
+    const key = e.category || none;
     const entry = byCategory.get(key) || { category: key, totalToman: 0, count: 0 };
     entry.totalToman += expenseInToman(e, usdToman, usdAt) || 0;
     entry.count++;

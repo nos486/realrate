@@ -8,8 +8,9 @@
  * month shown and the one before; `yearExpenses` everything loaded, for the yearly report and the
  * charts — the everyday ones only. All spending is in the expenses: the projects' expenses come in
  * the same download (`projectExpenses` for the month, `yearProjectExpenses`), shown in the list
- * but counted only in their project. The daily section itself is created on the first everyday
- * expense.
+ * but counted only in their project. An expense is saved where its form put it (`groupId`: a
+ * project, or '' for the everyday expenses), so one saved here may be a project's — or move
+ * between the two. The daily section itself is created on the first everyday expense.
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -45,6 +46,8 @@ export function useDailyExpenses(month, { enabled = true, year = false } = {}) {
   const requestRef = useRef(0);
   const expensesRef = useRef([]);
   expensesRef.current = expenses;
+  const projectItemsRef = useRef([]);
+  projectItemsRef.current = projectItems;
 
   const range = useMemo(() => shamsiMonthRange(month.jy, month.jm), [month.jy, month.jm]);
   const prevRange = useMemo(() => {
@@ -92,25 +95,31 @@ export function useDailyExpenses(month, { enabled = true, year = false } = {}) {
   // The open tab's refresh (header button, window focus) reads them again
   useRefreshHandler('expenses', fetchMonth);
 
-  /** Create or update an everyday expense; errors are re-thrown for the open form */
+  /**
+   * Create or update an expense — an everyday one, or a project's (`groupId`); errors are
+   * re-thrown for the open form
+   */
   const saveExpense = useCallback(async (input, existing = null) => {
     setSubmitting(true);
     try {
-      const group = dailyGroup || await api.ensureDailyGroup((await api.getExpenseGroups()).groups);
-      setDailyGroup(group);
-      const { expense } = await api.saveExpense({ ...input, groupId: group.id }, existing);
-      // Kept only when it falls in the window loaded
-      setExpenses((prev) => {
+      // Its section: the one asked for, else the one it is in, else the everyday expenses
+      const wanted = 'groupId' in input ? input.groupId : existing?.groupId;
+      const group = wanted ? null : dailyGroup || await api.ensureDailyGroup((await api.getExpenseGroups()).groups);
+      if (group) setDailyGroup(group);
+      const { expense } = await api.saveExpense({ ...input, groupId: wanted || group.id }, existing);
+      // In its list (the everyday expenses, or the projects'), when it falls in the window loaded
+      const place = (prev, mine) => {
         const rest = prev.filter((e) => e.id !== expense.id);
-        return inRange(expense, loadWindow)
-          ? [...rest, expense].sort(compareExpensesByDate)
-          : rest;
-      });
+        return mine && inRange(expense, loadWindow) ? [...rest, expense].sort(compareExpensesByDate) : rest;
+      };
+      const isProjects = projects.some((p) => p.id === expense.groupId);
+      setExpenses((prev) => place(prev, !isProjects));
+      setProjectItems((prev) => place(prev, isProjects));
       return expense;
     } finally {
       setSubmitting(false);
     }
-  }, [dailyGroup, loadWindow]);
+  }, [dailyGroup, loadWindow, projects]);
 
   /** Set the monthly budgets (per category and `total`); creates the daily section if needed */
   const saveBudgets = useCallback(async (budgets) => {
@@ -129,9 +138,12 @@ export function useDailyExpenses(month, { enabled = true, year = false } = {}) {
     setDeletingId(expenseId);
     setError(null);
     try {
-      // The stored copy: an expense paid from a portfolio removes its transaction too
-      await api.deleteExpense(expenseId, expensesRef.current.find((e) => e.id === expenseId) || null);
+      // The stored copy (an everyday one or a project's): one paid from a portfolio removes its
+      // transaction too
+      const stored = [...expensesRef.current, ...projectItemsRef.current].find((e) => e.id === expenseId) || null;
+      await api.deleteExpense(expenseId, stored);
       setExpenses((prev) => prev.filter((e) => e.id !== expenseId));
+      setProjectItems((prev) => prev.filter((e) => e.id !== expenseId));
     } catch (err) {
       setError(err.message || 'خطا در حذف هزینه');
       throw err;

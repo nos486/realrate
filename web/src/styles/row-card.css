@@ -1,0 +1,286 @@
+/* ── Row cards (shared/ui/RowCard.jsx) ─────────────────────────────────────────
+   One record of a list as a full-width row — loans, subscriptions: who it is, columns of
+   figures (one a growing progress bar), its actions. A card inside a card (DESIGN.md): the
+   inner-card step, lighter than the card or group around it. */
+
+.row-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row-card {
+  background: var(--card-inner-bg);
+  border: var(--card-inner-border);
+  border-radius: 12px;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  transition: background-color 0.16s ease, border-color 0.16s ease;
+}
+
+.row-card.is-clickable {
+  cursor: pointer;
+}
+
+.row-card.is-clickable:hover {
+  background: var(--card-inner-bg-hover);
+  border-color: var(--card-inner-border-hover);
+}
+
+/* The whole row's tone: its border (and a finished one's background) */
+.row-card.tone-positive {
+  border-color: var(--color-positive-border);
+  background: var(--color-positive-soft);
+}
+.row-card.tone-warning { border-color: var(--color-warning-border); }
+.row-card.tone-negative { border-color: var(--color-negative-border); }
+.row-card.tone-muted { opacity: 0.72; }
+
+.row-card-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 1 220px;
+  min-width: 150px;
+}
+
+.row-card-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--bg-control);
+  color: var(--text-secondary);
+}
+.row-card-icon.tone-warning { background: var(--color-warning-soft); color: var(--color-warning); }
+.row-card-icon.tone-positive { background: var(--color-positive-soft); color: var(--color-positive); }
+.row-card-icon.tone-negative { background: var(--color-negative-soft); color: var(--color-negative); }
+.row-card-icon.tone-primary { background: var(--color-primary-soft); color: var(--color-primary-text); }
+
+.row-card-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.row-card-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row-card-subtitle {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row-card-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-control);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.row-card-badge.tone-warning { background: var(--color-warning-soft); color: var(--color-warning-text); border-color: var(--color-warning-border); }
+.row-card-badge.tone-positive { background: var(--color-positive-soft); color: var(--color-positive-text); border-color: var(--color-positive-border); }
+.row-card-badge.tone-negative { background: var(--color-negative-soft); color: var(--color-negative-text); border-color: var(--color-negative-border); }
+.row-card-badge.tone-primary { background: var(--color-primary-soft); color: var(--color-primary-text); border-color: var(--color-primary-border); }
+
+/* A small sign next to the badge (e.g. no reminders) */
+.row-card-flag {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* The «⋮» menu among the actions: the actions' size */
+.row-card-actions .ui-action-menu-trigger {
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  border-radius: 8px;
+}
+
+/* Columns: only the progress one grows, so the row's leftover width goes into its bar */
+.row-card-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 0 1 170px;
+}
+
+.row-card-progress {
+  flex: 1 1 150px;
+}
+
+.row-card-label {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.row-card-value {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.row-card-value.tone-warning { color: var(--color-warning); }
+.row-card-value.tone-positive { color: var(--color-positive); }
+.row-card-value.tone-negative { color: var(--color-negative); }
+.row-card-value.tone-primary { color: var(--color-primary-text); }
+.row-card-value.tone-muted { color: var(--text-muted); font-weight: 600; }
+
+.row-card-sub {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row-card-progress-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.row-card-progress-figure {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.row-card-track {
+  width: 100%;
+  height: 5px;
+  background: var(--border-medium);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-top: 3px;
+}
+
+.row-card-bar {
+  height: 100%;
+  border-radius: 6px;
+  background: var(--color-primary);
+  transition: width 0.3s ease;
+}
+.row-card-bar.tone-warning { background: var(--color-warning); }
+.row-card-bar.tone-positive { background: var(--color-positive); }
+.row-card-bar.tone-negative { background: var(--color-negative); }
+.row-card-bar.tone-muted { background: var(--text-muted); }
+
+.row-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.row-card-action {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--bg-control);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.row-card-action:hover:not(:disabled) {
+  background: var(--bg-control-hover);
+  color: var(--text-primary);
+}
+
+.row-card-action.is-danger:hover:not(:disabled) {
+  background: var(--color-negative-soft);
+  color: var(--color-negative);
+  border-color: var(--color-negative-border);
+}
+
+.row-card-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.row-card-chevron {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+@media (max-width: 900px) {
+  .row-card {
+    flex-wrap: wrap;
+    row-gap: 10px;
+  }
+
+  /* The identity takes the first line; the actions stay on it, at its end */
+  .row-card-identity {
+    flex: 1 1 0;
+    order: -2;
+  }
+
+  .row-card-actions {
+    order: -1;
+  }
+
+  .row-card-block,
+  .row-card-progress {
+    flex: 1 1 45%;
+  }
+
+  .row-card-chevron {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .row-card-block,
+  .row-card-progress {
+    flex: 1 1 100%;
+  }
+
+  /* The title keeps the whole first line; the actions close the card */
+  .row-card-actions {
+    order: 1;
+    flex: 1 1 100%;
+    justify-content: flex-end;
+  }
+}

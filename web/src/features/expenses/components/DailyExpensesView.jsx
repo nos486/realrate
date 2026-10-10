@@ -11,9 +11,10 @@
  * - Expenses can be picked (one by one, the page's rows, or every one listed) and moved into a
  *   project (MoveToProjectModal): they leave the everyday expenses
  * - All spending is in this list: categories left out of the totals («مدیریت نقدینگی»,
- *   «سرمایه‌گذاری» by default) and the projects' expenses (with their project, edited there) are
+ *   «سرمایه‌گذاری» by default) and the projects' expenses (with their category and project) are
  *   listed with a badge (or hidden with «خارج از جمع») but not counted in the total, the
- *   comparison, the budgets or the donut; the categories' own sums show in «خارج از جمع»
+ *   comparison, the budgets or the donut; the categories' own sums show in «خارج از جمع». The form
+ *   adds and edits either: its «پروژه» puts an expense in a project or back in the everyday ones
  * - «دنگ»: shared expenses count only the user's share; «طلب‌های دنگ» shows the month's and opens
  *   every open one (OpenSharesModal), and each expense's «دریافتی‌ها» (ReimbursementsModal)
  */
@@ -201,7 +202,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
     }
     return next;
   });
-  // A project's expense is managed in its project: it can't be picked here
+  // A project's expense is moved by its form («پروژه»): only the everyday ones are picked to move
   const selection = readOnly ? null : { selected, onToggle: toggle, onToggleAll: togglePage, label: (e) => `انتخاب «${e.title}»`, canSelect: (e) => !projectOf(e) };
   const movingTotal = useMemo(() => {
     if (!moving) return 0;
@@ -457,6 +458,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                     hideValues={hideValues}
                     readOnly={readOnly}
                     showCategory
+                    markExcluded
                     accounts={accounts.length ? accounts : null}
                     sortState={{ key: 'date', dir: order }}
                     onSortChange={() => setOrder(order === 'desc' ? 'asc' : 'desc')}
@@ -483,6 +485,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
         <ExpenseForm
           key={form.expense?.id || 'new'}
           daily
+          projects={projects}
           expense={form.expense}
           usdToman={usdToman}
           accounts={accounts.filter((a) => !a.archived || a.id === form.expense?.accountId)}

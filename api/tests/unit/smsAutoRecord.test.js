@@ -11,8 +11,10 @@ const expenses = vi.hoisted(() => ({
   getExpenses: vi.fn(async () => ({ expenses: [] })),
   getExpenseGroups: vi.fn(async () => ({ groups: [] })),
   ensureDailyGroup: vi.fn(async () => ({ id: 'exg_daily', type: 'daily' })),
-  // Validated like the real store, so a draft it would refuse fails here too
-  saveExpense: vi.fn(async (input) => {
+  // Validated like the real store, so a draft it would refuse fails here too; no section: the
+  // everyday expenses' (the store's own rule)
+  saveExpense: vi.fn(async (body) => {
+    const input = { ...body, groupId: body.groupId || 'exg_daily' };
     const { validateExpense } = await import('../../src/domain/expenseDocument.js');
     const { value, error } = validateExpense(input);
     if (error) throw new Error(error);

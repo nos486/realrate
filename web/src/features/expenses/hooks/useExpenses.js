@@ -4,7 +4,8 @@
  * Everything is an encrypted vault record (shared/vault/vaultExpenses.js), so nothing loads
  * while the vault is locked. The daily section is left out (useDailyExpenses loads it a month at
  * a time); each project's expenses are fetched by section, so everyday spending is never
- * downloaded here. Totals are computed from them in the view.
+ * downloaded here. Totals are computed from them in the view. An expense saved here may be moved
+ * to the everyday expenses (its form's «پروژه»: none) — it then leaves these lists.
  */
 
 import { useRef, useState, useEffect, useCallback } from 'react';
@@ -75,9 +76,12 @@ export function useExpenses() {
 
   const saveExpense = useCallback((input, existing = null) => withSubmit(async () => {
     const { expense } = await api.saveExpense(input, existing);
-    setExpenses((prev) => [...prev.filter((e) => e.id !== expense.id), expense].sort(compareExpensesByDate));
+    const rest = (prev) => prev.filter((e) => e.id !== expense.id);
+    // Still a project's, or gone to the everyday expenses
+    const inProject = groups.some((g) => g.id === expense.groupId);
+    setExpenses((prev) => (inProject ? [...rest(prev), expense].sort(compareExpensesByDate) : rest(prev)));
     return expense;
-  }), [withSubmit]);
+  }), [withSubmit, groups]);
 
   const remove = useCallback(async (id, fn, onDone) => {
     setDeletingId(id);

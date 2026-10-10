@@ -15,7 +15,7 @@ import { getExpenseCategory } from '../constants/expenseCategories.js';
 const BASE = ['تاریخ', 'عنوان', 'مبلغ پرداختی', 'سهم من', 'ارز', 'نرخ دلار', 'معادل تومان (سهم من)'];
 const REST = ['برچسب‌ها', 'معادل دلار (نرخ روز هزینه)', 'به نرخ امروز (تومان)', 'دریافت‌شده از دیگران', 'مانده طلب از دیگران', 'پرداخت از', 'تأمین از', 'ثبت از', 'یادداشت'];
 
-/** @param {{ withCategory?: boolean }} [options] everyday expenses have a category column */
+/** @param {{ withCategory?: boolean }} [options] with a category column (empty: a project's expense without one) */
 export function expenseCsvHeaders({ withCategory = false } = {}) {
   return withCategory ? [BASE[0], 'دسته‌بندی', ...BASE.slice(1), ...REST] : [...BASE, ...REST];
 }
@@ -56,6 +56,6 @@ export function expenseCsvRow(e, { withCategory = false, usdToman = 0, usdAt = n
     e.notes || '',
   ];
   return withCategory
-    ? [base[0], getExpenseCategory(e.category).label, ...base.slice(1), ...rest]
+    ? [base[0], e.category ? getExpenseCategory(e.category).label : '', ...base.slice(1), ...rest]
     : [...base, ...rest];
 }

@@ -8,7 +8,7 @@ const sent = vi.hoisted(() => ({ batches: [] }));
 vi.mock('../../../web/src/shared/vault/vaultApi.js', () => ({
   VAULT_BATCH_MAX: 100,
   putVaultRecords: vi.fn(async (kind, records) => { sent.batches.push({ kind, records }); return { records }; }),
-  listVaultRecords: vi.fn(async () => ({ records: [] })),
+  listVaultRecords: vi.fn(async (kind) => ({ records: kind === 'expense_group' ? [{ id: 'exg_daily', payload: JSON.stringify({ id: 'exg_daily', type: 'daily', name: 'روزمره' }) }] : [] })),
   deleteVaultRecord: vi.fn(),
 }));
 vi.mock('../../../web/src/shared/vault/vaultRecordMeta.js', () => ({
@@ -24,7 +24,7 @@ vi.mock('../../../web/src/shared/vault/portfolioFunds.js', () => ({
   saveLinkedTransaction: vi.fn(),
   deleteLinkedTransaction: vi.fn(),
 }));
-const { moveExpenses } = await import('../../../web/src/shared/vault/vaultExpenses.js');
+const { moveExpenses, saveExpense } = await import('../../../web/src/shared/vault/vaultExpenses.js');
 const funds = await import('../../../web/src/shared/vault/portfolioFunds.js');
 
 const expense = (i, extra = {}) => ({
@@ -61,5 +61,19 @@ describe('moveExpenses', () => {
   it('nothing to move: no request', async () => {
     expect(await moveExpenses([], 'exg_proj')).toEqual([]);
     expect(sent.batches).toHaveLength(0);
+  });
+});
+
+describe('saveExpense: its section', () => {
+  it('no section (\'\' from the form\'s «پروژه»: none) is the everyday expenses\'; a project\'s id is kept', async () => {
+    const body = { title: 'نان', amount: 1000, currency: 'IRT', date: '2026-10-01', category: 'groceries' };
+    expect((await saveExpense({ ...body, groupId: '' }, null, { syncLinks: false })).expense.groupId).toBe('exg_daily');
+    expect((await saveExpense(body, null, { syncLinks: false })).expense.groupId).toBe('exg_daily');
+    expect((await saveExpense({ ...body, groupId: 'exg_proj' }, null, { syncLinks: false })).expense.groupId).toBe('exg_proj');
+    // An edit without a section keeps its own
+    const stored = expense(9, { groupId: 'exg_proj' });
+    expect((await saveExpense({ notes: 'x' }, stored, { syncLinks: false })).expense.groupId).toBe('exg_proj');
+    // Moved out of its project
+    expect((await saveExpense({ groupId: '' }, stored, { syncLinks: false })).expense.groupId).toBe('exg_daily');
   });
 });
