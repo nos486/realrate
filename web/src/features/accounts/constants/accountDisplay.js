@@ -3,6 +3,8 @@
  */
 
 import { Landmark, Banknote, Smartphone, WalletMinimal, CreditCard } from 'lucide-react';
+import { accountCurrencies } from '../../../utils/accountDocument.js';
+import { EXPENSE_CURRENCIES } from '../../../utils/expenseDocument.js';
 
 const TYPE_ICONS = { bank: Landmark, credit: CreditCard, cash: Banknote, wallet: Smartphone, other: WalletMinimal };
 
@@ -20,4 +22,15 @@ export function accountLabel(account) {
     ? Number(account.cardLast4).toLocaleString('fa-IR', { useGrouping: false, minimumIntegerDigits: 4 })
     : '';
   return digits ? `${account.name} (${digits})` : account.name;
+}
+
+/**
+ * What an account holds besides plain tomans, for its card: «دلاری», «تومانی و دلاری»; '' for a
+ * toman-only account (the default needs no word)
+ */
+export function accountCurrencyLabel(account) {
+  const held = accountCurrencies(account);
+  if (held.length === 1 && held[0] === 'IRT') return '';
+  const word = { IRT: 'تومانی', USD: 'دلاری' };
+  return held.map((c) => word[c] || EXPENSE_CURRENCIES.find((x) => x.value === c)?.label || c).join(' و ');
 }

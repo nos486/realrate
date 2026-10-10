@@ -39,6 +39,7 @@ export const CATEGORY_ICON_NAMES = [
   'Coffee', 'Fuel', 'Bus', 'Baby', 'PawPrint', 'Dumbbell', 'Shirt', 'Smartphone', 'Book',
   'Music', 'Film', 'Gamepad2', 'Wrench', 'Hammer', 'Pill', 'Stethoscope', 'Scissors', 'Sparkles',
   'Users', 'PiggyBank', 'Wallet', 'CreditCard', 'Building2', 'Tag', 'Star', 'Heart', 'Zap',
+  'FileCheck',
 ];
 
 export const CATEGORY_COLORS = [
@@ -70,6 +71,7 @@ export const BUILTIN_CATEGORIES = {
     { value: 'subscriptions', label: 'اینترنت و اشتراک‌ها', icon: 'Wifi', color: '#60a5fa' },
     { value: 'gifts', label: 'هدیه و خیریه', icon: 'Gift', color: '#e879f9' },
     { value: 'installments', label: 'پرداخت قسط', icon: 'Landmark', color: '#fb923c' },
+    { value: 'cheques', label: 'پرداخت چک', icon: 'FileCheck', color: '#a78bfa' },
     { value: 'credit_fees', label: 'کارمزد و سود اعتبار', icon: 'CreditCard', color: '#ef4444' },
     { value: 'investment', label: 'سرمایه‌گذاری', icon: 'TrendingUp', color: '#34d399', excluded: true },
     { value: 'cash_management', label: 'مدیریت نقدینگی', icon: 'Wallet', color: '#22d3ee', excluded: true },
@@ -84,6 +86,7 @@ export const BUILTIN_CATEGORIES = {
     { value: 'investment', label: 'سود سرمایه‌گذاری', icon: 'TrendingUp', color: '#10b981' },
     { value: 'rental', label: 'اجاره', icon: 'Home', color: '#fb7185' },
     { value: 'gift', label: 'هدیه و کمک', icon: 'Gift', color: '#f472b6' },
+    { value: 'cheques', label: 'وصول چک', icon: 'FileCheck', color: '#a78bfa' },
     { value: 'cash_management', label: 'مدیریت نقدینگی', icon: 'Wallet', color: '#22d3ee', excluded: true },
     { value: 'asset_sale', label: 'فروش دارایی', icon: 'PiggyBank', color: '#34d399', excluded: true },
     { value: 'credit_settlement', label: 'تسویه بدهی اعتباری', icon: 'CreditCard', color: '#60a5fa', excluded: true },

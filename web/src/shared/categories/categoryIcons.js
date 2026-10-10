@@ -8,7 +8,7 @@ import {
   Plane, Wifi, Gift, Landmark, TrendingUp, CircleEllipsis, Briefcase, HandCoins, Award, Laptop,
   Store, Home, CircleDollarSign, Coffee, Fuel, Bus, Baby, PawPrint, Dumbbell, Shirt, Smartphone,
   Book, Music, Film, Gamepad2, Wrench, Hammer, Pill, Stethoscope, Scissors, Sparkles, Users,
-  PiggyBank, Wallet, CreditCard, Building2, Tag, Star, Heart, Zap,
+  PiggyBank, Wallet, CreditCard, Building2, Tag, Star, Heart, Zap, FileCheck,
 } from 'lucide-react';
 
 export const CATEGORY_ICONS = {
@@ -16,7 +16,7 @@ export const CATEGORY_ICONS = {
   Plane, Wifi, Gift, Landmark, TrendingUp, CircleEllipsis, Briefcase, HandCoins, Award, Laptop,
   Store, Home, CircleDollarSign, Coffee, Fuel, Bus, Baby, PawPrint, Dumbbell, Shirt, Smartphone,
   Book, Music, Film, Gamepad2, Wrench, Hammer, Pill, Stethoscope, Scissors, Sparkles, Users,
-  PiggyBank, Wallet, CreditCard, Building2, Tag, Star, Heart, Zap,
+  PiggyBank, Wallet, CreditCard, Building2, Tag, Star, Heart, Zap, FileCheck,
 };
 
 export const categoryIcon = (name) => CATEGORY_ICONS[name] || Tag;

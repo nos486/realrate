@@ -3,13 +3,19 @@
  *
  * Used once through ChequesProvider, so the cheques page and the home-page reminders share the
  * same list.
+ *
+ * A cheque's money is recorded with its clearing: when a status change clears it, an income
+ * (received) or an expense (issued) is recorded for it, and taking the clearing back (another
+ * status, or undoing the quick «پاس شد») removes that record (shared/vault/recordLinks.js).
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useFeature } from '../../../shared/features/useFeature.js';
+import { settleCheque, unsettleCheque } from '../../../shared/vault/recordLinks.js';
 import { useRefreshHandler } from '../../../shared/refresh/pageRefresh.js';
 import { useAuth } from '../../auth/index.js';
 import { useVault } from '../../../shared/vault/useVault.js';
-import { compareChequesByDue, applyChequeStatus } from '../../../utils/chequeDocument.js';
+import { CHEQUE_CLEARED, compareChequesByDue, applyChequeStatus } from '../../../utils/chequeDocument.js';
 import {
   getCheques,
   createCheque as apiCreateCheque,
@@ -35,6 +41,10 @@ export function useCheques() {
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [error, setError] = useState(null);
+  const hasExpenses = useFeature('expenses');
+  // The list as last read, for an undo that needs the stored copy (its record)
+  const latest = useRef([]);
+  latest.current = cheques;
 
   const fetchCheques = useCallback(async () => {
     if (!user || vaultLocked) {
@@ -89,11 +99,38 @@ export function useCheques() {
    * @returns {Promise<object>} The updated cheque
    */
   const changeStatus = useCallback(async (cheque, status, date, note = '') => {
-    return saveCheque(toInput(applyChequeStatus(cheque, status, date, note)), cheque.id);
-  }, [saveCheque]);
+    const saved = await saveCheque(toInput(applyChequeStatus(cheque, status, date, note)), cheque.id);
+    await settleWithStatus(cheque, saved, date);
+    return saved;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saveCheque, hasExpenses]);
 
   /** Put a cheque back exactly as it was (undo of a quick status change) */
-  const restoreCheque = useCallback((cheque) => saveCheque(toInput(cheque), cheque.id), [saveCheque]);
+  const restoreCheque = useCallback(async (cheque) => {
+    const stored = latest.current.find((c) => c.id === cheque.id) || null;
+    // The copy put back keeps the record of its money, if it still has one
+    const saved = await saveCheque(toInput({ ...cheque, settlement: stored?.settlement || cheque.settlement || null }), cheque.id);
+    await settleWithStatus(stored, saved, saved.history?.at(-1)?.date);
+    return saved;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saveCheque, hasExpenses]);
+
+  /**
+   * The record of a cheque's money follows its status: cleared now → recorded; no longer
+   * cleared → removed. Then the list is read again (the cheque points at its record).
+   */
+  async function settleWithStatus(before, saved, date) {
+    const wasCleared = before?.status === CHEQUE_CLEARED;
+    const isCleared = saved.status === CHEQUE_CLEARED;
+    try {
+      if (isCleared && !wasCleared) await settleCheque(saved, { date, expenses: hasExpenses });
+      else if (!isCleared && saved.settlement) await unsettleCheque(saved);
+      else return;
+    } catch (err) {
+      setError(`وضعیت چک ذخیره شد، ولی ${isCleared ? 'ثبت' : 'حذف'} درآمد یا هزینه‌اش ممکن نشد: ${err.message || ''}`.trim());
+    }
+    await fetchCheques();
+  }
 
   const deleteCheque = useCallback(async (chequeId) => {
     setDeletingId(chequeId);

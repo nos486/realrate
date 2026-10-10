@@ -22,7 +22,8 @@ import { BankLogo, resolveBank, useCustomBanks } from '../../../shared/banks/ind
 import { useFeature } from '../../../shared/features/useFeature.js';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import { todayIso } from '../../../shared/utils/dates.js';
-import { accountTypeLabel, isCreditAccount } from '../../../utils/accountDocument.js';
+import { accountTypeLabel, accountsForCurrency, isCreditAccount } from '../../../utils/accountDocument.js';
+import { accountCurrencyLabel } from '../constants/accountDisplay.js';
 import { summarizeByAccount, shamsiMonthOf, shamsiMonthRange, shiftShamsiMonth } from '../../../utils/expenseDocument.js';
 import { summarizeTransfersByAccount } from '../../../utils/transferDocument.js';
 import { formatShamsiMonth } from '../../incomes/utils/incomeReport.js';
@@ -236,7 +237,7 @@ export default function AccountsPage() {
                     <strong>{account.name}</strong>
                     <span>
                       {accountTypeLabel(account.type)}
-                      {account.currency === 'USD' && ' · دلاری'}
+                      {accountCurrencyLabel(account) && ` · ${accountCurrencyLabel(account)}`}
                       {account.archived && ' · بایگانی‌شده'}
                     </span>
                   </div>
@@ -380,7 +381,7 @@ export default function AccountsPage() {
           account={accountById.get(payCredit.accountId)}
           debt={credit.statusById.get(payCredit.accountId)?.freeDebt || 0}
           installment={payCredit.installment || null}
-          payers={accounts.filter((a) => !a.archived && !isCreditAccount(a) && a.currency !== 'USD')}
+          payers={accountsForCurrency(accounts, 'IRT').filter((a) => !a.archived && !isCreditAccount(a))}
           saveTransfer={(input) => saveTransfer(input)}
           onPaid={async (transfer, date) => {
             if (payCredit.installment) await markInstallmentPaid(payCredit.accountId, payCredit.installment, transfer, date);

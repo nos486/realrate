@@ -1,7 +1,8 @@
 /**
  * reportMath.test.js — The reports page's figures: what was invested each month (buys and dated
  * holdings less sells and spends; swaps and loan-funded buys left out), its share of the month's
- * income, and income and expenses in dollars at each one's own day rate
+ * income, income and expenses in dollars at each one's own day rate, and what each subscription
+ * was paid in the year
  */
 import { describe, it, expect } from 'vitest';
 import { buildYearSeries } from '../../../web/src/shared/flow/flowYear.js';
@@ -12,6 +13,7 @@ import {
   dollarPoints,
   dollarFlowByMonth,
   investmentBreakdown,
+  subscriptionPayments,
   cashFlowByMonth,
   summarizeCashFlow,
   reportInsights,
@@ -112,5 +114,33 @@ describe('cash flow', () => {
     expect(top.share).toBeCloseTo((170 / 220) * 100);
     // Nothing to say about an empty year
     expect(reportInsights({ cash: summarizeCashFlow([]) })).toEqual([]);
+  });
+});
+
+describe('subscriptionPayments', () => {
+  const range = { from: '2026-03-21', to: '2027-03-20' };
+  const subs = [{ id: 'sub_a', name: 'ChatGPT' }, { id: 'sub_b', name: 'فیلیمو' }];
+  const expenses = [
+    { id: 'e1', date: '2026-04-01', amount: 2_000_000, subscriptionId: 'sub_a', category: 'subscriptions' },
+    { id: 'e2', date: '2026-05-01', amount: 2_100_000, subscriptionId: 'sub_a', category: 'subscriptions' },
+    { id: 'e3', date: '2026-06-01', amount: 150_000, subscriptionId: 'sub_b', category: 'subscriptions' },
+    { id: 'e4', date: '2026-06-02', amount: 90_000, category: 'subscriptions' },
+    { id: 'e5', date: '2026-06-03', amount: 50_000, subscriptionId: 'sub_gone', category: 'subscriptions' },
+    { id: 'e6', date: '2026-01-01', amount: 999, subscriptionId: 'sub_a', category: 'subscriptions' },
+    { id: 'e7', date: '2026-06-04', amount: 700_000, category: 'groceries' },
+  ];
+
+  it('sums each subscription\'s payments in the year, largest first, and the unlinked ones apart', () => {
+    const out = subscriptionPayments(expenses, subs, (e) => e.amount, range);
+    expect(out.rows.map((r) => [r.name, r.count, r.total])).toEqual([
+      ['ChatGPT', 2, 4_100_000],
+      ['فیلیمو', 1, 150_000],
+      ['اشتراک حذف‌شده', 1, 50_000],
+    ]);
+    expect(out.rows[0].last).toBe('2026-05-01');
+    expect(out.rows[2].removed).toBe(true);
+    expect(out.unlinked).toEqual({ count: 1, total: 90_000 });
+    expect(out.total).toBe(4_390_000);
+    expect(out.count).toBe(5);
   });
 });

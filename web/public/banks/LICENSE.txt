@@ -30,3 +30,4 @@ hsbc, barclays, deutsche-bank, commerzbank, sparkasse, chase, bank-of-america, w
 Simple Icons v13.21.0 (https://simpleicons.org, CC0 1.0), filled with each brand's colour. They too
 are trademarks of their owners, used only to identify them.
 vakifbank.svg (VakıfBank) is the bank's mark supplied by the project owner (zonalogo.com), with its XML header removed.
+wealthsimple.svg (Wealthsimple) wraps the company's icon (a 256 px PNG) supplied by the project owner.

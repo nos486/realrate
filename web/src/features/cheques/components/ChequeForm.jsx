@@ -116,6 +116,8 @@ export default function ChequeForm({
           status: editingCheque.status,
           issueDate: editingCheque.issueDate || '',
           history: editingCheque.history,
+          // …and so is the income or expense its clearing recorded
+          settlement: editingCheque.settlement || null,
         });
       } else {
         // The registration opens the tracking log, dated in the user's own time zone

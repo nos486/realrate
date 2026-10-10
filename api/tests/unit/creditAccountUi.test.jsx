@@ -163,14 +163,14 @@ describe('the account form', () => {
     fireEvent.change(screen.getByLabelText('نام حساب (اختیاری)'), { target: { value: 'اوانو' } });
     fireEvent.change(screen.getByLabelText('سقف اعتبار (تومان) *'), { target: { value: '100000000' } });
     fireEvent.change(screen.getByLabelText('بدهی فعلی هنگام ثبت (تومان، اختیاری)'), { target: { value: '2000000' } });
-    expect(screen.queryByText('ارز حساب')).toBeNull();
+    expect(screen.queryByText('ارزهای حساب')).toBeNull();
     expect(screen.queryByText(/روز بستن صورت‌حساب/)).toBeNull();
     fireEvent.submit(screen.getByText('افزودن حساب').closest('form'));
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());
     expect(onSubmit.mock.calls[0][0]).toMatchObject({
       type: 'credit',
       name: 'اوانو',
-      currency: 'IRT',
+      currencies: ['IRT'],
       credit: { limit: 100_000_000, openingDebt: 2_000_000, conversions: [] },
     });
     expect(onSubmit.mock.calls[0][0].credit.startDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);

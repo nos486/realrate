@@ -1,9 +1,10 @@
 /**
  * SubscriptionForm.jsx — Modal to add or edit a subscription: what it is, what it costs (tomans
  * or dollars) and how often, when it started (its first payment), whether it renews by itself or
- * by hand (then: until when it runs), an optional end day, the account it is paid from, and its
- * reminders (utils/subscriptionDocument.js). Mounted only while open, so its state starts from
- * props.
+ * by hand (then: until when it runs), an optional end day, the account it is paid from (only the
+ * accounts holding its currency), and its reminders (utils/subscriptionDocument.js). A new one can
+ * go on to record its first payment as an expense (`onSubmit`'s second argument: { recordPayment }).
+ * Mounted only while open, so its state starts from props.
  */
 
 import React, { useState } from 'react';
@@ -14,6 +15,8 @@ import {
   SUBSCRIPTION_CATEGORIES, SUBSCRIPTION_CYCLES, SUBSCRIPTION_LIMITS, renewalAt,
 } from '../../../utils/subscriptionDocument.js';
 import { accountLabel } from '../../accounts/constants/accountDisplay.js';
+import { accountsForCurrency } from '../../../utils/accountDocument.js';
+import { todayIso } from '../../../shared/utils/dates.js';
 import { subscriptionIcon } from '../constants/subscriptionDisplay.js';
 
 const CATEGORY_OPTIONS = SUBSCRIPTION_CATEGORIES.map(({ value, label }) => {
@@ -27,7 +30,8 @@ const amountOf = (v) => Number(String(v || '').replace(/[^\d.]/g, '')) || 0;
 const shamsiOf = (iso) => (iso ? gregorianToShamsi(`${iso}T00:00:00`) : '');
 
 /**
- * @param {{ subscription?: object|null, accounts?: object[], onSubmit: (input: object) => Promise<unknown>,
+ * @param {{ subscription?: object|null, accounts?: object[],
+ *   onSubmit: (input: object, options: { recordPayment: boolean }) => Promise<unknown>,
  *   onClose: () => void, submitting?: boolean }} props
  */
 export default function SubscriptionForm({ subscription = null, accounts = [], onSubmit, onClose, submitting = false }) {
@@ -45,6 +49,8 @@ export default function SubscriptionForm({ subscription = null, accounts = [], o
   const [url, setUrl] = useState(s?.url || '');
   const [notes, setNotes] = useState(s?.notes || '');
   const [muted, setMuted] = useState(Boolean(s?.remindersMuted));
+  // A new subscription: record its first payment as an expense right after (on by default)
+  const [recordPayment, setRecordPayment] = useState(!s);
   const [error, setError] = useState('');
 
   const startIso = shamsiToGregorian(startShamsi);
@@ -53,6 +59,11 @@ export default function SubscriptionForm({ subscription = null, accounts = [], o
   // Renewed by hand: it runs until the first renewal after the start, unless set
   const defaultRenewOn = startIso ? renewalAt(startIso, Number(cycle), 1) : '';
   const isValid = Boolean(name.trim()) && amountNum > 0 && Boolean(startIso) && !submitting;
+  // Paid from an account that holds its currency (the one it already names stays listed)
+  const payAccounts = accountsForCurrency(accounts, currency, s?.accountId);
+  const effectiveAccountId = payAccounts.some((a) => a.id === accountId) ? accountId : '';
+  // Only a payment already due: a subscription that starts later has none yet
+  const canRecordPayment = !s && Boolean(startIso) && startIso <= todayIso();
 
   const handleSubmit = async (e) => {
     e?.preventDefault?.();
@@ -69,12 +80,13 @@ export default function SubscriptionForm({ subscription = null, accounts = [], o
         autoRenew: !manual,
         renewOn: manual ? (shamsiToGregorian(renewShamsi) || defaultRenewOn) : '',
         endDate: shamsiToGregorian(endShamsi) || '',
-        accountId,
+        accountId: effectiveAccountId,
         url: url.trim(),
         notes: notes.trim(),
         remindersMuted: muted,
         status: s?.status || 'active',
-      });
+        ...(canRecordPayment && recordPayment ? { lastPaidOn: startIso } : {}),
+      }, { recordPayment: canRecordPayment && recordPayment });
       onClose();
     } catch (err) {
       setError(err.message || 'ذخیره‌ی اشتراک ممکن نشد.');
@@ -143,12 +155,12 @@ export default function SubscriptionForm({ subscription = null, accounts = [], o
         <ShamsiDatePicker label="پایان (اختیاری)" value={endShamsi} onChange={setEndShamsi} />
         <p className="expense-form-hint">اگر تا تاریخ مشخصی است یا لغوش کرده‌اید و تا پایان دوره فعال است؛ بعد از آن تمدیدی حساب نمی‌شود.</p>
 
-        {accounts.length > 0 && (
+        {payAccounts.length > 0 && (
           <div className="ui-input-group">
             <span className="ui-input-label">پرداخت از (اختیاری)</span>
             <FilterPills
-              options={[{ value: '', label: 'نامشخص' }, ...accounts.map((a) => ({ value: a.id, label: accountLabel(a) }))]}
-              activeValue={accountId}
+              options={[{ value: '', label: 'نامشخص' }, ...payAccounts.map((a) => ({ value: a.id, label: accountLabel(a) }))]}
+              activeValue={effectiveAccountId}
               onChange={setAccountId}
               size="sm"
               className="income-category-picker"
@@ -158,6 +170,13 @@ export default function SubscriptionForm({ subscription = null, accounts = [], o
 
         <Input id="sub-url" label="سایت (اختیاری)" placeholder="https://" value={url} dir="ltr" onChange={(e) => setUrl(e.target.value)} maxLength={SUBSCRIPTION_LIMITS.urlLength} />
         <Input id="sub-notes" as="textarea" label="یادداشت (اختیاری)" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={SUBSCRIPTION_LIMITS.notesLength} rows={2} />
+
+        {canRecordPayment && (
+          <label className="sub-form-check">
+            <input type="checkbox" checked={recordPayment} onChange={(e) => setRecordPayment(e.target.checked)} />
+            <span>پرداخت اول را هم در هزینه‌ها ثبت کن (بعد از افزودن، فرم هزینه باز می‌شود)</span>
+          </label>
+        )}
 
         <label className="sub-form-check">
           <input type="checkbox" checked={!muted} onChange={(e) => setMuted(!e.target.checked)} />
