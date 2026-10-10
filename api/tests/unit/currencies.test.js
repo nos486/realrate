@@ -1,8 +1,7 @@
 /**
  * currencies.test.js — The currency table (domain/currencies.js: toman, dollar, euro, lira,
  * dirham) and money in it: an expense or an income in euros is tomans at its day's rate from the
- * price history (an older record's stored rate only for a day the history lacks), else today's — no
- * rate is ever stored; its dollars through the dollar's rate that day; totals per
+ * price history, else today's — no rate is ever stored or read from a record; its dollars through the dollar's rate that day; totals per
  * currency (expenses, accounts, subscriptions); a portfolio pays it in that currency
  */
 import { describe, it, expect } from 'vitest';
@@ -66,11 +65,10 @@ describe('an expense in euros', () => {
     expect(validateExpense({ ...base, currency: 'XYZ' }).value.currency).toBe('IRT');
   });
 
-  it('is tomans at its day\'s rate (history), else an older stored one, else today\'s; null with none', () => {
+  it('is tomans at its day\'s rate (history), else today\'s; null with none — a stored rate is never read', () => {
     expect(expenseCurrencyRate(base, rates)).toBe(60_000);
-    // The history wins over a rate an older record stored, which fills only a day it lacks
     expect(expenseInToman({ ...base, rate: 62_000 }, rates)).toBe(6_000_000);
-    expect(expenseInToman({ ...base, rate: 62_000, date: '2020-01-01' }, rates)).toBe(6_200_000);
+    expect(expenseInToman({ ...base, rate: 62_000, date: '2020-01-01' }, rates)).toBe(6_500_000);
     expect(expenseInToman(base, rates)).toBe(6_000_000);
     expect(expenseInToman({ ...base, date: '2020-01-01' }, rates)).toBe(6_500_000);
     expect(expenseInToman(base, {})).toBeNull();

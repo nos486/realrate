@@ -9,9 +9,8 @@
  * An expense is in tomans or a foreign currency (currencies.js: dollar, euro, lira, dirham), and
  * never stores a rate: its currency's toman rate on its day is read from the daily price history
  * (the rates bag: `usdAt`, `rateAt`, web features/market/useFxRates.js), today's when that day is
- * unknown. Older records may still carry one (`usdRate` for the dollar, `rate` for another
- * currency: LEGACY_RATE_FIELDS); it is read only for a day the history doesn't have, and dropped
- * the next time the expense is saved (vaultExpenses.js).
+ * unknown. Older records stored one (`usdRate` for the dollar, `rate` for another currency:
+ * LEGACY_RATE_FIELDS): it is never read, and is dropped from the store (vaultExpenses.js).
  *
  * Section `type`: 'project' (a project, a trip, ...) or 'daily' — the one section per user that
  * holds everyday spending, each expense in a category (DAILY_EXPENSE_CATEGORIES) and shown
@@ -176,8 +175,8 @@ function parseBudget(raw) {
 }
 
 /**
- * Rates older expenses stored (the dollar's `usdRate`, another currency's `rate`): read only for a
- * day the price history doesn't have, and dropped when the expense is saved again
+ * Rates older expenses stored (the dollar's `usdRate`, another currency's `rate`): never read,
+ * dropped on every save and once from every stored expense (vaultExpenses.dropStoredRates)
  */
 export const LEGACY_RATE_FIELDS = ['usdRate', 'rate'];
 
@@ -345,27 +344,22 @@ export function expenseReceivable(expense) {
 }
 
 /**
- * The dollar's rate (tomans) on an expense's day: the price history's for its date, else (an
- * older record, a day before the history) the `usdRate` it stored; 0 when neither is known
+ * The dollar's rate (tomans) on an expense's day, from the price history; 0 when unknown
  * @param {object} expense
  * @param {(isoDate: string) => number|null} [usdAt] the dollar's rate on a date (price history)
  */
 export function expenseDayRate(expense, usdAt) {
-  const fromHistory = typeof usdAt === 'function' && expense?.date ? Number(usdAt(expense.date)) || 0 : 0;
-  return fromHistory > 0 ? fromHistory : Number(expense?.usdRate) || 0;
+  return currencyRateOn('USD', expense?.date, { usdAt });
 }
 
 /**
- * Its currency's toman rate on its day: 1 for tomans; the price history's for its date, else (an
- * older record) the rate it stored; 0 when unknown
+ * Its currency's toman rate on its day: 1 for tomans; the price history's for its date; 0 when
+ * unknown
  * @param {object} expense
  * @param {{ usdAt?: Function, rateAt?: Function }} [rates] the rates bag (currencies.js)
  */
 export function expenseCurrencyRate(expense, rates = {}) {
-  const currency = normalizeCurrency(expense?.currency);
-  if (currency === BASE_CURRENCY) return 1;
-  if (currency === 'USD') return expenseDayRate(expense, rates.usdAt);
-  return currencyRateOn(currency, expense?.date, rates) || Number(expense?.rate) || 0;
+  return currencyRateOn(expense?.currency, expense?.date, rates);
 }
 
 /**

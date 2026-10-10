@@ -8,10 +8,11 @@ describe('loanFunding', () => {
   it('sums only the expenses funded by the loan, dollars at their rate', () => {
     const usage = summarizeLoanFunding(loan, [
       { id: '1', loanId: 'loan_a', amount: 30_000_000, currency: 'IRT', date: '2026-09-01' },
-      { id: '2', loanId: 'loan_a', amount: 100, currency: 'USD', usdRate: 100_000, date: '2026-09-05' },
+      { id: '2', loanId: 'loan_a', amount: 100, currency: 'USD', date: '2026-09-05' },
       { id: '3', loanId: 'loan_b', amount: 5_000_000, currency: 'IRT', date: '2026-09-02' },
       { id: '4', amount: 7_000_000, currency: 'IRT', date: '2026-09-03' },
-    ]);
+      // The dollar's rate that day (price history)
+    ], { usdAt: (day) => (day === '2026-09-05' ? 100_000 : null) });
     expect(usage.spent).toBe(40_000_000);
     expect(usage.remaining).toBe(60_000_000);
     expect(usage.overspent).toBe(0);

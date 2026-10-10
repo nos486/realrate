@@ -231,8 +231,9 @@ asset's profit or loss in dollars (each purchase at its day's rate, valued today
 - **No record stores an exchange rate.** An expense or an income in a foreign currency is tomans
   at its currency's rate on its day, read from the history whenever it is shown; forms show that
   rate (`shared/currency/useDayRate.js`, `DayRateHint`) and nothing can be typed over it. Older
-  expenses may still carry one (`usdRate`, `rate`: `LEGACY_RATE_FIELDS`), read only for a day the
-  history doesn't have and dropped when the expense is saved again.
+  expenses stored one (`usdRate`, `rate`: `LEGACY_RATE_FIELDS`): it is never read, dropped on every
+  save or move and once from every stored expense (`vaultExpenses.dropStoredRates`). Exports hold
+  only what was recorded — no rate, no value computed from one.
 - **Only a portfolio transaction carries a price** — that is what a ledger is: a purchase's unit
   price is a fact of the trade (typed, or what the asset it was paid with cost:
   `referenceQuantity` × that asset's price on the day, from the history — the reference price
@@ -260,7 +261,7 @@ above) and `rateToday(code)` / `rateAt(code, date)` for the others — built by 
 `{ usdToman, usdAt, ...useFxRates(records) }` (`web/src/features/market/useFxRates.js`: today's
 rate from the price book, a past day's from that currency's daily history, loaded only for the
 currencies the records are in). `expenseCurrencyRate` / `incomeCurrencyRate` give a record's
-currency rate on its day (the history's; an older expense's stored rate only for a day it lacks),
+currency rate on its day (the history's),
 and `expenseInToman`, `incomeInToman`, `summarizeExpenses` / `summarizeIncomes` (`byCurrency`,
 `unpriced`), `summarizeByAccount` (`byCurrency`) and `subscriptionTotals` take the bag. Incomes
 are validated by the shared `api/src/domain/incomeDocument.js`. A portfolio pays a foreign expense

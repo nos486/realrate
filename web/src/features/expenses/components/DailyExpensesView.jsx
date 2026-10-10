@@ -49,6 +49,7 @@ import { accountLabel } from '../../accounts/constants/accountDisplay.js';
 import { getExpenseCategory } from '../constants/expenseCategories.js';
 import { formatAmount } from '../utils/format.js';
 import ExpenseForm from './ExpenseForm.jsx';
+import ExpenseCsvImportButton from './ExpenseCsvImportButton.jsx';
 import ExpensesTable from './ExpensesTable.jsx';
 import BudgetForm from './BudgetForm.jsx';
 import BudgetProgress from './BudgetProgress.jsx';
@@ -369,8 +370,9 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                   headers={CSV_HEADERS}
                   fileBaseName={`هزینه‌های-روزمره-${formatShamsiMonth(month.jy, month.jm)}`}
                   disabled={listed.length === 0}
-                  mapRow={(e) => expenseCsvRow(e, { withCategory: true, rates, accountById, loanById })}
+                  mapRow={(e) => expenseCsvRow(e, { withCategory: true, accountById, loanById })}
                 />
+                <ExpenseCsvImportButton saveExpense={saveExpense} accounts={accounts} onImported={fetchMonth} disabled={readOnly} />
                 <Button
                   icon={<Plus size={16} />}
                   onClick={() => setForm({ expense: null })}

@@ -24,13 +24,18 @@ vi.mock('../../../web/src/features/demo/index.js', () => ({ useDemo: () => ({ re
 vi.mock('../../../web/src/hooks/usePrivacyMode.js', () => ({ usePrivacyMode: () => false }));
 vi.mock('../../../web/src/shared/vault/VaultUnlockCard.jsx', () => ({ default: () => null }));
 vi.mock('../../../web/src/shared/vault/portfolioFunds.js', () => ({ CURRENCY_ASSET: { USD: 'usd' }, newSpendTxId: () => 'txs_1', rateOnDay: async () => null }));
+// The dollar's rate by day (price history): only 2026-09-02 is known
+vi.mock('../../../web/src/features/market/dailyHistory.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  useUsdAt: () => (day) => (day === '2026-09-02' ? 50_000 : null),
+}));
 vi.mock('../../../web/src/shared/vault/useAssetFunds.js', () => ({ useAssetFunds: () => ({ funds: [], loading: false }) }));
 
 const { FeedbackProvider } = await import('../../../web/src/shared/ui/FeedbackProvider.jsx');
 const { default: ProjectsPage } = await import('../../../web/src/features/expenses/components/ProjectsPage.jsx');
 
 afterEach(cleanup);
-const exp = (id, title, amount, tags = []) => ({ id, groupId: 'exg_1', title, amount, currency: 'IRT', date: '2026-09-01', tags, usdRate: null });
+const exp = (id, title, amount, tags = []) => ({ id, groupId: 'exg_1', title, amount, currency: 'IRT', date: '2026-09-01', tags });
 
 describe('tags in the document', () => {
   it('are trimmed, deduplicated and limited', () => {
@@ -48,11 +53,13 @@ describe('tags in the document', () => {
   });
 
   it('each tag at today\'s rate: its dollars (each expense at its day rate) and what they cost today', () => {
+    // The dollar's rate by day (price history)
+    const usdAt = (day) => ({ '2026-09-01': 100_000, '2026-09-02': 50_000 })[day] ?? null;
     const s = summarizeByTag([
-      { ...exp('1', 'کاشی', 30_000_000, ['مصالح']), usdRate: 100_000 },
-      { ...exp('2', 'سیمان', 10_000_000, ['مصالح']), usdRate: 50_000 },
-      { ...exp('3', 'دستمزد', 5_000_000, ['دستمزد']) },
-    ], { usdToman: 125_000 });
+      exp('1', 'کاشی', 30_000_000, ['مصالح']),
+      { ...exp('2', 'سیمان', 10_000_000, ['مصالح']), date: '2026-09-02' },
+      { ...exp('3', 'دستمزد', 5_000_000, ['دستمزد']), date: '2019-01-01' },
+    ], { usdToman: 125_000, usdAt });
     const materials = s.tags.find((t) => t.tag === 'مصالح');
     expect(materials.dollar).toMatchObject({ usd: 500, paidToman: 40_000_000, todayToman: 62_500_000, counted: 2, missing: 0 });
     expect(Math.round(materials.dollar.changePct)).toBe(56);
@@ -64,7 +71,7 @@ describe('tags in the document', () => {
 describe('tags on the projects page', () => {
   it('shows each tag\'s total beside the list; a tag shows only its expenses', () => {
     state.groups = [{ id: 'exg_1', name: 'تعمیر خانه', type: 'project', createdAt: '2026-01-01' }];
-    state.expenses = [{ ...exp('e1', 'کاشی', 3_000_000, ['مصالح']), usdRate: 50_000 }, exp('e2', 'دستمزد کاشی‌کار', 2_000_000, ['دستمزد']), exp('e3', 'سیمان', 1_000_000, ['مصالح'])];
+    state.expenses = [{ ...exp('e1', 'کاشی', 3_000_000, ['مصالح']), date: '2026-09-02' }, exp('e2', 'دستمزد کاشی‌کار', 2_000_000, ['دستمزد']), exp('e3', 'سیمان', 1_000_000, ['مصالح'])];
     render(<MemoryRouter><FeedbackProvider><ProjectsPage /></FeedbackProvider></MemoryRouter>);
 
     const card = document.querySelector('.expense-tag-totals');

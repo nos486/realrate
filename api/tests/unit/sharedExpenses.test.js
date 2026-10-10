@@ -83,10 +83,11 @@ describe('totals count the share', () => {
     expect(summarizeByCategory([shared, plain])[0]).toMatchObject({ category: 'dining', totalToman: 3_000_000 });
   });
 
-  it('dollar shares convert at the expense rate', () => {
-    const usd = { ...base, currency: 'USD', amount: 100, usdRate: 100_000, myShare: 25, reimbursements: [rmb('rmb_a', 25)] };
-    expect(expenseInToman(usd)).toBe(2_500_000);
-    expect(summarizeReceivables([usd])).toMatchObject({ owedToman: 7_500_000, receivedToman: 2_500_000, remainingToman: 5_000_000 });
+  it('dollar shares convert at the day\'s rate', () => {
+    const usd = { ...base, currency: 'USD', amount: 100, myShare: 25, reimbursements: [rmb('rmb_a', 25)] };
+    const rates = { usdAt: () => 100_000 };
+    expect(expenseInToman(usd, rates)).toBe(2_500_000);
+    expect(summarizeReceivables([usd], rates)).toMatchObject({ owedToman: 7_500_000, receivedToman: 2_500_000, remainingToman: 5_000_000 });
   });
 
   it('receivables: owed, received, remaining; settled ones are not open', () => {

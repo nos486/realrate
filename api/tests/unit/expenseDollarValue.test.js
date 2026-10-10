@@ -14,24 +14,27 @@ describe('the day\'s dollar rate on a toman expense', () => {
     expect(expenseInToman(value)).toBe(50_000_000);
   });
 
+  // The dollar's rate by day (price history)
+  const usdAt = (day) => ({ '2026-01-10': 100_000, '2026-01-12': 90_000, '2026-01-20': 50_000 })[day] ?? null;
+
   it('gives the dollars then and the tomans today', () => {
-    expect(expenseDollarValue({ ...base, usdRate: 100_000 }, { usdToman: 125_000 })).toEqual({ usd: 500, paidToman: 50_000_000, todayToman: 62_500_000, changePct: 25 });
+    expect(expenseDollarValue(base, { usdToman: 125_000, usdAt })).toEqual({ usd: 500, paidToman: 50_000_000, todayToman: 62_500_000, changePct: 25 });
     // Without today's rate: dollars only
-    expect(expenseDollarValue({ ...base, usdRate: 100_000 }, { usdToman: 0 })).toMatchObject({ usd: 500, todayToman: null, changePct: null });
-    // Without the day's rate: nothing to say
-    expect(expenseDollarValue(base, { usdToman: 125_000 })).toBeNull();
+    expect(expenseDollarValue(base, { usdToman: 0, usdAt })).toMatchObject({ usd: 500, todayToman: null, changePct: null });
+    // Without the day's rate: nothing to say (a stored one is never read)
+    expect(expenseDollarValue({ ...base, usdRate: 100_000 }, { usdToman: 125_000 })).toBeNull();
     // A shared expense: the user's own part
-    expect(expenseDollarValue({ ...base, myShare: 20_000_000, usdRate: 100_000 }, { usdToman: 100_000 }).usd).toBe(200);
+    expect(expenseDollarValue({ ...base, myShare: 20_000_000 }, { usdToman: 100_000, usdAt }).usd).toBe(200);
     // A dollar expense is already in dollars
-    expect(expenseDollarValue({ ...base, currency: 'USD', amount: 300, usdRate: 90_000 }, { usdToman: 100_000 })).toMatchObject({ usd: 300, paidToman: 27_000_000, todayToman: 30_000_000 });
+    expect(expenseDollarValue({ ...base, currency: 'USD', amount: 300, date: '2026-01-12' }, { usdToman: 100_000, usdAt })).toMatchObject({ usd: 300, paidToman: 27_000_000, todayToman: 30_000_000 });
   });
 
   it('sums a project, counting the expenses without a rate apart', () => {
     const s = summarizeDollarValue([
-      { ...base, usdRate: 100_000 },
-      { ...base, amount: 10_000_000, usdRate: 50_000 },
-      { ...base, amount: 7_000_000 },
-    ], { usdToman: 100_000 });
+      base,
+      { ...base, amount: 10_000_000, date: '2026-01-20' },
+      { ...base, amount: 7_000_000, date: '2019-01-01' },
+    ], { usdToman: 100_000, usdAt });
     expect(s).toMatchObject({ usd: 700, paidToman: 60_000_000, todayToman: 70_000_000, counted: 2, missing: 1 });
     expect(Math.round(s.changePct * 10) / 10).toBe(16.7);
   });
@@ -46,9 +49,9 @@ describe("the day's rate from the price history (usdAt)", () => {
     expect(value.todayToman).toBeCloseTo(625 * 125_000);
   });
 
-  it("the history wins over a rate an older record stored, which fills only a day it doesn't have", () => {
+  it('is the history\'s only: a rate an older record stored is never read', () => {
     expect(expenseDayRate({ ...base, usdRate: 100_000 }, usdAt)).toBe(80_000);
-    expect(expenseDayRate({ ...base, date: '2025-01-01', usdRate: 100_000 }, usdAt)).toBe(100_000);
+    expect(expenseDayRate({ ...base, date: '2025-01-01', usdRate: 100_000 }, usdAt)).toBe(0);
     expect(expenseDayRate(base, usdAt)).toBe(80_000);
     expect(expenseDayRate({ ...base, date: '2025-01-01' }, usdAt)).toBe(0);
     expect(expenseDayRate(base)).toBe(0);

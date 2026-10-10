@@ -33,6 +33,7 @@ import { useExpenses } from '../hooks/useExpenses.js';
 import { formatAmount } from '../utils/format.js';
 import ExpenseGroupForm from './ExpenseGroupForm.jsx';
 import ExpenseForm from './ExpenseForm.jsx';
+import ExpenseCsvImportButton from './ExpenseCsvImportButton.jsx';
 import ExpensesTable from './ExpensesTable.jsx';
 import ExpenseSummaryCards from './ExpenseSummaryCards.jsx';
 import ExpenseTagTotals from './ExpenseTagTotals.jsx';
@@ -270,8 +271,9 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
                       headers={CSV_HEADERS}
                       fileBaseName={`هزینه‌های-${selected.name}`}
                       disabled={listed.length === 0}
-                      mapRow={(e) => expenseCsvRow(e, { withCategory: true, rates, accountById, loanById })}
+                      mapRow={(e) => expenseCsvRow(e, { withCategory: true, accountById, loanById })}
                     />
+                    <ExpenseCsvImportButton saveExpense={saveExpense} groupId={selected.id} accounts={accounts} onImported={fetchAll} disabled={readOnly} />
                     <Button
                       icon={<Plus size={16} />}
                       onClick={() => setExpenseForm({ expense: null })}
