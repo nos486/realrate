@@ -43,6 +43,7 @@ realrate/
         │                         #   app-settings، auth، demo، admin
         ├── shared/
         │   ├── ui/               # کامپوننت‌های پایه (Modal، Button، DonutChart، Skeleton، RowCard، BlockingOverlay، ...)
+        │   ├── form/             # قطعه‌های فرم ثبت (AmountField، CategoryGrid، PickerRow، DateField، MoreDetails)
         │   ├── refresh/          # تازه‌سازی تب: scopeها، دکمه‌ی تازه‌سازی، TabLoadingGate
         │   ├── currency/         # useDayRate و DayRateHint: نرخ ارز در روز فرم (نمایش، بدون ذخیره)
         │   ├── links/            # CategoryLinkField: رکوردی که درآمد یا هزینه با دسته‌اش به آن وصل است

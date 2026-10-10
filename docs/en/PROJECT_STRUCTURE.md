@@ -45,6 +45,7 @@ realrate/
         │                         #   app-settings, auth, demo, admin
         ├── shared/
         │   ├── ui/               # Base components (Modal, Button, DonutChart, Skeleton, RowCard, BlockingOverlay, …)
+        │   ├── form/             # Entry-form parts (AmountField, CategoryGrid, PickerRow, DateField, MoreDetails)
         │   ├── refresh/          # Refreshing a tab: scopes, the refresh button, TabLoadingGate
         │   ├── currency/         # useDayRate, DayRateHint: a currency's rate on a form's day (shown, never stored)
         │   ├── links/            # CategoryLinkField: the record an income or expense links to by its category

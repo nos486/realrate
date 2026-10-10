@@ -10,7 +10,7 @@
  */
 
 import React from 'react';
-import { FilterPills } from '../../../shared/ui/index.js';
+import { PickerRow } from '../../../shared/form/index.js';
 import { CHEQUE_DIRECTION_OF } from '../../../utils/categoryLinks.js';
 import { compareChequesByDue, isChequeOpen } from '../../../utils/chequeDocument.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
@@ -18,10 +18,12 @@ import { useOptionalCheques } from '../context/ChequesContext.jsx';
 
 const fa = (n) => Math.round(Number(n) || 0).toLocaleString('fa-IR');
 
-/** «علی رضایی — ۵٬۰۰۰٬۰۰۰ — ۱۴۰۵/۰۸/۰۱» */
-function chequeChoiceLabel(cheque) {
-  return `${cheque.counterparty} — ${fa(cheque.amount)} — ${formatShamsiDisplay(`${cheque.dueDate}T00:00:00`)}`;
-}
+/** «علی رضایی — ۵٬۰۰۰٬۰۰۰ تومان», due «سررسید ۱۴۰۵/۰۸/۰۱» under it */
+const chequeChoice = (cheque) => ({
+  value: cheque.id,
+  label: `${cheque.counterparty} — ${fa(cheque.amount)} تومان`,
+  hint: `سررسید ${formatShamsiDisplay(`${cheque.dueDate}T00:00:00`)}`,
+});
 
 /** The title a record of this cheque's money gets */
 const chequeRecordTitle = (cheque) => `چک ${cheque.counterparty}`;
@@ -45,20 +47,17 @@ export default function ChequeLinkPicker({ side, value, onChange, onFill, record
   };
 
   return (
-    <div className="ui-input-group">
-      <span className="ui-input-label">{side === 'income' ? 'کدام چک دریافتی' : 'کدام چک صادره'}</span>
-      {choices.length > 0 ? (
-        <FilterPills
-          options={[{ value: '', label: 'هیچ‌کدام' }, ...choices.map((c) => ({ value: c.id, label: chequeChoiceLabel(c) }))]}
-          activeValue={value || ''}
-          onChange={pick}
-          size="sm"
-          className="income-category-picker"
-        />
-      ) : (
-        <p className="expense-form-hint">چک {side === 'income' ? 'دریافتی' : 'صادره'}ِ پاس‌نشده‌ای ندارید؛ چک را در صفحه‌ی «چک‌ها» ثبت کنید.</p>
-      )}
-      {value && <p className="expense-form-hint">با ثبت، این چک «پاس شده» می‌شود و به همین {side === 'income' ? 'درآمد' : 'هزینه'} وصل می‌ماند.</p>}
-    </div>
+    choices.length > 0 ? (
+      <PickerRow
+        label={side === 'income' ? 'کدام چک دریافتی' : 'کدام چک صادره'}
+        value={value || ''}
+        options={[{ value: '', label: 'هیچ‌کدام' }, ...choices.map(chequeChoice)]}
+        onChange={pick}
+      >
+        {value && <p className="expense-form-hint">با ثبت، این چک «پاس شده» می‌شود و به همین {side === 'income' ? 'درآمد' : 'هزینه'} وصل می‌ماند.</p>}
+      </PickerRow>
+    ) : (
+      <p className="expense-form-hint">چک {side === 'income' ? 'دریافتی' : 'صادره'}ِ پاس‌نشده‌ای ندارید؛ چک را در صفحه‌ی «چک‌ها» ثبت کنید.</p>
+    )
   );
 }

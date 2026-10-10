@@ -30,22 +30,31 @@
  * user's issued cheques (`chequeId`) — saving it clears the cheque.
  * Added to a portfolio («افزودن به پورتفو»: the asset and its quantity), an expense is a «buy»
  * there at its tomans (`investedIn`).
+ *
+ * Laid out as an entry form (shared/form/, the income form's too): the amount first (its currency
+ * beside it, in words under it), the category as icon tiles (the last used first), the title, the
+ * day («امروز»/«دیروز»/«روز دیگر»), «پرداخت با» — an account or cash, a cheque, or a loan, each
+ * with its own picker row — the project, and what is rarely needed (دنگ, tags, the note) folded
+ * under «جزئیات بیشتر». A new entry can be saved with «ثبت و بعدی»: the form stays open for the
+ * next one, keeping its category, day, account and project.
  * Mounted only while open, so its state starts from props.
  */
 
 import React, { useState } from 'react';
-import { Receipt } from 'lucide-react';
-import { AlertBanner, Button, FilterPills, Input, Modal, NumericInput } from '../../../shared/ui/index.js';
-import ShamsiDatePicker, {
+import { CircleDashed, Receipt } from 'lucide-react';
+import { AlertBanner, FilterPills, Input, Modal, NumericInput } from '../../../shared/ui/index.js';
+import { AmountField, CategoryGrid, DateField, EntryFormActions, MoreDetails, PickerRow, rememberCategory, recentCategories } from '../../../shared/form/index.js';
+import {
   getTodayShamsi,
   gregorianToShamsi,
   shamsiToGregorian,
 } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { parseInputNumber, formatNum } from '../../portfolio/utils/holdingHelpers.js';
 import TagInput from './TagInput.jsx';
-import { EXPENSE_CURRENCIES, EXPENSE_LIMITS, isSharedExpense, expenseReceivable } from '../../../utils/expenseDocument.js';
+import { EXPENSE_LIMITS, isSharedExpense, expenseReceivable } from '../../../utils/expenseDocument.js';
 import { getExpenseCategory } from '../constants/expenseCategories.js';
 import { useCategories } from '../../../shared/categories/useCategories.js';
+import { listCategories } from '../../../shared/categories/categoryStore.js';
 import CategoryManagerModal from '../../../shared/categories/CategoryManagerModal.jsx';
 import { accountLabel } from '../../accounts/constants/accountDisplay.js';
 import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
@@ -74,21 +83,29 @@ function readLastAccount() {
   }
 }
 
-/** How it was paid: from an account (or cash), or with a cheque */
-const PAY_WITH_OPTIONS = [
-  { value: 'account', label: 'حساب یا نقد' },
-  { value: 'cheque', label: 'چک' },
-];
+/** How it was paid: from an account (or cash), with a cheque, or with a loan's money */
+const PAY_WITH = {
+  account: { value: 'account', label: 'حساب یا نقد' },
+  cheque: { value: 'cheque', label: 'چک' },
+  loan: { value: 'loan', label: 'وام' },
+};
+
+/** A portfolio among the «پرداخت از» choices (an account's is its id) */
+const FUND_PREFIX = 'pf:';
 
 const SHARE_OPTIONS = [
   { value: 'own', label: 'همه‌اش سهم من' },
   { value: 'shared', label: 'با دیگران (دنگ)' },
 ];
 
-const CURRENCY_OPTIONS = EXPENSE_CURRENCIES.map(({ value, label }) => ({ value, label }));
-
 /** No category: only an expense in a project (it is named by its title) */
-const NO_CATEGORY = { value: '', label: 'بدون دسته‌بندی' };
+const NO_CATEGORY = { value: '', label: 'بدون دسته‌بندی', Icon: CircleDashed };
+
+/** A new everyday expense starts in the category used last, else «خوراک و خواربار» */
+function startingCategory() {
+  const offered = new Set(listCategories('expense').map((c) => c.value));
+  return recentCategories('expense').find((v) => offered.has(v)) || 'groceries';
+}
 
 
 export default function ExpenseForm({ group = null, daily = false, projects = [], expense = null, draft = null, usdToman = 0, accounts = [], onSubmit, onClose, submitting = false, tagSuggestions = [] }) {
@@ -113,16 +130,12 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
   const [loanId, setLoanId] = useState(expense?.loanId || '');
   const fundingLoans = fundingLoanOptions(useOptionalLoans(), expense?.loanId);
   // In a project an expense may have none (it is named by its title): a new one starts so
-  const [category, setCategory] = useState(() => start?.category || (projectId ? '' : 'groceries'));
+  const [category, setCategory] = useState(() => start?.category || (projectId ? '' : startingCategory()));
   const [managing, setManaging] = useState(false);
   // The user's categories (a hidden one only when this expense already has it)
   const categoryOptions = [
     ...(projectId ? [NO_CATEGORY] : []),
-    ...useCategories('expense', { keep: start?.category }).map(({ value, label, Icon }) => ({
-      value,
-      label,
-      icon: <Icon size={14} strokeWidth={2} />,
-    })),
+    ...useCategories('expense', { keep: start?.category }),
   ];
   // An expense titled after its category shows an empty title field (the default)
   const [title, setTitle] = useState(
@@ -154,7 +167,8 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
   };
   const investing = link?.target === 'portfolio' && Boolean(linkValue);
   // «پرداخت با چک»: the issued cheque it was paid with (any category)
-  const [payWith, setPayWith] = useState(start?.chequeId ? 'cheque' : 'account');
+  // «وام»: paid with a loan's money (`loanId`)
+  const [payWith, setPayWith] = useState(start?.chequeId ? 'cheque' : expense?.loanId ? 'loan' : 'account');
   const [chequeId, setChequeId] = useState(start?.chequeId || '');
   const creatingSubscription = link?.target === 'subscription' && isNewSubscription(linkValue);
 
@@ -211,21 +225,47 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
   // A portfolio transaction is priced at the expense's rate: it is stored with it
   // A portfolio transaction is priced at the day's rate: it must be known
   const needsDayRate = isForeign && (paidFromPortfolio || investing);
+  // How it may be paid: a cheque and a loan are in tomans; a loan while one is not yet settled
+  const payOptions = isForeign
+    ? [PAY_WITH.account]
+    : [PAY_WITH.account, PAY_WITH.cheque, ...(fundingLoans.length > 0 ? [PAY_WITH.loan] : [])];
+  const paidWith = payOptions.some((o) => o.value === payWith) ? payWith : 'account';
+  const loanChosen = paidWith === 'loan' && fundingLoans.some((l) => l.id === loanId);
   const isValid = (Boolean(category) || Boolean(title.trim())) && amountNum > 0 && Boolean(dateIso)
     && (!needsDayRate || dayRate > 0) && shareValid && !submitting
+    && (paidWith !== 'loan' || loanChosen)
     && (!investing || isLinkComplete(linkValue))
     // A new subscription is named after the expense
     && (!creatingSubscription || Boolean(title.trim() && subs));
   const tomanPreview = isForeign && amountNum > 0 ? amountNum * (dayRate || todayRate) : 0;
 
-  const handleSubmit = async (e) => {
+  // «ثبت و بعدی»: the next entry keeps the category, day, currency, account and project
+  const [saved, setSaved] = useState('');
+  const [round, setRound] = useState(0);
+  const startNext = (savedTitle) => {
+    setAmount('');
+    setTitle('');
+    setNotes('');
+    setShared(false);
+    setMyShare('');
+    setTags([]);
+    setChequeId('');
+    setLinkValue(linkValueOf('expense', category, null));
+    setSaved(savedTitle);
+    // The amount field again, focused
+    setRound((r) => r + 1);
+  };
+
+  const handleSubmit = async (e, next = false) => {
     e?.preventDefault?.();
     if (!isValid) return;
     setSubmitError('');
+    setSaved('');
     try {
       const payAccountId = paidFromPortfolio ? '' : effectiveAccountId;
       // Its category's link (another category has none): a new subscription is made first
       let linked = link && link.target !== 'portfolio' ? linkValue || null : null;
+      const savedTitle = title.trim() || getExpenseCategory(category).label;
       if (creatingSubscription) {
         const created = await subs.saveSubscription({
           name: title.trim(),
@@ -247,9 +287,9 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
         category,
         ...(link && link.target !== 'portfolio' ? { [link.field]: linked } : {}),
         // Paid with a cheque (a toman expense), or not
-        chequeId: payWith === 'cheque' && !isForeign ? chequeId : '',
+        chequeId: paidWith === 'cheque' ? chequeId : '',
         accountId: payAccountId,
-        loanId: !fundAsset && fundingLoans.some((l) => l.id === loanId) ? loanId : '',
+        loanId: loanChosen ? loanId : '',
         paidFrom: paidFromPortfolio
           ? {
             portfolioId: fund.portfolioId,
@@ -267,7 +307,7 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
             txId: expense?.investedIn?.portfolioId === linkValue.portfolioId ? expense.investedIn.txId : newLinkTxId(),
           }
           : null,
-        title: title.trim() || getExpenseCategory(category).label,
+        title: savedTitle,
         amount: amountNum,
         currency,
         date: dateIso,
@@ -279,14 +319,38 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
       });
       try {
         if (effectiveAccountId) localStorage.setItem(LAST_ACCOUNT_KEY, effectiveAccountId);
+        rememberCategory('expense', category);
       } catch {
         // Only a convenience
       }
-      onClose();
+      if (next) startNext(savedTitle);
+      else onClose();
     } catch (err) {
       setSubmitError(err.message || 'خطا در ذخیره هزینه');
     }
   };
+
+  // «پرداخت از»: the accounts holding its currency, and that currency held in a portfolio
+  const payFromOptions = [
+    { value: '', label: 'نامشخص' },
+    ...payAccounts.map((a) => ({ value: a.id, label: accountLabel(a) })),
+    ...(fundAsset ? funds.filter((f) => f.amount > 0 || f.portfolioId === fundId).map((f) => ({
+      value: `${FUND_PREFIX}${f.portfolioId}`,
+      label: `پورتفو «${f.portfolioName}»`,
+      hint: `موجودی ${formatNum(f.amount)} ${unit}`,
+    })) : []),
+  ];
+  const payFrom = fund ? `${FUND_PREFIX}${fund.portfolioId}` : effectiveAccountId;
+  const choosePayFrom = (value) => {
+    const portfolioId = value.startsWith(FUND_PREFIX) ? value.slice(FUND_PREFIX.length) : '';
+    setFundId(portfolioId);
+    setAccountId(portfolioId ? '' : value);
+  };
+  const detailsFilled = [
+    ...(sharing ? ['دنگ'] : []),
+    ...(projectId && tags.length > 0 ? ['برچسب'] : []),
+    ...(notes.trim() ? ['یادداشت'] : []),
+  ];
 
   return (
     <Modal
@@ -295,31 +359,42 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
       title={expense ? 'ویرایش هزینه' : project ? 'ثبت هزینه' : 'ثبت هزینه روزمره'}
       subtitle={project ? `در پروژه «${project.name}»` : 'در هزینه‌های روزمره'}
       icon={<Receipt size={18} />}
-      maxWidth="520px"
+      maxWidth="560px"
       onSubmit={handleSubmit}
       footer={
-        <div className="modal-actions">
-          <Button variant="secondary" block disabled={submitting} onClick={onClose}>انصراف</Button>
-          <Button type="submit" block loading={submitting} disabled={!isValid}>
-            {expense ? 'ذخیره تغییرات' : 'ثبت هزینه'}
-          </Button>
-        </div>
+        <EntryFormActions
+          submitLabel={expense ? 'ذخیره تغییرات' : 'ثبت هزینه'}
+          valid={isValid}
+          submitting={submitting}
+          onCancel={onClose}
+          onNext={expense || draft ? null : () => handleSubmit(null, true)}
+        />
       }
     >
-      <div className="income-form-body">
+      <div className="entry-form-body">
         {submitError && <AlertBanner type="error" message={submitError} />}
+        {saved && <p className="entry-form-saved" role="status">«{saved}» ثبت شد؛ هزینه‌ی بعدی را وارد کنید.</p>}
 
-        <div className="ui-input-group">
-          <span className="ui-input-label">دسته‌بندی</span>
-          <FilterPills
-            options={categoryOptions}
-            activeValue={category}
-            onChange={changeCategory}
-            size="sm"
-            className="income-category-picker"
-          />
-          <button type="button" className="category-picker-edit" onClick={() => setManaging(true)}>ویرایش و افزودن دسته</button>
-        </div>
+        <AmountField
+          key={round}
+          id="expense-amount"
+          value={amount}
+          onValueChange={setAmount}
+          currency={currency}
+          onCurrencyChange={setCurrency}
+          placeholder={isForeign ? 'مثلاً ۲۵۰' : 'مثلاً ۱۵,۰۰۰,۰۰۰'}
+          autoFocus={!expense}
+        >
+          {showsRate && <DayRateHint unit={unit} rate={dayRate} state={rateFill} toman={tomanPreview} portfolio={needsDayRate} />}
+        </AmountField>
+
+        <CategoryGrid
+          kind="expense"
+          options={categoryOptions}
+          value={category}
+          onChange={changeCategory}
+          onManage={() => setManaging(true)}
+        />
         {managing && <CategoryManagerModal kind="expense" onClose={() => setManaging(false)} />}
 
         {link && (
@@ -343,178 +418,108 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           maxLength={EXPENSE_LIMITS.titleLength}
-          autoFocus={!expense && !category}
           required={!category}
         />
 
-        <div className="ui-input-group">
-          <span className="ui-input-label">ارز</span>
-          <FilterPills options={CURRENCY_OPTIONS} activeValue={currency} onChange={setCurrency} size="sm" />
-        </div>
+        <DateField label="تاریخ هزینه *" value={dateShamsi} onChange={setDateShamsi} />
 
-        <div className="ui-input-group">
-          <label htmlFor="expense-amount" className="ui-input-label">مبلغ ({unit}) *</label>
-          <div className="ui-input-wrapper">
-            <NumericInput
-              id="expense-amount"
-              value={amount}
-              onValueChange={setAmount}
-              allowDecimals={allowsDecimals(currency)}
-              placeholder={isForeign ? 'مثلاً ۲۵۰' : 'مثلاً ۱۵,۰۰۰,۰۰۰'}
-              className="ui-input-control"
-              required
-            />
-          </div>
-        </div>
-
-        {showsRate && <DayRateHint unit={unit} rate={dayRate} state={rateFill} toman={tomanPreview} portfolio={needsDayRate} />}
-
-        {canShare && (
-          <div className="ui-input-group">
-            <span className="ui-input-label">سهم</span>
-            <FilterPills options={SHARE_OPTIONS} activeValue={shared ? 'shared' : 'own'} onChange={(v) => setShared(v === 'shared')} size="sm" />
-            {shared && (
-              <>
-                <div className="ui-input-wrapper expense-share-input">
-                  <NumericInput
-                    id="expense-my-share"
-                    value={myShare}
-                    onValueChange={setMyShare}
-                    allowDecimals={allowsDecimals(currency)}
-                    placeholder={`سهم خودم (${unit})`}
-                    className="ui-input-control"
-                    aria-label="سهم من"
-                  />
-                </div>
-                <p className="expense-form-hint">
-                  {amountNum > 0 && myShare.trim() !== '' && shareNum < amountNum ? (
-                    <>
-                      فقط <strong>{formatNum(shareNum)}</strong> هزینه‌ی شما حساب می‌شود؛ <strong>{formatNum(amountNum - shareNum)}</strong>{' '}
-                      {unit} طلب از دیگران است و دریافتش درآمد حساب نمی‌شود.
-                    </>
-                  ) : amountNum > 0 && shareNum >= amountNum ? (
-                    'سهم شما باید کمتر از مبلغ کل باشد.'
-                  ) : (
-                    'مبلغ بالا کل پرداختی است؛ سهم خودتان را بنویسید (صفر: همه برای دیگران بود).'
-                  )}
-                  {received > 0 && ` تا حالا ${formatNum(received)} دریافت شده.`}
-                </p>
-              </>
-            )}
-          </div>
-        )}
-
-        {!isForeign && (
-          <div className="ui-input-group">
-            <span className="ui-input-label">پرداخت با</span>
-            <FilterPills options={PAY_WITH_OPTIONS} activeValue={payWith} onChange={setPayWith} size="sm" />
-          </div>
-        )}
-        {!isForeign && payWith === 'cheque' && (
-          <ChequeLinkPicker side="expense" value={chequeId} onChange={setChequeId} onFill={fill} recordId={expense?.id || ''} />
-        )}
-
-        {payAccounts.length > 0 && (
-          <div className="ui-input-group">
-            <span className="ui-input-label">{fundAsset ? 'پرداخت از حساب' : 'پرداخت از'}</span>
-            <FilterPills
-              options={[
-                { value: '', label: 'نامشخص' },
-                ...payAccounts.map((a) => ({ value: a.id, label: accountLabel(a) })),
-              ]}
-              activeValue={effectiveAccountId}
-              onChange={(id) => {
-                setAccountId(id);
-                if (id) setFundId('');
-              }}
-              size="sm"
-              className="income-category-picker"
-            />
-          </div>
-        )}
-
-        {fundAsset && (
-          <div className="ui-input-group">
-            <span className="ui-input-label">{payAccounts.length > 0 ? `یا از ${unit} پورتفو` : 'پرداخت از'}</span>
-            {loadingFunds ? (
-              <p className="expense-form-hint">در حال خواندن موجودی {unit} پورتفوها…</p>
-            ) : (
-              <FilterPills
-                options={[
-                  { value: '', label: 'نامشخص' },
-                  ...funds
-                    .filter((f) => f.amount > 0 || f.portfolioId === fundId)
-                    .map((f) => ({ value: f.portfolioId, label: `${f.portfolioName} — ${formatNum(f.amount)} ${unit}` })),
-                ]}
-                activeValue={fundId}
-                onChange={(id) => {
-                  setFundId(id);
-                  if (id) setAccountId('');
-                }}
-                size="sm"
-                className="income-category-picker"
-              />
-            )}
-            {fund ? (
-              <p className={`expense-form-hint ${fundAfter < 0 ? 'is-warning' : ''}`}>
-                از موجودی {unit} «{fund.portfolioName}» کم می‌شود (تراکنش «پرداخت هزینه»؛ سود یا زیانش نسبت به قیمت خرید در پورتفو ثبت می‌شود).
-                {' '}موجودی پس از پرداخت: <strong>{formatNum(fundAfter)}</strong> {unit}
-                {fundAfter < 0 && ' — بیشتر از موجودی است.'}
-              </p>
-            ) : !loadingFunds && !effectiveAccountId && funds.every((f) => !(f.amount > 0)) && (
-              <p className="expense-form-hint">هیچ پورتفویی {unit} ندارد؛ هزینه بدون منبع ثبت می‌شود.</p>
-            )}
-          </div>
-        )}
-
-        {!fundAsset && fundingLoans.length > 0 && (
-          <div className="ui-input-group">
-            <span className="ui-input-label">تأمین از</span>
-            <FilterPills
-              options={[
-                { value: '', label: 'پول خودم' },
-                ...fundingLoans.map((l) => ({ value: l.id, label: l.title })),
-              ]}
-              activeValue={loanId}
+        <div className="entry-form-section">
+          {payOptions.length > 1 && (
+            <div className="ui-input-group">
+              <span className="ui-input-label">پرداخت با</span>
+              <FilterPills variant="segmented" size="sm" options={payOptions} activeValue={paidWith} onChange={setPayWith} />
+            </div>
+          )}
+          {paidWith === 'cheque' && (
+            <ChequeLinkPicker side="expense" value={chequeId} onChange={setChequeId} onFill={fill} recordId={expense?.id || ''} />
+          )}
+          {paidWith === 'loan' && (
+            <PickerRow
+              label="کدام وام"
+              value={loanChosen ? loanId : ''}
+              options={fundingLoans.map((l) => ({ value: l.id, label: l.title }))}
               onChange={setLoanId}
-              size="sm"
-              className="income-category-picker"
-            />
-          </div>
-        )}
-
-        <ShamsiDatePicker label="تاریخ هزینه *" value={dateShamsi} onChange={setDateShamsi} />
+            >
+              <p className="expense-form-hint">از پول این وام خرج شده؛ در «وام‌ها» جزو خرج‌شده‌ی آن حساب می‌شود.</p>
+            </PickerRow>
+          )}
+          {paidWith !== 'cheque' && payFromOptions.length > 1 && (
+            <PickerRow label="پرداخت از" value={payFrom} options={payFromOptions} onChange={choosePayFrom} placeholder="نامشخص">
+              {fundAsset && loadingFunds && <p className="expense-form-hint">در حال خواندن موجودی {unit} پورتفوها…</p>}
+              {fund && (
+                <p className={`expense-form-hint ${fundAfter < 0 ? 'is-warning' : ''}`}>
+                  از موجودی {unit} «{fund.portfolioName}» کم می‌شود (تراکنش «پرداخت هزینه»؛ سود یا زیانش نسبت به قیمت خرید در پورتفو ثبت می‌شود).
+                  {' '}موجودی پس از پرداخت: <strong>{formatNum(fundAfter)}</strong> {unit}
+                  {fundAfter < 0 && ' — بیشتر از موجودی است.'}
+                </p>
+              )}
+            </PickerRow>
+          )}
+        </div>
 
         {projectOptions.length > 0 && (
-          <div className="ui-input-group">
-            <span className="ui-input-label">پروژه</span>
-            <FilterPills
-              options={[
-                { value: '', label: 'روزمره (بدون پروژه)' },
-                ...projectOptions.map((p) => ({ value: p.id, label: p.name })),
-              ]}
-              activeValue={projectId}
-              onChange={changeProject}
-              size="sm"
-              className="income-category-picker"
-            />
+          <PickerRow
+            label="پروژه"
+            value={projectId}
+            options={[
+              { value: '', label: 'روزمره (بدون پروژه)' },
+              ...projectOptions.map((p) => ({ value: p.id, label: p.name })),
+            ]}
+            onChange={changeProject}
+          >
             {project && <p className="expense-form-hint">فقط در جمع همین پروژه حساب می‌شود، نه در جمع ماه و بودجه.</p>}
-          </div>
+          </PickerRow>
         )}
 
+        <MoreDetails filled={detailsFilled}>
+          {canShare && (
+            <div className="ui-input-group">
+              <span className="ui-input-label">سهم</span>
+              <FilterPills variant="segmented" options={SHARE_OPTIONS} activeValue={shared ? 'shared' : 'own'} onChange={(v) => setShared(v === 'shared')} size="sm" />
+              {shared && (
+                <>
+                  <div className="ui-input-wrapper expense-share-input">
+                    <NumericInput
+                      id="expense-my-share"
+                      value={myShare}
+                      onValueChange={setMyShare}
+                      allowDecimals={allowsDecimals(currency)}
+                      placeholder={`سهم خودم (${unit})`}
+                      className="ui-input-control"
+                      aria-label="سهم من"
+                    />
+                  </div>
+                  <p className="expense-form-hint">
+                    {amountNum > 0 && myShare.trim() !== '' && shareNum < amountNum ? (
+                      <>
+                        فقط <strong>{formatNum(shareNum)}</strong> هزینه‌ی شما حساب می‌شود؛ <strong>{formatNum(amountNum - shareNum)}</strong>{' '}
+                        {unit} طلب از دیگران است و دریافتش درآمد حساب نمی‌شود.
+                      </>
+                    ) : amountNum > 0 && shareNum >= amountNum ? (
+                      'سهم شما باید کمتر از مبلغ کل باشد.'
+                    ) : (
+                      'مبلغ بالا کل پرداختی است؛ سهم خودتان را بنویسید (صفر: همه برای دیگران بود).'
+                    )}
+                    {received > 0 && ` تا حالا ${formatNum(received)} دریافت شده.`}
+                  </p>
+                </>
+              )}
+            </div>
+          )}
 
-        {projectId && <TagInput value={tags} onChange={setTags} suggestions={tagSuggestions} />}
+          {projectId && <TagInput value={tags} onChange={setTags} suggestions={tagSuggestions} />}
 
-        <Input
-          id="expense-notes"
-          as="textarea"
-          label="یادداشت (اختیاری)"
-          placeholder="فروشنده، شماره فاکتور، توضیحات..."
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          maxLength={EXPENSE_LIMITS.notesLength}
-          rows={2}
-        />
+          <Input
+            id="expense-notes"
+            as="textarea"
+            label="یادداشت"
+            placeholder="فروشنده، شماره فاکتور، توضیحات..."
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            maxLength={EXPENSE_LIMITS.notesLength}
+            rows={2}
+          />
+        </MoreDetails>
       </div>
     </Modal>
   );
