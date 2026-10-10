@@ -7,6 +7,7 @@
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, screen, fireEvent } from '@testing-library/react';
+import { pickCurrency } from '../helpers/entryForm.js';
 import { MemoryRouter } from 'react-router-dom';
 
 const state = { groups: [], expenses: [] };
@@ -111,7 +112,7 @@ describe('ExpensesPage', () => {
     renderProjects({ groupId: 'exg_a' });
     fireEvent.click(screen.getByRole('button', { name: /ثبت هزینه/ }));
     expect(screen.getByText('در پروژه «بازسازی»')).toBeTruthy();
-    fireEvent.click(screen.getAllByText('دلار').map((el) => el.closest('button')).find(Boolean));
+    pickCurrency('دلار');
     // The dollar's rate of the day, from the price history (nothing to type)
     expect(document.body.textContent).toMatch(/نرخ دلار/);
   });

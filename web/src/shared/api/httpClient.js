@@ -7,6 +7,8 @@
  * - Global network loading status pub/sub: writes (the blocking loader) and every request in
  *   flight (subscribeRequests: what a tab being opened is still waiting for, TabLoadingGate)
  * - Standardized HttpError handling preserving backend response format
+ * - Reads give up after READ_TIMEOUT_MS with no answer (TIMEOUT): a hung connection never keeps a
+ *   tab loading, nor the screen blocked behind it
  */
 
 import { Capacitor } from '@capacitor/core';
@@ -140,8 +142,11 @@ export function subscribeRequests(listener) {
 }
 
 /**
- * Low-level HTTP request method
+ * How long a read waits for an answer before giving up (a write or an upload is never cut off:
+ * it may already be on the server). `options.timeout` overrides it; 0 waits without a limit.
  */
+export const READ_TIMEOUT_MS = 20 * 1000;
+
 /**
  * Identical reads already on their way (same URL, same signed-in user): pages mount several
  * components that ask for the same list at once — they share one request. Each caller gets its
@@ -182,6 +187,7 @@ async function sendRequest(path, options = {}) {
   }
   activeRequestCount++;
   emitRequestChange();
+  let timeoutId = null;
 
   try {
     const token = getToken();
@@ -200,15 +206,28 @@ async function sendRequest(path, options = {}) {
       ? path
       : `${API_BASE}${path}`;
 
-    const { silent: _silent, ...fetchOptions } = options;
+    const { silent: _silent, timeout = method === 'GET' ? READ_TIMEOUT_MS : 0, ...fetchOptions } = options;
+    // The time limit aborts through a controller of its own, which the caller's signal also aborts
+    let timedOut = false;
+    const controller = timeout > 0 ? new AbortController() : null;
+    if (controller) {
+      timeoutId = setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+      }, timeout);
+      if (fetchOptions.signal?.aborted) controller.abort();
+      else fetchOptions.signal?.addEventListener('abort', () => controller.abort(), { once: true });
+    }
     let res;
     try {
       res = await fetch(url, {
         ...fetchOptions,
+        ...(controller ? { signal: controller.signal } : {}),
         headers,
         credentials: 'include',
       });
     } catch (err) {
+      if (timedOut) throw new HttpError('پاسخی از سرور نرسید؛ اتصال کند است.', 0, null, 'TIMEOUT');
       // A request the caller cancelled stays a cancellation
       if (err?.name === 'AbortError') throw err;
       // No answer at all (no connection, DNS, a dropped connection): status 0, NETWORK_ERROR
@@ -265,6 +284,7 @@ async function sendRequest(path, options = {}) {
 
     return data;
   } finally {
+    clearTimeout(timeoutId);
     if (!isSilent) {
       stopGlobalLoading();
     }

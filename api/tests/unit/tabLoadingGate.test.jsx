@@ -2,15 +2,15 @@
 /**
  * tabLoadingGate.test.jsx — A tab just opened and still waiting on the server: a loader in the
  * middle of the screen blocks everything until its requests are back (httpClient's count of
- * requests in flight); a quick tab shows nothing, a failed request lets it go, and a very slow
- * connection gets «ادامه بدون صبر»
+ * requests in flight); a quick tab shows nothing, a failed request lets it go, and a read with no
+ * answer gives up after httpClient's time limit — there is no way out by hand
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, cleanup, screen, fireEvent, act } from '@testing-library/react';
+import { render, cleanup, screen, act } from '@testing-library/react';
 
-const { httpClient, subscribeRequests } = await import('../../../web/src/shared/api/httpClient.js');
-const { default: TabLoadingGate, SHOW_DELAY_MS, SLOW_AFTER_MS } = await import('../../../web/src/shared/refresh/TabLoadingGate.jsx');
+const { httpClient, subscribeRequests, READ_TIMEOUT_MS } = await import('../../../web/src/shared/api/httpClient.js');
+const { default: TabLoadingGate, SHOW_DELAY_MS } = await import('../../../web/src/shared/refresh/TabLoadingGate.jsx');
 
 /** A fetch that answers when told to */
 function pendingFetch() {
@@ -86,16 +86,36 @@ describe('TabLoadingGate', () => {
     expect(loader()).toBeNull();
   });
 
-  it('on a very slow connection, offers to go on without waiting', async () => {
+  it('a read with no answer gives up after the time limit, which lets it go', async () => {
     pendingFetch();
+    globalThis.fetch = vi.fn((url, { signal }) => new Promise((_, reject) => {
+      signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+    }));
     const { rerender } = render(<TabLoadingGate tab="market" />);
     rerender(<TabLoadingGate tab="reports" />);
-    httpClient.get('/api/reports').catch(() => {});
+    const req = httpClient.get('/api/reports').catch((err) => err);
     await act(async () => { vi.advanceTimersByTime(SHOW_DELAY_MS + 10); });
-    expect(screen.queryByText('ادامه بدون صبر')).toBeNull();
-    await act(async () => { vi.advanceTimersByTime(SLOW_AFTER_MS); });
-    expect(screen.getByText(/اتصال کند است/)).toBeTruthy();
-    fireEvent.click(screen.getByText('ادامه بدون صبر'));
+    expect(loader()).toBeTruthy();
+    // No way out by hand: only the answer, or the time limit
+    expect(screen.queryByRole('button')).toBeNull();
+    await act(async () => { vi.advanceTimersByTime(READ_TIMEOUT_MS); });
+    expect((await act(async () => req))?.code).toBe('TIMEOUT');
+    await flush();
     expect(loader()).toBeNull();
+  });
+
+  it('a write is never cut off, and a caller\'s own cancel stays a cancel', async () => {
+    const net = pendingFetch();
+    const write = httpClient.post('/api/b', {});
+    await act(async () => { vi.advanceTimersByTime(READ_TIMEOUT_MS * 2); });
+    net.answer();
+    expect(await write).toEqual({ ok: true });
+    globalThis.fetch = vi.fn((url, { signal }) => new Promise((_, reject) => {
+      signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+    }));
+    const cancel = new AbortController();
+    const read = httpClient.get('/api/c', { signal: cancel.signal }).catch((err) => err);
+    cancel.abort();
+    expect((await read)?.name).toBe('AbortError');
   });
 });

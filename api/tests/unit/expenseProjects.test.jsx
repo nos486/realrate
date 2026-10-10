@@ -8,6 +8,7 @@ import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, screen, fireEvent, waitFor } from '@testing-library/react';
 import { summarizeByCategory } from '../../src/domain/expenseDocument.js';
+import { pickCategory, chosenCategory, openRow, pickRow, rowValue } from '../helpers/entryForm.js';
 
 vi.mock('../../../web/src/features/loans/context/LoansContext.jsx', () => ({ useOptionalLoans: () => [] }));
 vi.mock('../../../web/src/features/cheques/context/ChequesContext.jsx', () => ({ useOptionalCheques: () => [] }));
@@ -22,13 +23,13 @@ const { default: ExpenseForm } = await import('../../../web/src/features/expense
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  localStorage.clear();
 });
 
 const projects = [
   { id: 'exg_home', name: 'بازسازی', type: 'project' },
   { id: 'exg_old', name: 'قدیمی', type: 'project', archived: true },
 ];
-const tab = (name) => fireEvent.click(screen.getByRole('tab', { name }));
 const submit = () => fireEvent.submit(document.getElementById('expense-amount').closest('form'));
 const renderForm = (props) => {
   const onSubmit = vi.fn(async () => {});
@@ -39,9 +40,9 @@ const renderForm = (props) => {
 describe('the expense form\'s «پروژه»', () => {
   it('an everyday expense put in a project keeps its category (archived projects are not offered)', async () => {
     const onSubmit = renderForm({ daily: true });
-    expect(screen.queryByRole('tab', { name: 'قدیمی' })).toBeNull();
-    tab('مسکن و اجاره');
-    tab('بازسازی');
+    expect(openRow('پروژه').queryByRole('radio', { name: 'قدیمی' })).toBeNull();
+    pickCategory('مسکن و اجاره');
+    pickRow('پروژه', 'بازسازی');
     expect(screen.getByText('در پروژه «بازسازی»')).toBeTruthy();
     fireEvent.change(document.getElementById('expense-amount'), { target: { value: '700000' } });
     submit();
@@ -51,7 +52,7 @@ describe('the expense form\'s «پروژه»', () => {
 
   it('opened in a project: starts there without a category (then the title is needed), and can leave it', async () => {
     const onSubmit = renderForm({ group: projects[0] });
-    expect(screen.getByRole('tab', { name: 'بدون دسته‌بندی' }).getAttribute('aria-selected')).toBe('true');
+    expect(chosenCategory()).toBe('بدون دسته‌بندی');
     fireEvent.change(document.getElementById('expense-amount'), { target: { value: '500000' } });
     submit();
     expect(onSubmit).not.toHaveBeenCalled();
@@ -61,8 +62,8 @@ describe('the expense form\'s «پروژه»', () => {
     expect(onSubmit.mock.calls[0][0]).toMatchObject({ groupId: 'exg_home', category: '', title: 'کاشی' });
 
     // Back to the everyday expenses: they need a category («سایر» when it had none)
-    tab('روزمره (بدون پروژه)');
-    expect(screen.queryByRole('tab', { name: 'بدون دسته‌بندی' })).toBeNull();
+    pickRow('پروژه', 'روزمره (بدون پروژه)');
+    expect(screen.queryByRole('radio', { name: 'بدون دسته‌بندی' })).toBeNull();
     submit();
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(2));
     expect(onSubmit.mock.calls[1][0]).toMatchObject({ groupId: '', category: 'other' });
@@ -70,7 +71,7 @@ describe('the expense form\'s «پروژه»', () => {
 
   it('an archived project\'s own expense still shows its project', () => {
     renderForm({ daily: true, expense: { id: 'e1', groupId: 'exg_old', title: 'x', amount: 1, currency: 'IRT', date: '2026-01-01', category: 'other' } });
-    expect(screen.getByRole('tab', { name: 'قدیمی' }).getAttribute('aria-selected')).toBe('true');
+    expect(rowValue('پروژه')).toBe('قدیمی');
   });
 });
 

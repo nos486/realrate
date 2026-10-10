@@ -6,6 +6,7 @@
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { pickCategory } from '../helpers/entryForm.js';
 
 vi.mock('../../../web/src/features/loans/context/LoansContext.jsx', () => ({ useOptionalLoans: () => [] }));
 vi.mock('../../../web/src/shared/vault/portfolioFunds.js', () => ({
@@ -34,14 +35,17 @@ vi.mock('../../../web/src/features/market/context/PricingContext.jsx', () => ({
 const { default: ExpenseForm } = await import('../../../web/src/features/expenses/components/ExpenseForm.jsx');
 const { default: IncomeForm } = await import('../../../web/src/features/incomes/components/IncomeForm.jsx');
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  localStorage.clear();
+});
 const submitOf = (label) => screen.getAllByText(label).map((el) => el.closest('form')).find(Boolean);
 
 describe('an investment expense', () => {
   it('searches the asset, takes a quantity, and saves the purchase link', async () => {
     const onSubmit = vi.fn(async () => {});
     render(<ExpenseForm daily onSubmit={onSubmit} onClose={() => {}} />);
-    fireEvent.click(screen.getByText('سرمایه‌گذاری'));
+    pickCategory('سرمایه‌گذاری');
     fireEvent.change(document.getElementById('expense-amount'), { target: { value: '18000000' } });
     const toggle = await screen.findByLabelText(/افزودن به پورتفو/);
     await waitFor(() => expect(toggle.disabled).toBe(false));
@@ -80,7 +84,7 @@ describe('an asset-sale income', () => {
     const onSubmit = vi.fn(async () => {});
     render(<IncomeForm onSubmit={onSubmit} onClose={() => {}} />);
     fireEvent.change(document.getElementById('income-title'), { target: { value: 'فروش سکه' } });
-    fireEvent.click(screen.getByText('فروش دارایی'));
+    pickCategory('فروش دارایی');
     fireEvent.change(document.getElementById('income-amount'), { target: { value: '180000000' } });
     const toggle = await screen.findByLabelText(/کم کردن از پورتفو/);
     await waitFor(() => expect(toggle.disabled).toBe(false));

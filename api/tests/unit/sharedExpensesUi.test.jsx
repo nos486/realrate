@@ -6,13 +6,17 @@
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, screen, fireEvent, waitFor } from '@testing-library/react';
+import { openDetails } from '../helpers/entryForm.js';
 
 vi.mock('../../../web/src/features/loans/context/LoansContext.jsx', () => ({ useOptionalLoans: () => [] }));
 
 const { default: ExpenseForm } = await import('../../../web/src/features/expenses/components/ExpenseForm.jsx');
 const { default: ReimbursementsModal } = await import('../../../web/src/features/expenses/components/ReimbursementsModal.jsx');
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  localStorage.clear();
+});
 
 const setValue = (el, value) => fireEvent.change(el, { target: { value } });
 
@@ -21,6 +25,7 @@ describe('ExpenseForm — دنگ', () => {
     const onSubmit = vi.fn(async () => {});
     render(<ExpenseForm daily onSubmit={onSubmit} onClose={() => {}} />);
     setValue(document.getElementById('expense-amount'), '10000000');
+    openDetails();
     fireEvent.click(screen.getByText('با دیگران (دنگ)'));
     setValue(document.getElementById('expense-my-share'), '3000000');
     expect(screen.getByText(/طلب از دیگران است/)).toBeTruthy();

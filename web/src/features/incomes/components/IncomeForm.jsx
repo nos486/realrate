@@ -13,14 +13,22 @@
  * «دریافت با چک»: an income of any category may come with one of the user's received cheques
  * (`chequeId`: saving clears the cheque, shared/vault/recordLinks.js).
  *
+ *
+ * Laid out as an entry form (shared/form/, the expense form's too): the amount first (its currency
+ * beside it, in words under it), the category as icon tiles (the last used first), the title, the
+ * day («امروز»/«دیروز»/«روز دیگر»), «دریافت با» (a deposit or cash, or a cheque with its picker
+ * row), and the note folded under «جزئیات بیشتر». A new income can be saved with «ثبت و بعدی»:
+ * the form stays open for the next one, keeping its category, currency and day.
+ *
  * Mounted only while open (keyed by what it edits), so its state is initialized straight from
  * props instead of being reset in an effect.
  */
 
 import React, { useState } from 'react';
 import { Wallet } from 'lucide-react';
-import { AlertBanner, Button, FilterPills, Input, Modal, NumericInput } from '../../../shared/ui/index.js';
-import ShamsiDatePicker, {
+import { AlertBanner, FilterPills, Input, Modal } from '../../../shared/ui/index.js';
+import { AmountField, CategoryGrid, DateField, EntryFormActions, MoreDetails, rememberCategory, recentCategories } from '../../../shared/form/index.js';
+import {
   getTodayShamsi,
   gregorianToShamsi,
   shamsiToGregorian,
@@ -28,6 +36,7 @@ import ShamsiDatePicker, {
 import { parseInputNumber } from '../../portfolio/utils/holdingHelpers.js';
 import { DEFAULT_INCOME_CATEGORY } from '../constants/incomeCategories.js';
 import { useCategories } from '../../../shared/categories/useCategories.js';
+import { listCategories } from '../../../shared/categories/categoryStore.js';
 import CategoryManagerModal from '../../../shared/categories/CategoryManagerModal.jsx';
 import CategoryLinkField from '../../../shared/links/CategoryLinkField.jsx';
 import { linkValueOf } from '../../../shared/links/linkValues.js';
@@ -35,13 +44,19 @@ import ChequeLinkPicker from '../../cheques/components/ChequeLinkPicker.jsx';
 import { categoryLinkOf } from '../../../utils/categoryLinks.js';
 import { isLinkComplete } from '../../../utils/portfolioLink.js';
 import { newLinkTxId } from '../../../shared/vault/portfolioFunds.js';
-import { CURRENCIES, allowsDecimals, currencyLabel, currencyRateToday, isForeignCurrency, normalizeCurrency } from '../../../utils/currencies.js';
+import { currencyLabel, currencyRateToday, isForeignCurrency, normalizeCurrency } from '../../../utils/currencies.js';
 import { usePricing } from '../../market/context/PricingContext.jsx';
 import { useFxRates } from '../../market/useFxRates.js';
 import { useDayRate } from '../../../shared/currency/useDayRate.js';
 import DayRateHint from '../../../shared/currency/DayRateHint.jsx';
 
-const CURRENCY_OPTIONS = CURRENCIES.map(({ code, label }) => ({ value: code, label }));
+const RECEIVE_WITH = [{ value: 'other', label: 'واریز یا نقد' }, { value: 'cheque', label: 'چک' }];
+
+/** A new income starts in the category used last, else the default one */
+function startingCategory() {
+  const offered = new Set(listCategories('income').map((c) => c.value));
+  return recentCategories('income').find((v) => offered.has(v)) || DEFAULT_INCOME_CATEGORY;
+}
 
 export default function IncomeForm({
   onClose,
@@ -53,14 +68,10 @@ export default function IncomeForm({
 }) {
   const source = editingIncome || draft;
   const [title, setTitle] = useState(source?.title || '');
-  const [category, setCategory] = useState(source?.category || DEFAULT_INCOME_CATEGORY);
+  const [category, setCategory] = useState(() => source?.category || startingCategory());
   const [managing, setManaging] = useState(false);
   // The user's categories (a hidden one only when this income already has it)
-  const categoryOptions = useCategories('income', { keep: source?.category }).map(({ value, label, Icon }) => ({
-    value,
-    label,
-    icon: <Icon size={14} strokeWidth={2} />,
-  }));
+  const categoryOptions = useCategories('income', { keep: source?.category });
   const [amount, setAmount] = useState(source ? String(source.amount) : '');
   const [currency, setCurrency] = useState(normalizeCurrency(source?.currency));
   const isForeign = isForeignCurrency(currency);
@@ -111,11 +122,25 @@ export default function IncomeForm({
     && (!selling || !isForeign || dayRate > 0)
     && (!settling || Boolean(linkValue));
 
-  const handleSubmit = async (e) => {
+  // «ثبت و بعدی»: the next income keeps the category, currency and day
+  const [saved, setSaved] = useState('');
+  const [round, setRound] = useState(0);
+  const startNext = (savedTitle) => {
+    setAmount('');
+    setTitle('');
+    setNotes('');
+    setChequeId('');
+    setLinkValue(linkValueOf('income', category, null));
+    setSaved(savedTitle);
+    setRound((r) => r + 1);
+  };
+
+  const handleSubmit = async (e, next = false) => {
     e?.preventDefault?.();
     if (!isFormValid) return;
 
     setSubmitError('');
+    setSaved('');
     try {
       await onSubmit({
         title: title.trim(),
@@ -138,7 +163,9 @@ export default function IncomeForm({
           }
           : null,
       });
-      onClose();
+      rememberCategory('income', category);
+      if (next) startNext(title.trim());
+      else onClose();
     } catch (err) {
       setSubmitError(err.message || 'خطا در ذخیره درآمد');
     }
@@ -151,44 +178,42 @@ export default function IncomeForm({
       title={editingIncome ? 'ویرایش درآمد' : 'ثبت درآمد جدید'}
       subtitle={isForeign ? `به ${unit}، با نرخ همان روز از تاریخچه‌ی قیمت` : 'به تومان'}
       icon={<Wallet size={18} />}
-      maxWidth="540px"
+      maxWidth="560px"
       onSubmit={handleSubmit}
       footer={
-        <div className="modal-actions">
-          <Button variant="secondary" block disabled={submitting} onClick={onClose}>
-            انصراف
-          </Button>
-          <Button type="submit" block loading={submitting} disabled={!isFormValid}>
-            {editingIncome ? 'ذخیره تغییرات' : 'ثبت درآمد'}
-          </Button>
-        </div>
+        <EntryFormActions
+          submitLabel={editingIncome ? 'ذخیره تغییرات' : 'ثبت درآمد'}
+          valid={isFormValid}
+          submitting={submitting}
+          onCancel={onClose}
+          onNext={editingIncome || draft ? null : () => handleSubmit(null, true)}
+        />
       }
     >
-      <div className="income-form-body">
+      <div className="entry-form-body">
         {submitError && <AlertBanner type="error" message={submitError} />}
+        {saved && <p className="entry-form-saved" role="status">«{saved}» ثبت شد؛ درآمد بعدی را وارد کنید.</p>}
 
-        <Input
-          id="income-title"
-          label="عنوان درآمد *"
-          placeholder="مثلاً: حقوق مهرماه، پروژه طراحی سایت"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          maxLength={120}
+        <AmountField
+          key={round}
+          id="income-amount"
+          value={amount}
+          onValueChange={setAmount}
+          currency={currency}
+          onCurrencyChange={setCurrency}
+          placeholder={isForeign ? 'مثلاً ۲۵۰۰' : 'مثلاً ۲۵,۰۰۰,۰۰۰'}
           autoFocus={!editingIncome}
-          required
-        />
+        >
+          {isForeign && <DayRateHint unit={unit} rate={dayRate} state={rateState} toman={amountNum > 0 ? toman : 0} portfolio={selling} />}
+        </AmountField>
 
-        <div className="ui-input-group">
-          <span className="ui-input-label">دسته‌بندی</span>
-          <FilterPills
-            options={categoryOptions}
-            activeValue={category}
-            onChange={changeCategory}
-            size="sm"
-            className="income-category-picker"
-          />
-          <button type="button" className="category-picker-edit" onClick={() => setManaging(true)}>ویرایش و افزودن دسته</button>
-        </div>
+        <CategoryGrid
+          kind="income"
+          options={categoryOptions}
+          value={category}
+          onChange={changeCategory}
+          onManage={() => setManaging(true)}
+        />
         {managing && <CategoryManagerModal kind="income" onClose={() => setManaging(false)} />}
 
         {link && (
@@ -204,58 +229,48 @@ export default function IncomeForm({
           />
         )}
 
-        <div className="ui-input-group">
-          <span className="ui-input-label">ارز</span>
-          <FilterPills options={CURRENCY_OPTIONS} activeValue={currency} onChange={setCurrency} size="sm" />
-        </div>
+        <Input
+          id="income-title"
+          label="عنوان درآمد *"
+          placeholder="مثلاً: حقوق مهرماه، پروژه طراحی سایت"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          maxLength={120}
+          required
+        />
 
-        <div className="ui-input-group">
-          <label htmlFor="income-amount" className="ui-input-label">مبلغ ({unit}) *</label>
-          <div className="ui-input-wrapper">
-            <NumericInput
-              id="income-amount"
-              value={amount}
-              onValueChange={setAmount}
-              allowDecimals={allowsDecimals(currency)}
-              placeholder={isForeign ? 'مثلاً ۲۵۰۰' : 'مثلاً ۲۵,۰۰۰,۰۰۰'}
-              className="ui-input-control"
-              required
-            />
-          </div>
-        </div>
-        {isForeign && <DayRateHint unit={unit} rate={dayRate} state={rateState} toman={amountNum > 0 ? toman : 0} portfolio={selling} />}
+        <DateField label="تاریخ دریافت *" value={dateShamsi} onChange={setDateShamsi} />
 
         {!isForeign && (
-          <div className="ui-input-group">
-            <span className="ui-input-label">دریافت با</span>
-            <FilterPills
-              options={[{ value: 'other', label: 'واریز یا نقد' }, { value: 'cheque', label: 'چک' }]}
-              activeValue={withCheque ? 'cheque' : 'other'}
-              onChange={(v) => setWithCheque(v === 'cheque')}
-              size="sm"
-            />
+          <div className="entry-form-section">
+            <div className="ui-input-group">
+              <span className="ui-input-label">دریافت با</span>
+              <FilterPills
+                variant="segmented"
+                size="sm"
+                options={RECEIVE_WITH}
+                activeValue={withCheque ? 'cheque' : 'other'}
+                onChange={(v) => setWithCheque(v === 'cheque')}
+              />
+            </div>
+            {receivesCheque && (
+              <ChequeLinkPicker side="income" value={chequeId} onChange={setChequeId} onFill={fill} recordId={editingIncome?.id || ''} />
+            )}
           </div>
         )}
-        {receivesCheque && (
-          <ChequeLinkPicker side="income" value={chequeId} onChange={setChequeId} onFill={fill} recordId={editingIncome?.id || ''} />
-        )}
 
-        <ShamsiDatePicker
-          label="تاریخ دریافت *"
-          value={dateShamsi}
-          onChange={setDateShamsi}
-        />
-        <Input
-          id="income-notes"
-          as="textarea"
-          label="یادداشت (اختیاری)"
-          placeholder="توضیحات تکمیلی، نام کارفرما، شماره فاکتور و..."
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          maxLength={500}
-          rows={2}
-        />
-
+        <MoreDetails filled={notes.trim() ? ['یادداشت'] : []}>
+          <Input
+            id="income-notes"
+            as="textarea"
+            label="یادداشت"
+            placeholder="توضیحات تکمیلی، نام کارفرما، شماره فاکتور و..."
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            maxLength={500}
+            rows={2}
+          />
+        </MoreDetails>
       </div>
     </Modal>
   );

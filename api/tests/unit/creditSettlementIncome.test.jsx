@@ -7,6 +7,7 @@
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, screen, fireEvent, waitFor } from '@testing-library/react';
+import { pickCategory } from '../helpers/entryForm.js';
 import { BUILTIN_CATEGORIES, splitByExclusion, mergeCategories } from '../../src/domain/categoryDocument.js';
 import { creditStatus, validateCreditTerms, CREDIT_SETTLEMENT_CATEGORY } from '../../src/domain/creditAccount.js';
 import { INCOME_CATEGORIES } from '../../src/config/constants.js';
@@ -30,7 +31,10 @@ vi.mock('../../../web/src/shared/categories/useCategories.js', async () => {
 const { parseIncomeInput } = await import('../../../web/src/shared/vault/vaultIncomes.js');
 const { default: IncomeForm } = await import('../../../web/src/features/incomes/components/IncomeForm.jsx');
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  localStorage.clear();
+});
 
 const deposit = (patch = {}) => ({ title: 'واریز شرکت', category: CREDIT_SETTLEMENT_CATEGORY, amount: 5_000_000, incomeDate: '2026-10-05', creditAccountId: 'cr_1', ...patch });
 
@@ -73,7 +77,7 @@ describe('the income form', () => {
     const onSubmit = vi.fn(async () => {});
     render(<IncomeForm onSubmit={onSubmit} onClose={vi.fn()} draft={{ title: 'واریز', amount: 5_000_000, incomeDate: '2026-10-05' }} />);
     expect(screen.queryByText('برای کدام اعتبار *')).toBeNull();
-    fireEvent.click(screen.getByText('تسویه بدهی اعتباری'));
+    pickCategory('تسویه بدهی اعتباری');
     expect(screen.getByText('برای کدام اعتبار *')).toBeTruthy();
     // Archived credits are not offered for a new deposit
     expect(screen.queryByText('اعتبار قدیمی')).toBeNull();

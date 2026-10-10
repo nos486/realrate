@@ -7,6 +7,7 @@
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, screen, fireEvent, waitFor } from '@testing-library/react';
+import { pickCurrency, setDay } from '../helpers/entryForm.js';
 
 vi.mock('../../../web/src/features/loans/context/LoansContext.jsx', () => ({ useOptionalLoans: () => [] }));
 const history = vi.hoisted(() => ({ priceOnDay: vi.fn(async () => 100_000) }));
@@ -31,7 +32,7 @@ const project = { id: 'exg_1', name: 'تعمیر خانه', type: 'project' };
 const fa = (n) => n.toLocaleString('fa-IR');
 const submit = () => fireEvent.submit(document.getElementById('expense-amount').closest('form'));
 const dollars = (title, amount) => {
-  fireEvent.click(screen.getByRole('tab', { name: 'دلار' }));
+  pickCurrency('دلار');
   fireEvent.change(document.getElementById('expense-title'), { target: { value: title } });
   fireEvent.change(document.getElementById('expense-amount'), { target: { value: amount } });
 };
@@ -57,7 +58,7 @@ describe('the rate of a dollar expense', () => {
     const onSubmit = vi.fn(async () => {});
     render(<ExpenseForm group={project} usdToman={125_000} onSubmit={onSubmit} onClose={() => {}} />);
     dollars('هاست', '10');
-    fireEvent.change(document.querySelector('.date-text-input'), { target: { value: '1403/01/15' } });
+    setDay('1403/01/15');
     await waitFor(() => expect(history.priceOnDay).toHaveBeenCalledWith('usd', '2024-04-03'));
     await waitFor(() => expect(document.body.textContent).toMatch(new RegExp(fa(615_000))));
     submit();
@@ -78,7 +79,7 @@ describe('the rate of a dollar expense', () => {
     history.priceOnDay.mockResolvedValue(null);
     render(<ExpenseForm group={project} usdToman={125_000} onSubmit={vi.fn()} onClose={() => {}} />);
     dollars('هاست', '10');
-    fireEvent.change(document.querySelector('.date-text-input'), { target: { value: '1390/01/15' } });
+    setDay('1390/01/15');
     await waitFor(() => expect(document.body.textContent).toMatch(/در تاریخچه‌ی قیمت نیست/));
   });
 });

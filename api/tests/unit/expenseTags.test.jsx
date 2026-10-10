@@ -6,6 +6,7 @@
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, screen, fireEvent, waitFor } from '@testing-library/react';
+import { openDetails } from '../helpers/entryForm.js';
 import { MemoryRouter } from 'react-router-dom';
 import { normalizeTags, summarizeByTag, validateExpense, hasTag } from '../../src/domain/expenseDocument.js';
 
@@ -93,6 +94,7 @@ describe('tags on the projects page', () => {
     fireEvent.click(screen.getAllByText('ثبت هزینه').map((el) => el.closest('button')).find(Boolean));
     fireEvent.change(document.getElementById('expense-title'), { target: { value: 'سیمان' } });
     fireEvent.change(document.getElementById('expense-amount'), { target: { value: '500000' } });
+    openDetails();
     fireEvent.click(screen.getByText('+ مصالح'));
     const field = document.getElementById('expense-tags');
     fireEvent.change(field, { target: { value: 'طبقه دوم' } });

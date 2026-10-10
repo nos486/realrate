@@ -10,6 +10,7 @@ import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { pickCurrency, openRow, pickRow, setDay } from '../helpers/entryForm.js';
 
 const history = vi.hoisted(() => ({ priceOnDay: vi.fn(async () => 60_000) }));
 const month = vi.hoisted(() => ({ expenses: [], projectExpenses: [] }));
@@ -54,6 +55,7 @@ const { default: IncomeForm } = await import('../../../web/src/features/incomes/
 
 afterEach(() => {
   cleanup();
+  localStorage.clear();
   month.expenses = [];
   month.projectExpenses = [];
 });
@@ -65,21 +67,22 @@ describe('an expense in euros', () => {
     const onSubmit = vi.fn(async () => {});
     render(<ExpenseForm daily accounts={ACCOUNTS} usdToman={100_000} onSubmit={onSubmit} onClose={() => {}} />);
     // Every currency of the table
-    for (const name of ['تومان', 'دلار', 'یورو', 'لیر', 'درهم']) expect(screen.getByRole('tab', { name })).toBeTruthy();
-    tab('یورو');
+    expect([...screen.getByLabelText('ارز').options].map((o) => o.textContent)).toEqual(['تومان', 'دلار', 'یورو', 'لیر', 'درهم']);
+    pickCurrency('یورو');
     expect(screen.getByText(/مبلغ \(یورو\)/)).toBeTruthy();
 
     // Only the account holding euros
-    expect(screen.getByRole('tab', { name: 'وایز' })).toBeTruthy();
-    expect(screen.queryByRole('tab', { name: 'ملت' })).toBeNull();
+    const from = openRow('پرداخت از');
+    expect(from.getByRole('radio', { name: 'وایز' })).toBeTruthy();
+    expect(from.queryByRole('radio', { name: 'ملت' })).toBeNull();
     // A past day: that day's euro rate from its history
-    fireEvent.change(document.querySelector('.date-text-input'), { target: { value: '1404/12/10' } });
+    setDay('1404/12/10');
     await waitFor(() => expect(history.priceOnDay).toHaveBeenCalledWith('eur', expect.any(String)));
     fireEvent.change(document.getElementById('expense-amount'), { target: { value: '100' } });
     await waitFor(() => expect(document.body.textContent).toMatch(new RegExp(`نرخ یورو همان روز.*${fa(60_000)}`)));
     expect(document.body.textContent).toMatch(new RegExp(fa(6_000_000)));
     expect(document.getElementById('expense-usd-rate')).toBeNull();
-    tab('وایز');
+    pickRow('پرداخت از', 'وایز');
     fireEvent.submit(document.getElementById('expense-amount').closest('form'));
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());
     const sent = onSubmit.mock.calls[0][0];
@@ -95,12 +98,12 @@ describe('an income in euros', () => {
     render(<IncomeForm onSubmit={onSubmit} onClose={() => {}} />);
     fireEvent.change(document.getElementById('income-title'), { target: { value: 'پروژه' } });
     expect(screen.getByRole('tab', { name: 'چک' })).toBeTruthy();
-    tab('یورو');
+    pickCurrency('یورو');
     // A cheque is in tomans
     expect(screen.queryByRole('tab', { name: 'چک' })).toBeNull();
     expect(screen.getByText(/مبلغ \(یورو\)/)).toBeTruthy();
     fireEvent.change(document.getElementById('income-amount'), { target: { value: '2500' } });
-    fireEvent.change(document.querySelector('.date-text-input'), { target: { value: '1404/12/10' } });
+    setDay('1404/12/10');
     await waitFor(() => expect(document.body.textContent).toMatch(new RegExp(fa(150_000_000))));
     fireEvent.submit(document.getElementById('income-title').closest('form'));
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());

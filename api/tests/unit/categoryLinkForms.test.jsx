@@ -11,6 +11,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { validateExpense } from '../../src/domain/expenseDocument.js';
 import { categoryLinkOf, categoryLinkFields, paymentLinkFields, validateLinkValue, sameLinkValue } from '../../src/domain/categoryLinks.js';
+import { pickCategory, pickCurrency, chosenCurrency, openRow, pickRow } from '../helpers/entryForm.js';
 
 const data = vi.hoisted(() => ({
   loans: [
@@ -44,6 +45,7 @@ const { default: IncomeForm } = await import('../../../web/src/features/incomes/
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  localStorage.clear();
 });
 
 const accounts = [
@@ -83,13 +85,14 @@ describe('the expense form', () => {
   it('«پرداخت با چک»: an expense of its own category, paid with an open issued cheque (its amount and account fill in)', async () => {
     data.cheques[0].accountId = 'acc_toman';
     const onSubmit = renderExpense();
-    tab('مسکن و اجاره');
+    pickCategory('مسکن و اجاره');
     tab('چک');
-    expect(screen.getByRole('tab', { name: /علی/ })).toBeTruthy();
+    const cheques = openRow('کدام چک صادره');
+    expect(cheques.getByRole('radio', { name: /علی/ })).toBeTruthy();
     // Not a cleared one, not a received one
-    expect(screen.queryByRole('tab', { name: /پاس‌شده/ })).toBeNull();
-    expect(screen.queryByRole('tab', { name: /شرکت/ })).toBeNull();
-    tab(screen.getByRole('tab', { name: /علی/ }).getAttribute('aria-label'));
+    expect(cheques.queryByRole('radio', { name: /پاس‌شده/ })).toBeNull();
+    expect(cheques.queryByRole('radio', { name: /شرکت/ })).toBeNull();
+    pickRow('کدام چک صادره', /علی/);
     expect(document.getElementById('expense-amount').value).toMatch(/5,?000,?000|۵/);
     submitExpense();
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());
@@ -99,7 +102,7 @@ describe('the expense form', () => {
 
   it('«پرداخت قسط»: offers the loans with an installment to pay, and saves which one', async () => {
     const onSubmit = renderExpense();
-    tab('پرداخت قسط');
+    pickCategory('پرداخت قسط');
     const picker = screen.getByText('قسط کدام وام').closest('.ui-input-group');
     expect(within(picker).queryByRole('tab', { name: 'وام تسویه‌شده' })).toBeNull();
     fireEvent.click(within(picker).getByRole('tab', { name: 'وام مسکن' }));
@@ -111,12 +114,12 @@ describe('the expense form', () => {
 
   it('another category drops the link; paying from an account drops the cheque', async () => {
     const onSubmit = renderExpense();
-    tab('پرداخت قسط');
+    pickCategory('پرداخت قسط');
     const picker = screen.getByText('قسط کدام وام').closest('.ui-input-group');
     fireEvent.click(within(picker).getByRole('tab', { name: 'وام مسکن' }));
-    tab('خوراک و خواربار');
+    pickCategory('خوراک و خواربار');
     tab('چک');
-    tab(screen.getByRole('tab', { name: /علی/ }).getAttribute('aria-label'));
+    pickRow('کدام چک صادره', /علی/);
     tab('حساب یا نقد');
     submitExpense();
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());
@@ -126,16 +129,16 @@ describe('the expense form', () => {
 
   it('«اینترنت و اشتراک‌ها»: picks a subscription (its price, currency and account fill in) or makes a new one', async () => {
     let onSubmit = renderExpense();
-    tab('اینترنت و اشتراک‌ها');
+    pickCategory('اینترنت و اشتراک‌ها');
     tab('ChatGPT');
-    expect(screen.getByRole('tab', { name: 'دلار' }).getAttribute('aria-selected')).toBe('true');
+    expect(chosenCurrency()).toBe('دلار');
     submitExpense();
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());
     expect(onSubmit.mock.calls[0][0]).toMatchObject({ subscriptionId: 'sub_1', currency: 'USD', amount: 20, accountId: 'acc_both', title: 'ChatGPT' });
     cleanup();
 
     onSubmit = renderExpense();
-    tab('اینترنت و اشتراک‌ها');
+    pickCategory('اینترنت و اشتراک‌ها');
     tab('+ اشتراک جدید');
     tab('سالانه');
     fireEvent.change(document.getElementById('expense-title'), { target: { value: 'Spotify' } });
@@ -150,13 +153,15 @@ describe('the expense form', () => {
 
   it('offers only the accounts that hold the expense\'s currency', () => {
     renderExpense();
-    expect(screen.getByRole('tab', { name: 'ملت' })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: 'وایز' })).toBeTruthy();
-    expect(screen.queryByRole('tab', { name: 'دلاری' })).toBeNull();
-    tab('دلار');
-    expect(screen.queryByRole('tab', { name: 'ملت' })).toBeNull();
-    expect(screen.getByRole('tab', { name: 'دلاری' })).toBeTruthy();
-    expect(screen.getByRole('tab', { name: 'وایز' })).toBeTruthy();
+    let from = openRow('پرداخت از');
+    expect(from.getByRole('radio', { name: 'ملت' })).toBeTruthy();
+    expect(from.getByRole('radio', { name: 'وایز' })).toBeTruthy();
+    expect(from.queryByRole('radio', { name: 'دلاری' })).toBeNull();
+    pickCurrency('دلار');
+    from = openRow('پرداخت از');
+    expect(from.queryByRole('radio', { name: 'ملت' })).toBeNull();
+    expect(from.getByRole('radio', { name: 'دلاری' })).toBeTruthy();
+    expect(from.getByRole('radio', { name: 'وایز' })).toBeTruthy();
   });
 });
 
@@ -164,10 +169,10 @@ describe('the income form', () => {
   it('«دریافت با چک»: an income of its own category, received with an open received cheque', async () => {
     const onSubmit = vi.fn(async () => {});
     render(<IncomeForm onSubmit={onSubmit} onClose={() => {}} />);
-    tab('پروژه و فریلنس');
+    pickCategory('پروژه و فریلنس');
     tab('چک');
-    expect(screen.queryByRole('tab', { name: /علی/ })).toBeNull();
-    tab(screen.getByRole('tab', { name: /شرکت/ }).getAttribute('aria-label'));
+    expect(openRow('کدام چک دریافتی').queryByRole('radio', { name: /علی/ })).toBeNull();
+    pickRow('کدام چک دریافتی', /شرکت/);
     expect(document.getElementById('income-title').value).toBe('چک شرکت');
     fireEvent.submit(document.getElementById('income-title').closest('form'));
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());
