@@ -1,8 +1,13 @@
 /**
  * ExpenseForm.jsx — Modal to record or edit an expense, in tomans or dollars
  *
- * For a project section (`group`) the title is required. For everyday expenses (`daily`) a
- * category is picked instead and the title is optional (the category's name when left empty).
+ * Every expense has a category (what it was spent on) and a place: the everyday expenses, or a
+ * project («پروژه», with `projects`: picked like the account). The project is not a category — an
+ * expense in a project keeps its own category (materials, labour, ...), so a project is summed per
+ * category too; choosing one only sets the section it is saved in (`groupId`: the project's id,
+ * '' for the everyday expenses). Opened from a project (`group`) it starts in that project, from
+ * the everyday list (`daily`) in none. The title is optional (the category's name when left
+ * empty); an expense in a project may have no category («بدون دسته‌بندی»), and then needs one.
  * A dollar expense may carry the toman rate of its day; left empty, totals convert it at
  * today's rate. With `accounts`, the account it was paid from can be picked — only the accounts
  * that hold the expense's currency (accountsForCurrency; a new everyday expense starts from the
@@ -14,7 +19,7 @@
  * A dollar expense is paid from a dollar account, or from a portfolio's dollars (and has no loan):
  * those dollars leave that portfolio as a «spend» transaction at the expense's rate
  * (portfolioFunds.js), which is filled in from that day's price history.
- * An everyday expense's category may link it to a record (utils/categoryLinks.js), picked right
+ * An expense's category may link it to a record (utils/categoryLinks.js), picked right
  * under the category (CategoryLinkField): «سرمایه‌گذاری» the asset bought in a portfolio,
  * «پرداخت قسط» the loan installment paid, «اینترنت و اشتراک‌ها» the subscription (or a new one
  * made from the expense). A choice fills in what it knows (title, amount, currency, account);
@@ -81,9 +86,23 @@ const SHARE_OPTIONS = [
 
 const CURRENCY_OPTIONS = EXPENSE_CURRENCIES.map(({ value, label }) => ({ value, label }));
 
+/** No category: only an expense in a project (it is named by its title) */
+const NO_CATEGORY = { value: '', label: 'بدون دسته‌بندی' };
 
-export default function ExpenseForm({ group = null, daily = false, expense = null, draft = null, usdToman = 0, accounts = [], onSubmit, onClose, submitting = false, tagSuggestions = [], onCashMove = null }) {
+
+export default function ExpenseForm({ group = null, daily = false, projects = [], expense = null, draft = null, usdToman = 0, accounts = [], onSubmit, onClose, submitting = false, tagSuggestions = [], onCashMove = null }) {
   const start = expense || draft;
+  // Its project ('': the everyday expenses): the one it is in, else the one it was opened from
+  const [projectId, setProjectId] = useState(() => {
+    if (start?.groupId && projects.some((p) => p.id === start.groupId)) return start.groupId;
+    return group && !daily ? group.id : '';
+  });
+  // The open projects to pick from (its own stays, even archived); the one it was opened from too
+  const projectOptions = [
+    ...(group && !daily && !projects.some((p) => p.id === group.id) ? [group] : []),
+    ...projects.filter((p) => !p.archived || p.id === projectId),
+  ];
+  const project = projectOptions.find((p) => p.id === projectId) || null;
   const [accountId, setAccountId] = useState(() => {
     if (expense) return expense.accountId || '';
     if (draft?.accountId) return draft.accountId;
@@ -92,17 +111,21 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
   });
   const [loanId, setLoanId] = useState(expense?.loanId || '');
   const fundingLoans = fundingLoanOptions(useOptionalLoans(), expense?.loanId);
-  const [category, setCategory] = useState(start?.category || 'groceries');
+  // In a project an expense may have none (it is named by its title): a new one starts so
+  const [category, setCategory] = useState(() => start?.category || (projectId ? '' : 'groceries'));
   const [managing, setManaging] = useState(false);
   // The user's categories (a hidden one only when this expense already has it)
-  const categoryOptions = useCategories('expense', { keep: start?.category }).map(({ value, label, Icon }) => ({
-    value,
-    label,
-    icon: <Icon size={14} strokeWidth={2} />,
-  }));
-  // A daily expense titled after its category shows an empty title field (the default)
+  const categoryOptions = [
+    ...(projectId ? [NO_CATEGORY] : []),
+    ...useCategories('expense', { keep: start?.category }).map(({ value, label, Icon }) => ({
+      value,
+      label,
+      icon: <Icon size={14} strokeWidth={2} />,
+    })),
+  ];
+  // An expense titled after its category shows an empty title field (the default)
   const [title, setTitle] = useState(
-    daily && start?.title === getExpenseCategory(start?.category).label ? '' : (start?.title || ''));
+    start?.category && start?.title === getExpenseCategory(start.category).label ? '' : (start?.title || ''));
   // A draft may be in dollars too (a dollar subscription's payment)
   const [currency, setCurrency] = useState(start?.currency === 'USD' ? 'USD' : 'IRT');
   const [amount, setAmount] = useState(start?.amount ? String(start.amount) : '');
@@ -117,12 +140,17 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
   const [submitError, setSubmitError] = useState('');
   // «سرمایه‌گذاری»: the asset bought with it, in a portfolio (null: not added)
   // The record its category links it to (categoryLinks.js), as the record stores it
-  const link = daily ? categoryLinkOf('expense', category) : null;
+  const link = category ? categoryLinkOf('expense', category) : null;
   const [linkValue, setLinkValue] = useState(() => linkValueOf('expense', start?.category, start));
   const changeCategory = (next) => {
     setCategory(next);
     // Back to its own category: the link it had
     setLinkValue(linkValueOf('expense', next, start));
+  };
+  const changeProject = (next) => {
+    setProjectId(next);
+    // The everyday expenses are summed per category: one is needed there
+    if (!next && !category) changeCategory('other');
   };
   const investing = link?.target === 'portfolio' && Boolean(linkValue);
   // «پرداخت با چک»: the issued cheque it was paid with (any category)
@@ -210,7 +238,7 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
   const paidFromPortfolio = Boolean(fundAsset && fund);
   // A portfolio transaction is priced at the expense's rate: it is stored with it
   const needsStoredRate = isUsd && (paidFromPortfolio || investing);
-  const isValid = (daily || Boolean(title.trim())) && amountNum > 0 && Boolean(dateIso) && (!usdRate || rateNum > 0)
+  const isValid = (Boolean(category) || Boolean(title.trim())) && amountNum > 0 && Boolean(dateIso) && (!usdRate || rateNum > 0)
     && (!needsStoredRate || effectiveRate > 0) && shareValid && !submitting
     && (!investing || isLinkComplete(linkValue))
     // A new subscription is named after the expense
@@ -241,8 +269,10 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
         linked = created.id;
       }
       await onSubmit({
-        ...(group ? { groupId: group.id } : {}),
-        ...(daily ? { category, ...(link && link.target !== 'portfolio' ? { [link.field]: linked } : {}) } : {}),
+        // Its project, or '' (the everyday expenses: the caller's daily section)
+        groupId: projectId,
+        category,
+        ...(link && link.target !== 'portfolio' ? { [link.field]: linked } : {}),
         // Paid with a cheque (a toman expense), or not
         chequeId: payWith === 'cheque' && !isUsd ? chequeId : '',
         accountId: payAccountId,
@@ -271,7 +301,8 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
         date: dateIso,
         notes: notes.trim(),
         myShare: sharing ? shareNum : null,
-        tags: daily ? (expense?.tags || []) : tags,
+        // Tags group a project's expenses; an everyday one keeps those it had
+        tags: projectId ? tags : (expense?.tags || []),
         ...(draft && !expense ? { source: draft.source, bankId: draft.bankId, smsFingerprint: draft.smsFingerprint } : {}),
       });
       try {
@@ -289,8 +320,8 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
     <Modal
       isOpen
       onClose={onClose}
-      title={expense ? 'ویرایش هزینه' : daily ? 'ثبت هزینه روزمره' : 'ثبت هزینه'}
-      subtitle={daily ? 'در هزینه‌های روزمره' : `در بخش «${group.name}»`}
+      title={expense ? 'ویرایش هزینه' : project ? 'ثبت هزینه' : 'ثبت هزینه روزمره'}
+      subtitle={project ? `در پروژه «${project.name}»` : 'در هزینه‌های روزمره'}
       icon={<Receipt size={18} />}
       maxWidth="520px"
       onSubmit={handleSubmit}
@@ -306,19 +337,17 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
       <div className="income-form-body">
         {submitError && <AlertBanner type="error" message={submitError} />}
 
-        {daily && (
-          <div className="ui-input-group">
-            <span className="ui-input-label">دسته‌بندی</span>
-            <FilterPills
-              options={categoryOptions}
-              activeValue={category}
-              onChange={changeCategory}
-              size="sm"
-              className="income-category-picker"
-            />
-            <button type="button" className="category-picker-edit" onClick={() => setManaging(true)}>ویرایش و افزودن دسته</button>
-          </div>
-        )}
+        <div className="ui-input-group">
+          <span className="ui-input-label">دسته‌بندی</span>
+          <FilterPills
+            options={categoryOptions}
+            activeValue={category}
+            onChange={changeCategory}
+            size="sm"
+            className="income-category-picker"
+          />
+          <button type="button" className="category-picker-edit" onClick={() => setManaging(true)}>ویرایش و افزودن دسته</button>
+        </div>
         {managing && <CategoryManagerModal kind="expense" onClose={() => setManaging(false)} />}
 
         {link && (
@@ -337,13 +366,13 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
 
         <Input
           id="expense-title"
-          label={daily ? 'عنوان (اختیاری)' : 'عنوان هزینه *'}
-          placeholder={daily ? `خالی: «${getExpenseCategory(category).label}»` : 'مثلاً: خرید کاشی، دستمزد نقاش'}
+          label={category ? 'عنوان (اختیاری)' : 'عنوان هزینه *'}
+          placeholder={category ? `خالی: «${getExpenseCategory(category).label}»` : 'مثلاً: خرید کاشی، دستمزد نقاش'}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           maxLength={EXPENSE_LIMITS.titleLength}
-          autoFocus={!expense && !daily}
-          required={!daily}
+          autoFocus={!expense && !category}
+          required={!category}
         />
 
         <div className="ui-input-group">
@@ -524,11 +553,28 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
 
         <ShamsiDatePicker label="تاریخ هزینه *" value={dateShamsi} onChange={changeDate} />
 
-        {daily && !expense && !isUsd && onCashMove && category === CASH_MANAGEMENT_CATEGORY && (
+        {projectOptions.length > 0 && (
+          <div className="ui-input-group">
+            <span className="ui-input-label">پروژه</span>
+            <FilterPills
+              options={[
+                { value: '', label: 'روزمره (بدون پروژه)' },
+                ...projectOptions.map((p) => ({ value: p.id, label: p.name })),
+              ]}
+              activeValue={projectId}
+              onChange={changeProject}
+              size="sm"
+              className="income-category-picker"
+            />
+            {project && <p className="expense-form-hint">فقط در جمع همین پروژه حساب می‌شود، نه در جمع ماه و بودجه.</p>}
+          </div>
+        )}
+
+        {!projectId && !expense && !isUsd && onCashMove && category === CASH_MANAGEMENT_CATEGORY && (
           <CashMoveNotice onMove={() => onCashMove({ amount: amountNum || 0, date: dateIso || '', notes: notes.trim() || title.trim(), fromAccountId: accountId || '' })} />
         )}
 
-        {!daily && <TagInput value={tags} onChange={setTags} suggestions={tagSuggestions} />}
+        {projectId && <TagInput value={tags} onChange={setTags} suggestions={tagSuggestions} />}
 
         <Input
           id="expense-notes"

@@ -2,8 +2,10 @@
  * ProjectExpensesView.jsx — Expense sections (a project, a trip, ...) and their expenses
  *
  * - Sections as a row of chips on top (the selected one is in the URL: /expenses/:groupId)
- * - The selected section: its totals (everything in tomans, and per currency as recorded) and
- *   its expenses, in tomans or dollars, newest first
+ * - The selected section: its totals (everything in tomans, and per currency as recorded), per
+ *   category («دسته‌بندی‌ها»: a project's expenses keep their own categories) and per tag, and
+ *   its expenses, in tomans or dollars, newest first — filterable by a category or a tag
+ * - The form's «پروژه» moves an expense to another project or to the everyday expenses
  * The page header and the vault lock are ProjectsPage's (projects are their own part: /projects).
  */
 
@@ -24,7 +26,7 @@ import {
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 import { toEnglishDigits } from '../../../shared/utils/formatters.js';
-import { summarizeExpenses, summarizeDollarValue, summarizeByTag, hasTag } from '../../../utils/expenseDocument.js';
+import { summarizeExpenses, summarizeDollarValue, summarizeByTag, summarizeByCategory, hasTag } from '../../../utils/expenseDocument.js';
 import { useDemo } from '../../demo/index.js';
 import { useExpenses } from '../hooks/useExpenses.js';
 import { formatAmount } from '../utils/format.js';
@@ -33,11 +35,12 @@ import ExpenseForm from './ExpenseForm.jsx';
 import ExpensesTable from './ExpensesTable.jsx';
 import ExpenseSummaryCards from './ExpenseSummaryCards.jsx';
 import ExpenseTagTotals from './ExpenseTagTotals.jsx';
+import ExpenseCategoryTotals from './ExpenseCategoryTotals.jsx';
 import { GenericCsvExportButton } from '../../../shared/ui/index.js';
 import { useAccounts } from '../../accounts/hooks/useAccounts.js';
 import ReimbursementsModal from './ReimbursementsModal.jsx';
 
-const CSV_HEADERS = expenseCsvHeaders({ withCategory: false });
+const CSV_HEADERS = expenseCsvHeaders({ withCategory: true });
 const EXPENSES_PAGE_SIZE = 20;
 
 export default function ProjectExpensesView({ groupId = null, onSelectGroup, usdToman = 0 }) {
@@ -73,6 +76,8 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
       summary: summarizeExpenses(list, rates),
       dollarView: summarizeDollarValue(list, rates),
       byTag: summarizeByTag(list, rates),
+      // Without a category: apart ('')
+      byCategory: summarizeByCategory(list, { ...rates, none: '' }),
     }]));
   }, [groups, expenses, rates]);
 
@@ -81,21 +86,27 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
   const [tagFilter, setTagFilter] = useState({ groupId: null, tag: null });
   const activeTag = tagFilter.groupId === selected?.id ? tagFilter.tag : null;
   const selectTag = (tag) => setTagFilter({ groupId: selected?.id || null, tag });
+  // One category's expenses only ('': those without one); per project too
+  const [categoryFilter, setCategoryFilter] = useState({ groupId: null, category: null });
+  const activeCategory = categoryFilter.groupId === selected?.id ? categoryFilter.category : null;
+  const selectCategory = (category) => setCategoryFilter({ groupId: selected?.id || null, category });
   const tagSuggestions = useMemo(() => (selectedData?.byTag.tags || []).map((t) => t.tag), [selectedData]);
   const q = toEnglishDigits(searchQuery.trim().toLowerCase());
   const listed = useMemo(() => {
     const list = selectedData?.list || [];
     const dir = order === 'asc' ? 1 : -1;
-    const tagged = activeTag ? list.filter((e) => hasTag(e, activeTag)) : list;
+    const tagged = list
+      .filter((e) => !activeTag || hasTag(e, activeTag))
+      .filter((e) => activeCategory === null || (e.category || '') === activeCategory);
     const matches = q
       ? tagged.filter((e) => [e.title, e.notes, ...(e.tags || [])].some((f) => String(f || '').toLowerCase().includes(q)))
       : tagged;
     return [...matches].sort((a, b) =>
       dir * (String(a.date).localeCompare(String(b.date)) || String(a.createdAt || '').localeCompare(String(b.createdAt || '')))
     );
-  }, [selectedData, q, order, activeTag]);
+  }, [selectedData, q, order, activeTag, activeCategory]);
 
-  const listKey = `${q}|${selected?.id}|${order}|${activeTag || ''}`;
+  const listKey = `${q}|${selected?.id}|${order}|${activeTag || ''}|${activeCategory ?? '*'}`;
   const lastPage = Math.max(1, Math.ceil(listed.length / EXPENSES_PAGE_SIZE));
   const page = Math.min(paging.key === listKey ? paging.page : 1, lastPage);
   const setPage = (next) => setPaging({ key: listKey, page: next });
@@ -201,6 +212,13 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
               sidebar={(
                 <>
                   <ExpenseSummaryCards summary={selectedData.summary} budget={selected.budget} hideValues={hideValues} dollarView={selectedData.dollarView} />
+                  <ExpenseCategoryTotals
+                    items={selectedData.byCategory}
+                    totalToman={selectedData.summary.totalToman}
+                    active={activeCategory}
+                    onSelect={selectCategory}
+                    hideValues={hideValues}
+                  />
                   <ExpenseTagTotals
                     byTag={selectedData.byTag}
                     totalToman={selectedData.summary.totalToman}
@@ -250,7 +268,7 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
                       headers={CSV_HEADERS}
                       fileBaseName={`هزینه‌های-${selected.name}`}
                       disabled={listed.length === 0}
-                      mapRow={(e) => expenseCsvRow(e, { withCategory: false, usdToman, usdAt, accountById, loanById })}
+                      mapRow={(e) => expenseCsvRow(e, { withCategory: true, usdToman, usdAt, accountById, loanById })}
                     />
                     <Button
                       icon={<Plus size={16} />}
@@ -284,6 +302,7 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
                         deletingId={deletingId}
                         hideValues={hideValues}
                         readOnly={readOnly}
+                        showCategory
                         accounts={accounts.length ? accounts : null}
                         sortState={{ key: 'date', dir: order }}
                         onSortChange={() => setOrder(order === 'desc' ? 'asc' : 'desc')}
@@ -320,6 +339,7 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
         <ExpenseForm
           key={expenseForm.expense?.id || 'new'}
           group={selected}
+          projects={groups}
           expense={expenseForm.expense}
           usdToman={usdToman}
           accounts={accounts.filter((a) => !a.archived || a.id === expenseForm.expense?.accountId)}

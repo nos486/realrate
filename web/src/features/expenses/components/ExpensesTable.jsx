@@ -4,7 +4,9 @@
  * («دنگ») shows the user's share under the amount, and what is still owed back; «دریافتی‌ها»
  * (`onReimburse`) records what came back. Everyday expenses can be picked (`selection`) and moved
  * to a project (`onMove`). In the everyday list a project's expense (`projectOf`) shows its
- * project, is left out of the totals, and is edited in its project (a link there).
+ * category and its project (a link there), is left out of the totals, and is edited here like the
+ * others (its form's «پروژه» moves it). `markExcluded`: rows left out of the list's totals (the
+ * excluded categories, the projects') are marked — the everyday list; a project counts them all.
  */
 
 import React from 'react';
@@ -53,6 +55,7 @@ export default function ExpensesTable({
   hideValues = false,
   readOnly = false,
   showCategory = false,
+  markExcluded = false,
   accounts = null,
   sortState = null,
   onSortChange = null,
@@ -109,21 +112,24 @@ export default function ExpensesTable({
           mobile: 'meta',
           render: (e) => {
             const project = projectFor(e);
-            if (project) {
-              return (
+            const { label, Icon, color, excluded } = getExpenseCategory(e.category);
+            // A project's expense without a category is named by its title alone
+            const badge = (!project || e.category) && (
+              <span className="income-category-badge" style={{ '--income-cat-color': color }}>
+                <Icon size={12} />
+                {label}
+                {markExcluded && !project && excluded && <span className="excluded-badge" title="در جمع هزینه‌ها حساب نمی‌شود">خارج از جمع</span>}
+              </span>
+            );
+            if (!project) return badge;
+            return (
+              <span className="expense-category-cell">
+                {badge}
                 <span className="income-category-badge expense-project-badge">
                   <FolderOpen size={12} />
                   پروژه «{project.name}»
                   <span className="excluded-badge" title="فقط در جمع همان پروژه حساب می‌شود">خارج از جمع</span>
                 </span>
-              );
-            }
-            const { label, Icon, color, excluded } = getExpenseCategory(e.category);
-            return (
-              <span className="income-category-badge" style={{ '--income-cat-color': color }}>
-                <Icon size={12} />
-                {label}
-                {excluded && <span className="excluded-badge" title="در جمع هزینه‌ها حساب نمی‌شود">خارج از جمع</span>}
               </span>
             );
           },
@@ -209,20 +215,19 @@ export default function ExpensesTable({
           key: 'actions',
           header: 'عملیات',
           mobile: 'actions',
-          render: (e) => (projectFor(e) ? (
+          render: (e) => (
             <div className="row-actions-group">
-              <Link to={`/projects/${projectFor(e).id}`} className="btn-table-action" title="در پروژه" aria-label={`باز کردن پروژه «${projectFor(e).name}»`}>
-                <FolderOpen size={13} strokeWidth={2} />
-              </Link>
-            </div>
-          ) : (
-            <div className="row-actions-group">
+              {projectFor(e) && (
+                <Link to={`/projects/${projectFor(e).id}`} className="btn-table-action" title="در پروژه" aria-label={`باز کردن پروژه «${projectFor(e).name}»`}>
+                  <FolderOpen size={13} strokeWidth={2} />
+                </Link>
+              )}
               {onReimburse && isSharedExpense(e) && (
                 <button type="button" className="btn-table-action" title="دریافتی‌های دنگ" onClick={() => onReimburse(e)}>
                   <HandCoins size={13} strokeWidth={2} />
                 </button>
               )}
-              {onMove && (
+              {onMove && !projectFor(e) && (
                 <button type="button" className="btn-table-action" title="انتقال به پروژه" aria-label="انتقال به پروژه" onClick={() => onMove(e)}>
                   <FolderInput size={13} strokeWidth={2} />
                 </button>
@@ -240,7 +245,7 @@ export default function ExpensesTable({
                 <Trash2 size={13} strokeWidth={2} />
               </button>
             </div>
-          )),
+          ),
         }]
       : []),
   ];
@@ -251,7 +256,7 @@ export default function ExpensesTable({
       rows={expenses}
       wrapperClassName="portfolio-table-responsive"
       tableClassName="portfolio-data-table incomes-table"
-      rowClassName={(e) => `portfolio-table-row ${showCategory && (projectFor(e) || getExpenseCategory(e.category).excluded) ? 'is-excluded is-excluded-row' : ''}`}
+      rowClassName={(e) => `portfolio-table-row ${markExcluded && (projectFor(e) || getExpenseCategory(e.category).excluded) ? 'is-excluded is-excluded-row' : ''}`}
       sortState={sortState}
       onSortChange={onSortChange}
       selection={selection}

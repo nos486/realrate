@@ -30,6 +30,7 @@ Text uses the classes `.text-positive`, `.text-negative`, `.text-warning` and `.
 
 - **No shadows or glows:** no outer `box-shadow`, no colored glow, no `text-shadow`, no `drop-shadow`. Surfaces are separated by borders. The shadow tokens (`--card-shadow`, `--primary-glow`, `--shadow-*`) are `none`.
 - **Card inside a card:** a card inside another (like each loan inside its bank group) uses `--card-inner-bg` and `--card-inner-border`, one step lighter than the outer card, so layers separate without shadows. Its hover only lightens the background and border a little.
+- **Row cards:** a record that runs over time (a loan, a subscription) is one full-width row, `RowCard` (`shared/ui/RowCard.jsx`, `styles/row-card.css`): icon, title, a line under it and a badge; then columns of figures (`RowCardBlock`), one a growing progress bar (`RowCardProgress`); then the icon actions (`RowCardAction`, the rest in a «⋮» `ActionMenu`). Tones are the semantic ones (`warning`, `positive`, `negative`, `primary`, `muted`). A new list of such records uses it rather than a card of its own.
 - **Exception:** `box-shadow` is used only for rings acting as borders (`inset 0 0 0 1px` or `0 0 0 Npx`) and the focus ring of form fields.
 - **No gradients:** buttons and numbers are one color. `--primary-gradient` and `--gold-gradient` are both a plain color, so a page's main number and the other gold values are exactly the same color.
 

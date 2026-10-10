@@ -1347,3 +1347,11 @@ tr.is-excluded td,
   color: var(--text-muted);
   white-space: nowrap;
 }
+
+/* A project's expense in the everyday list: its category, then its project */
+.expense-category-cell {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}

@@ -13,7 +13,8 @@ import { MemoryRouter } from 'react-router-dom';
 
 const store = vi.hoisted(() => ({ subscriptions: [], saveSubscription: null, saveExpense: null }));
 store.saveSubscription = vi.fn(async (input, existing) => ({ ...existing, ...input }));
-store.saveExpense = vi.fn(async (input) => ({ expense: { id: 'exp_1', ...input } }));
+// No section: the everyday expenses' (the store's own rule)
+store.saveExpense = vi.fn(async (input) => ({ expense: { id: 'exp_1', ...input, groupId: input.groupId || 'grp_daily' } }));
 
 vi.mock('../../../web/src/features/subscriptions/context/SubscriptionsContext.jsx', () => {
   const context = () => ({
@@ -87,18 +88,32 @@ describe('the subscriptions page', () => {
     const menu = screen.getByRole('menu');
     expect(menu.parentElement).toBe(document.body);
     expect(menu.closest('.portfolio-table-card')).toBeNull();
-    expect(screen.getByRole('menuitem', { name: 'ویرایش' })).toBeTruthy();
+    // Edit and delete are the row's own buttons (like a loan's); the state changes are in the menu
+    expect(screen.getByRole('menuitem', { name: 'لغو اشتراک' })).toBeTruthy();
+    expect(screen.queryByRole('menuitem', { name: 'ویرایش' })).toBeNull();
+    expect(screen.getAllByRole('button', { name: 'ویرایش اشتراک' }).length).toBeGreaterThan(0);
+  });
+
+  it('is a row card like a loan\'s: a tap on the row edits it, a tap on an action doesn\'t', () => {
+    render(<SubscriptionsPage />);
+    const row = document.querySelector('.row-card-list > .row-card');
+    expect(row).toBeTruthy();
+    fireEvent.click(row.querySelector('.row-card-actions'));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(row);
+    expect(screen.getByRole('dialog')).toBeTruthy();
   });
 
   it('records a renewal as an everyday expense in its currency, naming the subscription', async () => {
     render(<SubscriptionsPage />);
     // The list puts the one run out first
-    fireEvent.click(screen.getAllByText('ثبت پرداخت')[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'ثبت پرداخت' })[0]);
     const form = screen.getByText('ثبت هزینه روزمره').closest('form') || document.querySelector('form');
     fireEvent.submit(form);
     await waitFor(() => expect(store.saveExpense).toHaveBeenCalled());
+    // In the everyday expenses: no project picked (the store puts it in the daily section)
     expect(store.saveExpense.mock.calls[0][0]).toMatchObject({
-      groupId: 'grp_daily', subscriptionId: 'sub_b', category: 'subscriptions', title: 'فیلیمو', amount: 150_000, currency: 'IRT', date: '2026-02-05',
+      groupId: '', subscriptionId: 'sub_b', category: 'subscriptions', title: 'فیلیمو', amount: 150_000, currency: 'IRT', date: '2026-02-05',
     });
     // Moving the subscription on is the store's, on save (recordLinks.test.js)
   });
@@ -106,7 +121,7 @@ describe('the subscriptions page', () => {
   it('one that renews by itself has no «ثبت پرداخت»: its renewals are recorded as they come', () => {
     store.subscriptions = [chatgpt];
     render(<SubscriptionsPage />);
-    expect(screen.queryByText('ثبت پرداخت')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'ثبت پرداخت' })).toBeNull();
   });
 
   it('a new subscription says its payment goes into the expenses', () => {

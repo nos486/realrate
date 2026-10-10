@@ -23,8 +23,10 @@ const expenses = vi.hoisted(() => ({
   getExpenses: vi.fn(async () => ({ expenses: [] })),
   getExpenseGroups: vi.fn(async () => ({ groups: [] })),
   ensureDailyGroup: vi.fn(async () => ({ id: 'exg_daily', type: 'daily' })),
-  // Validated like the real store, so a draft it would refuse fails here too
-  saveExpense: vi.fn(async (input) => {
+  // Validated like the real store, so a draft it would refuse fails here too; no section: the
+  // everyday expenses' (the store's own rule)
+  saveExpense: vi.fn(async (body) => {
+    const input = { ...body, groupId: body.groupId || 'exg_daily' };
     const { validateExpense } = await import('../../src/domain/expenseDocument.js');
     const { value, error } = validateExpense(input);
     if (error) throw new Error(error);
@@ -85,7 +87,8 @@ describe('SmsInboxPage', () => {
     fireEvent.click(recordButtons()[0]);
     fireEvent.submit(screen.getByText('ثبت هزینه').closest('form'));
     await waitFor(() => expect(expenses.saveExpense).toHaveBeenCalled());
-    expect(expenses.saveExpense.mock.calls[0][0]).toMatchObject({
+    // As saved (no project: the everyday expenses)
+    expect((await expenses.saveExpense.mock.results[0].value).expense).toMatchObject({
       groupId: 'exg_daily', amount: 2000000, date: '2026-09-28', accountId: 'acc_1', source: 'sms', bankId: 'blu',
       smsKey: 'blu|debit|2000000|2026-09-28|10:47',
     });
@@ -238,7 +241,8 @@ describe('«ثبت سریع» (no form)', () => {
     await waitFor(() => expect(screen.getAllByText('ثبت سریع')).toHaveLength(1));
     fireEvent.click(screen.getByText('ثبت سریع').closest('button'));
     await waitFor(() => expect(expenses.saveExpense).toHaveBeenCalledTimes(1));
-    expect(expenses.saveExpense.mock.calls[0][0]).toMatchObject({
+    // As saved (no project: the everyday expenses)
+    expect((await expenses.saveExpense.mock.results[0].value).expense).toMatchObject({
       amount: 350000, category: 'dining', groupId: 'exg_daily', source: 'sms', accountId: 'acc_1',
     });
     await waitFor(() => expect(getPendingSms()).toHaveLength(2));

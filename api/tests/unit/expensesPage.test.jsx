@@ -110,7 +110,7 @@ describe('ExpensesPage', () => {
     state.groups = [{ id: 'exg_a', name: 'بازسازی', notes: '', createdAt: '2026-09-01T00:00:00Z' }];
     renderProjects({ groupId: 'exg_a' });
     fireEvent.click(screen.getByRole('button', { name: /ثبت هزینه/ }));
-    expect(screen.getByText('در بخش «بازسازی»')).toBeTruthy();
+    expect(screen.getByText('در پروژه «بازسازی»')).toBeTruthy();
     fireEvent.click(screen.getAllByText('دلار').map((el) => el.closest('button')).find(Boolean));
     expect(screen.getByText(/نرخ دلار در روز هزینه/)).toBeTruthy();
   });

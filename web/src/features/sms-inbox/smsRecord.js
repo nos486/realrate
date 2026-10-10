@@ -18,16 +18,12 @@ import { getPendingSms, getSmsSettings, markSmsHandled, dropRecordedSms } from '
 import { smsExpenseDraft } from './smsDrafts.js';
 import { findRecorded, sameDayKey } from './recordedCheck.js';
 
-/** An everyday expense (in the daily section, created on first use) */
-export async function saveDailyExpense(input) {
-  const { groups } = await expensesApi.getExpenseGroups();
-  const group = await expensesApi.ensureDailyGroup(groups);
-  return expensesApi.saveExpense({ ...input, groupId: group.id });
-}
-
-/** Save an expense from a bank SMS in a project (an expense section of type 'project') */
-export async function saveProjectExpense(groupId, input) {
-  return expensesApi.saveExpense({ ...input, groupId });
+/**
+ * Save an expense from a bank SMS where the form put it: a project (`groupId`), or the everyday
+ * expenses (no `groupId`: the daily section, created on first use — vaultExpenses.js)
+ */
+export async function saveSmsExpense(input) {
+  return expensesApi.saveExpense(input);
 }
 
 /**
@@ -37,7 +33,7 @@ export async function saveProjectExpense(groupId, input) {
  */
 export async function recordSmsExpense(item, { accounts = [], category = getSmsSettings().recordCategory } = {}) {
   // Titled after its category (the user's own categories too)
-  const { expense } = await saveDailyExpense({ ...smsExpenseDraft(item.tx, accounts), category, title: getExpenseCategory(category).label, currency: 'IRT' });
+  const { expense } = await saveSmsExpense({ ...smsExpenseDraft(item.tx, accounts), category, title: getExpenseCategory(category).label, currency: 'IRT' });
   markSmsHandled(item.fingerprint);
   return expense;
 }

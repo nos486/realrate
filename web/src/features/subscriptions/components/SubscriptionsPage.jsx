@@ -23,7 +23,7 @@ import DonutChart from '../../../shared/ui/DonutChart.jsx';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 import VaultUnlockCard from '../../../shared/vault/VaultUnlockCard.jsx';
-import { ensureDailyGroup, getExpenseGroups, saveExpense } from '../../../shared/vault/vaultExpenses.js';
+import { saveExpense } from '../../../shared/vault/vaultExpenses.js';
 import { todayIso } from '../../../shared/utils/dates.js';
 import { shamsiMonthOf, shamsiMonthRange, formatShamsiMonth } from '../../../shared/flow/flowYear.js';
 import { useQuickAddParam } from '../../../shared/hooks/useQuickAddParam.js';
@@ -131,8 +131,8 @@ export default function SubscriptionsPage() {
   // on (shared/vault/recordLinks.js), as for a payment recorded from the expenses page
   const handlePay = async (input) => {
     const sub = paying.sub;
-    const group = await ensureDailyGroup((await getExpenseGroups()).groups || []);
-    await saveExpense({ ...input, groupId: group.id });
+    // In the everyday expenses, or the project picked in the form (vaultExpenses.js)
+    await saveExpense(input);
     const renews = !sub.autoRenew && input.subscriptionId === sub.id;
     toast.success(renews ? 'پرداخت ثبت شد و اعتبار اشتراک یک دوره تمدید شد.' : 'پرداخت ثبت شد.');
   };
@@ -201,7 +201,7 @@ export default function SubscriptionsPage() {
             ) : listed.length === 0 ? (
               <EmptyState title="اشتراک فعالی ندارید" description="اشتراک‌های لغوشده و پایان‌یافته پنهان هستند." />
             ) : (
-              <ul className="sub-list">
+              <ul className="row-card-list">
                 {listed.map(({ sub, view, period }) => (
                   <SubscriptionCard
                     key={sub.id}

@@ -22,3 +22,4 @@ export { default as RequireAuth } from './RequireAuth.jsx';
 export { FeedbackProvider, useFeedback } from './FeedbackProvider.jsx';
 export { default as Skeleton, SkeletonGroup, SkeletonRows, SkeletonCards } from './Skeleton.jsx';
 export { default as ActionMenu } from './ActionMenu.jsx';
+export { default as RowCard, RowCardBadge, RowCardBlock, RowCardProgress, RowCardAction } from './RowCard.jsx';

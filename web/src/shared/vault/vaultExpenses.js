@@ -9,6 +9,8 @@
  * A dollar expense paid from a portfolio (`paidFrom`) also writes, moves or deletes its «spend»
  * transaction in that portfolio, and an expense put into an asset (`investedIn`) its «buy»
  * transaction (portfolioFunds.js): the transaction first, then the expense.
+ * An expense is saved in its section (`groupId`): a project's, or — left empty — the daily
+ * section (the everyday expenses, created on first use), so every form and path saves alike.
  * The record its category links it to (a cheque, a loan installment, a subscription:
  * utils/categoryLinks.js) is updated after it is saved or deleted (recordLinks.js).
  */
@@ -128,6 +130,10 @@ export async function getExpenses(filters = {}) {
  */
 export async function saveExpense(input, existing = null, { id = '', syncLinks = true } = {}) {
   const now = new Date().toISOString();
+  // No section ('' or none on a new one): the everyday expenses
+  if (!('groupId' in input ? input.groupId : existing?.groupId)) {
+    input = { ...input, groupId: (await ensureDailyGroup((await getExpenseGroups()).groups)).id };
+  }
   const value = checked(validateExpense(existing ? { ...existing, ...input } : input));
   const expense = existing
     ? { ...existing, ...value, updatedAt: now }

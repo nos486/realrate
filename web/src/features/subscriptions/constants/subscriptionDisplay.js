@@ -11,14 +11,17 @@ const fa = (n, digits = 0) => Number(n).toLocaleString('fa-IR', { maximumFractio
 
 export const subscriptionIcon = (category) => categoryIcon(subscriptionCategoryOf(category).icon);
 
-/** A state's badge: its label and tone (styles/subscriptions.css) */
+/**
+ * A state as its row card shows it (shared/ui/RowCard.jsx tones): its badge's label and tone,
+ * the row's own tone, and the tone of its period (the icon, the bar, the days left)
+ */
 export const STATE_BADGES = {
-  active: { label: 'فعال', tone: 'is-active' },
-  due: { label: 'نزدیک تمدید', tone: 'is-due' },
-  expired: { label: 'تمام شده — تمدید نشده', tone: 'is-expired' },
-  ended: { label: 'پایان‌یافته', tone: 'is-muted' },
-  paused: { label: 'متوقف', tone: 'is-muted' },
-  cancelled: { label: 'لغوشده', tone: 'is-muted' },
+  active: { label: 'فعال', badge: 'positive', row: '', period: 'primary' },
+  due: { label: 'نزدیک تمدید', badge: 'warning', row: 'warning', period: 'warning' },
+  expired: { label: 'تمام شده — تمدید نشده', badge: 'negative', row: 'negative', period: 'negative' },
+  ended: { label: 'پایان‌یافته', badge: '', row: 'muted', period: '' },
+  paused: { label: 'متوقف', badge: '', row: 'muted', period: '' },
+  cancelled: { label: 'لغوشده', badge: '', row: 'muted', period: '' },
 };
 
 /** «۹٫۹۹ دلار» / «۱۵۰٬۰۰۰ تومان» */
