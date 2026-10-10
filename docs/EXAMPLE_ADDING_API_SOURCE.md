@@ -53,7 +53,7 @@
     jsonPath: "currency[symbol=USDT_IRT].price", // فیلتر خودکار بر اساس ویژگی نماد
     category: "currency",
     unit: "تومان",
-    fetchIntervalSec: 60,
+    fetchIntervalSec: 300,
     isActive: true,
     isPrimary: true,
     displayConfig: { showOnHomePage: true },
@@ -76,7 +76,7 @@
     endpoint: "https://api.brsapi.ir/Market/Gold_Currency.php",
     category: "currency",
     unit: "تومان",
-    fetchIntervalSec: 60,
+    fetchIntervalSec: 300,
     isActive: true,
     isPrimary: true,
 

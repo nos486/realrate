@@ -326,7 +326,7 @@ function FullCard({ asset, isBest = false, flippable = true }) {
           <StaleMark asset={asset} />
           {asset.updatedAt && (
             <span className="pro-card-updated" title={new Date(asset.updatedAt).toLocaleString('fa-IR')}>
-              به‌روزرسانی {timeAgo(asset.updatedAt)}
+              آخرین تغییر {timeAgo(asset.updatedAt)}
             </span>
           )}
           {formula ? <FormulaStats asset={asset} /> : <CardSlots slots={asset.slots} />}

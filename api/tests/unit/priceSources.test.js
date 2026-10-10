@@ -31,7 +31,10 @@ describe('price sources: kind and schedule', () => {
       expect(fetchIntervalSecOf(src)).toBeGreaterThanOrEqual(MIN_FETCH_INTERVAL_SEC);
     }
     expect(fetchIntervalSecOf({ fetchIntervalSec: 1 })).toBe(MIN_FETCH_INTERVAL_SEC);
-    expect(fetchIntervalSecOf({})).toBe(60);
+    expect(fetchIntervalSecOf({ fetchIntervalSec: 60 })).toBe(300);
+    expect(fetchIntervalSecOf({})).toBe(300);
+    // Nothing is fetched more often than every 5 minutes
+    expect(MIN_FETCH_INTERVAL_SEC).toBe(300);
   });
 
   it('is due one interval after its last try — a failure waits its interval like a success', () => {
