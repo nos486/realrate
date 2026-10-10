@@ -29,6 +29,7 @@ import { startNewsAlerts } from '../features/news/newsAlerts.js';
 import { useSmsAutoRecord } from '../features/sms-inbox/useSmsAutoRecord.js';
 import { usePageScopes, startFocusRefresh } from '../shared/refresh/pageRefresh.js';
 import { refreshScopesOf } from '../shared/refresh/tabScopes.js';
+import TabLoadingGate from '../shared/refresh/TabLoadingGate.jsx';
 
 // Each tab other than the market home is loaded on first use, keeping the initial bundle small
 const PortfolioTracker = lazy(() => import('../features/portfolio/components/PortfolioTracker.jsx'));
@@ -386,6 +387,8 @@ export default function MainPage() {
       setActiveTab={handleTabChange}
       navItems={tabOptions}
     >
+      {/* A tab just opened and still waiting on the server: nothing else can be opened meanwhile */}
+      <TabLoadingGate tab={activeTab} />
       {/* Maintenance mode is on: only admins reach this page, remind them to switch it off */}
       {maintenance?.enabled && user?.role === 'admin' && (
         <AlertBanner

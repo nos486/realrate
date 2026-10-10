@@ -125,6 +125,7 @@ Every feature in detail. For a summary see the [README](../../README.en.md). Per
 - The share-link password is stored as a hash.
 - CSRF protection: data-changing requests are accepted only from the app's own origins.
 - **Mobile side menu** (website): every section, the user, hide amounts, lock the encrypted data and sign out in one drawer.
+- **A loader while a tab opens**: when a tab just opened is still waiting on the server (past 0.3 s), a loader in the middle of the screen blocks everything until its data is in — on a slow or dropped connection no other tab can be opened and nothing sent again. A request that can't reach the server fails at once and lets it go; on a very slow connection «ادامه بدون صبر» appears after 12 s. The Android app's offline copy reads from the device and shows none (`shared/refresh/TabLoadingGate.jsx`, `subscribeRequests` in `httpClient.js`).
 - **PWA**: installable, with an offline cache that shows the last saved prices without internet.
 - **Admin panel** in the same layout as the other pages:
   - A paged user list (10 per page) with search, sorting by registration or last sign-in, and quick filters (registered this week, inactive 30 days, unverified email, Google sign-in, blocked, Android app users) with a count for each.
