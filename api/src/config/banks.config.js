@@ -98,6 +98,7 @@ export const BANKS = [
   { id: "n26", name: "ان۲۶", shortName: "N26", enName: "N26", type: "online", aliases: ["ان 26", "ان‌۲۶"] },
   { id: "monzo", name: "مونزو", shortName: "مونزو", enName: "Monzo", type: "online" },
   { id: "starling", name: "استارلینگ بانک", shortName: "استارلینگ", enName: "Starling Bank", type: "online" },
+  { id: "wealthsimple", name: "ولث‌سیمپل", shortName: "ولث‌سیمپل", enName: "Wealthsimple", type: "online", aliases: ["ولث سیمپل", "ولت سیمپل"] },
   { id: "bunq", name: "bunq", shortName: "bunq", enName: "bunq", type: "online", aliases: ["بانق"] },
 
   // ── Foreign banks ─────────────────────────────────────────────────────────

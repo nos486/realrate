@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { validateAccount, compareAccounts } from '../../src/domain/accountDocument.js';
+import { validateAccount, compareAccounts, accountCurrencies, accountHolds, accountsForCurrency } from '../../src/domain/accountDocument.js';
 import { validateExpense, validateExpenseGroup, summarizeByAccount } from '../../src/domain/expenseDocument.js';
 
 const records = new Map();
@@ -46,6 +46,37 @@ describe('validateAccount', () => {
   it('lists active accounts first', () => {
     const list = [{ name: 'ب', archived: true }, { name: 'الف' }, { name: 'پ' }].sort(compareAccounts);
     expect(list.map((a) => a.name)).toEqual(['الف', 'پ', 'ب']);
+  });
+});
+
+describe('accounts in several currencies', () => {
+  it('keeps the currencies an account holds, in the app\'s order, and the first as `currency`', () => {
+    expect(validateAccount({ name: 'وایز', type: 'bank', currencies: ['USD', 'IRT', 'EUR'] }).value).toMatchObject({ currencies: ['IRT', 'USD'], currency: 'IRT' });
+    expect(validateAccount({ name: 'دلاری', type: 'cash', currencies: ['USD'] }).value).toMatchObject({ currencies: ['USD'], currency: 'USD' });
+    // An older body's single currency, or none (tomans)
+    expect(validateAccount({ name: 'قدیمی', type: 'cash', currency: 'USD' }).value.currencies).toEqual(['USD']);
+    expect(validateAccount({ name: 'نقد', type: 'cash' }).value.currencies).toEqual(['IRT']);
+    expect(validateAccount({ name: 'هیچ', type: 'cash', currencies: [] }).error).toBeTruthy();
+  });
+
+  it('a bank credit is in tomans only', () => {
+    const { value } = validateAccount({ name: 'اعتبار', type: 'credit', currencies: ['USD'], credit: { limit: 1_000_000, startDate: '2026-01-01' } });
+    expect(value).toMatchObject({ currencies: ['IRT'], currency: 'IRT' });
+  });
+
+  it('reads an older record\'s single currency, and offers only the accounts holding a record\'s currency', () => {
+    expect(accountCurrencies({ currency: 'USD' })).toEqual(['USD']);
+    expect(accountCurrencies({})).toEqual(['IRT']);
+    expect(accountHolds({ currencies: ['IRT', 'USD'] }, 'USD')).toBe(true);
+    const accounts = [
+      { id: 'toman', currencies: ['IRT'] },
+      { id: 'both', currencies: ['IRT', 'USD'] },
+      { id: 'old_usd', currency: 'USD' },
+    ];
+    expect(accountsForCurrency(accounts, 'USD').map((a) => a.id)).toEqual(['both', 'old_usd']);
+    expect(accountsForCurrency(accounts, 'IRT').map((a) => a.id)).toEqual(['toman', 'both']);
+    // The one a record already names stays listed
+    expect(accountsForCurrency(accounts, 'USD', 'toman').map((a) => a.id)).toEqual(['toman', 'both', 'old_usd']);
   });
 });
 

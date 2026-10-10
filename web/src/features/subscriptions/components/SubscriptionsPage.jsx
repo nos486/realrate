@@ -7,7 +7,8 @@
  * - The monthly total by category
  * - The list, soonest renewal first; a card says when it renews (or that it ran out), and offers
  *   «ثبت پرداخت»: an everyday expense in «اینترنت و اشتراک‌ها», in the subscription's currency,
- *   naming it — a subscription renewed by hand then runs a cycle longer (renewedAfter)
+ *   naming it — a subscription renewed by hand then runs a cycle longer (renewedAfter, through
+ *   shared/vault/recordLinks.js); a new one can go straight on to its first payment
  * - Pause / resume, cancel, edit and delete; cancelled ones are hidden unless shown
  * The figures come from utils/subscriptionDocument.js; renewal reminders are the alert center's,
  * the Android notifications' and the email digest's (shared/alerts, domain/reminders.js).
@@ -30,7 +31,7 @@ import { usePricing } from '../../market/index.js';
 import { useAccounts } from '../../accounts/hooks/useAccounts.js';
 import ExpenseForm from '../../expenses/components/ExpenseForm.jsx';
 import {
-  SUBSCRIPTION_EXPENSE_CATEGORY, compareSubscriptions, renewedAfter, subscriptionCategoryOf,
+  SUBSCRIPTION_EXPENSE_CATEGORY, compareSubscriptions, subscriptionCategoryOf,
   subscriptionPeriod, subscriptionTotals, subscriptionView,
 } from '../../../utils/subscriptionDocument.js';
 import { useSubscriptionsContext } from '../context/SubscriptionsContext.jsx';
@@ -90,7 +91,12 @@ export default function SubscriptionsPage() {
   // The app's "+" button: /subscriptions?add=subscription
   useQuickAddParam('subscription', openNew, !vaultLocked && !readOnly);
 
-  const handleSave = (input) => saveSubscription(input, formState?.subscription || null);
+  // A new subscription whose first payment is to be recorded: the expense form opens on it
+  const handleSave = async (input, { recordPayment = false } = {}) => {
+    const saved = await saveSubscription(input, formState?.subscription || null);
+    if (recordPayment && saved) setPaying({ sub: saved, view: subscriptionView(saved, today), first: true });
+    return saved;
+  };
 
   const handleStatus = async (sub, status) => {
     if (status === 'cancelled') {
@@ -124,13 +130,14 @@ export default function SubscriptionsPage() {
     }
   };
 
-  // «ثبت پرداخت»: an everyday expense naming the subscription, then the subscription moves on
+  // «ثبت پرداخت»: an everyday expense naming the subscription; saving it moves the subscription
+  // on (shared/vault/recordLinks.js), as for a payment recorded from the expenses page
   const handlePay = async (input) => {
     const sub = paying.sub;
     const group = await ensureDailyGroup((await getExpenseGroups()).groups || []);
-    await saveExpense({ ...input, groupId: group.id, subscriptionId: sub.id });
-    await saveSubscription(renewedAfter(sub, input.date), sub);
-    toast.success(sub.autoRenew ? 'پرداخت ثبت شد.' : 'پرداخت ثبت شد و اعتبار اشتراک یک دوره تمدید شد.');
+    await saveExpense({ ...input, groupId: group.id });
+    const renews = !sub.autoRenew && !paying.first && input.subscriptionId === sub.id;
+    toast.success(renews ? 'پرداخت ثبت شد و اعتبار اشتراک یک دوره تمدید شد.' : 'پرداخت ثبت شد.');
   };
 
   if (vaultLocked) {
@@ -238,9 +245,12 @@ export default function SubscriptionsPage() {
             title: paying.sub.name,
             amount: paying.sub.amount,
             currency: paying.sub.currency,
-            // The day it is paid: a late renewal of one renewed by hand starts its new period then
-            date: today,
+            // The day it is paid: a late renewal of one renewed by hand starts its new period then.
+            // A new subscription's first payment is on its start day, the day it was saved as
+            // paid through — so it pays its first period, without moving it on (recordLinks.js)
+            date: paying.first ? paying.sub.startDate : today,
             category: SUBSCRIPTION_EXPENSE_CATEGORY,
+            subscriptionId: paying.sub.id,
             accountId: paying.sub.accountId,
             notes: '',
           }}

@@ -4,17 +4,24 @@
  * For a project section (`group`) the title is required. For everyday expenses (`daily`) a
  * category is picked instead and the title is optional (the category's name when left empty).
  * A dollar expense may carry the toman rate of its day; left empty, totals convert it at
- * today's rate. With `accounts`, the account it was paid from can be picked (a new everyday
- * expense starts from the last one used). A new expense may start from a `draft` (a bank SMS:
+ * today's rate. With `accounts`, the account it was paid from can be picked — only the accounts
+ * that hold the expense's currency (accountsForCurrency; a new everyday expense starts from the
+ * last one used). A new expense may start from a `draft` (a bank SMS:
  * amount, day, account, note, and its source). «تأمین از» says whether it was paid from the user's
  * own money or from a loan (loanFunding.js) — offered while there is a loan not yet settled.
  * «دنگ»: the amount was paid for others too — only «سهم من» counts as the user's expense, the rest
  * is owed back (what comes back is recorded on the expense, ReimbursementsModal.jsx, not as income).
- * A dollar expense is paid from a portfolio's dollars instead of an account (and has no loan): the
- * dollars leave that portfolio as a «spend» transaction at the expense's rate (portfolioFunds.js),
- * which is filled in from that day's price history.
- * An everyday expense in «سرمایه‌گذاری» can be added to a portfolio («افزودن به پورتفو»: the asset
- * and its quantity) — a «buy» there at the expense's tomans (PortfolioLinkFields, `investedIn`).
+ * A dollar expense is paid from a dollar account, or from a portfolio's dollars (and has no loan):
+ * those dollars leave that portfolio as a «spend» transaction at the expense's rate
+ * (portfolioFunds.js), which is filled in from that day's price history.
+ * An everyday expense's category may link it to a record (utils/categoryLinks.js), picked right
+ * under the category (CategoryLinkField): «سرمایه‌گذاری» the asset bought in a portfolio,
+ * «پرداخت قسط» the loan installment paid, «اینترنت و اشتراک‌ها» the subscription (or a new one
+ * made from the expense), «پرداخت چک» the issued cheque. A choice fills in what it knows (title,
+ * amount, currency, account); what linking does to that record is the store's
+ * (shared/vault/recordLinks.js).
+ * Added to a portfolio («افزودن به پورتفو»: the asset and its quantity), an expense is a «buy»
+ * there at its tomans (`investedIn`).
  * A new everyday toman expense in «مدیریت نقدینگی» offers to record it as a transfer between the
  * user's accounts instead (`onCashMove`, CashMoveNotice).
  * Mounted only while open, so its state starts from props.
@@ -41,9 +48,13 @@ import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
 import { fundingLoanOptions } from '../../../utils/loanFunding.js';
 import { useAssetFunds } from '../../../shared/vault/useAssetFunds.js';
 import { CURRENCY_ASSET, newSpendTxId, newLinkTxId, rateOnDay } from '../../../shared/vault/portfolioFunds.js';
-import PortfolioLinkFields from '../../../shared/vault/PortfolioLinkFields.jsx';
+import CategoryLinkField from '../../../shared/links/CategoryLinkField.jsx';
+import { linkValueOf, isNewSubscription } from '../../../shared/links/linkValues.js';
 import { isLinkComplete } from '../../../utils/portfolioLink.js';
 import { todayIso } from '../../../shared/utils/dates.js';
+import { accountsForCurrency } from '../../../utils/accountDocument.js';
+import { categoryLinkOf } from '../../../utils/categoryLinks.js';
+import { useOptionalSubscriptionsContext } from '../../subscriptions/context/SubscriptionsContext.jsx';
 
 const LAST_ACCOUNT_KEY = 'realrate_last_expense_account';
 
@@ -62,8 +73,6 @@ const SHARE_OPTIONS = [
 
 const CURRENCY_OPTIONS = EXPENSE_CURRENCIES.map(({ value, label }) => ({ value, label }));
 
-/** The category whose expenses can be added to a portfolio */
-const INVESTMENT_CATEGORY = 'investment';
 
 export default function ExpenseForm({ group = null, daily = false, expense = null, draft = null, usdToman = 0, accounts = [], onSubmit, onClose, submitting = false, tagSuggestions = [], onCashMove = null }) {
   const start = expense || draft;
@@ -99,8 +108,19 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
   const [myShare, setMyShare] = useState(isSharedExpense(expense) ? String(expense.myShare) : '');
   const [submitError, setSubmitError] = useState('');
   // «سرمایه‌گذاری»: the asset bought with it, in a portfolio (null: not added)
-  const [investLink, setInvestLink] = useState(expense?.investedIn || null);
-  const investing = daily && category === INVESTMENT_CATEGORY && Boolean(investLink);
+  // The record its category links it to (categoryLinks.js), as the record stores it
+  const link = daily ? categoryLinkOf('expense', category) : null;
+  const [linkValue, setLinkValue] = useState(() => linkValueOf('expense', start?.category, start));
+  const changeCategory = (next) => {
+    setCategory(next);
+    // Back to its own category: the link it had
+    setLinkValue(linkValueOf('expense', next, start));
+  };
+  const investing = link?.target === 'portfolio' && Boolean(linkValue);
+  const creatingSubscription = link?.target === 'subscription' && isNewSubscription(linkValue);
+
+  // A new subscription made with the expense is saved through the shared list
+  const subs = useOptionalSubscriptionsContext();
 
   const isUsd = currency === 'USD';
   const amountNum = parseInputNumber(amount);
@@ -112,6 +132,20 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
   const { funds, loading: loadingFunds } = useAssetFunds(fundAsset, Boolean(fundAsset));
   const [fundId, setFundId] = useState(expense?.paidFrom?.portfolioId || '');
   const fund = fundAsset ? funds.find((f) => f.portfolioId === fundId) || null : null;
+  // The accounts that hold the expense's currency (the one it already names stays)
+  const payAccounts = accountsForCurrency(accounts, currency, expense?.accountId);
+  const effectiveAccountId = payAccounts.some((a) => a.id === accountId) ? accountId : '';
+  // A link chosen fills in what it knows (a new expense only: an edit keeps what was typed)
+  const fill = (fields) => {
+    if (expense) return;
+    if (fields.title && !title.trim()) setTitle(fields.title);
+    if (fields.amount) setAmount(String(fields.amount));
+    if (fields.currency) setCurrency(fields.currency === 'USD' ? 'USD' : 'IRT');
+    if (fields.accountId) {
+      setAccountId(fields.accountId);
+      setFundId('');
+    }
+  };
   // This expense's own spend is already out of the balance shown
   const ownSpend = expense?.paidFrom && expense.paidFrom.portfolioId === fundId ? Number(expense.amount) || 0 : 0;
   const fundAvailable = fund ? fund.amount + ownSpend : 0;
@@ -167,7 +201,9 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
   const needsStoredRate = isUsd && (paidFromPortfolio || investing);
   const isValid = (daily || Boolean(title.trim())) && amountNum > 0 && Boolean(dateIso) && (!usdRate || rateNum > 0)
     && (!needsStoredRate || effectiveRate > 0) && shareValid && !submitting
-    && (!investing || isLinkComplete(investLink));
+    && (!investing || isLinkComplete(linkValue))
+    // A new subscription is named after the expense
+    && (!creatingSubscription || Boolean(title.trim() && subs));
   const tomanPreview = isUsd && amountNum > 0 ? amountNum * (effectiveRate || usdToman) : 0;
 
   const handleSubmit = async (e) => {
@@ -175,10 +211,28 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
     if (!isValid) return;
     setSubmitError('');
     try {
+      const payAccountId = paidFromPortfolio ? '' : effectiveAccountId;
+      // Its category's link (another category has none): a new subscription is made first
+      let linked = link && link.target !== 'portfolio' ? linkValue || null : null;
+      if (creatingSubscription) {
+        const created = await subs.saveSubscription({
+          name: title.trim(),
+          category: 'other',
+          amount: amountNum,
+          currency,
+          cycleMonths: linkValue.create.cycleMonths,
+          startDate: dateIso,
+          autoRenew: true,
+          accountId: payAccountId,
+          // This payment is its first: saving the expense doesn't move it on
+          lastPaidOn: dateIso,
+        });
+        linked = created.id;
+      }
       await onSubmit({
         ...(group ? { groupId: group.id } : {}),
-        ...(daily ? { category } : {}),
-        accountId: fundAsset ? '' : accountId,
+        ...(daily ? { category, ...(link && link.target !== 'portfolio' ? { [link.field]: linked } : {}) } : {}),
+        accountId: payAccountId,
         loanId: !fundAsset && fundingLoans.some((l) => l.id === loanId) ? loanId : '',
         paidFrom: paidFromPortfolio
           ? {
@@ -190,11 +244,11 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
           : null,
         investedIn: investing
           ? {
-            portfolioId: investLink.portfolioId,
-            portfolioName: investLink.portfolioName,
-            assetId: investLink.assetId,
-            quantity: Number(investLink.quantity),
-            txId: expense?.investedIn?.portfolioId === investLink.portfolioId ? expense.investedIn.txId : newLinkTxId(),
+            portfolioId: linkValue.portfolioId,
+            portfolioName: linkValue.portfolioName,
+            assetId: linkValue.assetId,
+            quantity: Number(linkValue.quantity),
+            txId: expense?.investedIn?.portfolioId === linkValue.portfolioId ? expense.investedIn.txId : newLinkTxId(),
           }
           : null,
         title: title.trim() || getExpenseCategory(category).label,
@@ -208,7 +262,7 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
         ...(draft && !expense ? { source: draft.source, bankId: draft.bankId, smsFingerprint: draft.smsFingerprint } : {}),
       });
       try {
-        if (accountId) localStorage.setItem(LAST_ACCOUNT_KEY, accountId);
+        if (effectiveAccountId) localStorage.setItem(LAST_ACCOUNT_KEY, effectiveAccountId);
       } catch {
         // Only a convenience
       }
@@ -245,7 +299,7 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
             <FilterPills
               options={categoryOptions}
               activeValue={category}
-              onChange={setCategory}
+              onChange={changeCategory}
               size="sm"
               className="income-category-picker"
             />
@@ -253,6 +307,20 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
           </div>
         )}
         {managing && <CategoryManagerModal kind="expense" onClose={() => setManaging(false)} />}
+
+        {link && (
+          <CategoryLinkField
+            side="expense"
+            category={category}
+            value={linkValue}
+            onChange={setLinkValue}
+            onFill={fill}
+            recordId={expense?.id || ''}
+            keepId={expense?.[link.field] || ''}
+            title={title}
+            toman={isUsd ? (amountNum || 0) * (rateNum || 0) : amountNum || 0}
+          />
+        )}
 
         <Input
           id="expense-title"
@@ -362,9 +430,28 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
           </div>
         )}
 
+        {payAccounts.length > 0 && (
+          <div className="ui-input-group">
+            <span className="ui-input-label">{fundAsset ? 'پرداخت از حساب' : 'پرداخت از'}</span>
+            <FilterPills
+              options={[
+                { value: '', label: 'نامشخص' },
+                ...payAccounts.map((a) => ({ value: a.id, label: accountLabel(a) })),
+              ]}
+              activeValue={effectiveAccountId}
+              onChange={(id) => {
+                setAccountId(id);
+                if (id) setFundId('');
+              }}
+              size="sm"
+              className="income-category-picker"
+            />
+          </div>
+        )}
+
         {fundAsset && (
           <div className="ui-input-group">
-            <span className="ui-input-label">پرداخت از</span>
+            <span className="ui-input-label">{payAccounts.length > 0 ? 'یا از دلار پورتفو' : 'پرداخت از'}</span>
             {loadingFunds ? (
               <p className="expense-form-hint">در حال خواندن دارایی دلاری پورتفوها…</p>
             ) : (
@@ -376,7 +463,10 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
                     .map((f) => ({ value: f.portfolioId, label: `${f.portfolioName} — ${formatNum(f.amount)} دلار` })),
                 ]}
                 activeValue={fundId}
-                onChange={setFundId}
+                onChange={(id) => {
+                  setFundId(id);
+                  if (id) setAccountId('');
+                }}
                 size="sm"
                 className="income-category-picker"
               />
@@ -387,25 +477,9 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
                 {' '}موجودی پس از پرداخت: <strong>{formatNum(fundAfter)}</strong> دلار
                 {fundAfter < 0 && ' — بیشتر از موجودی است.'}
               </p>
-            ) : !loadingFunds && funds.every((f) => !(f.amount > 0)) && (
+            ) : !loadingFunds && !effectiveAccountId && funds.every((f) => !(f.amount > 0)) && (
               <p className="expense-form-hint">هیچ پورتفویی دلار ندارد؛ هزینه بدون منبع ثبت می‌شود.</p>
             )}
-          </div>
-        )}
-
-        {!fundAsset && accounts.length > 0 && (
-          <div className="ui-input-group">
-            <span className="ui-input-label">پرداخت از</span>
-            <FilterPills
-              options={[
-                { value: '', label: 'نامشخص' },
-                ...accounts.map((a) => ({ value: a.id, label: accountLabel(a) })),
-              ]}
-              activeValue={accountId}
-              onChange={setAccountId}
-              size="sm"
-              className="income-category-picker"
-            />
           </div>
         )}
 
@@ -429,15 +503,6 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
 
         {daily && !expense && !isUsd && onCashMove && category === CASH_MANAGEMENT_CATEGORY && (
           <CashMoveNotice onMove={() => onCashMove({ amount: amountNum || 0, date: dateIso || '', notes: notes.trim() || title.trim(), fromAccountId: accountId || '' })} />
-        )}
-
-        {daily && category === INVESTMENT_CATEGORY && (
-          <PortfolioLinkFields
-            mode="buy"
-            value={investLink}
-            onChange={setInvestLink}
-            toman={isUsd ? (amountNum || 0) * (rateNum || 0) : amountNum || 0}
-          />
         )}
 
         {!daily && <TagInput value={tags} onChange={setTags} suggestions={tagSuggestions} />}

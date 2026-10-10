@@ -1,10 +1,12 @@
 /**
  * IncomeForm.jsx — Modal form to record or edit an income
  *
- * An income in «فروش دارایی» can take what was sold out of a portfolio («کم کردن از پورتفو»: the
- * asset and its quantity) — a «sell» there at the income's tomans (PortfolioLinkFields, `soldFrom`).
- * A deposit in «تسویه بدهی اعتباری» names the bank credit whose debt it pays (`creditAccountId`):
- * that credit's debt goes down by it (utils/creditAccount.js).
+ * An income's category may link it to a record (utils/categoryLinks.js), picked right under the
+ * category (CategoryLinkField): «فروش دارایی» what was sold out of a portfolio («کم کردن از
+ * پورتفو»: the asset and its quantity — a «sell» there at the income's tomans, `soldFrom`),
+ * «تسویه بدهی اعتباری» the bank credit whose debt it pays (`creditAccountId`, utils/creditAccount.js),
+ * «وصول چک» the received cheque it cashed (`chequeId`: saving clears the cheque,
+ * shared/vault/recordLinks.js). A choice fills in what it knows (title, amount).
  * A new income in «مدیریت نقدینگی» offers to record it as a transfer between the user's accounts
  * instead (`onCashMove`, CashMoveNotice).
  *
@@ -24,16 +26,13 @@ import { parseInputNumber } from '../../portfolio/utils/holdingHelpers.js';
 import { DEFAULT_INCOME_CATEGORY } from '../constants/incomeCategories.js';
 import { useCategories } from '../../../shared/categories/useCategories.js';
 import CategoryManagerModal from '../../../shared/categories/CategoryManagerModal.jsx';
-import PortfolioLinkFields from '../../../shared/vault/PortfolioLinkFields.jsx';
+import CategoryLinkField from '../../../shared/links/CategoryLinkField.jsx';
+import { linkValueOf } from '../../../shared/links/linkValues.js';
+import { categoryLinkOf } from '../../../utils/categoryLinks.js';
 import { isLinkComplete } from '../../../utils/portfolioLink.js';
 import { newLinkTxId } from '../../../shared/vault/portfolioFunds.js';
-import { CREDIT_SETTLEMENT_CATEGORY } from '../../../utils/creditAccount.js';
-import CreditAccountPicker from './CreditAccountPicker.jsx';
 import CashMoveNotice from '../../accounts/components/CashMoveNotice.jsx';
 import { CASH_MANAGEMENT_CATEGORY } from '../../../utils/categoryDocument.js';
-
-/** The category whose incomes can be a sale from a portfolio */
-const SALE_CATEGORY = 'asset_sale';
 
 export default function IncomeForm({
   onClose,
@@ -62,12 +61,22 @@ export default function IncomeForm({
   });
   const [notes, setNotes] = useState(source?.notes || '');
   const [submitError, setSubmitError] = useState('');
-  // «فروش دارایی»: what was sold, out of a portfolio (null: not taken out)
-  const [saleLink, setSaleLink] = useState(editingIncome?.soldFrom || null);
-  const selling = category === SALE_CATEGORY && Boolean(saleLink);
-  // «تسویه بدهی اعتباری»: the credit whose debt it pays
-  const [creditAccountId, setCreditAccountId] = useState(source?.creditAccountId || '');
-  const settling = category === CREDIT_SETTLEMENT_CATEGORY;
+  // The record its category links it to (categoryLinks.js), as the income stores it
+  const link = categoryLinkOf('income', category);
+  const [linkValue, setLinkValue] = useState(() => linkValueOf('income', source?.category, source));
+  const changeCategory = (next) => {
+    setCategory(next);
+    setLinkValue(linkValueOf('income', next, source));
+  };
+  // «فروش دارایی»: what was sold, out of a portfolio (none: not taken out)
+  const selling = link?.target === 'portfolio' && Boolean(linkValue);
+  // «تسویه بدهی اعتباری»: the credit it pays is required
+  const settling = link?.target === 'credit_account';
+  const fill = (fields) => {
+    if (editingIncome) return;
+    if (fields.title && !title.trim()) setTitle(fields.title);
+    if (fields.amount) setAmount(String(fields.amount));
+  };
 
   const amountNum = parseInputNumber(amount);
   // The Shamsi value is the single source of truth; the stored Gregorian date is derived from it
@@ -75,8 +84,8 @@ export default function IncomeForm({
   const dateIso = shamsiToGregorian(dateShamsi);
   const isAmountValid = amountNum !== null && amountNum > 0;
   const isFormValid = Boolean(title.trim()) && isAmountValid && Boolean(dateIso) && !submitting
-    && (!selling || isLinkComplete(saleLink))
-    && (!settling || Boolean(creditAccountId));
+    && (!selling || isLinkComplete(linkValue))
+    && (!settling || Boolean(linkValue));
 
   const handleSubmit = async (e) => {
     e?.preventDefault?.();
@@ -90,15 +99,17 @@ export default function IncomeForm({
         amount: amountNum,
         incomeDate: dateIso,
         notes: notes.trim(),
-        creditAccountId: settling ? creditAccountId : '',
+        // Only its category's link (the store drops the others too)
+        creditAccountId: settling ? linkValue : '',
+        chequeId: link?.target === 'cheque' ? linkValue || '' : '',
         soldFrom: selling
           ? {
-            portfolioId: saleLink.portfolioId,
-            portfolioName: saleLink.portfolioName,
-            assetId: saleLink.assetId,
-            ...(saleLink.unit ? { unit: saleLink.unit } : {}),
-            quantity: Number(saleLink.quantity),
-            txId: editingIncome?.soldFrom?.portfolioId === saleLink.portfolioId ? editingIncome.soldFrom.txId : newLinkTxId(),
+            portfolioId: linkValue.portfolioId,
+            portfolioName: linkValue.portfolioName,
+            assetId: linkValue.assetId,
+            ...(linkValue.unit ? { unit: linkValue.unit } : {}),
+            quantity: Number(linkValue.quantity),
+            txId: editingIncome?.soldFrom?.portfolioId === linkValue.portfolioId ? editingIncome.soldFrom.txId : newLinkTxId(),
           }
           : null,
       });
@@ -147,13 +158,26 @@ export default function IncomeForm({
           <FilterPills
             options={categoryOptions}
             activeValue={category}
-            onChange={setCategory}
+            onChange={changeCategory}
             size="sm"
             className="income-category-picker"
           />
           <button type="button" className="category-picker-edit" onClick={() => setManaging(true)}>ویرایش و افزودن دسته</button>
         </div>
         {managing && <CategoryManagerModal kind="income" onClose={() => setManaging(false)} />}
+
+        {link && (
+          <CategoryLinkField
+            side="income"
+            category={category}
+            value={linkValue}
+            onChange={setLinkValue}
+            onFill={fill}
+            recordId={editingIncome?.id || ''}
+            toman={amountNum || 0}
+            own={editingIncome?.soldFrom || null}
+          />
+        )}
 
         <div className="ui-input-group">
           <label htmlFor="income-amount" className="ui-input-label">مبلغ (تومان) *</label>
@@ -174,18 +198,8 @@ export default function IncomeForm({
           value={dateShamsi}
           onChange={setDateShamsi}
         />
-        {settling && <CreditAccountPicker value={creditAccountId} onChange={setCreditAccountId} />}
         {!editingIncome && onCashMove && category === CASH_MANAGEMENT_CATEGORY && (
           <CashMoveNotice onMove={() => onCashMove({ amount: amountNum || 0, date: dateIso || '', notes: notes.trim() || title.trim() })} />
-        )}
-        {category === SALE_CATEGORY && (
-          <PortfolioLinkFields
-            mode="sell"
-            value={saleLink}
-            onChange={setSaleLink}
-            toman={amountNum || 0}
-            own={editingIncome?.soldFrom || null}
-          />
         )}
         <Input
           id="income-notes"

@@ -7,16 +7,19 @@
  *
  * An income that is a sale from a portfolio (`soldFrom`, utils/portfolioLink.js) also writes,
  * moves or deletes its «sell» transaction there (portfolioFunds.js): the transaction first.
- * A deposit that pays a bank credit's debt («تسویه بدهی اعتباری») names the credit
- * (`creditAccountId`): it is a payment into that credit (utils/creditAccount.js).
+ * Its category may link it to a record (utils/categoryLinks.js): a deposit that pays a bank
+ * credit's debt («تسویه بدهی اعتباری») names the credit (`creditAccountId`: a payment into it,
+ * utils/creditAccount.js), a cheque cashed («وصول چک») the received cheque (`chequeId`). What
+ * linking does to that record is recordLinks.js's, run after every save and delete.
  */
 
 import { isCategoryValue } from '../../utils/categoryDocument.js';
-import { CREDIT_SETTLEMENT_CATEGORY } from '../../utils/creditAccount.js';
+import { categoryLinkFields } from '../../utils/categoryLinks.js';
 import { validatePortfolioLink, sameLink } from '../../utils/portfolioLink.js';
 import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
 import { putRecord, backfillRecordDates, repairRecordDates } from './vaultRecordMeta.js';
 import { encryptVaultRecord, decryptVaultRecord } from './vaultStore.js';
+import { syncRecordLinks, releaseRecordLinks } from './recordLinks.js';
 
 const KIND = 'income';
 const TITLE_MAX_LENGTH = 120;
@@ -39,10 +42,9 @@ export function parseIncomeInput(body = {}) {
   const category = isCategoryValue('income', body.category) ? body.category : 'other';
   // Recorded from a bank SMS: the transaction's key (bankSms.js), so it is not recorded twice
   const smsKey = String(body.smsKey ?? '').trim().slice(0, 120);
-  // «تسویه بدهی اعتباری»: the credit whose debt this deposit pays
-  const creditAccountId = category === CREDIT_SETTLEMENT_CATEGORY && /^[A-Za-z0-9_-]{1,80}$/.test(String(body.creditAccountId || ''))
-    ? String(body.creditAccountId)
-    : '';
+  // The record its category links it to (categoryLinks.js): «تسویه بدهی اعتباری» the credit
+  // whose debt this deposit pays, «وصول چک» the received cheque
+  const links = categoryLinkFields('income', category, body);
 
   if (!title) throw new IncomeValidationError('عنوان درآمد الزامی است.');
   if (title.length > TITLE_MAX_LENGTH) throw new IncomeValidationError(`عنوان درآمد نباید بیشتر از ${TITLE_MAX_LENGTH} کاراکتر باشد.`);
@@ -58,8 +60,9 @@ export function parseIncomeInput(body = {}) {
   return {
     title, category, amount, incomeDate, notes, soldFrom: sold.link,
     ...(smsKey ? { smsKey } : {}),
-    // Always returned, so an edit to another category drops it
-    creditAccountId,
+    // Always returned, so an edit to another category drops them
+    creditAccountId: links.creditAccountId || '',
+    chequeId: links.chequeId || '',
   };
 }
 
@@ -71,8 +74,14 @@ let incomes = new Map();
 
 const funds = () => import('./portfolioFunds.js');
 
-/** Store an income, with its portfolio sale written first (moved, or removed when it no longer has one) */
-async function save(income, before = null) {
+/**
+ * Store an income, with its portfolio sale written first (moved, or removed when it no longer has
+ * one), then the record its category links it to (recordLinks.js)
+ * @param {object} income
+ * @param {object|null} previous its stored copy before (null: new)
+ */
+async function save(income, previous = null) {
+  const before = previous?.soldFrom || null;
   const after = income.soldFrom || null;
   if (after) {
     const f = await funds();
@@ -87,6 +96,7 @@ async function save(income, before = null) {
   }
   if (before && !after) await (await funds()).deleteLinkedTransaction(before).catch(() => {});
   incomes.set(income.id, income);
+  await syncRecordLinks('income', income, previous);
   return income;
 }
 
@@ -135,7 +145,7 @@ export async function updateIncome(incomeId, incomeData) {
   const existing = await findIncome(incomeId);
   if (!existing) throw new IncomeValidationError('درآمد مورد نظر یافت نشد.', 404);
   const income = { ...existing, ...parseIncomeInput(incomeData), updatedAt: new Date().toISOString() };
-  return { success: true, income: await save(income, existing.soldFrom || null) };
+  return { success: true, income: await save(income, existing) };
 }
 
 export async function deleteIncome(incomeId) {
@@ -144,5 +154,6 @@ export async function deleteIncome(incomeId) {
   incomes.delete(incomeId);
   // Its sale leaves the portfolio too
   if (existing?.soldFrom) await (await funds()).deleteLinkedTransaction(existing.soldFrom).catch(() => {});
+  await releaseRecordLinks('income', existing);
   return { success: true };
 }

@@ -304,6 +304,13 @@ describe('senders and accounts', () => {
     expect(matchSmsAccount(tx, [accounts[0], { id: 'acc_4', bankId: 'parsian' }])).toBe('');
     expect(matchSmsAccount(tx, [accounts[2]])).toBe('');
   });
+
+  it('never matches a bank SMS (rials) to an account that holds no tomans', () => {
+    const tx = parse(SAMPLES[0].text);
+    const dollarOnly = { id: 'acc_usd', bankId: 'parsian', accountNumber: '30101540968603', currencies: ['USD'] };
+    expect(matchSmsAccount(tx, [dollarOnly])).toBe('');
+    expect(matchSmsAccount(tx, [{ ...dollarOnly, currencies: ['IRT', 'USD'] }])).toBe('acc_usd');
+  });
 });
 
 describe('templates', () => {

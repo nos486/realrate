@@ -7,6 +7,11 @@
  * A cheque is either received (دریافتی: someone pays us) or issued (صادره: we pay someone).
  * Its status moves along a small lifecycle and every change is kept in `history` with its date
  * and an optional note, which is the cheque's tracking log.
+ *
+ * A cleared cheque's money is an income (received) or an expense (issued) in the cheque category
+ * naming it (`chequeId`, categoryLinks.js); the cheque points back at that record
+ * (`settlement: { side: 'income'|'expense', id }`), so clearing it records the money once and
+ * taking the clearing back removes it (web/src/shared/vault/recordLinks.js).
  */
 
 import { isValidIsoDate } from './isoDate.js';
@@ -44,8 +49,21 @@ export const CHEQUE_LIMITS = {
 export const CHEQUE_REMINDER_DAYS = 7;
 
 const SAYAD_RE = /^\d{16}$/;
-const CHEQUE_NUMBER_RE = /^[0-9/\-]+$/;
+const CHEQUE_NUMBER_RE = /^[0-9/-]+$/;
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** The status a cheque's money moved in: an income or an expense records it */
+export const CHEQUE_CLEARED = 'cleared';
+
+const SETTLEMENT_SIDES = new Set(['income', 'expense']);
+const RECORD_ID_RE = /^[A-Za-z0-9_-]{1,80}$/;
+
+/** A cheque's settlement link checked: `{ side, id }` or null */
+export function validateSettlement(raw) {
+  const side = String(raw?.side ?? '');
+  const id = String(raw?.id ?? '');
+  return SETTLEMENT_SIDES.has(side) && RECORD_ID_RE.test(id) ? { side, id } : null;
+}
 
 const STATUS_BY_VALUE = new Map(CHEQUE_STATUSES.map((s) => [s.value, s]));
 const DIRECTION_VALUES = new Set(CHEQUE_DIRECTIONS.map((d) => d.value));
@@ -164,6 +182,8 @@ export function validateChequeInput(body = {}, { today } = {}) {
       notes,
       remindersMuted: Boolean(body.remindersMuted),
       history,
+      // Always returned, so clearing it takes the link away
+      settlement: validateSettlement(body.settlement),
     },
   };
 }

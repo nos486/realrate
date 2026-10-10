@@ -29,11 +29,11 @@ The interface is in Persian (right-to-left, Shamsi calendar, amounts in tomans).
 - **Market**: intrinsic value and bubble of gold and coins (and the coins' bubble from tgju), 16 currencies and USDT, Tehran Stock Exchange symbols and funds — updated automatically, on a home page each user lays out (averages, linked assets, and cards combining assets with a formula) (the rates page is for Pro users)
 - **Portfolio**: multiple portfolios, buy/sell transactions with weighted average cost, live profit and loss, custom categories, public sharing
 - **Expenses**: everyday expenses by category with monthly budgets, projects in tomans or dollars, the account that paid («پرداخت از») and the loan that funded it («تأمین از»)
-- **Accounts**: bank accounts, cash and wallets; the source of every expense and the match for bank SMS
+- **Accounts**: bank accounts, cash and wallets, each in one or more currencies; the source of every expense and the match for bank SMS
 - **Bank credit** (new): the limit and the debt, spending from the credit, «تسویه بدهی» and «تبدیل به قسط» by hand (each installment with its own day and amount), and the settlement and installment fees worked out from those amounts and kept with their record
 - **Loans**: installment schedule, payments and extra payments, banks with logos, and loan usage (what the loan paid for, and how those purchases did against the loan's rate)
 - **Incomes**: by source and month, and fixed incomes (salary, rent) that repeat on their own
-- **Cheques**: received and issued, due dates, status tracking with history, reminders, and AI cheque scanning
+- **Cheques**: received and issued, due dates, status tracking with history, reminders, and AI cheque scanning; a cleared cheque records its income or expense
 - **Subscriptions** (new): every subscription in tomans or dollars with its renewal cycle, start and end; the monthly and yearly total, recording a payment, and a reminder before each renewal
 - **Market news** (new): dollar, gold, oil and economy news from news channels, checked and sorted every minute by AI (Workers AI) — no ads, signals or duplicates; importance 1–3, the day's and week's top stories, and notifications for the important ones
 - **AI day's analysis** (new): what today's news says, how the stories connect and what to watch — no price predictions; the latest analysis is also on the website's landing page

@@ -6,10 +6,14 @@
  * account by its bank and the last four digits of its account number or card (bankSms.js).
  * A bank credit line is an account too (type 'credit', with its terms in `credit`): spending
  * from it is an expense paid from it, paying it back a transfer into it (creditAccount.js).
+ * An account holds one or more currencies (`currencies`, e.g. a Wise account in tomans and
+ * dollars); `currency` stays the first of them for older clients. Forms offer only the accounts
+ * that hold a record's currency (accountsForCurrency). A credit line is in tomans.
  * Shared by the browser and the API, like the other domain modules.
  */
 
 import { validateCreditTerms } from './creditAccount.js';
+import { EXPENSE_CURRENCIES } from './expenseDocument.js';
 
 export const ACCOUNT_TYPES = [
   { value: 'bank', label: 'حساب بانکی' },
@@ -35,6 +39,29 @@ const asciiDigits = (v) => text(v)
 
 /** Types that belong to a bank (a bank, a card, an account number) */
 const BANK_TYPES = new Set(['bank', 'credit']);
+
+const CURRENCY_VALUES = EXPENSE_CURRENCIES.map((c) => c.value);
+
+/**
+ * The currencies an account holds, in the app's order (an older record has only `currency`)
+ * @returns {string[]} e.g. ['IRT'], ['IRT', 'USD']
+ */
+export function accountCurrencies(account) {
+  const listed = Array.isArray(account?.currencies) ? account.currencies : [account?.currency || 'IRT'];
+  const held = CURRENCY_VALUES.filter((c) => listed.includes(c));
+  return held.length > 0 ? held : ['IRT'];
+}
+
+/** Whether an account holds a currency */
+export const accountHolds = (account, currency) => accountCurrencies(account).includes(currency || 'IRT');
+
+/**
+ * The accounts a record in `currency` can be paid from or into — those that hold it. The one a
+ * record already names (`keepId`) stays listed, so editing an older record never drops it.
+ */
+export function accountsForCurrency(accounts = [], currency = 'IRT', keepId = '') {
+  return accounts.filter((a) => accountHolds(a, currency) || (keepId && a.id === keepId));
+}
 
 /** Whether an account is a credit line */
 export const isCreditAccount = (account) => account?.type === 'credit' && Boolean(account.credit);
@@ -64,8 +91,11 @@ export function validateAccount(body = {}) {
   const accountNumber = asciiDigits(body.accountNumber).replace(/[\s.-]/g, '');
   if (accountNumber && !/^\d{4,26}$/.test(accountNumber)) return { error: 'شماره حساب فقط شامل ارقام (۴ تا ۲۶ رقم) است.' };
 
-  // A credit is in tomans, with its terms
-  const currency = type !== 'credit' && body.currency === 'USD' ? 'USD' : 'IRT';
+  // A credit is in tomans, with its terms; any other account holds the currencies it lists (at
+  // least one — an older body's single `currency` counts as its list)
+  const listed = Array.isArray(body.currencies) ? body.currencies : [body.currency || 'IRT'];
+  const currencies = type === 'credit' ? ['IRT'] : CURRENCY_VALUES.filter((c) => listed.includes(c));
+  if (currencies.length === 0) return { error: 'دست‌کم یک ارز برای حساب انتخاب کنید.' };
   let credit = null;
   if (type === 'credit') {
     const terms = validateCreditTerms(body.credit, new Date().toISOString().slice(0, 10));
@@ -83,7 +113,8 @@ export function validateAccount(body = {}) {
       bankName,
       cardLast4: hasBank ? cardLast4 : '',
       accountNumber: hasBank ? accountNumber : '',
-      currency,
+      currency: currencies[0],
+      currencies,
       ...(credit ? { credit } : {}),
       notes,
       archived: Boolean(body.archived),

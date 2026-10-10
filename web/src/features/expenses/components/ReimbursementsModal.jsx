@@ -19,6 +19,7 @@ import { parseInputNumber } from '../../portfolio/utils/holdingHelpers.js';
 import { EXPENSE_LIMITS, expenseReceivable } from '../../../utils/expenseDocument.js';
 import { newReimbursement } from '../../../shared/vault/vaultExpenses.js';
 import { accountLabel } from '../../accounts/constants/accountDisplay.js';
+import { accountsForCurrency } from '../../../utils/accountDocument.js';
 import { formatAmount } from '../utils/format.js';
 
 export default function ReimbursementsModal({ expense: initial, accounts = [], onSave, onClose, readOnly = false }) {
@@ -28,6 +29,8 @@ export default function ReimbursementsModal({ expense: initial, accounts = [], o
   const unit = expense.currency === 'USD' ? 'دلار' : 'تومان';
   const money = (v) => formatAmount(v, expense.currency);
   const accountById = new Map(accounts.map((a) => [a.id, a]));
+  // Money comes back in the expense's currency: into an account that holds it
+  const payInto = accountsForCurrency(accounts, expense.currency);
   const list = expense.reimbursements || [];
 
   const [amount, setAmount] = useState(remaining > 0 ? String(remaining) : '');
@@ -144,11 +147,11 @@ export default function ReimbursementsModal({ expense: initial, accounts = [], o
               {amountNum > remaining + 1e-6 && <p className="expense-form-hint">بیشتر از مانده‌ی طلب ({money(remaining)}) است.</p>}
             </div>
 
-            {accounts.length > 0 && (
+            {payInto.length > 0 && (
               <div className="ui-input-group">
                 <span className="ui-input-label">واریز به</span>
                 <FilterPills
-                  options={[{ value: '', label: 'نامشخص / نقد' }, ...accounts.map((a) => ({ value: a.id, label: accountLabel(a) }))]}
+                  options={[{ value: '', label: 'نامشخص / نقد' }, ...payInto.map((a) => ({ value: a.id, label: accountLabel(a) }))]}
                   activeValue={accountId}
                   onChange={setAccountId}
                   size="sm"

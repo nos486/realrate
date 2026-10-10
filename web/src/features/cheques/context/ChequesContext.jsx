@@ -23,3 +23,11 @@ export function useChequesContext() {
   }
   return context;
 }
+
+// One empty list, so a memo over it outside the provider stays put
+const NONE = [];
+
+/** The cheques, or none outside a ChequesProvider (forms that only offer them as a choice) */
+export function useOptionalCheques() {
+  return useContext(ChequesContext)?.cheques || NONE;
+}

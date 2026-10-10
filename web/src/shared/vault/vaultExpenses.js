@@ -9,6 +9,8 @@
  * A dollar expense paid from a portfolio (`paidFrom`) also writes, moves or deletes its «spend»
  * transaction in that portfolio, and an expense put into an asset (`investedIn`) its «buy»
  * transaction (portfolioFunds.js): the transaction first, then the expense.
+ * The record its category links it to (a cheque, a loan installment, a subscription:
+ * utils/categoryLinks.js) is updated after it is saved or deleted (recordLinks.js).
  */
 
 import {
@@ -20,9 +22,14 @@ import {
   DAILY_GROUP_NAME,
 } from '../../utils/expenseDocument.js';
 import { sameLink } from '../../utils/portfolioLink.js';
+import { CATEGORY_LINKS } from '../../utils/categoryLinks.js';
+import { syncRecordLinks, releaseRecordLinks } from './recordLinks.js';
 import { listVaultRecords, deleteVaultRecord, putVaultRecords, VAULT_BATCH_MAX } from './vaultApi.js';
 import { putRecord, recordDateOf } from './vaultRecordMeta.js';
 import { encryptVaultRecord, decryptVaultRecord } from './vaultStore.js';
+
+/** The fields of the expense links that name a record by id (the portfolio ones always come back) */
+const ID_LINK_FIELDS = CATEGORY_LINKS.expense.filter((l) => l.target !== 'portfolio').map((l) => l.field);
 
 const GROUP_KIND = 'expense_group';
 const EXPENSE_KIND = 'expense';
@@ -114,9 +121,13 @@ export async function getExpenses(filters = {}) {
 /** Create an expense, or update it when `existing` (its stored copy) is given */
 export async function saveExpense(input, existing = null) {
   const now = new Date().toISOString();
+  const value = checked(validateExpense(existing ? { ...existing, ...input } : input));
   const expense = existing
-    ? { ...existing, ...checked(validateExpense({ ...existing, ...input })), updatedAt: now }
-    : { id: newId('exp'), ...checked(validateExpense(input)), createdAt: now, updatedAt: now };
+    ? { ...existing, ...value, updatedAt: now }
+    : { id: newId('exp'), ...value, createdAt: now, updatedAt: now };
+  // The record its category links it to (categoryLinks.js): a link its category no longer
+  // declares — or one taken off — is not kept from the stored copy
+  for (const field of ID_LINK_FIELDS) if (!(field in value)) delete expense[field];
 
   // Its portfolio entries first (moved when the portfolio changed)
   const links = LINKS.map((l) => ({ ...l, before: existing?.[l.field] || null, after: expense[l.field] || null }));
@@ -140,6 +151,7 @@ export async function saveExpense(input, existing = null) {
   for (const l of links.filter((x) => x.before && !x.after)) {
     await (await funds()).deleteLinkedTransaction(l.before).catch(() => {});
   }
+  await syncRecordLinks('expense', expense, existing);
   return { success: true, expense };
 }
 
@@ -191,6 +203,7 @@ export async function deleteExpense(expenseId, expense = null) {
   for (const { field } of LINKS) {
     if (expense?.[field]) await (await funds()).deleteLinkedTransaction(expense[field]).catch(() => {});
   }
+  await releaseRecordLinks('expense', expense);
   return { success: true };
 }
 

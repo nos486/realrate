@@ -9,9 +9,12 @@
  *   the totals: «مدیریت نقدینگی» and the like are left out by the caller).
  * - Income and expenses in dollars: each one at the dollar's rate on its own day (its stored rate
  *   first, else the price history); one without a rate is counted apart, never at today's rate.
+ * - Subscriptions: what was paid for each in the year — the expenses that name it
+ *   (`subscriptionId`), and the ones in «اینترنت و اشتراک‌ها» that name none, apart.
  */
 
 import { buildYearSeries } from '../../shared/flow/flowYear.js';
+import { SUBSCRIPTION_EXPENSE_CATEGORY } from '../../utils/subscriptionDocument.js';
 
 const num = (v) => Number(v) || 0;
 
@@ -180,12 +183,14 @@ export function summarizeCashFlow(months) {
 /**
  * What stands out in the year, as facts the page words: the best and worst month for saving,
  * the months that spent more than came in, the largest expense category's share, the share of
- * income invested, the costliest month against the monthly average. Only the ones the data holds.
+ * income invested, the costliest month against the monthly average, what subscriptions took of
+ * the expenses. Only the ones the data holds.
  * @param {{ cash: ReturnType<typeof summarizeCashFlow>, expenseYear?: { total: number, monthlyAverage: number, top: object|null, byCategory: Array<{ category: string, total: number }> }|null,
- *   invest?: { share: number|null, invested: number }|null }} input
+ *   invest?: { share: number|null, invested: number }|null,
+ *   subscriptions?: { total: number }|null }} input
  * @returns {Array<{ id: string, tone: 'good'|'bad'|'info', [key: string]: any }>}
  */
-export function reportInsights({ cash, expenseYear = null, invest = null }) {
+export function reportInsights({ cash, expenseYear = null, invest = null, subscriptions = null }) {
   const out = [];
   if (cash.best && cash.best.net > 0) out.push({ id: 'best-month', tone: 'good', month: cash.best.label, net: cash.best.net, rate: cash.best.savingsRate });
   if (cash.negativeMonths > 0) out.push({ id: 'negative-months', tone: 'bad', count: cash.negativeMonths, months: cash.months });
@@ -199,5 +204,45 @@ export function reportInsights({ cash, expenseYear = null, invest = null }) {
     out.push({ id: 'costly-month', tone: 'info', month: top.label, total: top.total, over: ((top.total - expenseYear.monthlyAverage) / expenseYear.monthlyAverage) * 100 });
   }
   if (invest && invest.share !== null && invest.invested > 0) out.push({ id: 'invested-share', tone: 'good', share: invest.share, invested: invest.invested });
+  if (subscriptions?.total > 0 && expenseYear?.total > 0) {
+    out.push({ id: 'subscriptions-share', tone: 'info', total: subscriptions.total, share: (subscriptions.total / expenseYear.total) * 100 });
+  }
   return out;
+}
+
+/**
+ * What was paid for each subscription in the year, largest first: the expenses naming it (in
+ * tomans: `amountOf`, the user's share, a dollar one at its day's rate). Payments in the
+ * subscriptions category that name none are counted apart (`unlinked`); a removed subscription's
+ * payments keep showing under «اشتراک حذف‌شده».
+ * @param {object[]} expenses the year's expenses
+ * @param {object[]} subscriptions
+ * @param {(e: object) => number} amountOf
+ * @param {{ from: string, to: string }} range inclusive YYYY-MM-DD
+ * @returns {{ rows: Array<{ id: string, name: string, count: number, total: number, last: string, removed: boolean }>,
+ *   unlinked: { count: number, total: number }, total: number, count: number }}
+ */
+export function subscriptionPayments(expenses = [], subscriptions = [], amountOf, { from, to }) {
+  const byId = new Map(subscriptions.map((s) => [s.id, s]));
+  const rows = new Map();
+  const unlinked = { count: 0, total: 0 };
+  for (const e of expenses) {
+    if (!e?.date || e.date < from || e.date > to) continue;
+    const amount = num(amountOf(e));
+    if (e.subscriptionId) {
+      const sub = byId.get(e.subscriptionId);
+      const row = rows.get(e.subscriptionId) || { id: e.subscriptionId, name: sub?.name || 'اشتراک حذف‌شده', count: 0, total: 0, last: '', removed: !sub };
+      row.count += 1;
+      row.total += amount;
+      if (e.date > row.last) row.last = e.date;
+      rows.set(e.subscriptionId, row);
+    } else if (e.category === SUBSCRIPTION_EXPENSE_CATEGORY) {
+      unlinked.count += 1;
+      unlinked.total += amount;
+    }
+  }
+  const list = [...rows.values()].sort((a, b) => b.total - a.total);
+  const total = list.reduce((sum, r) => sum + r.total, 0) + unlinked.total;
+  const count = list.reduce((sum, r) => sum + r.count, 0) + unlinked.count;
+  return { rows: list, unlinked, total, count };
 }

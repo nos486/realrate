@@ -2,7 +2,9 @@
  * useReportData.js — Everything the reports page shows for one Shamsi year, worked out once
  *
  * One download per year for each source: incomes (1 request), everyday expenses (2: the sections,
- * then the year's expenses) and the dollar's daily history (cached for the session). What was
+ * then the year's expenses) and the dollar's daily history (cached for the session). The
+ * subscriptions are the app's shared list (SubscriptionsContext): their payments are the year's
+ * expenses that name them. What was
  * invested is the expenses recorded as «سرمایه‌گذاری» — the portfolios are not read. Everything
  * is end-to-end encrypted, so the figures are worked out here, each memoized on what it reads —
  * switching tabs recomputes nothing.
@@ -23,6 +25,7 @@ import { useUsdAt } from '../market/dailyHistory.js';
 import { useIncomes } from '../incomes/hooks/useIncomes.js';
 import { incomeDollarValue } from '../incomes/utils/incomeReport.js';
 import { useDailyExpenses } from '../expenses/hooks/useDailyExpenses.js';
+import { useOptionalSubscriptions } from '../subscriptions/context/SubscriptionsContext.jsx';
 import {
   investmentPoints,
   investmentShareByMonth,
@@ -33,6 +36,7 @@ import {
   cashFlowByMonth,
   summarizeCashFlow,
   reportInsights,
+  subscriptionPayments,
 } from './reportMath.js';
 
 /**
@@ -113,9 +117,16 @@ export function useReportData(jy, throughMonth) {
     [counted, usdToman, usdAt, range],
   );
 
+  // What each subscription cost this year: its payments (the counted expenses naming it)
+  const subscriptions = useOptionalSubscriptions();
+  const subscriptionYear = useMemo(
+    () => (hasExpenses ? subscriptionPayments(counted.expenses, subscriptions, (e) => expenseInToman(e, usdToman, usdAt), range) : null),
+    [hasExpenses, counted, subscriptions, usdToman, usdAt, range],
+  );
+
   const insights = useMemo(
-    () => reportInsights({ cash, expenseYear: hasExpenses ? expenseYear : null, invest: hasExpenses ? shareYear : null }),
-    [cash, expenseYear, hasExpenses, shareYear],
+    () => reportInsights({ cash, expenseYear: hasExpenses ? expenseYear : null, invest: hasExpenses ? shareYear : null, subscriptions: subscriptionYear }),
+    [cash, expenseYear, hasExpenses, shareYear, subscriptionYear],
   );
 
   return {
@@ -133,6 +144,7 @@ export function useReportData(jy, throughMonth) {
     shareMonths,
     shareYear,
     investedIn,
+    subscriptionYear,
     dollars,
     insights,
   };

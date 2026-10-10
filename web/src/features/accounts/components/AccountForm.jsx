@@ -2,7 +2,9 @@
  * AccountForm.jsx — Modal to add or edit a money account (bank account, bank credit, cash,
  * e-wallet, ...). A bank credit takes only its limit, the debt already owed when it is added and
  * the day to count from — no bank rules: settling it and turning it into installments are
- * recorded by hand from its card (utils/creditAccount.js).
+ * recorded by hand from its card (utils/creditAccount.js). Any other account holds one or more
+ * currencies (tomans, dollars or both — e.g. a Wise account); forms then offer it only for records
+ * in a currency it holds (accountsForCurrency).
  * Mounted only while open, so its state starts from props.
  */
 
@@ -10,7 +12,7 @@ import React, { useState } from 'react';
 import { WalletCards } from 'lucide-react';
 import { AlertBanner, Button, FilterPills, Input, Modal, NumericInput } from '../../../shared/ui/index.js';
 import { BankPicker } from '../../../shared/banks/index.js';
-import { ACCOUNT_TYPES, ACCOUNT_LIMITS } from '../../../utils/accountDocument.js';
+import { ACCOUNT_TYPES, ACCOUNT_LIMITS, accountCurrencies } from '../../../utils/accountDocument.js';
 import { EXPENSE_CURRENCIES } from '../../../utils/expenseDocument.js';
 import { todayIso } from '../../../shared/utils/dates.js';
 import ShamsiDatePicker, { gregorianToShamsi, shamsiToGregorian } from '../../portfolio/components/ShamsiDatePicker.jsx';
@@ -38,7 +40,11 @@ export default function AccountForm({ account = null, onSubmit, onClose, submitt
   const [bank, setBank] = useState({ bankId: account?.bankId || '', lenderName: account?.bankName || '' });
   const [cardLast4, setCardLast4] = useState(account?.cardLast4 || '');
   const [accountNumber, setAccountNumber] = useState(account?.accountNumber || '');
-  const [currency, setCurrency] = useState(account?.currency || 'IRT');
+  const [currencies, setCurrencies] = useState(() => accountCurrencies(account));
+  // At least one stays chosen: the last one can't be turned off
+  const toggleCurrency = (value) => setCurrencies((list) => (list.includes(value)
+    ? (list.length > 1 ? list.filter((c) => c !== value) : list)
+    : CURRENCY_OPTIONS.map((o) => o.value).filter((c) => c === value || list.includes(c))));
   const [notes, setNotes] = useState(account?.notes || '');
   const [credit, setCredit] = useState(() => creditFields(account?.credit));
   const [submitError, setSubmitError] = useState('');
@@ -65,7 +71,7 @@ export default function AccountForm({ account = null, onSubmit, onClose, submitt
         bankName: isBank ? bank.lenderName : '',
         cardLast4: isBank ? cardLast4 : '',
         accountNumber: isBank ? accountNumber : '',
-        currency: isCredit ? 'IRT' : currency,
+        currencies: isCredit ? ['IRT'] : currencies,
         notes: notes.trim(),
         ...(isCredit ? {
           credit: {
@@ -151,8 +157,18 @@ export default function AccountForm({ account = null, onSubmit, onClose, submitt
           <CreditTermsFields credit={credit} setTerm={setTerm} />
         ) : (
           <div className="ui-input-group">
-            <span className="ui-input-label">ارز حساب</span>
-            <FilterPills options={CURRENCY_OPTIONS} activeValue={currency} onChange={setCurrency} size="sm" />
+            <span className="ui-input-label" id="account-currencies-label">ارزهای حساب</span>
+            <div className="ui-filter-pills variant-pills size-sm" role="group" aria-labelledby="account-currencies-label">
+              {CURRENCY_OPTIONS.map((o) => {
+                const on = currencies.includes(o.value);
+                return (
+                  <button key={o.value} type="button" className={`filter-pill-btn ${on ? 'active' : ''}`} aria-pressed={on} onClick={() => toggleCurrency(o.value)}>
+                    <span className="pill-label">{o.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="expense-form-hint">حسابی که چند ارز دارد (مثلاً تومان و دلار) را یک‌بار ثبت کنید؛ در هر فرم فقط حساب‌هایی می‌آیند که ارز همان ثبت را دارند.</p>
           </div>
         )}
 

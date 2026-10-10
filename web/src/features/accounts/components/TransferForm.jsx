@@ -15,6 +15,7 @@ import ShamsiDatePicker, {
   shamsiToGregorian,
 } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { TRANSFER_LIMITS } from '../../../utils/transferDocument.js';
+import { accountHolds } from '../../../utils/accountDocument.js';
 import { accountLabel } from '../constants/accountDisplay.js';
 
 const digitsOnly = (v) => Number(String(v || '').replace(/[^\d]/g, '')) || 0;
@@ -32,7 +33,9 @@ export default function TransferForm({ transfer = null, draft = null, accounts =
   const amountNum = digitsOnly(amount);
   const feeNum = digitsOnly(fee);
   const dateIso = shamsiToGregorian(dateShamsi);
-  const options = accounts.map((a) => ({ value: a.id, label: accountLabel(a) }));
+  // A transfer is in tomans: the accounts that hold them (and the two it already names)
+  const usable = accounts.filter((a) => accountHolds(a, 'IRT') || a.id === start.fromAccountId || a.id === start.toAccountId);
+  const options = usable.map((a) => ({ value: a.id, label: accountLabel(a) }));
   const isValid = fromAccountId && toAccountId && fromAccountId !== toAccountId && amountNum > 0 && feeNum <= amountNum && Boolean(dateIso);
 
   const handleSubmit = async (e) => {
@@ -76,8 +79,8 @@ export default function TransferForm({ transfer = null, draft = null, accounts =
       <div className="income-form-body">
         {error && <AlertBanner type="error" message={error} />}
         {note}
-        {accounts.length < 2 ? (
-          <AlertBanner type="info" message="برای ثبت انتقال، دست‌کم دو حساب در صفحه‌ی «حساب‌ها» اضافه کنید." />
+        {usable.length < 2 ? (
+          <AlertBanner type="info" message="برای ثبت انتقال (به تومان)، دست‌کم دو حساب تومانی در صفحه‌ی «حساب‌ها» لازم است." />
         ) : (
           <>
             <div className="ui-input-group">

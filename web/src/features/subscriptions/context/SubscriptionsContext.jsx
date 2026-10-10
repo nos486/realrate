@@ -25,3 +25,8 @@ export function useSubscriptionsContext() {
 export function useOptionalSubscriptions() {
   return useContext(SubscriptionsContext)?.subscriptions || NONE;
 }
+
+/** The whole subscriptions state (list and saving), or null outside the provider */
+export function useOptionalSubscriptionsContext() {
+  return useContext(SubscriptionsContext);
+}

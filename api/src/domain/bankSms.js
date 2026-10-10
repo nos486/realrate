@@ -26,6 +26,7 @@
  */
 
 import { jalaliToGregorian, gregorianToJalali } from './loanCalculator.js';
+import { accountHolds } from './accountDocument.js';
 
 /**
  * @typedef {object} BankSmsTemplate
@@ -298,7 +299,8 @@ export function smsCategoryOf(tx, rules = []) {
  * @returns {string} the account id, or ''
  */
 export function matchSmsAccount(tx, accounts = []) {
-  const ofBank = accounts.filter((a) => !a.archived && a.bankId === tx.bankId);
+  // A bank SMS is in rials: only the bank's accounts that hold tomans
+  const ofBank = accounts.filter((a) => !a.archived && a.bankId === tx.bankId && accountHolds(a, 'IRT'));
   const digitsOf = (a) => [lastDigits(a.accountNumber), String(a.cardLast4 || '')].filter(Boolean);
   const wanted = [tx.accountLast4, tx.cardLast4].filter(Boolean);
   const exact = ofBank.find((a) => digitsOf(a).some((d) => wanted.includes(d)));
