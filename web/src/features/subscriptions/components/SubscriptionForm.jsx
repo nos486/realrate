@@ -2,8 +2,8 @@
  * SubscriptionForm.jsx — Modal to add or edit a subscription: what it is, what it costs (tomans
  * or dollars) and how often, when it started (its first payment), whether it renews by itself or
  * by hand (then: until when it runs), an optional end day, the account it is paid from (only the
- * accounts holding its currency), and its reminders (utils/subscriptionDocument.js). A new one can
- * go on to record its first payment as an expense (`onSubmit`'s second argument: { recordPayment }).
+ * accounts holding its currency), and its reminders (utils/subscriptionDocument.js). Its payments
+ * are recorded in the expenses when it is saved (useSubscriptions: a new one's first payment).
  * Mounted only while open, so its state starts from props.
  */
 
@@ -16,7 +16,6 @@ import {
 } from '../../../utils/subscriptionDocument.js';
 import { accountLabel } from '../../accounts/constants/accountDisplay.js';
 import { accountsForCurrency } from '../../../utils/accountDocument.js';
-import { todayIso } from '../../../shared/utils/dates.js';
 import { subscriptionIcon } from '../constants/subscriptionDisplay.js';
 
 const CATEGORY_OPTIONS = SUBSCRIPTION_CATEGORIES.map(({ value, label }) => {
@@ -30,8 +29,7 @@ const amountOf = (v) => Number(String(v || '').replace(/[^\d.]/g, '')) || 0;
 const shamsiOf = (iso) => (iso ? gregorianToShamsi(`${iso}T00:00:00`) : '');
 
 /**
- * @param {{ subscription?: object|null, accounts?: object[],
- *   onSubmit: (input: object, options: { recordPayment: boolean }) => Promise<unknown>,
+ * @param {{ subscription?: object|null, accounts?: object[], onSubmit: (input: object) => Promise<unknown>,
  *   onClose: () => void, submitting?: boolean }} props
  */
 export default function SubscriptionForm({ subscription = null, accounts = [], onSubmit, onClose, submitting = false }) {
@@ -49,8 +47,6 @@ export default function SubscriptionForm({ subscription = null, accounts = [], o
   const [url, setUrl] = useState(s?.url || '');
   const [notes, setNotes] = useState(s?.notes || '');
   const [muted, setMuted] = useState(Boolean(s?.remindersMuted));
-  // A new subscription: record its first payment as an expense right after (on by default)
-  const [recordPayment, setRecordPayment] = useState(!s);
   const [error, setError] = useState('');
 
   const startIso = shamsiToGregorian(startShamsi);
@@ -62,8 +58,6 @@ export default function SubscriptionForm({ subscription = null, accounts = [], o
   // Paid from an account that holds its currency (the one it already names stays listed)
   const payAccounts = accountsForCurrency(accounts, currency, s?.accountId);
   const effectiveAccountId = payAccounts.some((a) => a.id === accountId) ? accountId : '';
-  // Only a payment already due: a subscription that starts later has none yet
-  const canRecordPayment = !s && Boolean(startIso) && startIso <= todayIso();
 
   const handleSubmit = async (e) => {
     e?.preventDefault?.();
@@ -85,8 +79,7 @@ export default function SubscriptionForm({ subscription = null, accounts = [], o
         notes: notes.trim(),
         remindersMuted: muted,
         status: s?.status || 'active',
-        ...(canRecordPayment && recordPayment ? { lastPaidOn: startIso } : {}),
-      }, { recordPayment: canRecordPayment && recordPayment });
+      });
       onClose();
     } catch (err) {
       setError(err.message || 'ذخیره‌ی اشتراک ممکن نشد.');
@@ -171,11 +164,8 @@ export default function SubscriptionForm({ subscription = null, accounts = [], o
         <Input id="sub-url" label="سایت (اختیاری)" placeholder="https://" value={url} dir="ltr" onChange={(e) => setUrl(e.target.value)} maxLength={SUBSCRIPTION_LIMITS.urlLength} />
         <Input id="sub-notes" as="textarea" label="یادداشت (اختیاری)" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={SUBSCRIPTION_LIMITS.notesLength} rows={2} />
 
-        {canRecordPayment && (
-          <label className="sub-form-check">
-            <input type="checkbox" checked={recordPayment} onChange={(e) => setRecordPayment(e.target.checked)} />
-            <span>پرداخت اول را هم در هزینه‌ها ثبت کن (بعد از افزودن، فرم هزینه باز می‌شود)</span>
-          </label>
+        {!s && (
+          <p className="expense-form-hint">پرداخت این اشتراک (و هر تمدید خودکارش، سر موعد) در «هزینه‌ها» ثبت می‌شود، با همین مبلغ، ارز و حساب.</p>
         )}
 
         <label className="sub-form-check">

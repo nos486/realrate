@@ -73,7 +73,8 @@ export default function SubscriptionCard({ sub, view, period, account, hideValue
         {sub.notes && <p className="sub-card-notes">{sub.notes}</p>}
       </div>
       <div className="sub-card-actions">
-        {live && sub.status === 'active' && (
+        {/* One that renews by itself records its payments as they come (useSubscriptions) */}
+        {live && sub.status === 'active' && !sub.autoRenew && (
           <Button size="sm" variant="secondary" icon={<Receipt size={14} />} onClick={() => onPay(sub, view)} disabled={readOnly}>
             ثبت پرداخت
           </Button>

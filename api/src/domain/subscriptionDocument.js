@@ -178,6 +178,45 @@ export function renewedAfter(sub, paidOn) {
   return { renewOn: renewalAt(from, sub.cycleMonths, 1), lastPaidOn: paidOn };
 }
 
+/**
+ * The payments a subscription should have recorded as expenses by `today` and hasn't — every
+ * subscription has its spending in the expenses (web/src/shared/vault/spendingRecords.js):
+ *  - none recorded yet (no `lastPaidOn`): the one that pays its current period — the last renewal
+ *    on or before today for one that renews by itself, the start of its validity for one renewed
+ *    by hand (a new subscription's first payment; never a backlog of older ones)
+ *  - one that renews by itself: then every renewal after the last one recorded, through today
+ *  - one renewed by hand: later payments are the user's («ثبت پرداخت»)
+ * Nothing for a paused or cancelled one, before its start, or on or after its end.
+ * @returns {string[]} the payment days, oldest first
+ */
+export function duePayments(sub, today) {
+  if (!sub || sub.status !== 'active' || !sub.startDate || sub.startDate > today) return [];
+  const inRun = (day) => day <= today && (!sub.endDate || day < sub.endDate);
+  if (!sub.lastPaidOn) {
+    if (!sub.autoRenew) {
+      const runsOut = sub.renewOn || renewalAt(sub.startDate, sub.cycleMonths, 1);
+      const before = computeClampedDueDate(parseDateParts(runsOut), -1, sub.cycleMonths);
+      const from = before < sub.startDate ? sub.startDate : before;
+      return inRun(from) ? [from] : [];
+    }
+    let current = '';
+    for (let k = 0; k < 2400; k++) {
+      const day = renewalAt(sub.startDate, sub.cycleMonths, k);
+      if (!inRun(day)) break;
+      current = day;
+    }
+    return current ? [current] : [];
+  }
+  if (!sub.autoRenew) return [];
+  const out = [];
+  for (let k = 0; k < 2400; k++) {
+    const day = renewalAt(sub.startDate, sub.cycleMonths, k);
+    if (!inRun(day)) break;
+    if (day > sub.lastPaidOn) out.push(day);
+  }
+  return out;
+}
+
 const daysBetween = (from, to) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 
 /**

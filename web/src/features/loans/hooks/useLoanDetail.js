@@ -1,5 +1,9 @@
 /**
  * useLoanDetail.js — Hook for single loan detail inspection and installment payments
+ *
+ * All spending is in the expenses: an installment marked paid here (and the earlier ones paid
+ * with it) and an extra payment are recorded as everyday expenses in «پرداخت قسط», and marking
+ * an installment unpaid removes its expense (shared/vault/spendingRecords.js).
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -13,6 +17,9 @@ import {
   getLoanExtraPayments as apiGetLoanExtraPayments,
 } from '../api/loanApi.js';
 import { todayIso } from '../../../shared/utils/dates.js';
+import { useFeature } from '../../../shared/features/useFeature.js';
+import { isDemoReadOnly } from '../../demo/index.js';
+import { recordInstallmentPayments, removeInstallmentPayment, recordExtraPayment } from '../../../shared/vault/spendingRecords.js';
 
 export function useLoanDetail(loanId) {
   const [loan, setLoan] = useState(null);
@@ -20,6 +27,17 @@ export function useLoanDetail(loanId) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  // Its payments go into the expenses (not without the expenses, nor in the read-only demo)
+  const recordsSpending = useFeature('expenses') && !isDemoReadOnly();
+  /** Keep the expenses in step; a failure there never undoes the loan's own change */
+  const spend = async (step) => {
+    if (!recordsSpending) return;
+    try {
+      await step();
+    } catch (err) {
+      setError(`پرداخت وام ثبت شد، ولی هزینه‌اش به‌روز نشد: ${err?.message || ''}`.trim());
+    }
+  };
 
   /**
    * Fetch extra payments list
@@ -113,6 +131,7 @@ export function useLoanDetail(loanId) {
 
       try {
         const res = await apiMarkPaid(loanId, installmentId, details);
+        await spend(() => recordInstallmentPayments(prevLoan || { id: loanId }, [res?.installment, ...(res?.cascadedInstallments || [])].filter(Boolean)));
         // Refresh to guarantee full server synchronization
         await fetchLoan();
         return res;
@@ -125,7 +144,8 @@ export function useLoanDetail(loanId) {
         setSubmitting(false);
       }
     },
-    [loanId, loan, fetchLoan]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [loanId, loan, fetchLoan, recordsSpending]
   );
 
   /**
@@ -160,6 +180,8 @@ export function useLoanDetail(loanId) {
 
       try {
         await apiUnmarkPaid(loanId, installmentId);
+        const was = prevLoan?.installments?.find((inst) => inst.id === installmentId);
+        await spend(() => removeInstallmentPayment(loanId, installmentId, was?.paidDate || ''));
         // Refresh to guarantee full server synchronization
         await fetchLoan();
       } catch (err) {
@@ -171,7 +193,8 @@ export function useLoanDetail(loanId) {
         setSubmitting(false);
       }
     },
-    [loanId, loan, fetchLoan]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [loanId, loan, fetchLoan, recordsSpending]
   );
 
   /**
@@ -215,6 +238,7 @@ export function useLoanDetail(loanId) {
 
       try {
         const res = await apiAddLoanExtraPayment(loanId, paymentData);
+        await spend(() => recordExtraPayment(loan || { id: loanId }, res?.extraPayment || paymentData));
         await fetchLoan();
         return res;
       } catch (err) {
@@ -224,7 +248,8 @@ export function useLoanDetail(loanId) {
         setSubmitting(false);
       }
     },
-    [loanId, fetchLoan]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [loanId, loan, fetchLoan, recordsSpending]
   );
 
   return {

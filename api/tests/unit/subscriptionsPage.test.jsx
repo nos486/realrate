@@ -103,34 +103,17 @@ describe('the subscriptions page', () => {
     // Moving the subscription on is the store's, on save (recordLinks.test.js)
   });
 
-  it('a dollar subscription is paid in dollars', async () => {
+  it('one that renews by itself has no «ثبت پرداخت»: its renewals are recorded as they come', () => {
     store.subscriptions = [chatgpt];
     render(<SubscriptionsPage />);
-    fireEvent.click(screen.getByText('ثبت پرداخت'));
-    fireEvent.submit(document.querySelector('form'));
-    await waitFor(() => expect(store.saveExpense).toHaveBeenCalled());
-    expect(store.saveExpense.mock.calls[0][0]).toMatchObject({ subscriptionId: 'sub_a', currency: 'USD', amount: 20, title: 'ChatGPT' });
+    expect(screen.queryByText('ثبت پرداخت')).toBeNull();
   });
 
-  it('a new subscription can go straight on to its first payment, on its start day', async () => {
+  it('a new subscription says its payment goes into the expenses', () => {
     store.subscriptions = [];
-    store.saveSubscription.mockImplementationOnce(async (input) => ({ id: 'sub_new', ...input }));
     render(<SubscriptionsPage />);
     fireEvent.click(screen.getAllByText('اشتراک جدید')[0]);
-    fireEvent.change(document.querySelector('#sub-name'), { target: { value: 'Spotify' } });
-    fireEvent.change(document.querySelector('#sub-amount'), { target: { value: '150000' } });
-    // Started today (16 Bahman 1404 = 2026-02-05)
-    const start = screen.getByText('شروع (اولین پرداخت) *').closest('.date-picker-field').querySelector('input[type="text"]');
-    fireEvent.change(start, { target: { value: '1404/11/16' } });
-    expect(screen.getByText(/پرداخت اول را هم در هزینه‌ها ثبت کن/)).toBeTruthy();
-    fireEvent.submit(document.querySelector('#sub-name').closest('form'));
-    await waitFor(() => expect(store.saveSubscription).toHaveBeenCalled());
-    // Saved as paid through its start, so its first payment doesn't move it on
-    expect(store.saveSubscription.mock.calls[0][0]).toMatchObject({ name: 'Spotify', startDate: '2026-02-05', lastPaidOn: '2026-02-05' });
-    await waitFor(() => expect(screen.getByText('ثبت هزینه روزمره')).toBeTruthy());
-    fireEvent.submit(screen.getByText('ثبت هزینه روزمره').closest('form') || document.querySelector('form'));
-    await waitFor(() => expect(store.saveExpense).toHaveBeenCalled());
-    expect(store.saveExpense.mock.calls[0][0]).toMatchObject({ subscriptionId: 'sub_new', title: 'Spotify', amount: 150_000, date: '2026-02-05' });
+    expect(screen.getByText(/در «هزینه‌ها» ثبت می‌شود/)).toBeTruthy();
   });
 
   it('adds a subscription from the form', async () => {
