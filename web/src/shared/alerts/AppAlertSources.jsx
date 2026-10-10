@@ -17,6 +17,7 @@ import { useLoansContext } from '../../features/loans/context/LoansContext.jsx';
 import { useChequesContext } from '../../features/cheques/context/ChequesContext.jsx';
 import { useOptionalSubscriptions } from '../../features/subscriptions/context/SubscriptionsContext.jsx';
 import { usePricing } from '../../features/market/context/PricingContext.jsx';
+import { useFxRates } from '../../features/market/useFxRates.js';
 import { useAppUpdate } from '../native/useAppUpdate.js';
 import { hasUpdate } from '../native/appUpdate.js';
 import { isNativeApp } from '../native/nativeApp.js';
@@ -43,7 +44,9 @@ export default function AppAlertSources({ announcement = '' }) {
   const today = todayIso();
   useAlertSource('loan', useMemo(() => loanAlerts(loans, today), [loans, today]));
   useAlertSource('cheque', useMemo(() => chequeAlerts(cheques, today), [cheques, today]));
-  useAlertSource('subscription', useMemo(() => subscriptionAlerts(subscriptions, today, { usdToman }), [subscriptions, today, usdToman]));
+  // Today's rates of the other currencies (the price book's)
+  const fx = useFxRates(undefined, false);
+  useAlertSource('subscription', useMemo(() => subscriptionAlerts(subscriptions, today, { usdToman, ...fx }), [subscriptions, today, usdToman, fx]));
   useAlertSource('app', hasUpdate(update) ? [{
     id: `app:update:${update.release.version}`,
     source: 'app',

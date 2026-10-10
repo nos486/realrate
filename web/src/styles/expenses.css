@@ -1355,3 +1355,16 @@ tr.is-excluded td,
   align-items: center;
   gap: 4px;
 }
+
+/* An account's spending this month: a line per currency, about how much in tomans under them */
+.account-card-spent {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.account-card-spent small {
+  color: var(--text-muted);
+  font-size: 11px;
+}

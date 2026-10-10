@@ -18,6 +18,7 @@ import * as expensesApi from '../../shared/vault/vaultExpenses.js';
 import { getIncomes } from '../incomes/api/incomeApi.js';
 import { getTransfers } from '../../shared/vault/vaultTransfers.js';
 import { expensePaidInToman } from '../../utils/expenseDocument.js';
+import { isForeignCurrency } from '../../utils/currencies.js';
 
 /** How far back a share coming back may point (the expense's own day) */
 const SHARE_LOOKBACK_DAYS = 365;
@@ -53,7 +54,7 @@ export async function findRecorded(pending) {
     }
     for (const r of e.reimbursements || []) {
       if (r.smsKey) recordedKeys.add(r.smsKey);
-      else if (e.currency !== 'USD') sameDay.add(sameDayKey('credit', r.date, r.amount));
+      else if (!isForeignCurrency(e.currency)) sameDay.add(sameDayKey('credit', r.date, r.amount));
     }
   }
   for (const i of incomes) {

@@ -4,7 +4,7 @@
  *
  * A subscription is one end-to-end encrypted vault record ("subscription"):
  *
- *   { id, name, category, amount, currency: 'IRT'|'USD', cycleMonths: 1|3|6|12, startDate,
+ *   { id, name, category, amount, currency (currencies.js), cycleMonths: 1|3|6|12, startDate,
  *     endDate?, autoRenew, renewOn?, status: 'active'|'paused'|'cancelled', cancelledOn?,
  *     accountId?, url?, notes?, remindersMuted, lastPaidOn?, createdAt, updatedAt }
  *
@@ -27,6 +27,7 @@
 
 import { computeClampedDueDate, parseDateParts } from './loanCalculator.js';
 import { isValidIsoDate } from './isoDate.js';
+import { CURRENCY_CODES, normalizeCurrency, currencyRateToday } from './currencies.js';
 
 /** How often a subscription renews (months between payments) */
 export const SUBSCRIPTION_CYCLES = [
@@ -94,7 +95,7 @@ export function validateSubscription(body = {}) {
 
   const amount = Math.round(num(body.amount) * 100) / 100;
   if (!Number.isFinite(amount) || amount <= 0 || amount > SUBSCRIPTION_LIMITS.maxAmount) return { error: 'هزینه‌ی اشتراک باید عددی مثبت باشد.' };
-  const currency = body.currency === 'USD' ? 'USD' : 'IRT';
+  const currency = normalizeCurrency(body.currency);
 
   const cycleMonths = Number(body.cycleMonths);
   if (!CYCLE_MONTHS.has(cycleMonths)) return { error: 'دوره‌ی تمدید نامعتبر است.' };
@@ -280,26 +281,30 @@ export function subscriptionPeriod(sub, today) {
 
 /**
  * The totals of what is running: a monthly equivalent per currency and in tomans, a year of it,
- * and what renews in [monthFrom, monthTo] (a Shamsi month)
+ * and what renews in [monthFrom, monthTo] (a Shamsi month). Foreign amounts are in tomans at
+ * today's rate (the rates bag, currencies.js).
  * @param {object[]} subs
- * @param {{ today: string, usdToman?: number, monthFrom?: string, monthTo?: string }} options
- * @returns {{ count: number, monthly: { IRT: number, USD: number, toman: number }, yearly: { IRT: number, USD: number, toman: number },
- *   month: { count: number, IRT: number, USD: number, toman: number }, byCategory: { category: string, toman: number, count: number }[] }}
+ * @param {{ today: string, usdToman?: number, rateToday?: Function, monthFrom?: string, monthTo?: string }} options
+ * @returns {{ count: number, monthly: Totals, yearly: Totals, month: Totals & { count: number },
+ *   byCategory: { category: string, toman: number, count: number }[] }}
+ *   Totals: `toman`, and the amount in each currency by its code (IRT, USD, EUR, ...)
  */
-export function subscriptionTotals(subs = [], { today, usdToman = 0, monthFrom = '', monthTo = '' } = {}) {
-  const toToman = (amount, currency) => (currency === 'USD' ? amount * usdToman : amount);
-  const monthly = { IRT: 0, USD: 0, toman: 0 };
-  const month = { count: 0, IRT: 0, USD: 0, toman: 0 };
+export function subscriptionTotals(subs = [], { today, monthFrom = '', monthTo = '', ...rates } = {}) {
+  const toToman = (amount, currency) => amount * currencyRateToday(currency, rates);
+  const empty = () => ({ ...Object.fromEntries(CURRENCY_CODES.map((c) => [c, 0])), toman: 0 });
+  const monthly = empty();
+  const month = { count: 0, ...empty() };
   const byCategory = new Map();
   let count = 0;
   for (const sub of subs) {
     const view = subscriptionView(sub, today);
     if (!view.running) continue;
     count++;
-    monthly[sub.currency] += view.monthly;
-    monthly.toman += toToman(view.monthly, sub.currency);
+    const currency = normalizeCurrency(sub.currency);
+    monthly[currency] += view.monthly;
+    monthly.toman += toToman(view.monthly, currency);
     const cat = byCategory.get(sub.category) || { category: sub.category, toman: 0, count: 0 };
-    cat.toman += toToman(view.monthly, sub.currency);
+    cat.toman += toToman(view.monthly, currency);
     cat.count++;
     byCategory.set(sub.category, cat);
     if (monthFrom && monthTo) {
@@ -307,15 +312,15 @@ export function subscriptionTotals(subs = [], { today, usdToman = 0, monthFrom =
         ? renewalsBetween(sub, monthFrom, monthTo)
         : (sub.renewOn >= monthFrom && sub.renewOn <= monthTo ? [sub.renewOn] : []);
       month.count += renewals.length;
-      month[sub.currency] += renewals.length * sub.amount;
-      month.toman += renewals.length * toToman(sub.amount, sub.currency);
+      month[currency] += renewals.length * sub.amount;
+      month.toman += renewals.length * toToman(sub.amount, currency);
     }
   }
   const year = (v) => v * 12;
   return {
     count,
     monthly,
-    yearly: { IRT: year(monthly.IRT), USD: year(monthly.USD), toman: year(monthly.toman) },
+    yearly: Object.fromEntries(Object.entries(monthly).map(([k, v]) => [k, year(v)])),
     month,
     byCategory: [...byCategory.values()].sort((a, b) => b.toman - a.toman),
   };

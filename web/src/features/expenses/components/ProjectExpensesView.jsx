@@ -13,6 +13,7 @@ import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
 import { expenseCsvHeaders, expenseCsvRow } from '../utils/expenseCsv.js';
 import React, { useMemo, useState } from 'react';
 import { useUsdAt } from '../../market/dailyHistory.js';
+import { useFxRates } from '../../market/useFxRates.js';
 import { HandCoins, Plus, FolderKanban, Pencil, Trash2 } from 'lucide-react';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import {
@@ -51,7 +52,8 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
   } = useExpenses();
   // The dollar's rate on each expense's day, from the price history (a project's dollar view)
   const usdAt = useUsdAt(expenses.length > 0);
-  const rates = useMemo(() => ({ usdToman, usdAt }), [usdToman, usdAt]);
+  const fx = useFxRates(expenses);
+  const rates = useMemo(() => ({ usdToman, usdAt, ...fx }), [usdToman, usdAt, fx]);
   const hideValues = usePrivacyMode();
   const { accounts } = useAccounts();
   const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
@@ -268,7 +270,7 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
                       headers={CSV_HEADERS}
                       fileBaseName={`هزینه‌های-${selected.name}`}
                       disabled={listed.length === 0}
-                      mapRow={(e) => expenseCsvRow(e, { withCategory: true, usdToman, usdAt, accountById, loanById })}
+                      mapRow={(e) => expenseCsvRow(e, { withCategory: true, rates, accountById, loanById })}
                     />
                     <Button
                       icon={<Plus size={16} />}
@@ -294,8 +296,7 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
                     <>
                       <ExpensesTable
                         expenses={listRows}
-                        usdToman={usdToman}
-                        usdAt={usdAt}
+                        rates={rates}
                         onEdit={(expense) => setExpenseForm({ expense })}
                         onDelete={handleDeleteExpense}
                         onReimburse={setReimburse}

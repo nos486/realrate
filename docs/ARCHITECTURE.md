@@ -246,6 +246,19 @@ asset's profit or loss in dollars (each purchase at its day's rate, valued today
 A new "as of its date" view follows the same rule: read the history by the record's date, don't
 add a stored price.
 
+**Currencies** (`api/src/domain/currencies.js`): tomans, dollars, euros, lira, dirhams — one table
+(code, name, adjective, the price book id of its toman rate, decimals); a new currency is a row,
+and nothing branches on a code except the dollar, which is also the reference of every «≈ X دلار»
+view. Converting money takes one **rates bag**: `usdToman` / `usdAt(date)` for the dollar (as
+above) and `rateToday(code)` / `rateAt(code, date)` for the others — built by a screen as
+`{ usdToman, usdAt, ...useFxRates(records) }` (`web/src/features/market/useFxRates.js`: today's
+rate from the price book, a past day's from that currency's daily history, loaded only for the
+currencies the records are in). `expenseCurrencyRate` gives an expense's currency rate on its day
+(its own `usdRate` / `rate`, else the history's), `expenseInToman`, `summarizeExpenses`
+(`byCurrency`, `unpriced`), `summarizeByAccount` (`byCurrency`) and `subscriptionTotals` take the
+bag. A portfolio pays a foreign expense in that currency (`PAYABLE_ASSETS`: its price book id) at
+its own rate (`expenseOwnRate`).
+
 ## 3. Feature Flags and User Groups
 
 Features are rolled out through one mechanism shared by the client and the server: a feature can be tried in production by the admin alone, opened to everyone, or opened only to some **groups** of users (e.g. "pro").

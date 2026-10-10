@@ -1,27 +1,32 @@
 /**
- * SubscriptionSummary.jsx — The subscriptions' headline figures: the monthly total (dollar ones in
- * tomans at today's rate, their dollar part below), this month's renewals, a year of it, and the
- * nearest renewal (utils/subscriptionDocument.js subscriptionTotals)
+ * SubscriptionSummary.jsx — The subscriptions' headline figures: the monthly total (foreign ones in
+ * tomans at today's rate, their part in each currency below), this month's renewals, a year of it,
+ * and the nearest renewal (utils/subscriptionDocument.js subscriptionTotals)
  */
 
 import React from 'react';
 import { CalendarSync, CalendarClock, Receipt, Repeat } from 'lucide-react';
 import { MiniCard } from '../../../shared/ui/index.js';
 import { daysLabel, formatSubscriptionAmount, shamsiDay } from '../constants/subscriptionDisplay.js';
+import { currencyAmounts, currencyLabel, currencyRateToday, formatCurrencyAmounts } from '../../../utils/currencies.js';
 
 const fa = (n) => Number(n).toLocaleString('fa-IR');
 const toman = (v) => Math.round(v).toLocaleString('fa-IR');
 
 /**
  * @param {{ totals: object, monthLabel: string, nearest?: { sub: object, view: object }|null,
- *   usdMissing?: boolean, hideValues?: boolean }} props
+ *   rates?: object, hideValues?: boolean }} props — rates: today's (utils/currencies.js), to say
+ *   which currency has none
  */
-export default function SubscriptionSummary({ totals, monthLabel, nearest, usdMissing, hideValues }) {
+export default function SubscriptionSummary({ totals, monthLabel, nearest, rates = {}, hideValues }) {
   const money = (v) => (hideValues ? '****' : toman(v));
-  const usdPart = totals.monthly.USD > 0 && (
+  // Its foreign part, in each currency as priced
+  const foreign = Object.fromEntries(currencyAmounts(totals.monthly).filter((c) => c.code !== 'IRT').map((c) => [c.code, c.amount]));
+  const missing = Object.keys(foreign).filter((code) => !currencyRateToday(code, rates));
+  const foreignPart = Object.keys(foreign).length > 0 && (
     <span>
-      {hideValues ? '****' : formatSubscriptionAmount(totals.monthly.USD, 'USD')} از آن دلاری
-      {usdMissing ? ' (نرخ دلار در دسترس نیست)' : ''}
+      {hideValues ? '****' : formatCurrencyAmounts(foreign)} از آن ارزی
+      {missing.length > 0 ? ` (نرخ ${missing.map(currencyLabel).join(' و ')} در دسترس نیست)` : ''}
     </span>
   );
   return (
@@ -33,7 +38,7 @@ export default function SubscriptionSummary({ totals, monthLabel, nearest, usdMi
         unit="تومان"
         color="gold"
         className="incomes-summary-card is-primary"
-        footer={usdPart || <span>{fa(totals.count)} اشتراک فعال</span>}
+        footer={foreignPart || <span>{fa(totals.count)} اشتراک فعال</span>}
       />
       <MiniCard
         icon={<Receipt size={14} />}

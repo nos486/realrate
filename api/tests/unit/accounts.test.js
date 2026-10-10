@@ -51,7 +51,8 @@ describe('validateAccount', () => {
 
 describe('accounts in several currencies', () => {
   it('keeps the currencies an account holds, in the app\'s order, and the first as `currency`', () => {
-    expect(validateAccount({ name: 'وایز', type: 'bank', currencies: ['USD', 'IRT', 'EUR'] }).value).toMatchObject({ currencies: ['IRT', 'USD'], currency: 'IRT' });
+    expect(validateAccount({ name: 'وایز', type: 'bank', currencies: ['TRY', 'USD', 'IRT', 'XYZ', 'EUR'] }).value).toMatchObject({ currencies: ['IRT', 'USD', 'EUR', 'TRY'], currency: 'IRT' });
+    expect(validateAccount({ name: 'امارات', type: 'bank', currencies: ['AED'] }).value).toMatchObject({ currencies: ['AED'], currency: 'AED' });
     expect(validateAccount({ name: 'دلاری', type: 'cash', currencies: ['USD'] }).value).toMatchObject({ currencies: ['USD'], currency: 'USD' });
     // An older body's single currency, or none (tomans)
     expect(validateAccount({ name: 'قدیمی', type: 'cash', currency: 'USD' }).value.currencies).toEqual(['USD']);
@@ -90,8 +91,8 @@ describe('expenses with accounts and budgets', () => {
 
   it('totals per account', () => {
     expect(summarizeByAccount([{ ...base, accountId: 'a' }, { ...base, amount: 50 }, { ...base, accountId: 'a' }])).toEqual([
-      { accountId: 'a', totalToman: 200, count: 2 },
-      { accountId: '', totalToman: 50, count: 1 },
+      { accountId: 'a', totalToman: 200, byCurrency: { IRT: 200 }, count: 2 },
+      { accountId: '', totalToman: 50, byCurrency: { IRT: 50 }, count: 1 },
     ]);
   });
 

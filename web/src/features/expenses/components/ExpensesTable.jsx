@@ -16,7 +16,10 @@ import { Calendar, FolderInput, FolderOpen, HandCoins, Landmark, MessageSquare, 
 import { ResponsiveDataTable } from '../../../shared/ui/index.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { formatAmount } from '../utils/format.js';
-import { expenseInToman, isSharedExpense, expenseReceivable, expenseDollarValue, expenseDayRate } from '../../../utils/expenseDocument.js';
+import {
+  expenseInToman, isSharedExpense, expenseReceivable, expenseDollarValue, expenseDayRate, expenseCurrencyRate, expenseOwnRate,
+} from '../../../utils/expenseDocument.js';
+import { currencyLabel, isForeignCurrency } from '../../../utils/currencies.js';
 import { getExpenseCategory } from '../constants/expenseCategories.js';
 import { accountLabel } from '../../accounts/constants/accountDisplay.js';
 import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
@@ -45,9 +48,8 @@ function ShareStatus({ expense, hideValues, onClick }) {
 
 export default function ExpensesTable({
   expenses,
-  usdToman = 0,
-  // The dollar's rate on a date (price history, features/market/dailyHistory.js)
-  usdAt = null,
+  // The rates bag (utils/currencies.js: today's rates and the rates on a date, price history)
+  rates = {},
   onEdit,
   onDelete,
   onReimburse = null,
@@ -152,28 +154,29 @@ export default function ExpensesTable({
       header: 'مبلغ',
       mobile: 'stat',
       render: (e) => {
-        const isUsd = e.currency === 'USD';
-        const inToman = isUsd ? expenseInToman(e, usdToman, usdAt) : null;
-        const dayRate = isUsd ? expenseDayRate(e, usdAt) : 0;
+        const foreign = isForeignCurrency(e.currency);
+        const inToman = foreign ? expenseInToman(e, rates) : null;
+        const dayRate = foreign ? expenseCurrencyRate(e, rates) : 0;
+        const ownRate = foreign && expenseOwnRate(e) > 0;
         return (
           <div className="cell-currency-wrap expense-amount-cell">
             <span>
               <strong className={`cell-val-bold text-loss ${hideValues ? 'is-masked' : ''}`}>
                 {hideValues ? MASK : formatAmount(e.amount, e.currency)}
               </strong>{' '}
-              <span className="cell-unit">{isUsd ? 'دلار' : 'تومان'}</span>
+              <span className="cell-unit">{currencyLabel(e.currency)}</span>
             </span>
-            {isUsd && inToman !== null && (
-              <span className="expense-toman-equiv" title={dayRate ? `نرخ دلار روز هزینه: ${formatAmount(dayRate)}${e.usdRate ? ' (ثبت‌شده)' : ''}` : 'به نرخ امروز'}>
+            {foreign && inToman !== null && (
+              <span className="expense-toman-equiv" title={dayRate ? `نرخ ${currencyLabel(e.currency)} روز هزینه: ${formatAmount(dayRate)}${ownRate ? ' (ثبت‌شده)' : ''}` : 'به نرخ امروز'}>
                 ≈ {hideValues ? MASK : formatAmount(inToman)} تومان{!dayRate && ' (نرخ امروز)'}
                 {isSharedExpense(e) && ' (سهم شما)'}
               </span>
             )}
-            {!isUsd && (
+            {!foreign && (
               <DollarValueLine
-                value={expenseDollarValue(e, usdToman, usdAt)}
+                value={expenseDollarValue(e, rates)}
                 hideValues={hideValues}
-                title={`نرخ دلار روز هزینه: ${formatAmount(expenseDayRate(e, usdAt))} تومان`}
+                title={`نرخ دلار روز هزینه: ${formatAmount(expenseDayRate(e, rates.usdAt))} تومان`}
               />
             )}
             {isSharedExpense(e) && <ShareStatus expense={e} hideValues={hideValues} onClick={onReimburse && (() => onReimburse(e))} />}

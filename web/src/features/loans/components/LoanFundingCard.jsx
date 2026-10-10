@@ -10,6 +10,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRefreshToken } from '../../../shared/refresh/pageRefresh.js';
 import { useUsdAt } from '../../market/dailyHistory.js';
+import { useFxRates } from '../../market/useFxRates.js';
 import { Wallet } from 'lucide-react';
 import { useFeature } from '../../../shared/features/useFeature.js';
 import { useVault } from '../../../shared/vault/useVault.js';
@@ -116,9 +117,10 @@ export default function LoanFundingCard({ loan, hideValues = false }) {
 
   // The dollar's rate on a dollar expense's day (one without its own), from the price history
   const usdAt = useUsdAt((data?.expenses || []).some((e) => e.loanId === loan?.id && e.currency === 'USD' && !e.usdRate));
+  const fx = useFxRates((data?.expenses || []).filter((e) => e.loanId === loan?.id));
 
   if (!data) return null;
-  const usage = summarizeLoanFunding(loan, data.expenses, { holdings: data.holdings, usdToman, usdAt });
+  const usage = summarizeLoanFunding(loan, data.expenses, { holdings: data.holdings, usdToman, usdAt, ...fx });
   const valueOf = (h) => {
     const unit = resolveHoldingUnitRealPrice(normalizeHolding(h, pricing?.itemMap), pricing?.priceMap || {});
     return unit > 0 ? (Number(h.amount) || 0) * unit : null;

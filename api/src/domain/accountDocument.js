@@ -6,14 +6,14 @@
  * account by its bank and the last four digits of its account number or card (bankSms.js).
  * A bank credit line is an account too (type 'credit', with its terms in `credit`): spending
  * from it is an expense paid from it, paying it back a transfer into it (creditAccount.js).
- * An account holds one or more currencies (`currencies`, e.g. a Wise account in tomans and
- * dollars); `currency` stays the first of them for older clients. Forms offer only the accounts
+ * An account holds one or more currencies (`currencies`, currencies.js: e.g. a Wise account in
+ * tomans, dollars and euros); `currency` stays the first of them for older clients. Forms offer only the accounts
  * that hold a record's currency (accountsForCurrency). A credit line is in tomans.
  * Shared by the browser and the API, like the other domain modules.
  */
 
 import { validateCreditTerms } from './creditAccount.js';
-import { EXPENSE_CURRENCIES } from './expenseDocument.js';
+import { CURRENCY_CODES } from './currencies.js';
 
 export const ACCOUNT_TYPES = [
   { value: 'bank', label: 'حساب بانکی' },
@@ -40,7 +40,7 @@ const asciiDigits = (v) => text(v)
 /** Types that belong to a bank (a bank, a card, an account number) */
 const BANK_TYPES = new Set(['bank', 'credit']);
 
-const CURRENCY_VALUES = EXPENSE_CURRENCIES.map((c) => c.value);
+const CURRENCY_VALUES = CURRENCY_CODES;
 
 /**
  * The currencies an account holds, in the app's order (an older record has only `currency`)

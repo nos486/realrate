@@ -2,8 +2,10 @@
  * AccountsPage.jsx — The user's money accounts: bank accounts, cash, e-wallets (beta:
  * `bank_accounts`)
  *
- * Each account is a card (bank logo, name, card's last digits) with this month's everyday
- * spending from it and what moved in and out of it between the user's own accounts; expenses pick
+ * Each account is a card (bank logo, name, card's last digits) with this month's spending from it
+ * — everyday and projects', in each currency it was paid in (a euro account's in euros) and, when
+ * that is not all tomans, about how much in tomans — and what moved in and out of it between the
+ * user's own accounts; expenses pick
  * one of them as the account they were paid from. Below the cards, «انتقال بین حساب‌ها»: money
  * moved between the user's accounts (cash management) — never an expense or an income
  * (TransferForm, utils/transferDocument.js). A bank credit's card shows its limit and debt, with
@@ -31,6 +33,10 @@ import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker
 import { useDemo } from '../../demo/index.js';
 import { useDailyExpenses } from '../../expenses/hooks/useDailyExpenses.js';
 import { formatAmount } from '../../expenses/utils/format.js';
+import { currencyAmounts, currencyLabel, formatMoney } from '../../../utils/currencies.js';
+import { usePricing } from '../../market/context/PricingContext.jsx';
+import { useUsdAt } from '../../market/dailyHistory.js';
+import { useFxRates } from '../../market/useFxRates.js';
 import { useQuickAddParam } from '../../../shared/hooks/useQuickAddParam.js';
 import { useAccounts } from '../hooks/useAccounts.js';
 import { useTransfers } from '../hooks/useTransfers.js';
@@ -50,6 +56,31 @@ const HEADER = {
   subtitle: 'حساب‌های بانکی، اعتبارها، پول نقد و کیف پول؛ منبع هزینه‌های شما',
 };
 
+/**
+ * «هزینه‌های این ماه» on an account's card: what left it in each currency it was paid in, and — when
+ * that is not tomans alone — about how much in tomans (summarizeByAccount)
+ * @param {{ spent?: { totalToman: number, byCurrency: Record<string, number> }, hideValues?: boolean }} props
+ */
+function AccountSpending({ spent, hideValues = false }) {
+  const amounts = currencyAmounts(spent?.byCurrency);
+  const tomanOnly = amounts.length === 1 && amounts[0].code === 'IRT';
+  return (
+    <div className="account-card-stat">
+      <span>هزینه‌های این ماه</span>
+      {amounts.length === 0 ? <strong>—</strong> : (
+        <span className="account-card-spent">
+          {amounts.map(({ code, amount }) => (
+            <strong key={code}>{hideValues ? `**** ${currencyLabel(code)}` : formatMoney(amount, code)}</strong>
+          ))}
+          {!tomanOnly && spent.totalToman > 0 && (
+            <small>≈ {hideValues ? '****' : formatAmount(spent.totalToman)} تومان</small>
+          )}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export default function AccountsPage() {
   const { readOnly } = useDemo();
   const { confirm } = useFeedback();
@@ -68,12 +99,17 @@ export default function AccountsPage() {
   // Each bank credit's debt, next payment and installments
   const credit = useCreditStatus(accounts);
 
-  // This month's everyday spending per account (only with the expenses feature)
+  // This month's spending per account, everyday and projects' (only with the expenses feature):
+  // in each currency as paid, and in tomans at each expense's day rate (utils/currencies.js)
   const thisMonth = useMemo(() => shamsiMonthOf(todayIso()), []);
-  const { expenses: monthExpenses } = useDailyExpenses(thisMonth, { enabled: hasExpenses });
+  const { expenses: dailyExpenses, projectExpenses = [] } = useDailyExpenses(thisMonth, { enabled: hasExpenses });
+  const monthExpenses = useMemo(() => [...dailyExpenses, ...projectExpenses], [dailyExpenses, projectExpenses]);
+  const usdToman = Number(usePricing()?.getAssetPrice?.('usd')) || 0;
+  const usdAt = useUsdAt(monthExpenses.some((e) => e.currency === 'USD' && !e.usdRate));
+  const fx = useFxRates(monthExpenses);
   const spentBy = useMemo(
-    () => new Map(summarizeByAccount(monthExpenses).map((s) => [s.accountId, s])),
-    [monthExpenses]
+    () => new Map(summarizeByAccount(monthExpenses, { usdToman, usdAt, ...fx }).map((s) => [s.accountId, s])),
+    [monthExpenses, usdToman, usdAt, fx]
   );
 
   // Transfers of the month shown (this month to start with)
@@ -259,12 +295,7 @@ export default function AccountsPage() {
                     onUndoConversion={(plan) => handleUndoConversion(account, plan)}
                   />
                 )}
-                {hasExpenses && (
-                  <div className="account-card-stat">
-                    <span>هزینه روزمره این ماه</span>
-                    <strong>{spent ? `${hideValues ? '****' : formatAmount(spent.totalToman)} تومان` : '—'}</strong>
-                  </div>
-                )}
+                {hasExpenses && <AccountSpending spent={spent} hideValues={hideValues} />}
                 {movedBy.has(account.id) && (
                   <div className="account-card-stat">
                     <span>انتقال {isThisMonth ? 'این ماه' : formatShamsiMonth(transferMonth.jy, transferMonth.jm)}</span>

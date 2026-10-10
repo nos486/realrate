@@ -2,17 +2,19 @@
  * expenseCsv.js — The columns of the expense CSV files (everyday expenses and each project)
  *
  * Everything an expense holds: what was paid and the user's own share («دنگ»), what others paid
- * back and still owe, the currency and rate (for a toman expense: what it was in dollars at the
- * day's rate and what that costs today), the account it was paid from, what funded it (a loan,
- * or a portfolio's dollars), where it was recorded from (a bank SMS) and the note.
+ * back and still owe, the currency and its rate (utils/currencies.js), the dollar's rate (for an
+ * expense not in dollars: what it was in dollars at the day's rate and what that costs today), the
+ * account it was paid from, what funded it (a loan, or a currency held in a portfolio), where it
+ * was recorded from (a bank SMS) and the note.
  */
 
-import { isSharedExpense, expenseReceivable, expenseInToman, expenseDollarValue, expenseDayRate } from '../../../utils/expenseDocument.js';
+import { isSharedExpense, expenseReceivable, expenseInToman, expenseDollarValue, expenseDayRate, expenseCurrencyRate } from '../../../utils/expenseDocument.js';
+import { currencyLabel, isForeignCurrency } from '../../../utils/currencies.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { accountLabel } from '../../accounts/constants/accountDisplay.js';
 import { getExpenseCategory } from '../constants/expenseCategories.js';
 
-const BASE = ['تاریخ', 'عنوان', 'مبلغ پرداختی', 'سهم من', 'ارز', 'نرخ دلار', 'معادل تومان (سهم من)'];
+const BASE = ['تاریخ', 'عنوان', 'مبلغ پرداختی', 'سهم من', 'ارز', 'نرخ ارز (تومان)', 'نرخ دلار', 'معادل تومان (سهم من)'];
 const REST = ['برچسب‌ها', 'معادل دلار (نرخ روز هزینه)', 'به نرخ امروز (تومان)', 'دریافت‌شده از دیگران', 'مانده طلب از دیگران', 'پرداخت از', 'تأمین از', 'ثبت از', 'یادداشت'];
 
 /** @param {{ withCategory?: boolean }} [options] with a category column (empty: a project's expense without one) */
@@ -23,10 +25,10 @@ export function expenseCsvHeaders({ withCategory = false } = {}) {
 /**
  * One expense's row
  * @param {object} e
- * @param {{ withCategory?: boolean, usdToman?: number, usdAt?: Function, accountById?: Map, loanById?: Map }} ctx
- *   usdAt: the dollar's rate on a date (price history), for the «نرخ دلار» column
+ * @param {{ withCategory?: boolean, rates?: object, accountById?: Map, loanById?: Map }} ctx
+ *   rates: the rates bag (utils/currencies.js), for the rate columns and the toman and dollar values
  */
-export function expenseCsvRow(e, { withCategory = false, usdToman = 0, usdAt = null, accountById = new Map(), loanById = new Map() } = {}) {
+export function expenseCsvRow(e, { withCategory = false, rates = {}, accountById = new Map(), loanById = new Map() } = {}) {
   const shared = isSharedExpense(e);
   const { received, remaining } = expenseReceivable(e);
   const funding = e.paidFrom?.portfolioId
@@ -39,11 +41,12 @@ export function expenseCsvRow(e, { withCategory = false, usdToman = 0, usdAt = n
     e.title,
     e.amount,
     shared ? e.myShare : e.amount,
-    e.currency === 'USD' ? 'دلار' : 'تومان',
-    expenseDayRate(e, usdAt) || '',
-    Math.round(expenseInToman(e, usdToman, usdAt) || 0),
+    currencyLabel(e.currency),
+    isForeignCurrency(e.currency) ? expenseCurrencyRate(e, rates) || '' : '',
+    expenseDayRate(e, rates.usdAt) || '',
+    Math.round(expenseInToman(e, rates) || 0),
   ];
-  const dollars = e.currency === 'USD' ? null : expenseDollarValue(e, usdToman, usdAt);
+  const dollars = e.currency === 'USD' ? null : expenseDollarValue(e, rates);
   const rest = [
     (e.tags || []).join('، '),
     dollars ? Math.round(dollars.usd * 100) / 100 : '',

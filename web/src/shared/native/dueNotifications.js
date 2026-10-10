@@ -9,6 +9,7 @@ import { reminderOf, occurrencesBetween, reminderCanBeOverdue } from '../../util
 import { isNativeApp } from './nativeApp.js';
 import { isPrivacyMode } from '../../hooks/usePrivacyMode.js';
 import { buildLoanView } from '../../utils/loanDocument.js';
+import { formatMoney } from '../../utils/currencies.js';
 
 export const DUE_NOTIF_SETTINGS_KEY = 'realrate_due_notifications_settings';
 
@@ -101,7 +102,7 @@ function buildNotificationText({ kind, title, counterparty, direction, amount, c
   const namePart = (counterparty || title || '').trim();
   let body = namePart;
   if (showAmount && amount > 0) {
-    const amountStr = currency === 'USD' ? `${faNum(amount)} دلار` : `${faNum(amount)} تومان`;
+    const amountStr = formatMoney(amount, currency);
     body = namePart ? `${namePart} — ${amountStr}` : amountStr;
   }
 

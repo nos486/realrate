@@ -16,6 +16,8 @@ import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker
 import { expenseReceivable, summarizeReceivables } from '../../../utils/expenseDocument.js';
 import * as api from '../../../shared/vault/vaultExpenses.js';
 import { formatAmount } from '../utils/format.js';
+import { currencyLabel } from '../../../utils/currencies.js';
+import { useFxRates } from '../../market/useFxRates.js';
 import ReimbursementsModal from './ReimbursementsModal.jsx';
 import { useOpenShares } from '../hooks/useOpenShares.js';
 
@@ -24,7 +26,7 @@ export function OpenSharesList({ expenses, onPick, amountLimit = null, hideValue
     <ul className="loan-deposit-list expense-open-shares">
       {expenses.map((e) => {
         const { remaining } = expenseReceivable(e);
-        const unit = e.currency === 'USD' ? 'دلار' : 'تومان';
+        const unit = currencyLabel(e.currency);
         const tooMuch = amountLimit !== null && e.currency === 'IRT' && amountLimit > remaining + 1e-6;
         return (
           <li key={e.id}>
@@ -50,7 +52,8 @@ export default function OpenSharesModal({ accounts = [], usdToman = 0, hideValue
   const { loading, error, expenses, reload } = useOpenShares();
   const [selected, setSelected] = useState(null);
   const usdAt = useUsdAt((expenses || []).some((e) => e.currency === 'USD' && !e.usdRate));
-  const summary = summarizeReceivables(expenses, { usdToman, usdAt });
+  const fx = useFxRates(expenses || []);
+  const summary = summarizeReceivables(expenses, { usdToman, usdAt, ...fx });
 
   const save = async (input, existing) => {
     const { expense } = await api.saveExpense(input, existing);
