@@ -144,7 +144,7 @@ export function resolveHomeAsset(id, index, display, card = null) {
   };
   const shownIn = usdPriced && display === 'toman' && own.toman > 0 ? 'toman' : null;
   const extras = {
-    // When its source last gave it (the card says «۳۰ دقیقه پیش»)
+    // When its price last changed (the card says «۳۰ دقیقه پیش»)
     updatedAt: asset.updatedAt || null,
     ...resolveMain(asset, card?.main, shownIn),
     // Chosen slots show a dash while a value isn't there; the default ones only what they have
@@ -222,7 +222,8 @@ export function resolveFormulaCard(id, formula, index) {
     formula: { tree: parsed.tree, expr: parsed.expr, text: formatFormula(parsed.expr), format: formula.format, stats: formula.stats || null, vars },
     value,
     valueText: formatFormulaValue(value, formula.format),
-    updatedAt: times.length ? new Date(Math.min(...times)).toISOString() : null,
+    // The value moves when any of its assets does: the latest of their changes
+    updatedAt: times.length ? new Date(Math.max(...times)).toISOString() : null,
     stale: vars.some((v) => v.stale),
     staleSince: null,
     searchText: [formula.name, ...vars.map((v) => v.name)].join(' ').toLowerCase(),

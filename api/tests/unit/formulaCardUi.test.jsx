@@ -35,13 +35,13 @@ const index = buildAssetIndex({ itemMap, analysis: [] });
 const def = { name: 'درصد حباب سکه', expr: 'x/(y-x)', vars: { x: 'bubble_full_coin', y: 'full_coin' }, format: 'percent' };
 
 describe('a formula card', () => {
-  it('shows the formula\'s value and its stalest asset\'s time, with no line under it', () => {
+  it('shows the formula\'s value and when it last moved (its assets\' latest change), with no line under it', () => {
     const card = resolveFormulaCard('fx_abcd', def, index);
     const { container } = render(<HomeAssetCard asset={card} style="detailed" />);
     expect(container.querySelector('.pro-card-price-value').textContent).toBe('۱۹٫۶۵٪');
     // No line under the value (the formula and its assets are in the card's builder)
     expect(screen.queryByText(/x \/ \(y - x\)/)).toBeNull();
-    expect(screen.getByText('به‌روزرسانی ۲۰ دقیقه پیش')).toBeTruthy();
+    expect(screen.getByText('به‌روزرسانی ۵ دقیقه پیش')).toBeTruthy();
   });
 
   it('turned, draws the formula of its assets\' daily candles, fetched in one request', async () => {
