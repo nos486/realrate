@@ -10,16 +10,17 @@
  *   them and a CSV export of the month
  * - Expenses can be picked (one by one, the page's rows, or every one listed) and moved into a
  *   project (MoveToProjectModal): they leave the everyday expenses
- * - Categories left out of the totals («مدیریت نقدینگی», «سرمایه‌گذاری» by default) are listed
- *   with a badge (or hidden with «خارج از جمع») but not counted in the total, the comparison, the
- *   budgets or the donut; their own sums show in «خارج از جمع»
+ * - All spending is in this list: categories left out of the totals («مدیریت نقدینگی»,
+ *   «سرمایه‌گذاری» by default) and the projects' expenses (with their project, edited there) are
+ *   listed with a badge (or hidden with «خارج از جمع») but not counted in the total, the
+ *   comparison, the budgets or the donut; the categories' own sums show in «خارج از جمع»
  * - «دنگ»: shared expenses count only the user's share; «طلب‌های دنگ» shows the month's and opens
  *   every open one (OpenSharesModal), and each expense's «دریافتی‌ها» (ReimbursementsModal)
  */
 
 import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
 import { expenseCsvHeaders, expenseCsvRow } from '../utils/expenseCsv.js';
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useUsdAt } from '../../market/dailyHistory.js';
 import { Plus, Coins, Tags, Target, HandCoins, Eye, EyeOff, FolderInput, X } from 'lucide-react';
 import { AlertBanner, Button, EmptyState, GenericCsvExportButton, IconButton, Pagination, SearchBar, SplitPageLayout } from '../../../shared/ui/index.js';
@@ -93,7 +94,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
   // The app's "+" button: /expenses?add=expense (this view shows only once the vault is open)
   useQuickAddParam('expense', () => setForm({ expense: null }), !readOnly);
   const {
-    expenses, previousExpenses, budgets, projects, loading, submitting, deletingId, error, clearError, fetchMonth,
+    expenses, previousExpenses, projectExpenses = [], budgets, projects = [], loading, submitting, deletingId, error, clearError, fetchMonth,
     saveExpense, saveBudgets, deleteExpense, moveToProject,
   } = useDailyExpenses(month);
   // The dollar's rate on each expense's day, from the price history (each one in dollars)
@@ -118,8 +119,13 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
   const dollar = useMemo(() => summarizeDollarValue(split.counted, rates), [split, rates]);
   const byCategory = useMemo(() => summarizeByCategory(split.counted, rates), [split, rates]);
   const excludedByCategory = useMemo(() => summarizeByCategory(split.excluded, rates), [split, rates]);
-  // What the list shows: everything, or without the excluded categories
-  const shown = showExcluded ? expenses : split.counted;
+  // All spending is in the list: the projects' expenses too, left out of the totals like the
+  // excluded categories (counted only in their project)
+  const projectById = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
+  const projectOf = useCallback((e) => projectById.get(e.groupId) || null, [projectById]);
+  const hiddenCount = split.excluded.length + projectExpenses.length;
+  // What the list shows: everything, or without the excluded categories and the projects'
+  const shown = useMemo(() => (showExcluded ? [...expenses, ...projectExpenses] : split.counted), [showExcluded, expenses, projectExpenses, split]);
   const shownByCategory = useMemo(() => summarizeByCategory(shown, rates), [shown, rates]);
 
   // The month before, cut at the same day while this month is still running
@@ -189,13 +195,14 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
   });
   const togglePage = (checked) => setSelected((prev) => {
     const next = new Set(prev);
-    for (const e of listRows) {
+    for (const e of listRows.filter((row) => !projectOf(row))) {
       if (checked) next.add(e.id);
       else next.delete(e.id);
     }
     return next;
   });
-  const selection = readOnly ? null : { selected, onToggle: toggle, onToggleAll: togglePage, label: (e) => `انتخاب «${e.title}»` };
+  // A project's expense is managed in its project: it can't be picked here
+  const selection = readOnly ? null : { selected, onToggle: toggle, onToggleAll: togglePage, label: (e) => `انتخاب «${e.title}»`, canSelect: (e) => !projectOf(e) };
   const movingTotal = useMemo(() => {
     if (!moving) return 0;
     const ids = new Set(moving);
@@ -344,14 +351,14 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                   />
                 )}
                 <IconButton icon={<Tags size={15} />} label="دسته‌ها" onClick={() => setManagingCategories(true)} disabled={readOnly} />
-                {split.excluded.length > 0 && (
+                {hiddenCount > 0 && (
                   <IconButton
                     icon={showExcluded ? <Eye size={15} /> : <EyeOff size={15} />}
-                    label={showExcluded ? 'خارج از جمع: نمایش داده می‌شود' : `خارج از جمع: ${split.excluded.length.toLocaleString('fa-IR')} مورد پنهان`}
-                    title={showExcluded ? 'پنهان کردن مدیریت نقدینگی، سرمایه‌گذاری و دیگر دسته‌های خارج از جمع' : 'نمایش دسته‌های خارج از جمع'}
+                    label={showExcluded ? 'خارج از جمع: نمایش داده می‌شود' : `خارج از جمع: ${hiddenCount.toLocaleString('fa-IR')} مورد پنهان`}
+                    title={showExcluded ? 'پنهان کردن مدیریت نقدینگی، سرمایه‌گذاری، هزینه‌های پروژه‌ها و دیگر موارد خارج از جمع' : 'نمایش موارد خارج از جمع (مدیریت نقدینگی، سرمایه‌گذاری، هزینه‌های پروژه‌ها…)'}
                     active={!showExcluded}
                     pressed={!showExcluded}
-                    badge={showExcluded ? null : split.excluded.length.toLocaleString('fa-IR')}
+                    badge={showExcluded ? null : hiddenCount.toLocaleString('fa-IR')}
                     onClick={() => setShowExcluded(!showExcluded)}
                   />
                 )}
@@ -455,6 +462,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                     onSortChange={() => setOrder(order === 'desc' ? 'asc' : 'desc')}
                     selection={selection}
                     onMove={readOnly ? null : (e) => setMoving([e.id])}
+                    projectOf={projectOf}
                   />
                   <Pagination
                     page={page}

@@ -7,7 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   validateSubscription, renewalAt, renewalsBetween, renewalOnOrAfter, renewedAfter,
-  subscriptionView, subscriptionTotals, compareSubscriptions, subscriptionPeriod,
+  subscriptionView, subscriptionTotals, compareSubscriptions, subscriptionPeriod, duePayments,
 } from '../../src/domain/subscriptionDocument.js';
 import { reminderOf, reminderCanBeOverdue, occurrencesBetween, REMINDER_KINDS } from '../../src/domain/reminders.js';
 
@@ -170,5 +170,28 @@ describe('subscriptionPeriod', () => {
     expect(subscriptionPeriod(sub({ status: 'paused' }), '2026-02-05')).toBeNull();
     expect(subscriptionPeriod(sub({ status: 'cancelled' }), '2026-02-05')).toBeNull();
     expect(subscriptionPeriod(sub({ endDate: '2026-02-01' }), '2026-02-05')).toBeNull();
+  });
+});
+
+describe('duePayments', () => {
+  const auto = sub();
+  it('a new one: only the payment of its current period, never a backlog', () => {
+    expect(duePayments(auto, '2026-01-12')).toEqual(['2026-01-12']);
+    expect(duePayments(auto, '2026-04-01')).toEqual(['2026-03-13']);
+    expect(duePayments(sub({ autoRenew: false, renewOn: '2026-02-11' }), '2026-01-20')).toEqual(['2026-01-12']);
+  });
+
+  it('one that renews by itself: every renewal after the last recorded, through today', () => {
+    expect(duePayments({ ...auto, lastPaidOn: '2026-01-12' }, '2026-04-01')).toEqual(['2026-02-11', '2026-03-13']);
+    expect(duePayments({ ...auto, lastPaidOn: '2026-03-13' }, '2026-04-01')).toEqual([]);
+    // Renewed by hand: later payments are the user's
+    expect(duePayments(sub({ autoRenew: false, lastPaidOn: '2026-01-12' }), '2026-04-01')).toEqual([]);
+  });
+
+  it('nothing before its start, on or after its end, or while paused or cancelled', () => {
+    expect(duePayments(sub({ startDate: '2026-05-01' }), '2026-04-01')).toEqual([]);
+    expect(duePayments(sub({ endDate: '2026-02-11' }), '2026-04-01')).toEqual(['2026-01-12']);
+    expect(duePayments(sub({ status: 'paused' }), '2026-04-01')).toEqual([]);
+    expect(duePayments(sub({ status: 'cancelled' }), '2026-04-01')).toEqual([]);
   });
 });

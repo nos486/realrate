@@ -32,10 +32,16 @@ vi.mock('../../../web/src/shared/vault/vaultSubscriptions.js', () => ({
   getSubscriptions: async () => ({ success: true, subscriptions: mocks.subscriptions }),
   saveSubscription: mocks.saveSubscription,
 }));
-vi.mock('../../../web/src/features/incomes/api/incomeApi.js', () => ({ createIncome: mocks.createIncome, deleteIncome: mocks.deleteIncome }));
+vi.mock('../../../web/src/features/incomes/api/incomeApi.js', () => ({
+  getIncomes: async () => ({ success: true, incomes: [] }),
+  createIncome: mocks.createIncome,
+  updateIncome: vi.fn(),
+  deleteIncome: mocks.deleteIncome,
+}));
 vi.mock('../../../web/src/shared/vault/vaultExpenses.js', () => ({
   ensureDailyGroup: async () => ({ id: 'grp_daily' }),
   getExpenseGroups: async () => ({ groups: [] }),
+  getExpenses: async () => ({ success: true, expenses: [] }),
   saveExpense: mocks.saveExpense,
   deleteExpense: mocks.deleteExpense,
 }));
@@ -94,7 +100,9 @@ describe('cheque links', () => {
     const clearedOut = { ...issued, status: 'cleared' };
     expect(await settleCheque(clearedOut, { date: '2026-02-04', expenses: false })).toBeNull();
     expect(await settleCheque(clearedOut, { date: '2026-02-04' })).toBe('expense');
-    expect(mocks.saveExpense).toHaveBeenCalledWith(expect.objectContaining({ groupId: 'grp_daily', currency: 'IRT', category: 'cheques', chequeId: 'chq_out' }));
+    expect(mocks.saveExpense.mock.calls[0][0]).toMatchObject({ groupId: 'grp_daily', currency: 'IRT', category: 'cheques', chequeId: 'chq_out' });
+    // Its own id (recorded once), and saving it points the cheque back at it
+    expect(mocks.saveExpense.mock.calls[0][2]).toMatchObject({ id: expect.stringMatching(/^exp_s/), syncLinks: true });
     // Already recorded: nothing more
     expect(await settleCheque({ ...clearedIn, settlement: { side: 'income', id: 'inc_9' } }, { date: '2026-02-04' })).toBeNull();
 

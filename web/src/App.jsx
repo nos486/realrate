@@ -15,6 +15,8 @@ import { PricingProvider } from './features/market/context/PricingContext.jsx';
 import { LoansProvider } from './features/loans/context/LoansContext.jsx';
 import { ChequesProvider } from './features/cheques/context/ChequesContext.jsx';
 import { SubscriptionsProvider } from './features/subscriptions/context/SubscriptionsContext.jsx';
+// ONE-TIME: past payments into the expenses (remove with shared/vault/spendingBackfill.js)
+import SpendingBackfill from './shared/vault/SpendingBackfill.jsx';
 
 // Route-level code splitting: a visitor only downloads the page they open
 const MainPage = lazy(() => import('./pages/MainPage.jsx'));
@@ -117,6 +119,7 @@ function DueDataScope() {
     <LoansProvider>
       <ChequesProvider>
         <SubscriptionsProvider>
+          <SpendingBackfill />
           <Outlet />
         </SubscriptionsProvider>
       </ChequesProvider>

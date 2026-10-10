@@ -69,6 +69,8 @@ afterEach(() => {
   daily.expenses = [];
   daily.previousExpenses = [];
   daily.budgets = {};
+  daily.projects = [];
+  daily.projectExpenses = [];
   accountState.accounts = [];
 });
 
@@ -111,6 +113,26 @@ describe('ExpensesPage', () => {
     expect(screen.getByText('در بخش «بازسازی»')).toBeTruthy();
     fireEvent.click(screen.getAllByText('دلار').map((el) => el.closest('button')).find(Boolean));
     expect(screen.getByText(/نرخ دلار در روز هزینه/)).toBeTruthy();
+  });
+
+  it('lists the projects\' expenses with the month\'s, left out of its total and opened in their project', () => {
+    daily.expenses = [
+      { id: 'd1', groupId: 'exg_d', title: 'نان', category: 'groceries', amount: 300_000, currency: 'IRT', date: '2026-09-24' },
+    ];
+    daily.projects = [{ id: 'exg_p', name: 'بازسازی', type: 'project' }];
+    daily.projectExpenses = [
+      { id: 'p1', groupId: 'exg_p', title: 'کاشی', amount: 2_000_000, currency: 'IRT', date: '2026-09-25' },
+    ];
+    renderPage();
+    // Listed with a badge and a link to its project; the month's total is the everyday ones only
+    expect(screen.getAllByText('کاشی').length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/پروژه «بازسازی»/).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: 'باز کردن پروژه «بازسازی»' })[0].getAttribute('href')).toBe('/projects/exg_p');
+    expect(screen.getAllByText((300_000).toLocaleString('fa-IR')).length).toBeGreaterThan(0);
+    // Hidden with the excluded ones
+    fireEvent.click(screen.getByRole('button', { name: /خارج از جمع: نمایش داده می‌شود/ }));
+    expect(screen.queryByText('کاشی')).toBeNull();
+    expect(screen.getByRole('button', { name: /خارج از جمع: ۱ مورد پنهان/ })).toBeTruthy();
   });
 
   it('shows the daily view by default, with the month total, categories and the comparison', () => {

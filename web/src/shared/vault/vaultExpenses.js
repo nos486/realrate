@@ -118,13 +118,20 @@ export async function getExpenses(filters = {}) {
   return { success: true, expenses };
 }
 
-/** Create an expense, or update it when `existing` (its stored copy) is given */
-export async function saveExpense(input, existing = null) {
+/**
+ * Create an expense, or update it when `existing` (its stored copy) is given
+ * @param {object} input
+ * @param {object|null} [existing]
+ * @param {{ id?: string, syncLinks?: boolean }} [options] `id`: a new expense's own id (one
+ *   recorded for another feature's spending, spendingRecords.js: the same id each time, so it is
+ *   never recorded twice); `syncLinks: false` when the record it links to was already changed
+ */
+export async function saveExpense(input, existing = null, { id = '', syncLinks = true } = {}) {
   const now = new Date().toISOString();
   const value = checked(validateExpense(existing ? { ...existing, ...input } : input));
   const expense = existing
     ? { ...existing, ...value, updatedAt: now }
-    : { id: newId('exp'), ...value, createdAt: now, updatedAt: now };
+    : { id: id || newId('exp'), ...value, createdAt: now, updatedAt: now };
   // The record its category links it to (categoryLinks.js): a link its category no longer
   // declares — or one taken off — is not kept from the stored copy
   for (const field of ID_LINK_FIELDS) if (!(field in value)) delete expense[field];
@@ -151,7 +158,7 @@ export async function saveExpense(input, existing = null) {
   for (const l of links.filter((x) => x.before && !x.after)) {
     await (await funds()).deleteLinkedTransaction(l.before).catch(() => {});
   }
-  await syncRecordLinks('expense', expense, existing);
+  if (syncLinks) await syncRecordLinks('expense', expense, existing);
   return { success: true, expense };
 }
 
@@ -198,12 +205,12 @@ export function newReimbursement(input) {
 }
 
 /** Delete an expense (and its portfolio entries: paid from a portfolio, put into an asset) */
-export async function deleteExpense(expenseId, expense = null) {
+export async function deleteExpense(expenseId, expense = null, { syncLinks = true } = {}) {
   await deleteVaultRecord(EXPENSE_KIND, expenseId);
   for (const { field } of LINKS) {
     if (expense?.[field]) await (await funds()).deleteLinkedTransaction(expense[field]).catch(() => {});
   }
-  await releaseRecordLinks('expense', expense);
+  if (syncLinks) await releaseRecordLinks('expense', expense);
   return { success: true };
 }
 

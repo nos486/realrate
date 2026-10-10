@@ -46,6 +46,7 @@ function SortIcon({ active, dir }) {
  *   or link in it) shows this under it, full width — a desktop row gets a row of its own under it,
  *   a mobile card grows. Which rows are open is kept here.
  * @param {object} [selection] - rows can be picked: { selected: Set of row keys, onToggle(row),
+ *   canSelect?(row) (a row it returns false for has no checkbox),
  *   onToggleAll(checked) for the rows shown, label(row) for the checkbox's name }. A checkbox
  *   starts each desktop row (and the header picks every row shown) and each mobile card.
  */
@@ -94,7 +95,8 @@ export default function ResponsiveDataTable({
 
   const isSelected = (row) => Boolean(selection?.selected.has(rowKey(row)));
   const selectedClass = (row) => (isSelected(row) ? 'is-selected' : '');
-  const checkbox = (row) => (
+  // A row the selection leaves out (`selection.canSelect`) has no checkbox
+  const checkbox = (row) => (selection.canSelect && !selection.canSelect(row) ? null : (
     <input
       type="checkbox"
       className="rdt-select"
@@ -102,7 +104,7 @@ export default function ResponsiveDataTable({
       onChange={() => selection.onToggle(row)}
       aria-label={selection.label ? selection.label(row) : 'انتخاب'}
     />
-  );
+  ));
   const shownSelected = selection ? rows.filter(isSelected).length : 0;
 
   if (isMobile) {

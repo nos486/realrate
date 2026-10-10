@@ -3,12 +3,14 @@
  * An expense funded by a loan («تأمین از») names the loan under its title. A shared expense
  * («دنگ») shows the user's share under the amount, and what is still owed back; «دریافتی‌ها»
  * (`onReimburse`) records what came back. Everyday expenses can be picked (`selection`) and moved
- * to a project (`onMove`).
+ * to a project (`onMove`). In the everyday list a project's expense (`projectOf`) shows its
+ * project, is left out of the totals, and is edited in its project (a link there).
  */
 
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { DollarValueLine } from '../../../shared/ui/DollarValue.jsx';
-import { Calendar, FolderInput, HandCoins, Landmark, MessageSquare, Pencil, Trash2 } from 'lucide-react';
+import { Calendar, FolderInput, FolderOpen, HandCoins, Landmark, MessageSquare, Pencil, Trash2 } from 'lucide-react';
 import { ResponsiveDataTable } from '../../../shared/ui/index.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { formatAmount } from '../utils/format.js';
@@ -61,7 +63,10 @@ export default function ExpensesTable({
   // Rows can be picked (ResponsiveDataTable's selection), and each moved to a project
   selection = null,
   onMove = null,
+  // The project an expense of the everyday list belongs to ({ id, name }), or null
+  projectOf = null,
 }) {
+  const projectFor = (e) => (projectOf ? projectOf(e) : null);
   const accountById = accounts ? new Map(accounts.map((a) => [a.id, a])) : null;
   const loans = useOptionalLoans();
   const loanTitle = (id) => (id ? loans.find((l) => l.id === id)?.title || 'وام' : '');
@@ -103,6 +108,16 @@ export default function ExpensesTable({
           header: 'دسته‌بندی',
           mobile: 'meta',
           render: (e) => {
+            const project = projectFor(e);
+            if (project) {
+              return (
+                <span className="income-category-badge expense-project-badge">
+                  <FolderOpen size={12} />
+                  پروژه «{project.name}»
+                  <span className="excluded-badge" title="فقط در جمع همان پروژه حساب می‌شود">خارج از جمع</span>
+                </span>
+              );
+            }
             const { label, Icon, color, excluded } = getExpenseCategory(e.category);
             return (
               <span className="income-category-badge" style={{ '--income-cat-color': color }}>
@@ -194,7 +209,13 @@ export default function ExpensesTable({
           key: 'actions',
           header: 'عملیات',
           mobile: 'actions',
-          render: (e) => (
+          render: (e) => (projectFor(e) ? (
+            <div className="row-actions-group">
+              <Link to={`/projects/${projectFor(e).id}`} className="btn-table-action" title="در پروژه" aria-label={`باز کردن پروژه «${projectFor(e).name}»`}>
+                <FolderOpen size={13} strokeWidth={2} />
+              </Link>
+            </div>
+          ) : (
             <div className="row-actions-group">
               {onReimburse && isSharedExpense(e) && (
                 <button type="button" className="btn-table-action" title="دریافتی‌های دنگ" onClick={() => onReimburse(e)}>
@@ -219,7 +240,7 @@ export default function ExpensesTable({
                 <Trash2 size={13} strokeWidth={2} />
               </button>
             </div>
-          ),
+          )),
         }]
       : []),
   ];
@@ -230,7 +251,7 @@ export default function ExpensesTable({
       rows={expenses}
       wrapperClassName="portfolio-table-responsive"
       tableClassName="portfolio-data-table incomes-table"
-      rowClassName={(e) => `portfolio-table-row ${showCategory && getExpenseCategory(e.category).excluded ? 'is-excluded is-excluded-row' : ''}`}
+      rowClassName={(e) => `portfolio-table-row ${showCategory && (projectFor(e) || getExpenseCategory(e.category).excluded) ? 'is-excluded is-excluded-row' : ''}`}
       sortState={sortState}
       onSortChange={onSortChange}
       selection={selection}

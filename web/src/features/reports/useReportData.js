@@ -10,7 +10,8 @@
  * switching tabs recomputes nothing.
  *
  * What counts: the categories left out of the totals (e.g. «مدیریت نقدینگی», «سرمایه‌گذاری» in
- * the expenses) are left out here too.
+ * the expenses) are left out here too — and shown apart (`apart`), with each project's spending,
+ * which counts only in its project.
  */
 
 import { useMemo } from 'react';
@@ -37,6 +38,7 @@ import {
   summarizeCashFlow,
   reportInsights,
   subscriptionPayments,
+  sumApart,
 } from './reportMath.js';
 
 /**
@@ -54,7 +56,9 @@ export function useReportData(jy, throughMonth) {
   const range = useMemo(() => shamsiYearRange(jy), [jy]);
   const month = useMemo(() => ({ jy, jm: 1 }), [jy]);
   const { incomes, loadingIncomes, error: incomeError } = useIncomes(loadWindow);
-  const { yearExpenses, loading: loadingExpenses, error: expenseError } = useDailyExpenses(month, { enabled: hasExpenses, year: true });
+  const {
+    yearExpenses, yearProjectExpenses = [], projects = [], loading: loadingExpenses, error: expenseError,
+  } = useDailyExpenses(month, { enabled: hasExpenses, year: true });
   const pricing = usePricing();
   const usdToman = Number(pricing?.getAssetPrice?.('usd')) || 0;
   const usdAt = useUsdAt(true);
@@ -117,6 +121,20 @@ export function useReportData(jy, throughMonth) {
     [counted, usdToman, usdAt, range],
   );
 
+  // Left out of the totals, shown apart: the excluded categories and each project's spending
+  const apart = useMemo(() => {
+    const projectName = new Map(projects.map((p) => [p.id, p.name]));
+    const toman = (e) => expenseInToman(e, usdToman, usdAt) || 0;
+    return {
+      expenses: hasExpenses ? sumApart(splitCounted('expense', yearExpenses).excluded, { dateOf: (e) => e.date, keyOf: (e) => e.category, amountOf: toman, range }) : [],
+      incomes: sumApart(splitCounted('income', incomes).excluded, { dateOf: (i) => i.incomeDate, keyOf: (i) => i.category, amountOf: (i) => Number(i.amount) || 0, range }),
+      projects: hasExpenses
+        ? sumApart(yearProjectExpenses, { dateOf: (e) => e.date, keyOf: (e) => e.groupId, amountOf: toman, range }).map((p) => ({ ...p, name: projectName.get(p.key) || 'پروژه' }))
+        : [],
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasExpenses, yearExpenses, yearProjectExpenses, projects, incomes, usdToman, usdAt, range, exclusionKey]);
+
   // What each subscription cost this year: its payments (the counted expenses naming it)
   const subscriptions = useOptionalSubscriptions();
   const subscriptionYear = useMemo(
@@ -145,6 +163,7 @@ export function useReportData(jy, throughMonth) {
     shareYear,
     investedIn,
     subscriptionYear,
+    apart,
     dollars,
     insights,
   };

@@ -8,7 +8,8 @@
  * - The list, soonest renewal first; a card says when it renews (or that it ran out), and offers
  *   «ثبت پرداخت»: an everyday expense in «اینترنت و اشتراک‌ها», in the subscription's currency,
  *   naming it — a subscription renewed by hand then runs a cycle longer (renewedAfter, through
- *   shared/vault/recordLinks.js); a new one can go straight on to its first payment
+ *   shared/vault/recordLinks.js). Every subscription's own payments are recorded in the expenses
+ *   as it is saved and as its renewals come (useSubscriptions)
  * - Pause / resume, cancel, edit and delete; cancelled ones are hidden unless shown
  * The figures come from utils/subscriptionDocument.js; renewal reminders are the alert center's,
  * the Android notifications' and the email digest's (shared/alerts, domain/reminders.js).
@@ -91,12 +92,8 @@ export default function SubscriptionsPage() {
   // The app's "+" button: /subscriptions?add=subscription
   useQuickAddParam('subscription', openNew, !vaultLocked && !readOnly);
 
-  // A new subscription whose first payment is to be recorded: the expense form opens on it
-  const handleSave = async (input, { recordPayment = false } = {}) => {
-    const saved = await saveSubscription(input, formState?.subscription || null);
-    if (recordPayment && saved) setPaying({ sub: saved, view: subscriptionView(saved, today), first: true });
-    return saved;
-  };
+  // Its payments go into the expenses as it is saved (useSubscriptions)
+  const handleSave = (input) => saveSubscription(input, formState?.subscription || null);
 
   const handleStatus = async (sub, status) => {
     if (status === 'cancelled') {
@@ -136,7 +133,7 @@ export default function SubscriptionsPage() {
     const sub = paying.sub;
     const group = await ensureDailyGroup((await getExpenseGroups()).groups || []);
     await saveExpense({ ...input, groupId: group.id });
-    const renews = !sub.autoRenew && !paying.first && input.subscriptionId === sub.id;
+    const renews = !sub.autoRenew && input.subscriptionId === sub.id;
     toast.success(renews ? 'پرداخت ثبت شد و اعتبار اشتراک یک دوره تمدید شد.' : 'پرداخت ثبت شد.');
   };
 
@@ -245,10 +242,8 @@ export default function SubscriptionsPage() {
             title: paying.sub.name,
             amount: paying.sub.amount,
             currency: paying.sub.currency,
-            // The day it is paid: a late renewal of one renewed by hand starts its new period then.
-            // A new subscription's first payment is on its start day, the day it was saved as
-            // paid through — so it pays its first period, without moving it on (recordLinks.js)
-            date: paying.first ? paying.sub.startDate : today,
+            // The day it is paid: a late renewal of one renewed by hand starts its new period then
+            date: today,
             category: SUBSCRIPTION_EXPENSE_CATEGORY,
             subscriptionId: paying.sub.id,
             accountId: paying.sub.accountId,

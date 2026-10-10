@@ -3,10 +3,13 @@
  * before that year, so Farvardin has a month to compare with) — or just the month and the one
  * before (`year: false`) — and every change to them
  *
- * One download per window (the server filters the daily section's records by date): with the
- * year loaded, switching months inside it fetches nothing. `expenses` / `previousExpenses` are the month shown and
- * the one before; `yearExpenses` everything loaded, for the yearly report and the charts.
- * The daily section itself is created on the first everyday expense.
+ * One download per window (the server filters the expense records by date): with the year
+ * loaded, switching months inside it fetches nothing. `expenses` / `previousExpenses` are the
+ * month shown and the one before; `yearExpenses` everything loaded, for the yearly report and the
+ * charts — the everyday ones only. All spending is in the expenses: the projects' expenses come in
+ * the same download (`projectExpenses` for the month, `yearProjectExpenses`), shown in the list
+ * but counted only in their project. The daily section itself is created on the first everyday
+ * expense.
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -33,6 +36,7 @@ export function useDailyExpenses(month, { enabled = true, year = false } = {}) {
   // The other sections (projects), read in the same request: where expenses can be moved
   const [projects, setProjects] = useState([]);
   const [expenses, setExpenses] = useState([]); // the year and the month before it
+  const [projectItems, setProjectItems] = useState([]); // the projects' expenses in the same window
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
@@ -65,11 +69,14 @@ export function useDailyExpenses(month, { enabled = true, year = false } = {}) {
       setError(null);
       const { groups } = await api.getExpenseGroups();
       const group = groups.find((g) => g.type === 'daily') || null;
-      const res = group ? await api.getExpenses({ parent: group.id, from: loadWindow.from, to: loadWindow.to }) : { expenses: [] };
+      // Every section's expenses in the window: the everyday ones, and the projects' (counted apart)
+      const res = await api.getExpenses({ from: loadWindow.from, to: loadWindow.to });
       if (!isLatest()) return;
       setDailyGroup(group);
       setProjects(groups.filter((g) => g.type !== 'daily'));
-      setExpenses(res.expenses);
+      setExpenses(res.expenses.filter((e) => group && e.groupId === group.id));
+      const projectIds = new Set(groups.filter((g) => g.type !== 'daily').map((g) => g.id));
+      setProjectItems(res.expenses.filter((e) => projectIds.has(e.groupId)));
     } catch (err) {
       if (isLatest()) setError(err.message || 'خطا در بارگذاری هزینه‌های روزمره');
     } finally {
@@ -151,6 +158,8 @@ export function useDailyExpenses(month, { enabled = true, year = false } = {}) {
       const moved = await api.moveExpenses(expensesRef.current.filter((e) => wanted.has(e.id)), group.id);
       const gone = new Set(moved.map((e) => e.id));
       setExpenses((prev) => prev.filter((e) => !gone.has(e.id)));
+      // Still in the list, now as the project's
+      setProjectItems((prev) => [...prev.filter((e) => !gone.has(e.id)), ...moved]);
       return { group, moved: moved.length };
     } finally {
       setSubmitting(false);
@@ -159,11 +168,14 @@ export function useDailyExpenses(month, { enabled = true, year = false } = {}) {
 
   const monthExpenses = useMemo(() => expenses.filter((e) => inRange(e, range)), [expenses, range]);
   const previousExpenses = useMemo(() => expenses.filter((e) => inRange(e, prevRange)), [expenses, prevRange]);
+  const projectExpenses = useMemo(() => projectItems.filter((e) => inRange(e, range)), [projectItems, range]);
 
   return {
     expenses: monthExpenses,
     previousExpenses,
     yearExpenses: expenses,
+    projectExpenses,
+    yearProjectExpenses: projectItems,
     range,
     budgets: dailyGroup?.budgets || {},
     projects,

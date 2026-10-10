@@ -11,6 +11,8 @@
  *   first, else the price history); one without a rate is counted apart, never at today's rate.
  * - Subscriptions: what was paid for each in the year — the expenses that name it
  *   (`subscriptionId`), and the ones in «اینترنت و اشتراک‌ها» that name none, apart.
+ * - What is left out of the totals, shown apart: the excluded categories of incomes and expenses
+ *   («مدیریت نقدینگی», «سرمایه‌گذاری», …) and each project's spending (sumApart).
  */
 
 import { buildYearSeries } from '../../shared/flow/flowYear.js';
@@ -245,4 +247,26 @@ export function subscriptionPayments(expenses = [], subscriptions = [], amountOf
   const total = list.reduce((sum, r) => sum + r.total, 0) + unlinked.total;
   const count = list.reduce((sum, r) => sum + r.count, 0) + unlinked.count;
   return { rows: list, unlinked, total, count };
+}
+
+/**
+ * Records summed apart by a key over a range, largest first — the year's excluded categories,
+ * each project's spending
+ * @template T
+ * @param {T[]} records
+ * @param {{ dateOf: (r: T) => string, keyOf: (r: T) => string, amountOf: (r: T) => number, range: { from: string, to: string } }} how
+ * @returns {Array<{ key: string, total: number, count: number }>}
+ */
+export function sumApart(records = [], { dateOf, keyOf, amountOf, range }) {
+  const byKey = new Map();
+  for (const r of records) {
+    const date = dateOf(r);
+    if (!date || date < range.from || date > range.to) continue;
+    const key = keyOf(r);
+    const entry = byKey.get(key) || { key, total: 0, count: 0 };
+    entry.total += num(amountOf(r));
+    entry.count += 1;
+    byKey.set(key, entry);
+  }
+  return [...byKey.values()].sort((a, b) => b.total - a.total);
 }
