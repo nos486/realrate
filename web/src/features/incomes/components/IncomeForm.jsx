@@ -4,9 +4,10 @@
  * An income's category may link it to a record (utils/categoryLinks.js), picked right under the
  * category (CategoryLinkField): «فروش دارایی» what was sold out of a portfolio («کم کردن از
  * پورتفو»: the asset and its quantity — a «sell» there at the income's tomans, `soldFrom`),
- * «تسویه بدهی اعتباری» the bank credit whose debt it pays (`creditAccountId`, utils/creditAccount.js),
- * «وصول چک» the received cheque it cashed (`chequeId`: saving clears the cheque,
- * shared/vault/recordLinks.js). A choice fills in what it knows (title, amount).
+ * «تسویه بدهی اعتباری» the bank credit whose debt it pays (`creditAccountId`, utils/creditAccount.js).
+ * A choice fills in what it knows (title, amount).
+ * «دریافت با چک»: an income of any category may come with one of the user's received cheques
+ * (`chequeId`: saving clears the cheque, shared/vault/recordLinks.js).
  * A new income in «مدیریت نقدینگی» offers to record it as a transfer between the user's accounts
  * instead (`onCashMove`, CashMoveNotice).
  *
@@ -28,6 +29,7 @@ import { useCategories } from '../../../shared/categories/useCategories.js';
 import CategoryManagerModal from '../../../shared/categories/CategoryManagerModal.jsx';
 import CategoryLinkField from '../../../shared/links/CategoryLinkField.jsx';
 import { linkValueOf } from '../../../shared/links/linkValues.js';
+import ChequeLinkPicker from '../../cheques/components/ChequeLinkPicker.jsx';
 import { categoryLinkOf } from '../../../utils/categoryLinks.js';
 import { isLinkComplete } from '../../../utils/portfolioLink.js';
 import { newLinkTxId } from '../../../shared/vault/portfolioFunds.js';
@@ -72,6 +74,9 @@ export default function IncomeForm({
   const selling = link?.target === 'portfolio' && Boolean(linkValue);
   // «تسویه بدهی اعتباری»: the credit it pays is required
   const settling = link?.target === 'credit_account';
+  // «دریافت با چک»: the received cheque it came with (any category)
+  const [withCheque, setWithCheque] = useState(Boolean(source?.chequeId));
+  const [chequeId, setChequeId] = useState(source?.chequeId || '');
   const fill = (fields) => {
     if (editingIncome) return;
     if (fields.title && !title.trim()) setTitle(fields.title);
@@ -101,7 +106,7 @@ export default function IncomeForm({
         notes: notes.trim(),
         // Only its category's link (the store drops the others too)
         creditAccountId: settling ? linkValue : '',
-        chequeId: link?.target === 'cheque' ? linkValue || '' : '',
+        chequeId: withCheque ? chequeId : '',
         soldFrom: selling
           ? {
             portfolioId: linkValue.portfolioId,
@@ -192,6 +197,19 @@ export default function IncomeForm({
             />
           </div>
         </div>
+
+        <div className="ui-input-group">
+          <span className="ui-input-label">دریافت با</span>
+          <FilterPills
+            options={[{ value: 'other', label: 'واریز یا نقد' }, { value: 'cheque', label: 'چک' }]}
+            activeValue={withCheque ? 'cheque' : 'other'}
+            onChange={(v) => setWithCheque(v === 'cheque')}
+            size="sm"
+          />
+        </div>
+        {withCheque && (
+          <ChequeLinkPicker side="income" value={chequeId} onChange={setChequeId} onFill={fill} recordId={editingIncome?.id || ''} />
+        )}
 
         <ShamsiDatePicker
           label="تاریخ دریافت *"

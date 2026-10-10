@@ -54,7 +54,7 @@ const issued = {
   id: 'chq_out', direction: 'issued', status: 'pending', amount: 5_000_000, dueDate: '2026-02-01', counterparty: 'علی',
   history: [{ status: 'pending', date: '2026-01-01', note: '' }], settlement: null,
 };
-const received = { ...issued, id: 'chq_in', direction: 'received', counterparty: 'شرکت' };
+const received = { ...issued, id: 'chq_in', direction: 'received', counterparty: 'شرکت', category: 'freelance' };
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
 beforeEach(() => {
@@ -65,7 +65,7 @@ beforeEach(() => {
 
 describe('cheque links', () => {
   it('an expense paying an issued cheque clears it on its day and points it back at the expense', async () => {
-    await syncRecordLinks('expense', { id: 'exp_1', category: 'cheques', chequeId: 'chq_out', date: '2026-02-03', amount: 5_000_000 }, null);
+    await syncRecordLinks('expense', { id: 'exp_1', category: 'housing', chequeId: 'chq_out', date: '2026-02-03', amount: 5_000_000 }, null);
     expect(mocks.updateCheque).toHaveBeenCalledTimes(1);
     const [id, input] = mocks.updateCheque.mock.calls[0];
     expect(id).toBe('chq_out');
@@ -76,15 +76,15 @@ describe('cheque links', () => {
   });
 
   it('never links a cheque of the other direction', async () => {
-    await syncRecordLinks('income', { id: 'inc_1', category: 'cheques', chequeId: 'chq_out', incomeDate: '2026-02-03' }, null);
+    await syncRecordLinks('income', { id: 'inc_1', category: 'salary', chequeId: 'chq_out', incomeDate: '2026-02-03' }, null);
     expect(mocks.updateCheque).not.toHaveBeenCalled();
   });
 
   it('unlinking or deleting the record puts the cheque back where it was', async () => {
     const cleared = { ...received, status: 'cleared', settlement: { side: 'income', id: 'inc_1' }, history: [...received.history, { status: 'cleared', date: '2026-02-03', note: '' }] };
     mocks.cheques = [cleared];
-    const income = { id: 'inc_1', category: 'cheques', chequeId: 'chq_in', incomeDate: '2026-02-03' };
-    await syncRecordLinks('income', { ...income, category: 'salary', chequeId: '' }, income);
+    const income = { id: 'inc_1', category: 'freelance', chequeId: 'chq_in', incomeDate: '2026-02-03' };
+    await syncRecordLinks('income', { ...income, chequeId: '' }, income);
     expect(mocks.updateCheque.mock.calls[0][1]).toMatchObject({ status: 'pending', settlement: null });
 
     mocks.updateCheque.mockClear();
@@ -95,12 +95,14 @@ describe('cheque links', () => {
   it('a cheque cleared on the cheques page records its money once, and taking it back removes it', async () => {
     const clearedIn = { ...received, status: 'cleared' };
     expect(await settleCheque(clearedIn, { date: '2026-02-04' })).toBe('income');
-    expect(mocks.createIncome).toHaveBeenCalledWith(expect.objectContaining({ amount: 5_000_000, incomeDate: '2026-02-04', category: 'cheques', chequeId: 'chq_in' }));
+    // Of the cheque's own category (a cheque is a way of paying)
+    expect(mocks.createIncome).toHaveBeenCalledWith(expect.objectContaining({ amount: 5_000_000, incomeDate: '2026-02-04', category: 'freelance', chequeId: 'chq_in' }));
 
-    const clearedOut = { ...issued, status: 'cleared' };
+    const clearedOut = { ...issued, status: 'cleared', accountId: 'acc_1' };
     expect(await settleCheque(clearedOut, { date: '2026-02-04', expenses: false })).toBeNull();
     expect(await settleCheque(clearedOut, { date: '2026-02-04' })).toBe('expense');
-    expect(mocks.saveExpense.mock.calls[0][0]).toMatchObject({ groupId: 'grp_daily', currency: 'IRT', category: 'cheques', chequeId: 'chq_out' });
+    // No category of its own: «سایر»; from its account
+    expect(mocks.saveExpense.mock.calls[0][0]).toMatchObject({ groupId: 'grp_daily', currency: 'IRT', category: 'other', chequeId: 'chq_out', accountId: 'acc_1' });
     // Its own id (recorded once), and saving it points the cheque back at it
     expect(mocks.saveExpense.mock.calls[0][2]).toMatchObject({ id: expect.stringMatching(/^exp_s/), syncLinks: true });
     // Already recorded: nothing more

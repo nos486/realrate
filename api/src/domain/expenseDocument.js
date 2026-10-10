@@ -20,7 +20,8 @@
  * whether it was funded by a loan (`loanId`, «تأمین از»; empty for the user's own money — see
  * loanFunding.js). Its category may link it to a record (categoryLinks.js): a subscription's
  * payment names the subscription (`subscriptionId`), an installment's payment the loan
- * installment (`loanInstallment`), a cheque's payment the issued cheque (`chequeId`). A bank credit's fee or installment profit names the credit (`creditAccountId`,
+ * installment (`loanInstallment`). Paid with a cheque, of any category, it names the issued cheque
+ * (`chequeId`, a payment link). A bank credit's fee or installment profit names the credit (`creditAccountId`,
  * creditAccount.js).
  * Budgets: a project section may carry a total `budget` (tomans); the daily section carries
  * `budgets`, a monthly budget per category plus `total` for the whole month.
@@ -48,7 +49,7 @@ import { isValidIsoDate } from './isoDate.js';
 import { validatePortfolioLink } from './portfolioLink.js';
 import { jalaliToGregorian, getJalaliMonthLength, gregorianToJalali } from './loanCalculator.js';
 import { isCategoryValue } from './categoryDocument.js';
-import { categoryLinkFields } from './categoryLinks.js';
+import { categoryLinkFields, paymentLinkFields } from './categoryLinks.js';
 
 export const EXPENSE_CURRENCIES = [
   { value: 'IRT', label: 'تومان', symbol: 'تومان' },
@@ -217,8 +218,9 @@ export function validateExpense(body = {}) {
   // The fee or installment profit of a bank credit (creditAccount.js): the credit it is for
   const creditAccountId = ID_RE.test(text(body.creditAccountId)) ? text(body.creditAccountId) : '';
   // The record its category links it to (categoryLinks.js): the subscription it paid for, the
-  // loan installment, the issued cheque — only the one its category declares
-  const links = categoryLinkFields('expense', category, body);
+  // loan installment — only the one its category declares; and the issued cheque it was paid
+  // with, whatever its category
+  const links = { ...categoryLinkFields('expense', category, body), ...paymentLinkFields('expense', body) };
   const smsFingerprint = source === 'sms' && /^[0-9a-f]{8}$/.test(text(body.smsFingerprint)) ? text(body.smsFingerprint) : '';
   const smsKey = source === 'sms' ? text(body.smsKey).slice(0, 120) : '';
 

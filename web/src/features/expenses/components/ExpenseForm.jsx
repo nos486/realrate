@@ -17,9 +17,10 @@
  * An everyday expense's category may link it to a record (utils/categoryLinks.js), picked right
  * under the category (CategoryLinkField): «سرمایه‌گذاری» the asset bought in a portfolio,
  * «پرداخت قسط» the loan installment paid, «اینترنت و اشتراک‌ها» the subscription (or a new one
- * made from the expense), «پرداخت چک» the issued cheque. A choice fills in what it knows (title,
- * amount, currency, account); what linking does to that record is the store's
- * (shared/vault/recordLinks.js).
+ * made from the expense). A choice fills in what it knows (title, amount, currency, account);
+ * what linking does to that record is the store's (shared/vault/recordLinks.js).
+ * «پرداخت با چک»: a toman expense of any category (a project's too) may be paid with one of the
+ * user's issued cheques (`chequeId`) — saving it clears the cheque.
  * Added to a portfolio («افزودن به پورتفو»: the asset and its quantity), an expense is a «buy»
  * there at its tomans (`investedIn`).
  * A new everyday toman expense in «مدیریت نقدینگی» offers to record it as a transfer between the
@@ -50,6 +51,7 @@ import { useAssetFunds } from '../../../shared/vault/useAssetFunds.js';
 import { CURRENCY_ASSET, newSpendTxId, newLinkTxId, rateOnDay } from '../../../shared/vault/portfolioFunds.js';
 import CategoryLinkField from '../../../shared/links/CategoryLinkField.jsx';
 import { linkValueOf, isNewSubscription } from '../../../shared/links/linkValues.js';
+import ChequeLinkPicker from '../../cheques/components/ChequeLinkPicker.jsx';
 import { isLinkComplete } from '../../../utils/portfolioLink.js';
 import { todayIso } from '../../../shared/utils/dates.js';
 import { accountsForCurrency } from '../../../utils/accountDocument.js';
@@ -65,6 +67,12 @@ function readLastAccount() {
     return '';
   }
 }
+
+/** How it was paid: from an account (or cash), or with a cheque */
+const PAY_WITH_OPTIONS = [
+  { value: 'account', label: 'حساب یا نقد' },
+  { value: 'cheque', label: 'چک' },
+];
 
 const SHARE_OPTIONS = [
   { value: 'own', label: 'همه‌اش سهم من' },
@@ -117,6 +125,9 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
     setLinkValue(linkValueOf('expense', next, start));
   };
   const investing = link?.target === 'portfolio' && Boolean(linkValue);
+  // «پرداخت با چک»: the issued cheque it was paid with (any category)
+  const [payWith, setPayWith] = useState(start?.chequeId ? 'cheque' : 'account');
+  const [chequeId, setChequeId] = useState(start?.chequeId || '');
   const creatingSubscription = link?.target === 'subscription' && isNewSubscription(linkValue);
 
   // A new subscription made with the expense is saved through the shared list
@@ -232,6 +243,8 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
       await onSubmit({
         ...(group ? { groupId: group.id } : {}),
         ...(daily ? { category, ...(link && link.target !== 'portfolio' ? { [link.field]: linked } : {}) } : {}),
+        // Paid with a cheque (a toman expense), or not
+        chequeId: payWith === 'cheque' && !isUsd ? chequeId : '',
         accountId: payAccountId,
         loanId: !fundAsset && fundingLoans.some((l) => l.id === loanId) ? loanId : '',
         paidFrom: paidFromPortfolio
@@ -428,6 +441,16 @@ export default function ExpenseForm({ group = null, daily = false, expense = nul
               </>
             )}
           </div>
+        )}
+
+        {!isUsd && (
+          <div className="ui-input-group">
+            <span className="ui-input-label">پرداخت با</span>
+            <FilterPills options={PAY_WITH_OPTIONS} activeValue={payWith} onChange={setPayWith} size="sm" />
+          </div>
+        )}
+        {!isUsd && payWith === 'cheque' && (
+          <ChequeLinkPicker side="expense" value={chequeId} onChange={setChequeId} onFill={fill} recordId={expense?.id || ''} />
         )}
 
         {payAccounts.length > 0 && (

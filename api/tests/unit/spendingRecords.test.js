@@ -136,3 +136,12 @@ describe('a payment already recorded by hand', () => {
     expect(m.saveExpense.mock.calls[0][2]).toMatchObject({ id });
   });
 });
+
+describe('a cheque payment matched to one recorded by hand', () => {
+  it('keeps the record\'s own category: a cheque is a way of paying', async () => {
+    m.dayExpenses = [{ id: 'exp_rent', date: '2026-02-01', amount: 5_000_000, currency: 'IRT', category: 'housing', title: 'اجاره' }];
+    await recordSpending('cheque:chq_1', { title: 'چک علی', amount: 5_000_000, currency: 'IRT', date: '2026-02-01', category: 'other', chequeId: 'chq_1' });
+    expect(m.saveExpense.mock.calls[0][0]).toEqual({ chequeId: 'chq_1' });
+    expect(m.saveExpense.mock.calls[0][1].id).toBe('exp_rent');
+  });
+});

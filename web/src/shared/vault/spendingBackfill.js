@@ -5,6 +5,8 @@
  * - every loan installment already paid, and every extra payment → its expense
  * - every cleared cheque without its record → its income (received) or expense (issued)
  * - every subscription that renews by itself → each renewal from its start through today
+ * - (v2) records saved in the retired «پرداخت چک» / «وصول چک» categories → their cheque's own
+ *   category (a cheque is a way of paying, not a category), still paid with it
  * Each goes through spendingRecords.js: a payment already recorded by hand that day (same amount)
  * is linked instead of recorded twice, and its own id makes a second run (another device, a run
  * cut short) rewrite the same records — so it is safe to run more than once.
@@ -19,18 +21,21 @@ import { recordInstallmentPayments, recordExtraPayment, recordSubscriptionPaymen
 import { settleCheque } from './recordLinks.js';
 
 const DONE_KEY = 'realrate_spending_backfill_v1';
+const CHEQUE_CATEGORY_KEY = 'realrate_cheque_category_v1';
+/** The categories a cheque's record had before cheques became a way of paying */
+const RETIRED_CHEQUE_CATEGORY = 'cheques';
 
-function done(userId) {
+function done(userId, key = DONE_KEY) {
   try {
-    return localStorage.getItem(`${DONE_KEY}:${userId}`) === '1';
+    return localStorage.getItem(`${key}:${userId}`) === '1';
   } catch {
     return false;
   }
 }
 
-function markDone(userId) {
+function markDone(userId, key = DONE_KEY) {
   try {
-    localStorage.setItem(`${DONE_KEY}:${userId}`, '1');
+    localStorage.setItem(`${key}:${userId}`, '1');
   } catch {
     // Blocked storage: it runs again next time, harmlessly
   }
@@ -117,4 +122,36 @@ export function runSpendingBackfill({ userId, expenses }) {
     running = null;
   });
   return running;
+}
+
+/**
+ * (v2) Records saved in the retired cheque categories take their cheque's own category ('other'
+ * when it has none), still paid with it — once per user on this device
+ * @param {{ userId: string, expenses: boolean }} options
+ * @returns {Promise<boolean>} whether it ran to the end
+ */
+export async function runChequeCategoryMigration({ userId, expenses }) {
+  if (!userId || done(userId, CHEQUE_CATEGORY_KEY)) return false;
+  const { getCheques } = await import('../../features/cheques/api/chequeApi.js');
+  const { cheques = [] } = await getCheques().catch(() => ({ cheques: [] }));
+  const categoryOf = (chequeId) => cheques.find((c) => c.id === chequeId)?.category || 'other';
+  let ok = await step('cheque incomes', async () => {
+    const api = await import('../../features/incomes/api/incomeApi.js');
+    const { incomes = [] } = await api.getIncomes();
+    for (const income of incomes.filter((i) => i.category === RETIRED_CHEQUE_CATEGORY)) {
+      const { id, createdAt: _c, updatedAt: _u, ...fields } = income;
+      await api.updateIncome(id, { ...fields, category: categoryOf(income.chequeId) });
+    }
+  });
+  if (expenses) {
+    ok = await step('cheque expenses', async () => {
+      const store = await import('./vaultExpenses.js');
+      const { expenses: all = [] } = await store.getExpenses();
+      for (const expense of all.filter((e) => e.category === RETIRED_CHEQUE_CATEGORY)) {
+        await store.saveExpense({ category: categoryOf(expense.chequeId) }, expense, { syncLinks: false });
+      }
+    }) && ok;
+  }
+  if (ok) markDone(userId, CHEQUE_CATEGORY_KEY);
+  return ok;
 }

@@ -1,10 +1,12 @@
 /**
- * ChequeLinkPicker.jsx — «کدام چک»: the cheque an income («وصول چک», a received cheque) or an
- * expense («پرداخت چک», an issued one) records the money of (utils/categoryLinks.js)
+ * ChequeLinkPicker.jsx — «کدام چک»: the cheque an expense was paid with (an issued one) or an
+ * income received with (a received one) — a way of paying, whatever the record's category
+ * (utils/categoryLinks.js PAYMENT_LINKS, `chequeId`)
  *
  * Offers the open cheques of that direction (not yet recorded by another income or expense),
- * soonest due first, and the one the record already names. Picking one fills the amount and the
- * title; saving the record clears the cheque (shared/vault/recordLinks.js).
+ * soonest due first, and the one the record already names. Picking one fills the amount, the
+ * title, and the account it is drawn on; saving the record clears the cheque
+ * (shared/vault/recordLinks.js).
  */
 
 import React from 'react';
@@ -39,7 +41,7 @@ export default function ChequeLinkPicker({ side, value, onChange, onFill, record
   const pick = (id) => {
     onChange(id);
     const cheque = choices.find((c) => c.id === id);
-    if (cheque) onFill?.({ title: chequeRecordTitle(cheque), amount: cheque.amount, currency: 'IRT' });
+    if (cheque) onFill?.({ title: chequeRecordTitle(cheque), amount: cheque.amount, currency: 'IRT', accountId: cheque.accountId || '' });
   };
 
   return (

@@ -124,3 +124,14 @@ describe('reminders and summary', () => {
     expect(toAsciiDigits('۱۲۳٤٥')).toBe('12345');
   });
 });
+
+describe('a cheque is a way of paying', () => {
+  const base = { amount: 1_000, dueDate: '2026-02-01', counterparty: 'علی' };
+  it('keeps what it pays for (by direction) and its account', () => {
+    expect(validateChequeInput({ ...base, direction: 'issued', category: 'housing', accountId: 'acc_1' }).value).toMatchObject({ category: 'housing', accountId: 'acc_1' });
+    expect(validateChequeInput({ ...base, direction: 'received', category: 'freelance' }).value.category).toBe('freelance');
+    // An expense category doesn't fit a received cheque
+    expect(validateChequeInput({ ...base, direction: 'received', category: 'housing' }).value.category).toBe('');
+    expect(validateChequeInput({ ...base, direction: 'issued', accountId: 'bad id!' }).value.accountId).toBe('');
+  });
+});

@@ -11,8 +11,9 @@
  * - A cleared cheque: its expense (issued) or income (received) — recordLinks.js settleCheque
  *
  * Already in the expenses? An expense of that day with the same amount and currency that names
- * nothing yet is taken as this payment recorded by hand: it is linked (its category becomes the
- * payment's) instead of a second one being made. Otherwise the expense gets an id made from what
+ * nothing yet is taken as this payment recorded by hand: it is linked instead of a second one
+ * being made (its category becomes the payment's only when the link is a category's — a
+ * subscription, an installment; paid with a cheque, it keeps its own). Otherwise the expense gets an id made from what
  * it records (spendingExpenseId), so recording it again — another device, a second look at the
  * same subscription — writes the same expense, never a second one. The record it names was
  * already changed by its own page, so saving the expense doesn't change it again
@@ -20,7 +21,7 @@
  */
 
 import { SUBSCRIPTION_EXPENSE_CATEGORY, duePayments } from '../../utils/subscriptionDocument.js';
-import { CATEGORY_LINKS, sameLinkValue } from '../../utils/categoryLinks.js';
+import { categoryLinkOf, linkFieldsOf, sameLinkValue } from '../../utils/categoryLinks.js';
 
 /** The expense category of a loan's payments (categoryLinks.js: links the installment) */
 export const INSTALLMENT_EXPENSE_CATEGORY = 'installments';
@@ -29,8 +30,8 @@ const store = () => import('./vaultExpenses.js');
 
 /** The fields an expense or income names a record in (a recorded payment already linked has one) */
 const LINK_FIELDS = {
-  expense: [...CATEGORY_LINKS.expense.map((l) => l.field), 'paidFrom'],
-  income: CATEGORY_LINKS.income.map((l) => l.field),
+  expense: [...linkFieldsOf('expense'), 'paidFrom'],
+  income: linkFieldsOf('income'),
 };
 const sameAmount = (a, b) => Math.abs((Number(a) || 0) - (Number(b) || 0)) < 0.005;
 
@@ -83,9 +84,9 @@ export async function recordSpending(key, expense, { syncLinks = false } = {}) {
   const own = sameDay.find((e) => e.id === id) || null;
   const match = own ? null : matchingRecord('expense', sameDay, { amount: expense.amount, currency });
   if (match) {
-    // Recorded by hand already: linked, keeping what the user wrote
+    // Recorded by hand already: linked, keeping what the user wrote (a category link needs its category)
     const { expense: saved } = await saveExpense({
-      category: expense.category,
+      ...(categoryLinkOf('expense', expense.category) ? { category: expense.category } : {}),
       ...Object.fromEntries(LINK_FIELDS.expense.filter((f) => expense[f]).map((f) => [f, expense[f]])),
       ...(match.accountId || !expense.accountId ? {} : { accountId: expense.accountId }),
     }, match, { syncLinks });
@@ -107,7 +108,9 @@ export async function recordIncome(income) {
   const match = matchingRecord('income', sameDay.filter((i) => i.incomeDate === income.incomeDate), { amount: income.amount });
   if (match) {
     const { id: _id, createdAt: _c, updatedAt: _u, ...fields } = match;
-    return (await updateIncome(match.id, { ...fields, category: income.category, chequeId: income.chequeId || '' })).income;
+    // Its own category stays unless the link is a category's
+    const category = categoryLinkOf('income', income.category) ? income.category : fields.category;
+    return (await updateIncome(match.id, { ...fields, category, chequeId: income.chequeId || '' })).income;
   }
   return (await createIncome({ notes: '', ...income })).income;
 }
