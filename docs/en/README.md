@@ -33,10 +33,12 @@ The interface is Persian; these are the labels the documents quote.
 | وام و اقساط | Loans and installments |
 | درآمدها | Incomes |
 | چک‌ها | Cheques |
+| اشتراک‌ها | Subscriptions |
 | پیامک‌ها | SMS (the bank SMS inbox, Android only) |
 | ثبت سریع | Quick record / quick add |
 | پرداخت از | Paid from (an account) |
 | تأمین از | Funded by (a loan, or the user's own money) |
+| انتقال بین حساب‌ها | Transfer between accounts (moving money between the user's own accounts) |
 | مصرف وام | Loan usage |
 | گاوصندوق | Vault (the encrypted store) |
-| تومان | Toman (10 rials; every amount in the app is in tomans) |
+| تومان | Toman (10 rials; the base currency: totals are in tomans, while a record may also be in dollars, euros, lira or dirhams) |
