@@ -1,11 +1,11 @@
 /**
- * portfolioFunds.js — Paying an expense with an asset held in a portfolio (dollars, for now)
+ * portfolioFunds.js — Paying an expense with a currency held in a portfolio (dollars, euros, ...)
  *
- * A dollar expense paid from a portfolio («پرداخت از» → a portfolio's dollars) is two linked
+ * A foreign expense paid from a portfolio («پرداخت از» → that currency in a portfolio) is two linked
  * encrypted records:
  *   - the expense, with `paidFrom: { portfolioId, portfolioName, assetId, txId }`
- *   - a «spend» transaction in that portfolio (id `txId`, `expenseId`): the dollars leave the
- *     asset's ledger at the expense's rate, realizing P&L like a sale (calculationEngine.js)
+ *   - a «spend» transaction in that portfolio (id `txId`, `expenseId`): the currency leaves the
+ *     asset's ledger at the expense's own rate, realizing P&L like a sale (calculationEngine.js)
  * The transaction is written first and the expense second (vaultExpenses.saveExpense); a failed
  * expense write removes the transaction again. Editing the expense rewrites the transaction (or
  * moves it to another portfolio), deleting it deletes the transaction. The transaction carries no
@@ -26,6 +26,7 @@ import { getKnownPriceIds } from '../../features/market/knownPriceIds.js';
 import { resolveAssetUnit } from '../../config/sourceRegistry.js';
 import { gregorianToShamsi } from '../../features/portfolio/components/ShamsiDatePicker.jsx';
 import { toPriceId } from '../../utils/priceIds.js';
+import { PAYABLE_ASSETS, expenseOwnRate } from '../../utils/expenseDocument.js';
 import { getPortfolioKey, isAccountVaultPortfolio } from './vaultStore.js';
 import {
   listPortfolioHoldings,
@@ -34,8 +35,8 @@ import {
   deletePortfolioTransactionRecord,
 } from './vaultPortfolioItems.js';
 
-/** The asset a currency is paid with */
-export const CURRENCY_ASSET = { USD: 'usd' };
+/** The asset each foreign currency is paid with: its price book id (utils/currencies.js) */
+export const CURRENCY_ASSET = PAYABLE_ASSETS;
 
 export const newSpendTxId = () => `txs_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
 
@@ -133,7 +134,7 @@ export async function saveSpendTransaction(expense) {
     assetId: toPriceId(paidFrom.assetId),
     transactionType: 'spend',
     quantity: Number(expense.amount) || 0,
-    unitPrice: Number(expense.usdRate) || 0,
+    unitPrice: expenseOwnRate(expense),
     transactionDate: gregorianToShamsi(`${expense.date}T00:00:00`),
     notes: 'پرداخت هزینه',
     expenseId: expense.id,

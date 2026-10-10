@@ -22,6 +22,7 @@
 
 import { SUBSCRIPTION_EXPENSE_CATEGORY, duePayments } from '../../utils/subscriptionDocument.js';
 import { categoryLinkOf, linkFieldsOf, sameLinkValue } from '../../utils/categoryLinks.js';
+import { normalizeCurrency } from '../../utils/currencies.js';
 
 /** The expense category of a loan's payments (categoryLinks.js: links the installment) */
 export const INSTALLMENT_EXPENSE_CATEGORY = 'installments';
@@ -130,7 +131,7 @@ export async function recordSubscriptionPayments(sub, today, { saveSubscription 
     await recordSpending(`sub:${sub.id}:${day}`, {
       title: sub.name,
       amount: sub.amount,
-      currency: sub.currency === 'USD' ? 'USD' : 'IRT',
+      currency: normalizeCurrency(sub.currency),
       date: day,
       category: SUBSCRIPTION_EXPENSE_CATEGORY,
       subscriptionId: sub.id,

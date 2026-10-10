@@ -1,7 +1,10 @@
-/** Amounts of an expense: tomans as whole numbers, dollars with up to two decimals */
+/**
+ * format.js — Amounts of an expense in its currency's digits (utils/currencies.js): tomans as
+ * whole numbers, a foreign currency with up to two decimals
+ */
+
+import { formatCurrencyNumber } from '../../../utils/currencies.js';
+
 export function formatAmount(value, currency = 'IRT') {
-  const n = Number(value) || 0;
-  return currency === 'USD'
-    ? n.toLocaleString('fa-IR', { maximumFractionDigits: 2 })
-    : Math.round(n).toLocaleString('fa-IR');
+  return formatCurrencyNumber(value, currency);
 }

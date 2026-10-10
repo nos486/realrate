@@ -1,5 +1,6 @@
 /**
- * ExpenseForm.jsx — Modal to record or edit an expense, in tomans or dollars
+ * ExpenseForm.jsx — Modal to record or edit an expense, in tomans or a foreign currency (dollar,
+ * euro, lira, dirham: utils/currencies.js)
  *
  * Every expense has a category (what it was spent on) and a place: the everyday expenses, or a
  * project («پروژه», with `projects`: picked like the account). The project is not a category — an
@@ -8,17 +9,18 @@
  * '' for the everyday expenses). Opened from a project (`group`) it starts in that project, from
  * the everyday list (`daily`) in none. The title is optional (the category's name when left
  * empty); an expense in a project may have no category («بدون دسته‌بندی»), and then needs one.
- * A dollar expense may carry the toman rate of its day; left empty, totals convert it at
- * today's rate. With `accounts`, the account it was paid from can be picked — only the accounts
+ * A foreign expense may carry its currency's toman rate of its day (a dollar's `usdRate`, another
+ * currency's `rate`); left empty, totals convert it at that day's rate from the price history.
+ * With `accounts`, the account it was paid from can be picked — only the accounts
  * that hold the expense's currency (accountsForCurrency; a new everyday expense starts from the
  * last one used). A new expense may start from a `draft` (a bank SMS:
  * amount, day, account, note, and its source). «تأمین از» says whether it was paid from the user's
  * own money or from a loan (loanFunding.js) — offered while there is a loan not yet settled.
  * «دنگ»: the amount was paid for others too — only «سهم من» counts as the user's expense, the rest
  * is owed back (what comes back is recorded on the expense, ReimbursementsModal.jsx, not as income).
- * A dollar expense is paid from a dollar account, or from a portfolio's dollars (and has no loan):
- * those dollars leave that portfolio as a «spend» transaction at the expense's rate
- * (portfolioFunds.js), which is filled in from that day's price history.
+ * A foreign expense is paid from an account holding its currency, or from that currency held in a
+ * portfolio (and has no loan): it leaves that portfolio as a «spend» transaction at the expense's
+ * rate (portfolioFunds.js), which is filled in from that day's price history.
  * An expense's category may link it to a record (utils/categoryLinks.js), picked right
  * under the category (CategoryLinkField): «سرمایه‌گذاری» the asset bought in a portfolio,
  * «پرداخت قسط» the loan installment paid, «اینترنت و اشتراک‌ها» the subscription (or a new one
@@ -45,7 +47,7 @@ import { parseInputNumber, formatNum } from '../../portfolio/utils/holdingHelper
 import TagInput from './TagInput.jsx';
 import CashMoveNotice from '../../accounts/components/CashMoveNotice.jsx';
 import { CASH_MANAGEMENT_CATEGORY } from '../../../utils/categoryDocument.js';
-import { EXPENSE_CURRENCIES, EXPENSE_LIMITS, isSharedExpense, expenseReceivable } from '../../../utils/expenseDocument.js';
+import { EXPENSE_CURRENCIES, EXPENSE_LIMITS, isSharedExpense, expenseReceivable, expenseOwnRate } from '../../../utils/expenseDocument.js';
 import { getExpenseCategory } from '../constants/expenseCategories.js';
 import { useCategories } from '../../../shared/categories/useCategories.js';
 import CategoryManagerModal from '../../../shared/categories/CategoryManagerModal.jsx';
@@ -60,6 +62,8 @@ import ChequeLinkPicker from '../../cheques/components/ChequeLinkPicker.jsx';
 import { isLinkComplete } from '../../../utils/portfolioLink.js';
 import { todayIso } from '../../../shared/utils/dates.js';
 import { accountsForCurrency } from '../../../utils/accountDocument.js';
+import { normalizeCurrency, isForeignCurrency, currencyLabel, currencyOf, currencyRateToday, allowsDecimals } from '../../../utils/currencies.js';
+import { useFxRates } from '../../market/useFxRates.js';
 import { categoryLinkOf } from '../../../utils/categoryLinks.js';
 import { useOptionalSubscriptionsContext } from '../../subscriptions/context/SubscriptionsContext.jsx';
 
@@ -126,10 +130,12 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
   // An expense titled after its category shows an empty title field (the default)
   const [title, setTitle] = useState(
     start?.category && start?.title === getExpenseCategory(start.category).label ? '' : (start?.title || ''));
-  // A draft may be in dollars too (a dollar subscription's payment)
-  const [currency, setCurrency] = useState(start?.currency === 'USD' ? 'USD' : 'IRT');
+  // A draft may be in a foreign currency too (a dollar subscription's payment)
+  const [currency, setCurrency] = useState(normalizeCurrency(start?.currency));
   const [amount, setAmount] = useState(start?.amount ? String(start.amount) : '');
-  const [usdRate, setUsdRate] = useState(expense?.usdRate ? String(expense.usdRate) : '');
+  // Its currency's toman rate typed over the day's (a dollar's `usdRate`, another's `rate`)
+  const [rateInput, setRateInput] = useState(
+    expense && isForeignCurrency(expense.currency) && expenseOwnRate(expense) > 0 ? String(expenseOwnRate(expense)) : '');
   const [dateShamsi, setDateShamsi] = useState(() =>
     start?.date ? gregorianToShamsi(`${start.date}T00:00:00`) : getTodayShamsi());
   // A project's expense may carry tags (summed per tag beside the list)
@@ -161,12 +167,16 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
   // A new subscription made with the expense is saved through the shared list
   const subs = useOptionalSubscriptionsContext();
 
-  const isUsd = currency === 'USD';
+  const isForeign = isForeignCurrency(currency);
+  const unit = currencyLabel(currency);
   const amountNum = parseInputNumber(amount);
-  const rateNum = parseInputNumber(usdRate);
+  const rateNum = parseInputNumber(rateInput);
   const dateIso = shamsiToGregorian(dateShamsi);
+  // Today's rate of its currency (the dollar's from the page, another's from the price book)
+  const fx = useFxRates(undefined, false);
+  const todayRate = isForeign ? currencyRateToday(currency, { usdToman, ...fx }) : 0;
 
-  // A dollar expense: paid from a portfolio's dollars (not a toman account, not a loan)
+  // A foreign expense: paid from that currency in a portfolio (not an account, not a loan)
   const fundAsset = CURRENCY_ASSET[currency] || '';
   const { funds, loading: loadingFunds } = useAssetFunds(fundAsset, Boolean(fundAsset));
   const [fundId, setFundId] = useState(expense?.paidFrom?.portfolioId || '');
@@ -179,7 +189,7 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
     if (expense) return;
     if (fields.title && !title.trim()) setTitle(fields.title);
     if (fields.amount) setAmount(String(fields.amount));
-    if (fields.currency) setCurrency(fields.currency === 'USD' ? 'USD' : 'IRT');
+    if (fields.currency) setCurrency(normalizeCurrency(fields.currency));
     if (fields.accountId) {
       setAccountId(fields.accountId);
       setFundId('');
@@ -190,12 +200,13 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
   const fundAvailable = fund ? fund.amount + ownSpend : 0;
   const fundAfter = fundAvailable - (amountNum || 0);
 
-  // A dollar expense's rate on its date comes from the price history (dailyHistory.js) and is not
-  // stored: the field holds only a rate the user types over it (the rate they actually got). A
-  // rate is stored on the expense only when typed, or when a portfolio transaction needs it (paid
-  // from a portfolio's dollars, bought into a portfolio). Changing the date drops a typed one.
+  // A foreign expense's rate on its date comes from its currency's price history (dailyHistory.js)
+  // and is not stored: the field holds only a rate the user types over it (the rate they actually
+  // got). A rate is stored on the expense only when typed, or when a portfolio transaction needs it
+  // (paid from a portfolio, bought into a portfolio). Changing the date drops a typed one.
   // A toman expense has no rate of its own: it is seen in dollars at its day's rate in the lists.
-  const showsRate = isUsd;
+  const showsRate = isForeign;
+  const ratePriceId = currencyOf(currency).priceId;
   const [dayRate, setDayRate] = useState(0);
   // null | 'loading' | 'filled' | 'missing': the history's rate for the date
   const [rateFill, setRateFill] = useState(null);
@@ -205,14 +216,14 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
       setRateFill(null);
       return undefined;
     }
-    if (dateIso === todayIso() && usdToman > 0) {
-      setDayRate(Math.round(usdToman));
+    if (dateIso === todayIso() && todayRate > 0) {
+      setDayRate(Math.round(todayRate));
       setRateFill('filled');
       return undefined;
     }
     let cancelled = false;
     setRateFill('loading');
-    rateOnDay(fundAsset || 'usd', dateIso).then((rate) => {
+    rateOnDay(ratePriceId, dateIso).then((rate) => {
       if (cancelled) return;
       setDayRate(rate > 0 ? Math.round(rate) : 0);
       setRateFill(rate > 0 ? 'filled' : 'missing');
@@ -220,9 +231,14 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
     return () => {
       cancelled = true;
     };
-  }, [showsRate, dateIso, usdToman, fundAsset]);
+  }, [showsRate, dateIso, todayRate, ratePriceId]);
+  const changeCurrency = (next) => {
+    // Another currency's rate is no rate of this one
+    if (next !== currency) setRateInput('');
+    setCurrency(next);
+  };
   const changeDate = (value) => {
-    if (value !== dateShamsi) setUsdRate('');
+    if (value !== dateShamsi) setRateInput('');
     setDateShamsi(value);
   };
   // A typed rate equal to the day's is no rate of its own
@@ -230,20 +246,22 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
   const effectiveRate = overrideRate || dayRate;
 
   // «دنگ» is for toman expenses only (and not for one added to a portfolio)
-  const canShare = !isUsd && !investing;
+  const canShare = !isForeign && !investing;
   const sharing = canShare && shared;
   const shareNum = parseInputNumber(myShare);
   const shareValid = !sharing || (myShare.trim() !== '' && shareNum >= 0 && shareNum < amountNum);
   const received = expenseReceivable(expense).received;
   const paidFromPortfolio = Boolean(fundAsset && fund);
   // A portfolio transaction is priced at the expense's rate: it is stored with it
-  const needsStoredRate = isUsd && (paidFromPortfolio || investing);
-  const isValid = (Boolean(category) || Boolean(title.trim())) && amountNum > 0 && Boolean(dateIso) && (!usdRate || rateNum > 0)
+  const needsStoredRate = isForeign && (paidFromPortfolio || investing);
+  const isValid = (Boolean(category) || Boolean(title.trim())) && amountNum > 0 && Boolean(dateIso) && (!rateInput || rateNum > 0)
     && (!needsStoredRate || effectiveRate > 0) && shareValid && !submitting
     && (!investing || isLinkComplete(linkValue))
     // A new subscription is named after the expense
     && (!creatingSubscription || Boolean(title.trim() && subs));
-  const tomanPreview = isUsd && amountNum > 0 ? amountNum * (effectiveRate || usdToman) : 0;
+  const tomanPreview = isForeign && amountNum > 0 ? amountNum * (effectiveRate || todayRate) : 0;
+  // The rate stored on it: typed, or the one its portfolio transaction is priced at
+  const storedRate = !showsRate ? null : needsStoredRate ? effectiveRate : overrideRate || null;
 
   const handleSubmit = async (e) => {
     e?.preventDefault?.();
@@ -274,7 +292,7 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
         category,
         ...(link && link.target !== 'portfolio' ? { [link.field]: linked } : {}),
         // Paid with a cheque (a toman expense), or not
-        chequeId: payWith === 'cheque' && !isUsd ? chequeId : '',
+        chequeId: payWith === 'cheque' && !isForeign ? chequeId : '',
         accountId: payAccountId,
         loanId: !fundAsset && fundingLoans.some((l) => l.id === loanId) ? loanId : '',
         paidFrom: paidFromPortfolio
@@ -297,7 +315,9 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
         title: title.trim() || getExpenseCategory(category).label,
         amount: amountNum,
         currency,
-        usdRate: !showsRate ? null : needsStoredRate ? effectiveRate : overrideRate || null,
+        // Its currency's rate: the dollar's as `usdRate`, another's as `rate`
+        usdRate: currency === 'USD' ? storedRate : null,
+        rate: currency !== 'USD' ? storedRate : null,
         date: dateIso,
         notes: notes.trim(),
         myShare: sharing ? shareNum : null,
@@ -360,7 +380,7 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
             recordId={expense?.id || ''}
             keepId={expense?.[link.field] || ''}
             title={title}
-            toman={isUsd ? (amountNum || 0) * (rateNum || 0) : amountNum || 0}
+            toman={isForeign ? (amountNum || 0) * (effectiveRate || 0) : amountNum || 0}
           />
         )}
 
@@ -377,18 +397,18 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
 
         <div className="ui-input-group">
           <span className="ui-input-label">ارز</span>
-          <FilterPills options={CURRENCY_OPTIONS} activeValue={currency} onChange={setCurrency} size="sm" />
+          <FilterPills options={CURRENCY_OPTIONS} activeValue={currency} onChange={changeCurrency} size="sm" />
         </div>
 
         <div className="ui-input-group">
-          <label htmlFor="expense-amount" className="ui-input-label">مبلغ ({isUsd ? 'دلار' : 'تومان'}) *</label>
+          <label htmlFor="expense-amount" className="ui-input-label">مبلغ ({unit}) *</label>
           <div className="ui-input-wrapper">
             <NumericInput
               id="expense-amount"
               value={amount}
               onValueChange={setAmount}
-              allowDecimals={isUsd}
-              placeholder={isUsd ? 'مثلاً ۲۵۰' : 'مثلاً ۱۵,۰۰۰,۰۰۰'}
+              allowDecimals={allowsDecimals(currency)}
+              placeholder={isForeign ? 'مثلاً ۲۵۰' : 'مثلاً ۱۵,۰۰۰,۰۰۰'}
               className="ui-input-control"
               required
             />
@@ -398,14 +418,14 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
         {showsRate && (
           <div className="ui-input-group">
             <label htmlFor="expense-usd-rate" className="ui-input-label expense-rate-label">
-              نرخ دلار در روز هزینه (تومان)
+              نرخ {unit} در روز هزینه (تومان)
               {overrideRate > 0 && (
                 <button
                   type="button"
                   className="btn-fx-rate-refresh"
-                  title="نرخ دلار همان روز (از تاریخچه)"
-                  aria-label="نرخ دلار همان روز (از تاریخچه)"
-                  onClick={() => setUsdRate('')}
+                  title={`نرخ ${unit} همان روز (از تاریخچه)`}
+                  aria-label={`نرخ ${unit} همان روز (از تاریخچه)`}
+                  onClick={() => setRateInput('')}
                 >
                   <RefreshCw size={11} />
                 </button>
@@ -414,19 +434,19 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
             <div className="ui-input-wrapper">
               <NumericInput
                 id="expense-usd-rate"
-                value={usdRate}
-                onValueChange={setUsdRate}
+                value={rateInput}
+                onValueChange={setRateInput}
                 allowDecimals={false}
-                placeholder={dayRate > 0 ? `${formatNum(dayRate)} — نرخ همان روز` : 'نرخ هر دلار به تومان'}
+                placeholder={dayRate > 0 ? `${formatNum(dayRate)} — نرخ همان روز` : `نرخ هر ${unit} به تومان`}
                 className="ui-input-control"
               />
             </div>
             <p className={`expense-form-hint ${!overrideRate && rateFill === 'missing' ? 'is-warning' : ''}`}>
               {overrideRate > 0
                 ? <>نرخ واردشده به جای نرخ همان روز{dayRate > 0 && <> ({formatNum(dayRate)})</>} حساب می‌شود.</>
-                : rateFill === 'loading' ? 'در حال خواندن نرخ دلار آن روز…'
-                  : rateFill === 'missing' ? 'نرخ دلار این روز در تاریخچه نیست؛ اگر می‌دانید وارد کنید.'
-                    : 'نرخ دلار همان روز از تاریخچه قیمت؛ فقط اگر با نرخ دیگری معامله کرده‌اید وارد کنید.'}
+                : rateFill === 'loading' ? `در حال خواندن نرخ ${unit} آن روز…`
+                  : rateFill === 'missing' ? `نرخ ${unit} این روز در تاریخچه نیست؛ اگر می‌دانید وارد کنید.`
+                    : `نرخ ${unit} همان روز از تاریخچه قیمت؛ فقط اگر با نرخ دیگری معامله کرده‌اید وارد کنید.`}
             </p>
             {tomanPreview > 0 && (
               <p className="expense-form-hint">
@@ -448,8 +468,8 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
                     id="expense-my-share"
                     value={myShare}
                     onValueChange={setMyShare}
-                    allowDecimals={isUsd}
-                    placeholder={`سهم خودم (${isUsd ? 'دلار' : 'تومان'})`}
+                    allowDecimals={allowsDecimals(currency)}
+                    placeholder={`سهم خودم (${unit})`}
                     className="ui-input-control"
                     aria-label="سهم من"
                   />
@@ -458,7 +478,7 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
                   {amountNum > 0 && myShare.trim() !== '' && shareNum < amountNum ? (
                     <>
                       فقط <strong>{formatNum(shareNum)}</strong> هزینه‌ی شما حساب می‌شود؛ <strong>{formatNum(amountNum - shareNum)}</strong>{' '}
-                      {isUsd ? 'دلار' : 'تومان'} طلب از دیگران است و دریافتش درآمد حساب نمی‌شود.
+                      {unit} طلب از دیگران است و دریافتش درآمد حساب نمی‌شود.
                     </>
                   ) : amountNum > 0 && shareNum >= amountNum ? (
                     'سهم شما باید کمتر از مبلغ کل باشد.'
@@ -472,13 +492,13 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
           </div>
         )}
 
-        {!isUsd && (
+        {!isForeign && (
           <div className="ui-input-group">
             <span className="ui-input-label">پرداخت با</span>
             <FilterPills options={PAY_WITH_OPTIONS} activeValue={payWith} onChange={setPayWith} size="sm" />
           </div>
         )}
-        {!isUsd && payWith === 'cheque' && (
+        {!isForeign && payWith === 'cheque' && (
           <ChequeLinkPicker side="expense" value={chequeId} onChange={setChequeId} onFill={fill} recordId={expense?.id || ''} />
         )}
 
@@ -503,16 +523,16 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
 
         {fundAsset && (
           <div className="ui-input-group">
-            <span className="ui-input-label">{payAccounts.length > 0 ? 'یا از دلار پورتفو' : 'پرداخت از'}</span>
+            <span className="ui-input-label">{payAccounts.length > 0 ? `یا از ${unit} پورتفو` : 'پرداخت از'}</span>
             {loadingFunds ? (
-              <p className="expense-form-hint">در حال خواندن دارایی دلاری پورتفوها…</p>
+              <p className="expense-form-hint">در حال خواندن موجودی {unit} پورتفوها…</p>
             ) : (
               <FilterPills
                 options={[
                   { value: '', label: 'نامشخص' },
                   ...funds
                     .filter((f) => f.amount > 0 || f.portfolioId === fundId)
-                    .map((f) => ({ value: f.portfolioId, label: `${f.portfolioName} — ${formatNum(f.amount)} دلار` })),
+                    .map((f) => ({ value: f.portfolioId, label: `${f.portfolioName} — ${formatNum(f.amount)} ${unit}` })),
                 ]}
                 activeValue={fundId}
                 onChange={(id) => {
@@ -525,12 +545,12 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
             )}
             {fund ? (
               <p className={`expense-form-hint ${fundAfter < 0 ? 'is-warning' : ''}`}>
-                از دلارهای «{fund.portfolioName}» کم می‌شود (تراکنش «پرداخت هزینه»؛ سود یا زیانش نسبت به قیمت خرید در پورتفو ثبت می‌شود).
-                {' '}موجودی پس از پرداخت: <strong>{formatNum(fundAfter)}</strong> دلار
+                از موجودی {unit} «{fund.portfolioName}» کم می‌شود (تراکنش «پرداخت هزینه»؛ سود یا زیانش نسبت به قیمت خرید در پورتفو ثبت می‌شود).
+                {' '}موجودی پس از پرداخت: <strong>{formatNum(fundAfter)}</strong> {unit}
                 {fundAfter < 0 && ' — بیشتر از موجودی است.'}
               </p>
             ) : !loadingFunds && !effectiveAccountId && funds.every((f) => !(f.amount > 0)) && (
-              <p className="expense-form-hint">هیچ پورتفویی دلار ندارد؛ هزینه بدون منبع ثبت می‌شود.</p>
+              <p className="expense-form-hint">هیچ پورتفویی {unit} ندارد؛ هزینه بدون منبع ثبت می‌شود.</p>
             )}
           </div>
         )}
@@ -570,7 +590,7 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
           </div>
         )}
 
-        {!projectId && !expense && !isUsd && onCashMove && category === CASH_MANAGEMENT_CATEGORY && (
+        {!projectId && !expense && !isForeign && onCashMove && category === CASH_MANAGEMENT_CATEGORY && (
           <CashMoveNotice onMove={() => onCashMove({ amount: amountNum || 0, date: dateIso || '', notes: notes.trim() || title.trim(), fromAccountId: accountId || '' })} />
         )}
 

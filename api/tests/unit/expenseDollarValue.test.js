@@ -17,15 +17,15 @@ describe('the day\'s dollar rate on a toman expense', () => {
   });
 
   it('gives the dollars then and the tomans today', () => {
-    expect(expenseDollarValue({ ...base, usdRate: 100_000 }, 125_000)).toEqual({ usd: 500, paidToman: 50_000_000, todayToman: 62_500_000, changePct: 25 });
+    expect(expenseDollarValue({ ...base, usdRate: 100_000 }, { usdToman: 125_000 })).toEqual({ usd: 500, paidToman: 50_000_000, todayToman: 62_500_000, changePct: 25 });
     // Without today's rate: dollars only
-    expect(expenseDollarValue({ ...base, usdRate: 100_000 }, 0)).toMatchObject({ usd: 500, todayToman: null, changePct: null });
+    expect(expenseDollarValue({ ...base, usdRate: 100_000 }, { usdToman: 0 })).toMatchObject({ usd: 500, todayToman: null, changePct: null });
     // Without the day's rate: nothing to say
-    expect(expenseDollarValue(base, 125_000)).toBeNull();
+    expect(expenseDollarValue(base, { usdToman: 125_000 })).toBeNull();
     // A shared expense: the user's own part
-    expect(expenseDollarValue({ ...base, myShare: 20_000_000, usdRate: 100_000 }, 100_000).usd).toBe(200);
+    expect(expenseDollarValue({ ...base, myShare: 20_000_000, usdRate: 100_000 }, { usdToman: 100_000 }).usd).toBe(200);
     // A dollar expense is already in dollars
-    expect(expenseDollarValue({ ...base, currency: 'USD', amount: 300, usdRate: 90_000 }, 100_000)).toMatchObject({ usd: 300, paidToman: 27_000_000, todayToman: 30_000_000 });
+    expect(expenseDollarValue({ ...base, currency: 'USD', amount: 300, usdRate: 90_000 }, { usdToman: 100_000 })).toMatchObject({ usd: 300, paidToman: 27_000_000, todayToman: 30_000_000 });
   });
 
   it('sums a project, counting the expenses without a rate apart', () => {
@@ -43,7 +43,7 @@ describe("the day's rate from the price history (usdAt)", () => {
   const usdAt = (day) => ({ '2026-01-10': 80_000, '2026-01-11': 90_000 })[day] ?? null;
 
   it('values a toman expense without a rate of its own at its day\'s rate', () => {
-    const value = expenseDollarValue(base, 125_000, usdAt);
+    const value = expenseDollarValue(base, { usdToman: 125_000, usdAt });
     expect(value.usd).toBeCloseTo(625);
     expect(value.todayToman).toBeCloseTo(625 * 125_000);
   });
@@ -57,8 +57,8 @@ describe("the day's rate from the price history (usdAt)", () => {
 
   it("converts a dollar expense at its day's rate, today's only when the day is unknown", () => {
     const usd = { ...base, currency: 'USD', amount: 10, date: '2026-01-11' };
-    expect(expenseInToman(usd, 125_000, usdAt)).toBe(900_000);
-    expect(expenseInToman({ ...usd, date: '2020-01-01' }, 125_000, usdAt)).toBe(1_250_000);
+    expect(expenseInToman(usd, { usdToman: 125_000, usdAt })).toBe(900_000);
+    expect(expenseInToman({ ...usd, date: '2020-01-01' }, { usdToman: 125_000, usdAt })).toBe(1_250_000);
     const summary = summarizeExpenses([usd], { usdToman: 125_000, usdAt });
     expect(summary).toMatchObject({ totalToman: 900_000, usesTodayRate: false });
   });

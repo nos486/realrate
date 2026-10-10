@@ -6,6 +6,7 @@
 import { categoryIcon } from '../../../shared/categories/categoryIcons.js';
 import { subscriptionCategoryOf, cycleOf } from '../../../utils/subscriptionDocument.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
+import { formatMoney } from '../../../utils/currencies.js';
 
 const fa = (n, digits = 0) => Number(n).toLocaleString('fa-IR', { maximumFractionDigits: digits });
 
@@ -24,10 +25,8 @@ export const STATE_BADGES = {
   cancelled: { label: 'لغوشده', badge: '', row: 'muted', period: '' },
 };
 
-/** «۹٫۹۹ دلار» / «۱۵۰٬۰۰۰ تومان» */
-export function formatSubscriptionAmount(amount, currency) {
-  return currency === 'USD' ? `${fa(amount, 2)} دلار` : `${fa(amount)} تومان`;
-}
+/** «۹٫۹۹ دلار» / «۱۵ یورو» / «۱۵۰٬۰۰۰ تومان» (utils/currencies.js) */
+export const formatSubscriptionAmount = (amount, currency) => formatMoney(amount, currency);
 
 /** «ماهانه» / «هر ۳ ماه» */
 export const cycleLabel = (months) => cycleOf(months).label;

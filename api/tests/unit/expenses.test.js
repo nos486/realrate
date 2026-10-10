@@ -109,7 +109,7 @@ describe('summarizeExpenses', () => {
 
   it('sums per currency and converts dollars at their own rate, else today\'s', () => {
     const s = summarizeExpenses(list, { usdToman: 100_000 });
-    expect(s).toMatchObject({ count: 3, toman: 1_000_000, usd: 15, totalToman: 1_000_000 + 900_000 + 500_000, usesTodayRate: true, unpricedUsd: 0 });
+    expect(s).toMatchObject({ count: 3, toman: 1_000_000, byCurrency: { IRT: 1_000_000, USD: 15 }, totalToman: 1_000_000 + 900_000 + 500_000, usesTodayRate: true, unpriced: {} });
     expect(s.firstDate).toBe('2026-09-01');
     expect(s.lastDate).toBe('2026-09-20');
   });
@@ -117,8 +117,8 @@ describe('summarizeExpenses', () => {
   it('leaves dollars with no rate at all out of the toman total, and says how many', () => {
     const s = summarizeExpenses(list, { usdToman: 0 });
     expect(s.totalToman).toBe(1_900_000);
-    expect(s.unpricedUsd).toBe(5);
-    expect(expenseInToman(list[2], 0)).toBeNull();
+    expect(s.unpriced).toEqual({ USD: 5 });
+    expect(expenseInToman(list[2], { usdToman: 0 })).toBeNull();
   });
 });
 

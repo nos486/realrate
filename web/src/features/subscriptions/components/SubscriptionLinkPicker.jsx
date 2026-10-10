@@ -11,6 +11,7 @@
 import React from 'react';
 import { FilterPills } from '../../../shared/ui/index.js';
 import { SUBSCRIPTION_CYCLES } from '../../../utils/subscriptionDocument.js';
+import { normalizeCurrency } from '../../../utils/currencies.js';
 import { useOptionalSubscriptions } from '../context/SubscriptionsContext.jsx';
 import { isNewSubscription, newSubscriptionLink } from '../../../shared/links/linkValues.js';
 
@@ -33,7 +34,7 @@ export default function SubscriptionLinkPicker({ value, onChange, onFill, title 
     if (id === NEW) return onChange(newSubscriptionLink());
     onChange(id);
     const sub = choices.find((s) => s.id === id);
-    if (sub) onFill?.({ title: sub.name, amount: sub.amount, currency: sub.currency === 'USD' ? 'USD' : 'IRT', accountId: sub.accountId || '' });
+    if (sub) onFill?.({ title: sub.name, amount: sub.amount, currency: normalizeCurrency(sub.currency), accountId: sub.accountId || '' });
   };
 
   return (

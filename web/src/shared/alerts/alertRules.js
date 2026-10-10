@@ -10,6 +10,7 @@
 import { createAlert } from '../../utils/alerts.js';
 import { buildChequeReminders, getChequeDirection, CHEQUE_REMINDER_DAYS } from '../../utils/chequeDocument.js';
 import { subscriptionView, SUBSCRIPTION_REMINDER_DAYS } from '../../utils/subscriptionDocument.js';
+import { currencyRateToday, formatMoney, isForeignCurrency } from '../../utils/currencies.js';
 import { formatShamsiDisplay } from '../../features/portfolio/components/ShamsiDatePicker.jsx';
 import { appPath } from '../routes.js';
 
@@ -109,22 +110,24 @@ export function chequeAlerts(cheques = [], today) {
 /**
  * Subscriptions: run out without being renewed (critical — renewed by hand, past its day) and
  * renewing within SUBSCRIPTION_REMINDER_DAYS (warning). Active ones whose reminders are on only.
- * A dollar subscription's amount is in tomans at `usdToman` (its dollars in the detail); without a
- * rate it has none, so the totals stay in tomans.
+ * A foreign subscription's amount is in tomans at today's rate (`rates`: utils/currencies.js; its
+ * own amount in the detail); without a rate it has none, so the totals stay in tomans.
  */
-export function subscriptionAlerts(subscriptions = [], today, { usdToman = 0 } = {}) {
+export function subscriptionAlerts(subscriptions = [], today, rates = {}) {
   const expired = [];
   const upcoming = [];
   for (const sub of subscriptions || []) {
     if (!sub?.id || sub.remindersMuted) continue;
     const view = subscriptionView(sub, today);
     if (view.state !== 'expired' && view.state !== 'due') continue;
-    const money = sub.currency === 'USD' ? `${faNum(sub.amount)} دلار` : null;
+    const foreign = isForeignCurrency(sub.currency);
+    const money = foreign ? formatMoney(sub.amount, sub.currency) : null;
+    const rate = currencyRateToday(sub.currency, rates);
     const item = {
       key: `${sub.id}_${view.nextRenewal}`,
       title: sub.name,
       detail: `${view.state === 'expired' ? 'اعتبار تا' : 'تمدید'} ${formatShamsiDisplay(`${view.nextRenewal}T00:00:00`)}، ${describeDays(view.daysLeft)}${money ? `، ${money}` : ''}`,
-      amount: sub.currency !== 'USD' ? sub.amount : usdToman > 0 ? Math.round(sub.amount * usdToman) : undefined,
+      amount: !foreign ? sub.amount : rate > 0 ? Math.round(sub.amount * rate) : undefined,
       due: view.nextRenewal,
     };
     (view.state === 'expired' ? expired : upcoming).push(item);

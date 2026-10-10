@@ -19,6 +19,7 @@ import { OpenSharesList } from '../expenses/components/OpenSharesModal.jsx';
 import { useOpenShares } from '../expenses/hooks/useOpenShares.js';
 import { smsReimbursement } from './smsDrafts.js';
 import { formatAmount } from '../expenses/utils/format.js';
+import { isForeignCurrency } from '../../utils/currencies.js';
 
 export default function ShareDepositSheet({ item, accounts = [], onClose }) {
   const { toast } = useFeedback();
@@ -26,8 +27,8 @@ export default function ShareDepositSheet({ item, accounts = [], onClose }) {
   const { loading, error, expenses } = useOpenShares();
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
-  // Dollar expenses can't take a toman deposit
-  const candidates = expenses.filter((e) => e.currency !== 'USD');
+  // A foreign expense can't take a toman deposit
+  const candidates = expenses.filter((e) => !isForeignCurrency(e.currency));
 
   const handlePick = async (expense) => {
     setSaving(true);

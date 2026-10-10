@@ -23,6 +23,8 @@ import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
 import { expenseCsvHeaders, expenseCsvRow } from '../utils/expenseCsv.js';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useUsdAt } from '../../market/dailyHistory.js';
+import { useFxRates } from '../../market/useFxRates.js';
+import { formatCurrencyAmounts } from '../../../utils/currencies.js';
 import { Plus, Coins, Tags, Target, HandCoins, Eye, EyeOff, FolderInput, X } from 'lucide-react';
 import { AlertBanner, Button, EmptyState, GenericCsvExportButton, IconButton, Pagination, SearchBar, SplitPageLayout } from '../../../shared/ui/index.js';
 import DonutChart from '../../../shared/ui/DonutChart.jsx';
@@ -100,7 +102,9 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
   } = useDailyExpenses(month);
   // The dollar's rate on each expense's day, from the price history (each one in dollars)
   const usdAt = useUsdAt(expenses.length > 0);
-  const rates = useMemo(() => ({ usdToman, usdAt }), [usdToman, usdAt]);
+  // Every currency the loaded expenses are in: the dollar's rates, and the others'
+  const fx = useFxRates(useMemo(() => [...expenses, ...previousExpenses, ...projectExpenses], [expenses, previousExpenses, projectExpenses]));
+  const rates = useMemo(() => ({ usdToman, usdAt, ...fx }), [usdToman, usdAt, fx]);
   const { accounts } = useAccounts();
   const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
   // Loan names for the CSV's «تأمین از»
@@ -244,7 +248,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
         days={daysElapsed}
         top={top}
         hideValues={hideValues}
-        totalFooter={summary.unpricedUsd > 0 && <span>{formatAmount(summary.unpricedUsd, 'USD')} دلار بدون نرخ حساب نشده</span>}
+        totalFooter={Object.keys(summary.unpriced).length > 0 && <span>{formatCurrencyAmounts(summary.unpriced)} بدون نرخ حساب نشده</span>}
         dollar={dollar}
       />
       {donutItems.length > 0 && (
@@ -368,7 +372,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                   headers={CSV_HEADERS}
                   fileBaseName={`هزینه‌های-روزمره-${formatShamsiMonth(month.jy, month.jm)}`}
                   disabled={listed.length === 0}
-                  mapRow={(e) => expenseCsvRow(e, { withCategory: true, usdToman, usdAt, accountById, loanById })}
+                  mapRow={(e) => expenseCsvRow(e, { withCategory: true, rates, accountById, loanById })}
                 />
                 <Button
                   icon={<Plus size={16} />}
@@ -449,8 +453,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                   )}
                   <ExpensesTable
                     expenses={listRows}
-                    usdToman={usdToman}
-                    usdAt={usdAt}
+                    rates={rates}
                     onEdit={(expense) => setForm({ expense })}
                     onDelete={handleDelete}
                     onReimburse={setReimburse}

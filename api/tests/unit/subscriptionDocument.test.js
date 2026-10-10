@@ -99,7 +99,7 @@ describe('subscriptionTotals', () => {
   it('counts what is running as a monthly equivalent, dollars at the rate', () => {
     const t = subscriptionTotals(subs, { today: '2026-02-05', usdToman: 100_000 });
     expect(t.count).toBe(2);
-    expect(t.monthly).toEqual({ IRT: 100_000, USD: 10, toman: 1_100_000 });
+    expect(t.monthly).toEqual({ IRT: 100_000, USD: 10, EUR: 0, TRY: 0, AED: 0, toman: 1_100_000 });
     expect(t.yearly.toman).toBe(13_200_000);
     expect(t.byCategory.map((c) => c.category)).toEqual(['other', 'internet']);
   });
@@ -107,7 +107,7 @@ describe('subscriptionTotals', () => {
   it('sums the renewals of a month', () => {
     // Bahman 1404: 2026-01-21 .. 2026-02-19 — the dollar one renews on 2026-02-11
     const t = subscriptionTotals(subs, { today: '2026-02-05', usdToman: 100_000, monthFrom: '2026-01-21', monthTo: '2026-02-19' });
-    expect(t.month).toEqual({ count: 1, IRT: 0, USD: 10, toman: 1_000_000 });
+    expect(t.month).toMatchObject({ count: 1, IRT: 0, USD: 10, toman: 1_000_000 });
   });
 
   it('lists the soonest renewal first, then those without one', () => {

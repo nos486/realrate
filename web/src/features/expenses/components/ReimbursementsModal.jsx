@@ -21,12 +21,13 @@ import { newReimbursement } from '../../../shared/vault/vaultExpenses.js';
 import { accountLabel } from '../../accounts/constants/accountDisplay.js';
 import { accountsForCurrency } from '../../../utils/accountDocument.js';
 import { formatAmount } from '../utils/format.js';
+import { allowsDecimals, currencyLabel } from '../../../utils/currencies.js';
 
 export default function ReimbursementsModal({ expense: initial, accounts = [], onSave, onClose, readOnly = false }) {
   // The saved copy after each change (the opener's object is not refreshed)
   const [expense, setExpense] = useState(initial);
   const { owed, received, remaining } = expenseReceivable(expense);
-  const unit = expense.currency === 'USD' ? 'دلار' : 'تومان';
+  const unit = currencyLabel(expense.currency);
   const money = (v) => formatAmount(v, expense.currency);
   const accountById = new Map(accounts.map((a) => [a.id, a]));
   // Money comes back in the expense's currency: into an account that holds it
@@ -140,7 +141,7 @@ export default function ReimbursementsModal({ expense: initial, accounts = [], o
                   id="reimbursement-amount"
                   value={amount}
                   onValueChange={setAmount}
-                  allowDecimals={expense.currency === 'USD'}
+                  allowDecimals={allowsDecimals(expense.currency)}
                   className="ui-input-control"
                 />
               </div>

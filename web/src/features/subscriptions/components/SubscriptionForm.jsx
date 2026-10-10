@@ -16,6 +16,7 @@ import {
 } from '../../../utils/subscriptionDocument.js';
 import { accountLabel } from '../../accounts/constants/accountDisplay.js';
 import { accountsForCurrency } from '../../../utils/accountDocument.js';
+import { CURRENCIES, allowsDecimals, currencyLabel, normalizeCurrency } from '../../../utils/currencies.js';
 import { subscriptionIcon } from '../constants/subscriptionDisplay.js';
 
 const CATEGORY_OPTIONS = SUBSCRIPTION_CATEGORIES.map(({ value, label }) => {
@@ -23,7 +24,7 @@ const CATEGORY_OPTIONS = SUBSCRIPTION_CATEGORIES.map(({ value, label }) => {
   return { value, label, icon: <Icon size={14} strokeWidth={2} /> };
 });
 const CYCLE_OPTIONS = SUBSCRIPTION_CYCLES.map(({ months, label }) => ({ value: String(months), label }));
-const CURRENCY_OPTIONS = [{ value: 'IRT', label: 'تومان' }, { value: 'USD', label: 'دلار' }];
+const CURRENCY_OPTIONS = CURRENCIES.map(({ code, label }) => ({ value: code, label }));
 const RENEW_OPTIONS = [{ value: 'auto', label: 'خودکار تمدید می‌شود' }, { value: 'manual', label: 'دستی تمدید می‌کنم' }];
 const amountOf = (v) => Number(String(v || '').replace(/[^\d.]/g, '')) || 0;
 const shamsiOf = (iso) => (iso ? gregorianToShamsi(`${iso}T00:00:00`) : '');
@@ -37,7 +38,7 @@ export default function SubscriptionForm({ subscription = null, accounts = [], o
   const [name, setName] = useState(s?.name || '');
   const [category, setCategory] = useState(s?.category || 'video');
   const [amount, setAmount] = useState(s ? String(s.amount) : '');
-  const [currency, setCurrency] = useState(s?.currency || 'IRT');
+  const [currency, setCurrency] = useState(normalizeCurrency(s?.currency));
   const [cycle, setCycle] = useState(String(s?.cycleMonths || 1));
   const [startShamsi, setStartShamsi] = useState(() => (s ? shamsiOf(s.startDate) : getTodayShamsi()));
   const [renewMode, setRenewMode] = useState(s && !s.autoRenew ? 'manual' : 'auto');
@@ -113,16 +114,15 @@ export default function SubscriptionForm({ subscription = null, accounts = [], o
           <FilterPills options={CATEGORY_OPTIONS} activeValue={category} onChange={setCategory} size="sm" className="income-category-picker" />
         </div>
 
-        <div className="sub-form-row">
-          <div className="ui-input-group">
-            <label htmlFor="sub-amount" className="ui-input-label">هزینه‌ی هر دوره *</label>
-            <div className="ui-input-wrapper">
-              <NumericInput id="sub-amount" value={amount} onValueChange={setAmount} allowDecimals={currency === 'USD'} className="ui-input-control" required />
-            </div>
-          </div>
-          <div className="ui-input-group">
-            <span className="ui-input-label">ارز</span>
-            <FilterPills options={CURRENCY_OPTIONS} activeValue={currency} onChange={setCurrency} size="sm" />
+        <div className="ui-input-group">
+          <span className="ui-input-label">ارز</span>
+          <FilterPills options={CURRENCY_OPTIONS} activeValue={currency} onChange={setCurrency} size="sm" />
+        </div>
+
+        <div className="ui-input-group">
+          <label htmlFor="sub-amount" className="ui-input-label">هزینه‌ی هر دوره ({currencyLabel(currency)}) *</label>
+          <div className="ui-input-wrapper">
+            <NumericInput id="sub-amount" value={amount} onValueChange={setAmount} allowDecimals={allowsDecimals(currency)} className="ui-input-control" required />
           </div>
         </div>
 

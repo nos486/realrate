@@ -3,7 +3,8 @@
  * e-wallet, ...). A bank credit takes only its limit, the debt already owed when it is added and
  * the day to count from — no bank rules: settling it and turning it into installments are
  * recorded by hand from its card (utils/creditAccount.js). Any other account holds one or more
- * currencies (tomans, dollars or both — e.g. a Wise account); forms then offer it only for records
+ * currencies (tomans, dollars, euros, lira, dirhams — utils/currencies.js; several, e.g. a Wise
+ * account); forms then offer it only for records
  * in a currency it holds (accountsForCurrency).
  * Mounted only while open, so its state starts from props.
  */
@@ -13,7 +14,7 @@ import { WalletCards } from 'lucide-react';
 import { AlertBanner, Button, FilterPills, Input, Modal, NumericInput } from '../../../shared/ui/index.js';
 import { BankPicker } from '../../../shared/banks/index.js';
 import { ACCOUNT_TYPES, ACCOUNT_LIMITS, accountCurrencies } from '../../../utils/accountDocument.js';
-import { EXPENSE_CURRENCIES } from '../../../utils/expenseDocument.js';
+import { CURRENCIES } from '../../../utils/currencies.js';
 import { todayIso } from '../../../shared/utils/dates.js';
 import ShamsiDatePicker, { gregorianToShamsi, shamsiToGregorian } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { getAccountTypeIcon } from '../constants/accountDisplay.js';
@@ -22,7 +23,7 @@ const TYPE_OPTIONS = ACCOUNT_TYPES.map(({ value, label }) => {
   const Icon = getAccountTypeIcon(value);
   return { value, label, icon: <Icon size={14} strokeWidth={2} /> };
 });
-const CURRENCY_OPTIONS = EXPENSE_CURRENCIES.map(({ value, label }) => ({ value, label }));
+const CURRENCY_OPTIONS = CURRENCIES.map(({ code, label }) => ({ value: code, label }));
 const digits = (v) => String(v ?? '').replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[^\d]/g, '');
 
 /** A credit's terms as the form edits them (strings) */

@@ -30,6 +30,7 @@ import Skeleton from '../../shared/ui/Skeleton.jsx';
 import { getPendingSms, SMS_INBOX_EVENT } from '../../shared/native/smsInbox.js';
 import { getIncomes } from '../../shared/vault/vaultIncomes.js';
 import { summarizeExpenses, shamsiMonthOf, shamsiMonthRange, shiftShamsiMonth, expenseInToman } from '../../utils/expenseDocument.js';
+import { useFxRates } from '../market/useFxRates.js';
 import { useDailyExpenses } from '../expenses/hooks/useDailyExpenses.js';
 import { getExpenseCategory } from '../expenses/constants/expenseCategories.js';
 import { useCategories } from '../../shared/categories/useCategories.js';
@@ -105,7 +106,8 @@ export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }
   const pendingSms = usePendingSms();
   // The dollar's rate on each expense's day (a dollar expense without its own), from the price history
   const usdAt = useUsdAt([...(expenses || []), ...(previousExpenses || [])].some((e) => e.currency === 'USD' && !e.usdRate));
-  const dollarRates = useMemo(() => ({ usdToman, usdAt }), [usdToman, usdAt]);
+  const fx = useFxRates(useMemo(() => [...(expenses || []), ...(previousExpenses || [])], [expenses, previousExpenses]));
+  const dollarRates = useMemo(() => ({ usdToman, usdAt, ...fx }), [usdToman, usdAt, fx]);
 
   const spent = useMemo(() => summarizeExpenses(counted.expenses, dollarRates).totalToman, [counted, dollarRates]);
   // The current month against the same number of days of last month; a past month against the
@@ -257,7 +259,7 @@ export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }
             <ul className="app-home-list">
               {latest.map((e) => {
                 const cat = getExpenseCategory(e.category);
-                const toman = expenseInToman(e, usdToman, usdAt);
+                const toman = expenseInToman(e, dollarRates);
                 return (
                   <li key={e.id} className="app-home-row">
                     <span className="app-home-row-icon"><cat.Icon size={18} /></span>

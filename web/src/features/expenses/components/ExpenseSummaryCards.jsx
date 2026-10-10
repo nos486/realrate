@@ -1,7 +1,8 @@
 /**
  * ExpenseSummaryCards.jsx — A project's totals: everything in tomans, the sums per currency as
- * recorded, and «به دلار» (FlowDollarCard): what its expenses were in dollars at each one's day
- * rate and what that costs today
+ * recorded (tomans, dollars, and each other currency it has: utils/currencies.js), and «به دلار»
+ * (FlowDollarCard): what its expenses were in dollars at each one's day rate and what that costs
+ * today
  */
 
 import React from 'react';
@@ -11,16 +12,20 @@ import { FlowDollarCard } from '../../../shared/flow/FlowCards.jsx';
 import { formatAmount } from '../utils/format.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import BudgetProgress from './BudgetProgress.jsx';
+import { currencyAdjective, currencyAmounts, currencyLabel, formatCurrencyAmounts } from '../../../utils/currencies.js';
 
 const MASK = '****';
 
 export default function ExpenseSummaryCards({ summary, budget = null, hideValues = false, dollarView = null }) {
   const money = (v, currency = 'IRT') => (hideValues ? MASK : formatAmount(v, currency));
-  const totalFoot = summary.unpricedUsd > 0
-    ? <span>{formatAmount(summary.unpricedUsd, 'USD')} دلار بدون نرخ حساب نشده</span>
+  const unpriced = summary.unpriced || {};
+  const totalFoot = Object.keys(unpriced).length > 0
+    ? <span>{formatCurrencyAmounts(unpriced)} بدون نرخ حساب نشده</span>
     : summary.usesTodayRate
-      ? <span>دلارهای بدون نرخ، به نرخ امروز</span>
+      ? <span>ارزهای بدون نرخ، به نرخ امروز</span>
       : null;
+  // The other foreign currencies it has (the dollar's card is always shown)
+  const others = currencyAmounts(summary.byCurrency).filter((c) => c.code !== 'IRT' && c.code !== 'USD');
 
   return (
     <>
@@ -49,11 +54,22 @@ export default function ExpenseSummaryCards({ summary, budget = null, hideValues
         <MiniCard
           icon={<DollarSign size={14} />}
           title="هزینه‌های دلاری"
-          value={money(summary.usd, 'USD')}
+          value={money(summary.byCurrency?.USD || 0, 'USD')}
           unit="دلار"
           color="blue"
           className="incomes-summary-card"
         />
+        {others.map(({ code, amount }) => (
+          <MiniCard
+            key={code}
+            icon={<Banknote size={14} />}
+            title={`هزینه‌های ${currencyAdjective(code)}`}
+            value={money(amount, code)}
+            unit={currencyLabel(code)}
+            color="blue"
+            className="incomes-summary-card"
+          />
+        ))}
         {/* Next to «تعداد هزینه‌ها» on a phone (two per row) */}
         <FlowDollarCard kind="expense" view={dollarView} hideValues={hideValues} wide={false} />
         <MiniCard

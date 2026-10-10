@@ -39,6 +39,7 @@ import { useSubscriptionsContext } from '../context/SubscriptionsContext.jsx';
 import SubscriptionForm from './SubscriptionForm.jsx';
 import SubscriptionCard from './SubscriptionCard.jsx';
 import SubscriptionSummary from './SubscriptionSummary.jsx';
+import { useFxRates } from '../../market/useFxRates.js';
 import { subscriptionIcon } from '../constants/subscriptionDisplay.js';
 
 const HEADER = {
@@ -60,6 +61,8 @@ export default function SubscriptionsPage() {
   const { accounts = [] } = useAccounts();
   const pricing = usePricing();
   const usdToman = Number(pricing?.getAssetPrice?.('usd')) || 0;
+  // Today's rates of the other currencies (the price book's; no history needed)
+  const fx = useFxRates(undefined, false);
   const [formState, setFormState] = useState(null);
   const [paying, setPaying] = useState(null); // { sub, view }
   const [showInactive, setShowInactive] = useState(false);
@@ -71,8 +74,8 @@ export default function SubscriptionsPage() {
 
   const totals = useMemo(() => {
     const { from, to } = shamsiMonthRange(month.jy, month.jm);
-    return subscriptionTotals(subscriptions, { today, usdToman, monthFrom: from, monthTo: to });
-  }, [subscriptions, today, usdToman, month]);
+    return subscriptionTotals(subscriptions, { today, usdToman, ...fx, monthFrom: from, monthTo: to });
+  }, [subscriptions, today, usdToman, fx, month]);
 
   const rows = useMemo(
     () => [...subscriptions].sort(compareSubscriptions(today)).map((sub) => ({ sub, view: subscriptionView(sub, today), period: subscriptionPeriod(sub, today) })),
@@ -149,7 +152,7 @@ export default function SubscriptionsPage() {
   const hasAny = subscriptions.length > 0;
   const sidebar = (
     <>
-      <SubscriptionSummary totals={totals} monthLabel={monthLabel} nearest={nearest} usdMissing={!usdToman} hideValues={hideValues} />
+      <SubscriptionSummary totals={totals} monthLabel={monthLabel} nearest={nearest} rates={{ usdToman, ...fx }} hideValues={hideValues} />
       {donutItems.length > 0 && <DonutChart title="ماهانه به تفکیک دسته" items={donutItems} centerLabel="جمع ماهانه" masked={hideValues} />}
     </>
   );
