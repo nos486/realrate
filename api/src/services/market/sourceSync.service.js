@@ -112,6 +112,24 @@ export function withDayRange(book, previousBook, now) {
   return book;
 }
 
+/**
+ * Each item's `updatedAt` is when its price last changed, not when it was last fetched: an item
+ * whose price (a dollar-priced asset's dollar price) is the same as in the previous book keeps
+ * that book's time, so a card says «۳ ساعت پیش» for a number that hasn't moved in three hours.
+ * Whether its source is still being read is `params.stale`, apart from this.
+ * @param {{ items: Record<string, object> }} book
+ * @param {{ items?: Record<string, object> }|null} previousBook
+ */
+export function withChangedAt(book, previousBook) {
+  for (const item of Object.values(book?.items || {})) {
+    const prev = previousBook?.items?.[item.id];
+    if (!prev?.updatedAt) continue;
+    const own = (it) => Number(currencyOf(it) === "usd" ? it.priceUsd : it.price);
+    if (currencyOf(prev) === currencyOf(item) && own(prev) === own(item)) item.updatedAt = prev.updatedAt;
+  }
+  return book;
+}
+
 /** Today's open / high / low at `price`, carried from the previous book's on the same day */
 function rangeOf(prev, price, day) {
   const same = prev?.day === day && Number(prev.dayHigh) > 0 && Number(prev.dayLow) > 0;
@@ -289,10 +307,10 @@ export async function syncAllSources(env, options = {}) {
 
   // 4. The price book, from every active source, with each source's sync state. Written even when
   //    nothing synced, so failures show up in the book's `sources`.
-  const book = withDayRange(buildPriceBook(activeSources.map((src) => ({
+  const book = withChangedAt(withDayRange(buildPriceBook(activeSources.map((src) => ({
     ...src,
     lastFetched: states[src.id]?.fetchedAt || src.lastFetched || null,
-  })), { now: nowIso, sourceStates: states }), previousBook, Date.parse(nowIso) || Date.now());
+  })), { now: nowIso, sourceStates: states }), previousBook, Date.parse(nowIso) || Date.now()), previousBook);
   // Each item's 30-day and one-year averages: carried, moved forward once a day (priceAverages)
   await withAverages(env, book, previousBook, Date.parse(nowIso) || Date.now());
   await setPriceBookCache(env, book);
