@@ -31,7 +31,7 @@ import { useAccounts } from '../../accounts/hooks/useAccounts.js';
 import ExpenseForm from '../../expenses/components/ExpenseForm.jsx';
 import {
   SUBSCRIPTION_EXPENSE_CATEGORY, compareSubscriptions, renewedAfter, subscriptionCategoryOf,
-  subscriptionTotals, subscriptionView,
+  subscriptionPeriod, subscriptionTotals, subscriptionView,
 } from '../../../utils/subscriptionDocument.js';
 import { useSubscriptionsContext } from '../context/SubscriptionsContext.jsx';
 import SubscriptionForm from './SubscriptionForm.jsx';
@@ -73,7 +73,7 @@ export default function SubscriptionsPage() {
   }, [subscriptions, today, usdToman, month]);
 
   const rows = useMemo(
-    () => [...subscriptions].sort(compareSubscriptions(today)).map((sub) => ({ sub, view: subscriptionView(sub, today) })),
+    () => [...subscriptions].sort(compareSubscriptions(today)).map((sub) => ({ sub, view: subscriptionView(sub, today), period: subscriptionPeriod(sub, today) })),
     [subscriptions, today],
   );
   const inactive = rows.filter((r) => r.view.state === 'cancelled' || r.view.state === 'ended');
@@ -198,11 +198,12 @@ export default function SubscriptionsPage() {
               <EmptyState title="اشتراک فعالی ندارید" description="اشتراک‌های لغوشده و پایان‌یافته پنهان هستند." />
             ) : (
               <ul className="sub-list">
-                {listed.map(({ sub, view }) => (
+                {listed.map(({ sub, view, period }) => (
                   <SubscriptionCard
                     key={sub.id}
                     sub={sub}
                     view={view}
+                    period={period}
                     account={accountById.get(sub.accountId)}
                     hideValues={hideValues}
                     readOnly={readOnly}

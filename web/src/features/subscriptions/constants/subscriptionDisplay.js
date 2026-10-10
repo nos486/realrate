@@ -38,3 +38,17 @@ export function daysLabel(days) {
 }
 
 export const shamsiDay = (iso) => (iso ? formatShamsiDisplay(`${iso}T00:00:00`) : '');
+
+/**
+ * How long is left of a subscription's period (subscriptionPeriod): «۱۲ روز تا تمدید»,
+ * «تمدید فردا», «پایان امروز», «۳ روز از تمدید گذشته»
+ */
+export function periodDaysLabel({ daysLeft, until }) {
+  const what = until === 'end' ? 'پایان' : 'تمدید';
+  if (daysLeft === 0) return `${what} امروز`;
+  if (daysLeft === 1) return `${what} فردا`;
+  return daysLeft > 0 ? `${fa(daysLeft)} روز تا ${what}` : `${fa(-daysLeft)} روز از ${what} گذشته`;
+}
+
+/** «۴۰٪ مانده» — the share of the period still ahead */
+export const periodLeftLabel = ({ progress }) => `${fa(Math.round((1 - progress) * 100))}٪ مانده`;

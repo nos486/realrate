@@ -51,19 +51,17 @@ export default function SubscriptionSummary({ totals, monthLabel, nearest, usdMi
         className="incomes-summary-card"
         footer={<span>{fa(totals.count)} اشتراک فعال، با نرخ امروز دلار</span>}
       />
-      {nearest && (
-        <MiniCard
-          icon={<CalendarClock size={14} />}
-          title="نزدیک‌ترین تمدید"
-          value={shamsiDay(nearest.view.nextRenewal)}
-          className="incomes-summary-card"
-          footer={(
-            <span className="incomes-summary-foot-text">
-              {nearest.sub.name}، {daysLabel(nearest.view.daysLeft)}، {hideValues ? '****' : formatSubscriptionAmount(nearest.sub.amount, nearest.sub.currency)}
-            </span>
-          )}
-        />
-      )}
+      <MiniCard
+        icon={<CalendarClock size={14} />}
+        title="نزدیک‌ترین تمدید"
+        value={nearest ? shamsiDay(nearest.view.nextRenewal) : '—'}
+        className="incomes-summary-card"
+        footer={nearest ? (
+          <span className="incomes-summary-foot-text">
+            {nearest.sub.name}، {daysLabel(nearest.view.daysLeft)}، {hideValues ? '****' : formatSubscriptionAmount(nearest.sub.amount, nearest.sub.currency)}
+          </span>
+        ) : <span>تمدیدی در پیش نیست</span>}
+      />
     </div>
   );
 }
