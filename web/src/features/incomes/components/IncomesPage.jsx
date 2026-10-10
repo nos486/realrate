@@ -6,7 +6,7 @@
  *   average and the largest category; the chart of the year so far (the month highlighted, a tap
  *   opens another month); the month's categories as a donut; the month's incomes, filterable by
  *   category, with search, CSV export / import and the form
- * - Categories left out of the totals («مدیریت نقدینگی» by default) are listed with a badge (or
+ * - Categories left out of the totals («فروش دارایی» by default) are listed with a badge (or
  *   hidden with «خارج از جمع») but not counted; their own sums show in «خارج از جمع»
  * - One download per year (the year and the month before it); amounts and titles are encrypted,
  *   so everything else — paging, sorting, search — works in the browser
@@ -18,12 +18,12 @@ import { useIncomes } from '../hooks/useIncomes.js';
 import { usePricing } from '../../market/index.js';
 import { useUsdAt } from '../../market/dailyHistory.js';
 import { summarizeDollarValues } from '../../../utils/dollarValue.js';
-import { incomeDollarValue } from '../utils/incomeReport.js';
+import { incomeDollarValue, incomeInToman } from '../../../utils/incomeDocument.js';
+import { useFxRates } from '../../market/useFxRates.js';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import { AlertBanner, Button, EmptyState, FeaturePageHeader, IconButton, Pagination, SearchBar, SplitPageLayout } from '../../../shared/ui/index.js';
 import DonutChart from '../../../shared/ui/DonutChart.jsx';
 import IncomeForm from './IncomeForm.jsx';
-import CashMoveTransferForm from '../../accounts/components/CashMoveTransferForm.jsx';
 import IncomesTable from './IncomesTable.jsx';
 import IncomeCsvExportButton from './IncomeCsvExportButton.jsx';
 import IncomeCsvImportButton from './IncomeCsvImportButton.jsx';
@@ -58,23 +58,25 @@ const HEADER = {
 };
 
 const inRange = (income, { from, to }) => income.incomeDate >= from && income.incomeDate <= to;
-const toPoint = (income) => ({ date: income.incomeDate, amount: Number(income.amount) || 0, category: income.category });
 const labelOf = (category) => getIncomeCategory(category).label;
+/** An income in tomans (a foreign one at its day's rate, utils/incomeDocument.js) */
+const tomanOf = (income, rates) => incomeInToman(income, rates) || 0;
+const toPoint = (income, rates) => ({ date: income.incomeDate, amount: tomanOf(income, rates), category: income.category });
 
-/** Totals per category, largest first */
-function byCategory(incomes) {
+/** Totals per category in tomans, largest first */
+function byCategory(incomes, rates) {
   const map = new Map();
   for (const i of incomes) {
     const key = i.category || 'other';
     const entry = map.get(key) || { category: key, total: 0, count: 0 };
-    entry.total += Number(i.amount) || 0;
+    entry.total += tomanOf(i, rates);
     entry.count += 1;
     map.set(key, entry);
   }
   return [...map.values()].sort((a, b) => b.total - a.total);
 }
 
-const sumOf = (incomes) => incomes.reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+const sumOf = (incomes, rates) => incomes.reduce((sum, i) => sum + tomanOf(i, rates), 0);
 
 export default function IncomesPage() {
   const { readOnly } = useDemo();
@@ -94,8 +96,6 @@ export default function IncomesPage() {
   const [paging, setPaging] = useState({ key: '', page: 1 });
   const [formOpen, setFormOpen] = useState(false);
   const [editingIncome, setEditingIncome] = useState(null);
-  // «مدیریت نقدینگی» recorded as a transfer between the user's accounts: its draft
-  const [cashMove, setCashMove] = useState(null);
 
   const loadWindow = useMemo(() => flowWindow(month.jy), [month.jy]);
   const {
@@ -117,6 +117,9 @@ export default function IncomesPage() {
   const pricing = usePricing();
   const usdToman = Number(pricing?.getAssetPrice?.('usd')) || 0;
   const usdAt = useUsdAt(loaded.length > 0);
+  // The rates bag (utils/currencies.js): the dollar's, and every other currency the incomes are in
+  const fx = useFxRates(loaded);
+  const rates = useMemo(() => ({ usdToman, usdAt, ...fx }), [usdToman, usdAt, fx]);
 
   const progress = useMemo(() => monthProgress(month, today), [month, today]);
   const monthLabel = formatShamsiMonth(month.jy, month.jm);
@@ -130,29 +133,29 @@ export default function IncomesPage() {
     [scoped, exclusionKey],
   );
   const counted = split.counted;
-  const total = sumOf(counted);
-  const categoryTotals = useMemo(() => byCategory(counted), [counted]);
-  const excludedTotals = useMemo(() => byCategory(split.excluded), [split]);
-  const dollar = useMemo(() => summarizeDollarValues(counted.map((i) => incomeDollarValue(i, usdToman, usdAt)), usdToman), [counted, usdToman, usdAt]);
+  const total = sumOf(counted, rates);
+  const categoryTotals = useMemo(() => byCategory(counted, rates), [counted, rates]);
+  const excludedTotals = useMemo(() => byCategory(split.excluded, rates), [split, rates]);
+  const dollar = useMemo(() => summarizeDollarValues(counted.map((i) => incomeDollarValue(i, rates)), usdToman), [counted, rates, usdToman]);
 
   // The month before, cut at the same day while this month is still running
   const previous = useMemo(() => {
     const list = splitCounted('income', loaded.filter((i) => i.incomeDate >= progress.prevRange.from && i.incomeDate <= progress.cutoff)).counted;
-    return { total: sumOf(list), count: list.length };
+    return { total: sumOf(list, rates), count: list.length };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded, progress, exclusionKey]);
+  }, [loaded, progress, exclusionKey, rates]);
 
   // The year so far, month by month (counted incomes only)
   const series = useMemo(() => {
-    const points = splitCounted('income', loaded).counted.map(toPoint);
+    const points = splitCounted('income', loaded).counted.map((i) => toPoint(i, rates));
     return buildYearSeries(points, month.jy, { throughMonth: month.jy === thisMonth.jy ? thisMonth.jm : 12 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded, month.jy, thisMonth, exclusionKey]);
+  }, [loaded, month.jy, thisMonth, exclusionKey, rates]);
   const categoryOrder = useMemo(() => categoryTotals.map((c) => c.category), [categoryTotals]);
 
   // The list: the month, without the excluded categories unless shown, filtered, searched, sorted
   const shown = showExcluded ? scoped : counted;
-  const shownByCategory = useMemo(() => byCategory(shown), [shown]);
+  const shownByCategory = useMemo(() => byCategory(shown, rates), [shown, rates]);
   const query = searchQuery.trim().toLowerCase();
   const searching = Boolean(query);
   const listed = useMemo(() => {
@@ -218,7 +221,7 @@ export default function IncomesPage() {
   }
 
   const excludedFooter = split.excluded.length > 0 && (
-    <span>{formatAmountMasked(sumOf(split.excluded), hideValues)} تومان خارج از جمع</span>
+    <span>{formatAmountMasked(sumOf(split.excluded, rates), hideValues)} تومان خارج از جمع</span>
   );
 
   const monthSidebar = (
@@ -269,7 +272,7 @@ export default function IncomesPage() {
             <IconButton
                     icon={showExcluded ? <Eye size={15} /> : <EyeOff size={15} />}
                     label={showExcluded ? 'خارج از جمع: نمایش داده می‌شود' : `خارج از جمع: ${split.excluded.length.toLocaleString('fa-IR')} مورد پنهان`}
-                    title={showExcluded ? 'پنهان کردن مدیریت نقدینگی و دیگر دسته‌های خارج از جمع' : 'نمایش دسته‌های خارج از جمع'}
+                    title={showExcluded ? 'پنهان کردن دسته‌های خارج از جمع' : 'نمایش دسته‌های خارج از جمع'}
                     active={!showExcluded}
                     pressed={!showExcluded}
                     badge={showExcluded ? null : split.excluded.length.toLocaleString('fa-IR')}
@@ -316,8 +319,7 @@ export default function IncomesPage() {
               readOnly={readOnly}
               sortState={{ key: 'date', dir: order }}
               onSortChange={() => setOrder(order === 'desc' ? 'asc' : 'desc')}
-              usdToman={usdToman}
-              usdAt={usdAt}
+              rates={rates}
             />
             <Pagination page={page} pageSize={pageSize} total={listed.length} loading={loadingIncomes} onChange={setPage} label="صفحه‌بندی درآمدها" />
           </div>
@@ -350,13 +352,8 @@ export default function IncomesPage() {
           onSubmit={(data) => saveIncome(data, editingIncome?.id)}
           editingIncome={editingIncome}
           submitting={submitting}
-          onCashMove={(move) => {
-            setFormOpen(false);
-            setCashMove(move);
-          }}
         />
       )}
-      {cashMove && <CashMoveTransferForm draft={cashMove} onClose={() => setCashMove(null)} />}
       {managingCategories && <CategoryManagerModal kind="income" onClose={() => setManagingCategories(false)} />}
     </div>
   );

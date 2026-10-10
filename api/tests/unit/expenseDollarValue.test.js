@@ -8,12 +8,10 @@ import { validateExpense, expenseDollarValue, summarizeDollarValue, expenseInTom
 const base = { groupId: 'exg_1', title: 'کاشی', amount: 50_000_000, currency: 'IRT', date: '2026-01-10' };
 
 describe('the day\'s dollar rate on a toman expense', () => {
-  it('is kept (optional), and does not change the toman amount', () => {
+  it('is never stored, and does not change the toman amount', () => {
     const { value } = validateExpense({ ...base, usdRate: 100_000 });
-    expect(value.usdRate).toBe(100_000);
+    expect(value).not.toHaveProperty('usdRate');
     expect(expenseInToman(value)).toBe(50_000_000);
-    expect(validateExpense({ ...base, usdRate: '' }).value.usdRate).toBeNull();
-    expect(validateExpense({ ...base, usdRate: -5 }).error).toBeTruthy();
   });
 
   it('gives the dollars then and the tomans today', () => {
@@ -48,8 +46,9 @@ describe("the day's rate from the price history (usdAt)", () => {
     expect(value.todayToman).toBeCloseTo(625 * 125_000);
   });
 
-  it("a rate of the expense's own wins over the history", () => {
-    expect(expenseDayRate({ ...base, usdRate: 100_000 }, usdAt)).toBe(100_000);
+  it("the history wins over a rate an older record stored, which fills only a day it doesn't have", () => {
+    expect(expenseDayRate({ ...base, usdRate: 100_000 }, usdAt)).toBe(80_000);
+    expect(expenseDayRate({ ...base, date: '2025-01-01', usdRate: 100_000 }, usdAt)).toBe(100_000);
     expect(expenseDayRate(base, usdAt)).toBe(80_000);
     expect(expenseDayRate({ ...base, date: '2025-01-01' }, usdAt)).toBe(0);
     expect(expenseDayRate(base)).toBe(0);

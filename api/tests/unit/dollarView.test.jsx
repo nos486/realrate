@@ -8,7 +8,7 @@ import React from 'react';
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import { dollarValueOf, summarizeDollarValues } from '../../src/domain/dollarValue.js';
-import { incomeDollarValue } from '../../../web/src/features/incomes/utils/incomeReport.js';
+import { incomeDollarValue } from '../../src/domain/incomeDocument.js';
 import { buildAssetLedgers, assetDollarPnl, sumDollarPnl } from '../../../web/src/features/portfolio/utils/assetLedger.js';
 import { DollarValueLine, DollarPnl } from '../../../web/src/shared/ui/DollarValue.jsx';
 
@@ -35,8 +35,8 @@ describe('dollarValueOf', () => {
 
 describe('an income in dollars', () => {
   it('at the rate of the day it came in', () => {
-    expect(incomeDollarValue({ amount: 8_000_000, incomeDate: '2025-03-21' }, 100_000, usdAt)).toMatchObject({ usd: 100, todayToman: 10_000_000 });
-    expect(incomeDollarValue({ amount: 8_000_000, incomeDate: '2019-01-01' }, 100_000, usdAt)).toBeNull();
+    expect(incomeDollarValue({ amount: 8_000_000, incomeDate: '2025-03-21' }, { usdToman: 100_000, usdAt })).toMatchObject({ usd: 100, todayToman: 10_000_000 });
+    expect(incomeDollarValue({ amount: 8_000_000, incomeDate: '2019-01-01' }, { usdToman: 100_000, usdAt })).toBeNull();
   });
 
   it('is shown under its amount', () => {

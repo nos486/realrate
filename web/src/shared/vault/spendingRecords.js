@@ -22,7 +22,7 @@
 
 import { SUBSCRIPTION_EXPENSE_CATEGORY, duePayments } from '../../utils/subscriptionDocument.js';
 import { categoryLinkOf, linkFieldsOf, sameLinkValue } from '../../utils/categoryLinks.js';
-import { normalizeCurrency } from '../../utils/currencies.js';
+import { BASE_CURRENCY, normalizeCurrency } from '../../utils/currencies.js';
 
 /** The expense category of a loan's payments (categoryLinks.js: links the installment) */
 export const INSTALLMENT_EXPENSE_CATEGORY = 'installments';
@@ -43,9 +43,9 @@ const sameAmount = (a, b) => Math.abs((Number(a) || 0) - (Number(b) || 0)) < 0.0
  * @param {object[]} records that day's
  * @param {{ amount: number, currency?: string }} payment
  */
-export function matchingRecord(side, records, { amount, currency = 'IRT' }) {
+export function matchingRecord(side, records, { amount, currency = BASE_CURRENCY }) {
   return records.find((r) => !String(r.id).startsWith('exp_s')
-    && (r.currency || 'IRT') === currency
+    && normalizeCurrency(r.currency) === normalizeCurrency(currency)
     && sameAmount(r.amount, amount)
     && !LINK_FIELDS[side].some((f) => r[f])) || null;
 }
@@ -80,7 +80,7 @@ export function spendingExpenseId(key) {
 export async function recordSpending(key, expense, { syncLinks = false } = {}) {
   const { ensureDailyGroup, getExpenseGroups, getExpenses, saveExpense } = await store();
   const id = spendingExpenseId(key);
-  const currency = expense.currency || 'IRT';
+  const currency = normalizeCurrency(expense.currency);
   const { expenses: sameDay = [] } = await getExpenses({ from: expense.date, to: expense.date });
   const own = sameDay.find((e) => e.id === id) || null;
   const match = own ? null : matchingRecord('expense', sameDay, { amount: expense.amount, currency });
@@ -153,7 +153,7 @@ export async function recordInstallmentPayments(loan, installments) {
     await recordSpending(`loan:${loan.id}:${inst.id}`, {
       title: `قسط ${loan.title || 'وام'}`,
       amount,
-      currency: 'IRT',
+      currency: BASE_CURRENCY,
       date: inst.paidDate,
       category: INSTALLMENT_EXPENSE_CATEGORY,
       loanInstallment: { loanId: loan.id, installmentId: String(inst.id) },
@@ -191,7 +191,7 @@ export async function recordExtraPayment(loan, payment) {
   await recordSpending(`loanx:${loan.id}:${payment.id || date}`, {
     title: `پرداخت اضافه ${loan.title || 'وام'}`,
     amount,
-    currency: 'IRT',
+    currency: BASE_CURRENCY,
     date,
     category: INSTALLMENT_EXPENSE_CATEGORY,
   });

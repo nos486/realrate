@@ -115,8 +115,8 @@ export default function LoanFundingCard({ loan, hideValues = false }) {
     };
   }, [hasExpenses, vaultStatus, vaultEpoch, refreshToken, loan?.id, from]);
 
-  // The dollar's rate on a dollar expense's day (one without its own), from the price history
-  const usdAt = useUsdAt((data?.expenses || []).some((e) => e.loanId === loan?.id && e.currency === 'USD' && !e.usdRate));
+  // The dollar's rate on a dollar expense's day, from the price history
+  const usdAt = useUsdAt((data?.expenses || []).some((e) => e.loanId === loan?.id && e.currency === 'USD'));
   const fx = useFxRates((data?.expenses || []).filter((e) => e.loanId === loan?.id));
 
   if (!data) return null;

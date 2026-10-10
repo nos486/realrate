@@ -92,22 +92,24 @@ export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }
 
   const { expenses, previousExpenses, loading: expensesLoading } = useDailyExpenses(month, { enabled: hasExpenses && unlocked });
   const monthIncomes = useMonthIncomes(range, unlocked);
-  // Income and spending only: «مدیریت نقدینگی», «سرمایه‌گذاری» and the like are left out
-  const incomes = useMemo(
-    () => ({ loading: monthIncomes.loading, total: buildIncomeReport(splitCounted('income', monthIncomes.incomes).counted).total }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [monthIncomes, exclusionKey],
-  );
   const counted = useMemo(
     () => ({ expenses: splitCounted('expense', expenses).counted, previous: splitCounted('expense', previousExpenses).counted }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [expenses, previousExpenses, exclusionKey],
   );
   const pendingSms = usePendingSms();
-  // The dollar's rate on each expense's day (a dollar expense without its own), from the price history
-  const usdAt = useUsdAt([...(expenses || []), ...(previousExpenses || [])].some((e) => e.currency === 'USD' && !e.usdRate));
-  const fx = useFxRates(useMemo(() => [...(expenses || []), ...(previousExpenses || [])], [expenses, previousExpenses]));
+  // The rates of the currencies the month's expenses and incomes are in: today's, and on each
+  // one's day (the price history)
+  const monthRecords = useMemo(() => [...(expenses || []), ...(previousExpenses || []), ...(monthIncomes.incomes || [])], [expenses, previousExpenses, monthIncomes.incomes]);
+  const usdAt = useUsdAt(monthRecords.some((r) => r.currency === 'USD'));
+  const fx = useFxRates(monthRecords);
   const dollarRates = useMemo(() => ({ usdToman, usdAt, ...fx }), [usdToman, usdAt, fx]);
+  // Income and spending only: «سرمایه‌گذاری», «فروش دارایی» and the like are left out
+  const incomes = useMemo(
+    () => ({ loading: monthIncomes.loading, total: buildIncomeReport(splitCounted('income', monthIncomes.incomes).counted, dollarRates).total }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [monthIncomes, exclusionKey, dollarRates],
+  );
 
   const spent = useMemo(() => summarizeExpenses(counted.expenses, dollarRates).totalToman, [counted, dollarRates]);
   // The current month against the same number of days of last month; a past month against the

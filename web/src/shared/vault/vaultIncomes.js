@@ -2,29 +2,27 @@
  * vaultIncomes.js — Incomes of an end-to-end encrypted account
  *
  * Same functions and response shapes as the incomes REST API (features/incomes/api/incomeApi.js),
- * with each income stored as one encrypted vault record. Validation mirrors the server's
- * parseIncomeInput so both paths accept exactly the same data.
+ * with each income stored as one encrypted vault record, validated by the shared
+ * utils/incomeDocument.js (in tomans or a foreign currency; no rate is ever stored).
  *
  * An income that is a sale from a portfolio (`soldFrom`, utils/portfolioLink.js) also writes,
- * moves or deletes its «sell» transaction there (portfolioFunds.js): the transaction first.
+ * moves or deletes its «sell» transaction there (portfolioFunds.js): the transaction first, priced
+ * at the income's tomans (a foreign one at its currency's rate on its day, recordRates.js).
  * Its category may link it to a record (utils/categoryLinks.js): a deposit that pays a bank
  * credit's debt («تسویه بدهی اعتباری») names the credit (`creditAccountId`: a payment into it,
  * utils/creditAccount.js). Received with a cheque, of any category, it names the cheque (`chequeId`). What
  * linking does to that record is recordLinks.js's, run after every save and delete.
  */
 
-import { isCategoryValue } from '../../utils/categoryDocument.js';
-import { categoryLinkFields, paymentLinkFields } from '../../utils/categoryLinks.js';
-import { validatePortfolioLink, sameLink } from '../../utils/portfolioLink.js';
+import { validateIncome } from '../../utils/incomeDocument.js';
+import { sameLink } from '../../utils/portfolioLink.js';
+import { tomanRateOn } from './recordRates.js';
 import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
 import { putRecord, backfillRecordDates, repairRecordDates } from './vaultRecordMeta.js';
 import { encryptVaultRecord, decryptVaultRecord } from './vaultStore.js';
 import { syncRecordLinks, releaseRecordLinks } from './recordLinks.js';
 
 const KIND = 'income';
-const TITLE_MAX_LENGTH = 120;
-const NOTES_MAX_LENGTH = 500;
-const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 class IncomeValidationError extends Error {
   constructor(message, status = 400) {
@@ -33,37 +31,11 @@ class IncomeValidationError extends Error {
   }
 }
 
-/** Same rules as the server's parseIncomeInput */
+/** An income as stored (utils/incomeDocument.js), or a validation error thrown for the form */
 export function parseIncomeInput(body = {}) {
-  const title = String(body.title ?? '').trim();
-  const amount = Number(body.amount);
-  const incomeDate = String(body.incomeDate ?? body.income_date ?? '').trim();
-  const notes = String(body.notes ?? '').trim();
-  const category = isCategoryValue('income', body.category) ? body.category : 'other';
-  // Recorded from a bank SMS: the transaction's key (bankSms.js), so it is not recorded twice
-  const smsKey = String(body.smsKey ?? '').trim().slice(0, 120);
-  // The record its category links it to (categoryLinks.js): «تسویه بدهی اعتباری» the credit
-  // whose debt this deposit pays; and the received cheque it came with, whatever its category
-  const links = { ...categoryLinkFields('income', category, body), ...paymentLinkFields('income', body) };
-
-  if (!title) throw new IncomeValidationError('عنوان درآمد الزامی است.');
-  if (title.length > TITLE_MAX_LENGTH) throw new IncomeValidationError(`عنوان درآمد نباید بیشتر از ${TITLE_MAX_LENGTH} کاراکتر باشد.`);
-  if (!Number.isFinite(amount) || amount <= 0) throw new IncomeValidationError('مبلغ درآمد باید عددی بزرگتر از صفر باشد.');
-  if (!ISO_DATE_RE.test(incomeDate) || isNaN(new Date(incomeDate).getTime())) {
-    throw new IncomeValidationError('تاریخ دریافت درآمد نامعتبر است.');
-  }
-  if (notes.length > NOTES_MAX_LENGTH) throw new IncomeValidationError(`یادداشت نباید بیشتر از ${NOTES_MAX_LENGTH} کاراکتر باشد.`);
-  // Sold from a portfolio: its «sell» entry (always returned, so an edit can remove it)
-  const sold = validatePortfolioLink(body.soldFrom);
-  if (sold.error) throw new IncomeValidationError(sold.error);
-
-  return {
-    title, category, amount, incomeDate, notes, soldFrom: sold.link,
-    ...(smsKey ? { smsKey } : {}),
-    // Always returned, so an edit to another category drops them
-    creditAccountId: links.creditAccountId || '',
-    chequeId: links.chequeId || '',
-  };
+  const { value, error } = validateIncome(body);
+  if (error) throw new IncomeValidationError(error);
+  return value;
 }
 
 function newIncomeId() {
@@ -86,7 +58,8 @@ async function save(income, previous = null) {
   if (after) {
     const f = await funds();
     if (before && !sameLink(before, after)) await f.deleteLinkedTransaction(before);
-    await f.saveLinkedTransaction(after, { type: 'sell', toman: Number(income.amount) || 0, date: income.incomeDate, owner: { incomeId: income.id } });
+    const toman = (Number(income.amount) || 0) * await tomanRateOn(income.currency, income.incomeDate);
+    await f.saveLinkedTransaction(after, { type: 'sell', toman, date: income.incomeDate, owner: { incomeId: income.id } });
   }
   try {
     await putRecord(KIND, income.id, await encryptVaultRecord(income), income);

@@ -105,7 +105,7 @@ export default function AccountsPage() {
   const { expenses: dailyExpenses, projectExpenses = [] } = useDailyExpenses(thisMonth, { enabled: hasExpenses });
   const monthExpenses = useMemo(() => [...dailyExpenses, ...projectExpenses], [dailyExpenses, projectExpenses]);
   const usdToman = Number(usePricing()?.getAssetPrice?.('usd')) || 0;
-  const usdAt = useUsdAt(monthExpenses.some((e) => e.currency === 'USD' && !e.usdRate));
+  const usdAt = useUsdAt(monthExpenses.some((e) => e.currency === 'USD'));
   const fx = useFxRates(monthExpenses);
   const spentBy = useMemo(
     () => new Map(summarizeByAccount(monthExpenses, { usdToman, usdAt, ...fx }).map((s) => [s.accountId, s])),

@@ -59,7 +59,8 @@ export async function findRecorded(pending) {
   }
   for (const i of incomes) {
     if (i.smsKey) recordedKeys.add(i.smsKey);
-    else sameDay.add(sameDayKey('credit', i.incomeDate, i.amount));
+    // A bank's message is in tomans: a foreign income is never one
+    else if (!isForeignCurrency(i.currency)) sameDay.add(sameDayKey('credit', i.incomeDate, i.amount));
   }
   for (const t of transfers) {
     if (t.smsKeys?.length) for (const key of t.smsKeys) recordedKeys.add(key);

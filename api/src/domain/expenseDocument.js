@@ -6,13 +6,12 @@
  * planned server-side intake (bank SMS read by the Android app) will produce the same expense
  * shape.
  *
- * An expense is in tomans or a foreign currency (currencies.js: dollar, euro, lira, dirham). Its
- * currency's toman rate on its day comes from the daily price history (the rates bag: `usdAt`,
- * `rateAt`, web features/market/useFxRates.js); an expense carries a rate of its own only when
- * it is the one the money actually changed hands at (paid from a portfolio's dollars, bought into
- * a portfolio) or one the user typed over the history's — `usdRate` for the dollar (on any
- * expense: the dollar's rate that day), `rate` for another foreign currency (its own rate).
- * Totals in tomans use that rate, else the day's rate, else today's.
+ * An expense is in tomans or a foreign currency (currencies.js: dollar, euro, lira, dirham), and
+ * never stores a rate: its currency's toman rate on its day is read from the daily price history
+ * (the rates bag: `usdAt`, `rateAt`, web features/market/useFxRates.js), today's when that day is
+ * unknown. Older records may still carry one (`usdRate` for the dollar, `rate` for another
+ * currency: LEGACY_RATE_FIELDS); it is read only for a day the history doesn't have, and dropped
+ * the next time the expense is saved (vaultExpenses.js).
  *
  * Section `type`: 'project' (a project, a trip, ...) or 'daily' — the one section per user that
  * holds everyday spending, each expense in a category (DAILY_EXPENSE_CATEGORIES) and shown
@@ -32,12 +31,12 @@
  * message's `smsFingerprint` and the transaction's `smsKey` (so it is not recorded twice).
  *
  * A foreign expense may be paid from that currency held in a portfolio (`paidFrom: { portfolioId,
- * portfolioName, assetId, txId }`): the portfolio gets a «spend» transaction (`txId`) at the expense's rate
+ * portfolioName, assetId, txId }`): the portfolio gets a «spend» transaction (`txId`) at the currency's rate on its day
  * (web/src/shared/vault/portfolioFunds.js); such an expense has no account and no loan.
  *
  * Money put into an asset (`investedIn: { portfolioId, portfolioName, assetId, quantity, txId }`,
  * portfolioLink.js): the portfolio gets a «buy» transaction at the expense's tomans / quantity, so
- * it needs a toman value (a foreign expense its own rate, expenseOwnRate) and is never shared.
+ * it is priced at the expense's tomans (a foreign one at its day's rate) and is never shared.
  *
  * A shared expense («دنگ», toman expenses only): the user paid `amount` for others too, and only `myShare` (same
  * currency) is theirs. Totals, categories, budgets and loan usage count `myShare`
@@ -53,7 +52,7 @@ import { jalaliToGregorian, getJalaliMonthLength, gregorianToJalali } from './lo
 import { isCategoryValue } from './categoryDocument.js';
 import { categoryLinkFields, paymentLinkFields } from './categoryLinks.js';
 import {
-  BASE_CURRENCY, CURRENCIES, normalizeCurrency, currencyLabel, currencyRateOn, currencyRateToday,
+  BASE_CURRENCY, CURRENCIES, normalizeCurrency, currencyRateOn, currencyRateToday,
 } from './currencies.js';
 
 /** The currencies an expense can be in (currencies.js), as picker options */
@@ -176,13 +175,11 @@ function parseBudget(raw) {
   return Number.isFinite(n) && n > 0 && n <= EXPENSE_LIMITS.maxAmount ? n : undefined;
 }
 
-/** An optional toman rate typed or stored on an expense: null when empty */
-function optionalRate(raw, label) {
-  if (raw === null || raw === undefined || raw === '' || Number(raw) === 0) return { rate: null };
-  const rate = Number(raw);
-  if (!Number.isFinite(rate) || rate <= 0 || rate > EXPENSE_LIMITS.maxAmount) return { error: `نرخ ${label} باید عددی مثبت باشد.` };
-  return { rate };
-}
+/**
+ * Rates older expenses stored (the dollar's `usdRate`, another currency's `rate`): read only for a
+ * day the price history doesn't have, and dropped when the expense is saved again
+ */
+export const LEGACY_RATE_FIELDS = ['usdRate', 'rate'];
 
 /**
  * Validate & normalize an expense
@@ -206,18 +203,6 @@ export function validateExpense(body = {}) {
 
   const date = text(body.date);
   if (!isValidIsoDate(date)) return { error: 'تاریخ هزینه نامعتبر است.' };
-
-  // The dollar's toman rate on the expense's day (optional): a dollar expense's own rate, or for
-  // another expense what it was worth in dollars then (expenseDollarValue)
-  const usd = optionalRate(body.usdRate, 'دلار');
-  if (usd.error) return { error: usd.error };
-  const usdRate = usd.rate;
-  // Another foreign currency's own toman rate on its day (optional; the history's otherwise)
-  const own = currency === BASE_CURRENCY || currency === 'USD' ? { rate: null } : optionalRate(body.rate, currencyLabel(currency));
-  if (own.error) return { error: own.error };
-  const rate = own.rate;
-  // Its own currency's stored rate: what a portfolio transaction is priced at
-  const ownRate = currency === 'USD' ? usdRate : rate;
 
   const notes = text(body.notes);
   if (notes.length > EXPENSE_LIMITS.notesLength) return { error: `یادداشت نباید بیشتر از ${EXPENSE_LIMITS.notesLength} کاراکتر باشد.` };
@@ -244,17 +229,15 @@ export function validateExpense(body = {}) {
   const funding = validatePaidFrom(body.paidFrom, currency);
   if (funding.error) return { error: funding.error };
   const { paidFrom } = funding;
-  if (paidFrom && !(ownRate > 0)) return { error: `برای پرداخت از پورتفو، نرخ ${currencyLabel(currency)} روز هزینه لازم است.` };
 
   const invested = validatePortfolioLink(body.investedIn);
   if (invested.error) return { error: invested.error };
   const investedIn = invested.link;
-  if (investedIn && currency !== BASE_CURRENCY && !(ownRate > 0)) return { error: `برای افزودن به پورتفو، نرخ ${currencyLabel(currency)} روز هزینه لازم است.` };
   if (investedIn && myShare !== null) return { error: 'هزینه‌ای که به پورتفو اضافه می‌شود دنگ ندارد.' };
 
   return {
     value: {
-      groupId, title, amount, currency, date, usdRate, rate, notes, category, source, bankId,
+      groupId, title, amount, currency, date, notes, category, source, bankId,
       // Paid from a portfolio: no account, no loan
       accountId: paidFrom ? '' : accountId,
       loanId: paidFrom ? '' : loanId,
@@ -268,16 +251,6 @@ export function validateExpense(body = {}) {
 
 /** The asset each foreign currency may be paid with from a portfolio: its price book id (currencies.js) */
 export const PAYABLE_ASSETS = Object.fromEntries(CURRENCIES.filter((c) => c.priceId).map((c) => [c.code, c.priceId]));
-
-/**
- * Its own currency's toman rate as stored on it (not the history's): a dollar expense's `usdRate`,
- * another foreign one's `rate`; 0 for none — what a portfolio transaction is priced at
- */
-export function expenseOwnRate(expense) {
-  const currency = normalizeCurrency(expense?.currency);
-  if (currency === BASE_CURRENCY) return 1;
-  return Number(currency === 'USD' ? expense?.usdRate : expense?.rate) || 0;
-}
 
 /**
  * Where a foreign expense was paid from in a portfolio (that currency held there), or null
@@ -372,21 +345,19 @@ export function expenseReceivable(expense) {
 }
 
 /**
- * The dollar's rate (tomans) on an expense's day: its own `usdRate`, else the price history's
- * rate for its date; 0 when neither is known
+ * The dollar's rate (tomans) on an expense's day: the price history's for its date, else (an
+ * older record, a day before the history) the `usdRate` it stored; 0 when neither is known
  * @param {object} expense
  * @param {(isoDate: string) => number|null} [usdAt] the dollar's rate on a date (price history)
  */
 export function expenseDayRate(expense, usdAt) {
-  const own = Number(expense?.usdRate) || 0;
-  if (own > 0) return own;
   const fromHistory = typeof usdAt === 'function' && expense?.date ? Number(usdAt(expense.date)) || 0 : 0;
-  return fromHistory > 0 ? fromHistory : 0;
+  return fromHistory > 0 ? fromHistory : Number(expense?.usdRate) || 0;
 }
 
 /**
- * Its currency's toman rate on its day: 1 for tomans; a dollar's `usdRate` (expenseDayRate),
- * another currency's own `rate`, else the price history's for its date; 0 when unknown
+ * Its currency's toman rate on its day: 1 for tomans; the price history's for its date, else (an
+ * older record) the rate it stored; 0 when unknown
  * @param {object} expense
  * @param {{ usdAt?: Function, rateAt?: Function }} [rates] the rates bag (currencies.js)
  */
@@ -394,8 +365,7 @@ export function expenseCurrencyRate(expense, rates = {}) {
   const currency = normalizeCurrency(expense?.currency);
   if (currency === BASE_CURRENCY) return 1;
   if (currency === 'USD') return expenseDayRate(expense, rates.usdAt);
-  const own = Number(expense?.rate) || 0;
-  return own > 0 ? own : currencyRateOn(currency, expense?.date, rates);
+  return currencyRateOn(currency, expense?.date, rates) || Number(expense?.rate) || 0;
 }
 
 /**

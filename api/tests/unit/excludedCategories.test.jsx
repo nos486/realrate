@@ -70,7 +70,7 @@ describe('daily expenses with categories left out of the totals', () => {
   it('hides them from the list on request, and remembers it', () => {
     render(<DailyExpensesView />);
     expect(screen.getAllByText(/^t-e/).length).toBeGreaterThanOrEqual(3);
-    fireEvent.click(screen.getByTitle(/پنهان کردن مدیریت نقدینگی/));
+    fireEvent.click(screen.getByTitle(/پنهان کردن سرمایه‌گذاری/));
     expect(screen.queryAllByText('t-e2')).toHaveLength(0);
     expect(screen.getAllByText('t-e1').length).toBeGreaterThan(0);
     expect(localStorage.getItem('realrate_show_excluded_expense')).toBe('0');

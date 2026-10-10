@@ -10,8 +10,8 @@
  *   them and a CSV export of the month
  * - Expenses can be picked (one by one, the page's rows, or every one listed) and moved into a
  *   project (MoveToProjectModal): they leave the everyday expenses
- * - All spending is in this list: categories left out of the totals («مدیریت نقدینگی»,
- *   «سرمایه‌گذاری» by default) and the projects' expenses (with their category and project) are
+ * - All spending is in this list: categories left out of the totals («سرمایه‌گذاری» by
+ *   default) and the projects' expenses (with their category and project) are
  *   listed with a badge (or hidden with «خارج از جمع») but not counted in the total, the
  *   comparison, the budgets or the donut; the categories' own sums show in «خارج از جمع». The form
  *   adds and edits either: its «پروژه» puts an expense in a project or back in the everyday ones
@@ -49,7 +49,6 @@ import { accountLabel } from '../../accounts/constants/accountDisplay.js';
 import { getExpenseCategory } from '../constants/expenseCategories.js';
 import { formatAmount } from '../utils/format.js';
 import ExpenseForm from './ExpenseForm.jsx';
-import CashMoveTransferForm from '../../accounts/components/CashMoveTransferForm.jsx';
 import ExpensesTable from './ExpensesTable.jsx';
 import BudgetForm from './BudgetForm.jsx';
 import BudgetProgress from './BudgetProgress.jsx';
@@ -86,8 +85,6 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
   const [order, setOrder] = useState('desc');
   const [paging, setPaging] = useState({ key: '', page: 1 });
   const [form, setForm] = useState(null); // null | { expense: object|null }
-  // «مدیریت نقدینگی» recorded as a transfer between the user's accounts: its draft
-  const [cashMove, setCashMove] = useState(null);
   const [budgetOpen, setBudgetOpen] = useState(false);
   const [reimburse, setReimburse] = useState(null); // a shared expense whose «دریافتی‌ها» are open
   const [sharesOpen, setSharesOpen] = useState(false);
@@ -360,7 +357,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                   <IconButton
                     icon={showExcluded ? <Eye size={15} /> : <EyeOff size={15} />}
                     label={showExcluded ? 'خارج از جمع: نمایش داده می‌شود' : `خارج از جمع: ${hiddenCount.toLocaleString('fa-IR')} مورد پنهان`}
-                    title={showExcluded ? 'پنهان کردن مدیریت نقدینگی، سرمایه‌گذاری، هزینه‌های پروژه‌ها و دیگر موارد خارج از جمع' : 'نمایش موارد خارج از جمع (مدیریت نقدینگی، سرمایه‌گذاری، هزینه‌های پروژه‌ها…)'}
+                    title={showExcluded ? 'پنهان کردن سرمایه‌گذاری، هزینه‌های پروژه‌ها و دیگر موارد خارج از جمع' : 'نمایش موارد خارج از جمع (سرمایه‌گذاری، هزینه‌های پروژه‌ها…)'}
                     active={!showExcluded}
                     pressed={!showExcluded}
                     badge={showExcluded ? null : hiddenCount.toLocaleString('fa-IR')}
@@ -495,13 +492,8 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
           onSubmit={(input) => saveExpense(input, form.expense)}
           onClose={() => setForm(null)}
           submitting={submitting}
-          onCashMove={(move) => {
-            setForm(null);
-            setCashMove(move);
-          }}
         />
       )}
-      {cashMove && <CashMoveTransferForm draft={cashMove} onClose={() => setCashMove(null)} />}
       {reimburse && (
         <ReimbursementsModal
           expense={reimburse}

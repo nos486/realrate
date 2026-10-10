@@ -9,10 +9,15 @@
  *   { expense: [{ value, label, icon, color, hidden, excluded }], income: [...] }
  *
  * `excluded`: the category's records are listed but not counted in the totals, charts and budgets
- * — money that is still the user's (moving it between their own accounts: «مدیریت نقدینگی») or
- * money put to work rather than spent («سرمایه‌گذاری») or an asset turned back into cash («فروش
- * دارایی») or a deposit that pays a bank credit's debt («تسویه بدهی اعتباری», creditAccount.js). Those are excluded by default; any
- * category can be switched. A stored item without the field keeps the built-in's default.
+ * — money put to work rather than spent («سرمایه‌گذاری») or an asset turned back into cash («فروش
+ * دارایی») or a deposit that pays a bank credit's debt («تسویه بدهی اعتباری», creditAccount.js).
+ * Those are excluded by default; any category can be switched. A stored item without the field
+ * keeps the built-in's default.
+ *
+ * `retired`: a built-in no longer offered — never in a picker or in «دسته‌ها», only shown on the
+ * older records that have it, always out of the totals. «مدیریت نقدینگی» (money moved between the
+ * user's own accounts) is retired: such a move is a transfer between the accounts, never an
+ * expense or an income (transferDocument.js).
  *
  * The stored list is laid over the built-ins (mergeCategories): it gives the order and the
  * changes; a built-in it doesn't mention (one added in a later release) is still there. "other"
@@ -50,11 +55,6 @@ export const CATEGORY_COLORS = [
 const ICON_SET = new Set(CATEGORY_ICON_NAMES);
 const COLOR_RE = /^#[0-9a-f]{6}$/i;
 
-/**
- * Moving money between the user's own accounts (expense and income): recorded as a transfer
- * between the accounts when both are in the app (transferDocument.js), else as an excluded record
- */
-export const CASH_MANAGEMENT_CATEGORY = 'cash_management';
 
 /** The built-in categories of a kind, with their default icon and color */
 export const BUILTIN_CATEGORIES = {
@@ -73,7 +73,8 @@ export const BUILTIN_CATEGORIES = {
     { value: 'installments', label: 'پرداخت قسط', icon: 'Landmark', color: '#fb923c' },
     { value: 'credit_fees', label: 'کارمزد و سود اعتبار', icon: 'CreditCard', color: '#ef4444' },
     { value: 'investment', label: 'سرمایه‌گذاری', icon: 'TrendingUp', color: '#34d399', excluded: true },
-    { value: 'cash_management', label: 'مدیریت نقدینگی', icon: 'Wallet', color: '#22d3ee', excluded: true },
+    // Retired: a move between the user's own accounts is a transfer
+    { value: 'cash_management', label: 'مدیریت نقدینگی', icon: 'Wallet', color: '#22d3ee', excluded: true, retired: true },
     { value: 'other', label: 'سایر', icon: 'CircleEllipsis', color: '#94a3b8' },
   ],
   income: [
@@ -85,7 +86,8 @@ export const BUILTIN_CATEGORIES = {
     { value: 'investment', label: 'سود سرمایه‌گذاری', icon: 'TrendingUp', color: '#10b981' },
     { value: 'rental', label: 'اجاره', icon: 'Home', color: '#fb7185' },
     { value: 'gift', label: 'هدیه و کمک', icon: 'Gift', color: '#f472b6' },
-    { value: 'cash_management', label: 'مدیریت نقدینگی', icon: 'Wallet', color: '#22d3ee', excluded: true },
+    // Retired: a move between the user's own accounts is a transfer
+    { value: 'cash_management', label: 'مدیریت نقدینگی', icon: 'Wallet', color: '#22d3ee', excluded: true, retired: true },
     { value: 'asset_sale', label: 'فروش دارایی', icon: 'PiggyBank', color: '#34d399', excluded: true },
     { value: 'credit_settlement', label: 'تسویه بدهی اعتباری', icon: 'CreditCard', color: '#60a5fa', excluded: true },
     { value: 'other', label: 'سایر', icon: 'CircleDollarSign', color: '#94a3b8' },
@@ -159,7 +161,7 @@ export function validateCategorySettings(body = {}) {
  * The categories of a kind as shown: the stored list over the built-ins
  * @param {'expense'|'income'} kind
  * @param {object[]|null|undefined} stored
- * @returns {Array<{ value: string, label: string, icon: string, color: string, hidden: boolean, excluded: boolean, custom: boolean }>}
+ * @returns {Array<{ value: string, label: string, icon: string, color: string, hidden: boolean, excluded: boolean, custom: boolean, retired?: boolean }>}
  */
 export function mergeCategories(kind, stored) {
   const builtins = BUILTIN_CATEGORIES[kind] || [];
@@ -169,7 +171,13 @@ export function mergeCategories(kind, stored) {
     ...list,
     // Built-ins the stored list doesn't mention yet, before "other" when it is at the end
     ...builtins.filter((c) => !listed.has(c.value)).map((c) => ({ ...c, hidden: false, excluded: Boolean(c.excluded) })),
-  ].map((c) => ({ ...c, custom: CUSTOM_CATEGORY_RE.test(c.value) }));
+  ].map((c) => {
+    // A retired built-in stays as it was made: shown on its old records, out of the totals
+    const builtin = builtins.find((b) => b.value === c.value);
+    return builtin?.retired
+      ? { ...c, retired: true, excluded: true, custom: false }
+      : { ...c, custom: CUSTOM_CATEGORY_RE.test(c.value) };
+  });
   const otherIndex = merged.findIndex((c) => c.value === FALLBACK_CATEGORY);
   if (otherIndex >= 0 && !listed.has(FALLBACK_CATEGORY)) merged.push(...merged.splice(otherIndex, 1));
   return merged;
