@@ -4,6 +4,9 @@
  * Mounted only while open (keyed by the edited cheque), so its state is initialized straight from
  * props. The status is chosen here only when registering (e.g. an already cleared cheque); later
  * changes go through the tracking modal so each one is logged with its date.
+ * A cheque is a way of paying: «بابت» is what it pays for (an expense category, issued) or brings
+ * in (an income category, received), and «حساب» the account it is drawn on or paid into — its
+ * expense or income, recorded when it clears, takes both (shared/vault/recordLinks.js).
  */
 
 import React, { useState } from 'react';
@@ -19,6 +22,10 @@ import { BankPicker } from '../../../shared/banks/index.js';
 import { todayIso } from '../../../shared/utils/dates.js';
 import { CHEQUE_DIRECTIONS, CHEQUE_LIMITS, statusesFor, toAsciiDigits } from '../../../utils/chequeDocument.js';
 import { getDirectionDisplay, getStatusDisplay } from '../constants/chequeDisplay.js';
+import { useCategories } from '../../../shared/categories/useCategories.js';
+import { useAccounts } from '../../accounts/hooks/useAccounts.js';
+import { accountLabel } from '../../accounts/constants/accountDisplay.js';
+import { accountsForCurrency } from '../../../utils/accountDocument.js';
 
 const DIRECTION_OPTIONS = CHEQUE_DIRECTIONS.map(({ value, label }) => {
   const { Icon } = getDirectionDisplay(value);
@@ -73,6 +80,18 @@ export default function ChequeForm({
     editingCheque?.notes || initialValues?.notes || ''
   );
   const [remindersEnabled, setRemindersEnabled] = useState(editingCheque?.remindersMuted !== true);
+  // What it pays for / brings in, and its account
+  const [category, setCategory] = useState(editingCheque?.category || '');
+  const [accountId, setAccountId] = useState(editingCheque?.accountId || '');
+  const expenseCats = useCategories('expense', { keep: editingCheque?.category });
+  const incomeCats = useCategories('income', { keep: editingCheque?.category });
+  const categoryOptions = [
+    { value: '', label: 'نامشخص' },
+    ...(direction === 'issued' ? expenseCats : incomeCats).map(({ value, label, Icon }) => ({ value, label, icon: <Icon size={13} strokeWidth={2} /> })),
+  ];
+  const { accounts = [] } = useAccounts();
+  // A cheque is in tomans: the accounts that hold them (the one it names stays)
+  const chequeAccounts = accountsForCurrency(accounts.filter((a) => !a.archived || a.id === accountId), 'IRT', editingCheque?.accountId);
   const [submitError, setSubmitError] = useState('');
 
   const isLow = (key) => Boolean(!editingCheque && initialValues && confidence?.[key] === 'low');
@@ -87,6 +106,8 @@ export default function ChequeForm({
 
   const changeDirection = (next) => {
     setDirection(next);
+    // An expense category doesn't fit a received cheque, and the other way round
+    if (next !== direction) setCategory('');
     // Keep the chosen status only when it exists for the new direction
     if (!statusesFor(next).some((s) => s.value === status)) setStatus('pending');
   };
@@ -106,6 +127,8 @@ export default function ChequeForm({
       sayadId: sayadDigits,
       remindersMuted: !remindersEnabled,
       notes: notes.trim(),
+      category,
+      accountId,
     };
     try {
       if (editingCheque) {
@@ -207,6 +230,24 @@ export default function ChequeForm({
             <span className="scan-confidence-hint">از اسکن — لطفاً بررسی کنید</span>
           )}
         </div>
+
+        <div className="ui-input-group">
+          <span className="ui-input-label">بابت (اختیاری)</span>
+          <FilterPills options={categoryOptions} activeValue={category} onChange={setCategory} size="sm" className="income-category-picker" />
+          <p className="expense-form-hint">با پاس شدن، {direction === 'issued' ? 'هزینه‌ای' : 'درآمدی'} با همین دسته ثبت می‌شود.</p>
+        </div>
+        {chequeAccounts.length > 0 && (
+          <div className="ui-input-group">
+            <span className="ui-input-label">{direction === 'issued' ? 'از حساب (اختیاری)' : 'واریز به حساب (اختیاری)'}</span>
+            <FilterPills
+              options={[{ value: '', label: 'نامشخص' }, ...chequeAccounts.map((a) => ({ value: a.id, label: accountLabel(a) }))]}
+              activeValue={accountId}
+              onChange={setAccountId}
+              size="sm"
+              className="income-category-picker"
+            />
+          </div>
+        )}
 
         <div className="cheque-form-row">
           <Input

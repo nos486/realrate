@@ -22,7 +22,7 @@
  * An effect that fails never undoes the saved record: it is logged, and the screens read again.
  */
 
-import { CATEGORY_LINKS, CHEQUE_DIRECTION_OF, sameLinkValue } from '../../utils/categoryLinks.js';
+import { CHEQUE_DIRECTION_OF, recordLinksOf, sameLinkValue } from '../../utils/categoryLinks.js';
 import { CHEQUE_CLEARED, applyChequeStatus } from '../../utils/chequeDocument.js';
 import { renewedAfter } from '../../utils/subscriptionDocument.js';
 import { todayIso } from '../utils/dates.js';
@@ -101,7 +101,7 @@ const EFFECTS = {
 };
 
 /** The id-style links of a side (the portfolio ones are the store's own) */
-const linksOf = (side) => (CATEGORY_LINKS[side] || []).filter((l) => EFFECTS[l.target]);
+const linksOf = (side) => recordLinksOf(side).filter((l) => EFFECTS[l.target]);
 
 async function run(effects) {
   const scopes = new Set();
@@ -154,7 +154,8 @@ export async function releaseRecordLinks(side, record) {
 
 /**
  * A cheque just cleared on the cheques page: record its money — an income for a received cheque,
- * an expense for an issued one (in the cheque category, naming it; saving it links the cheque
+ * an expense for an issued one (of the cheque's own category, from its account, paid with it —
+ * `chequeId`; saving it links the cheque
  * back). Nothing when it already has one, or for an issued cheque without the expenses feature.
  * @param {object} cheque the cleared cheque
  * @param {{ date: string, expenses?: boolean }} options the day it cleared; whether expenses are on
@@ -166,11 +167,13 @@ export async function settleCheque(cheque, { date, expenses = true }) {
   // Already recorded by hand that day (same amount)? That one is linked instead (spendingRecords.js)
   const spending = await import('./spendingRecords.js');
   if (cheque.direction === 'received') {
-    await spending.recordIncome({ title, amount: cheque.amount, incomeDate: date, category: 'cheques', chequeId: cheque.id });
+    await spending.recordIncome({ title, amount: cheque.amount, incomeDate: date, category: cheque.category || 'other', chequeId: cheque.id });
     return 'income';
   }
   if (!expenses) return null;
-  await spending.recordSpending(`cheque:${cheque.id}`, { title, amount: cheque.amount, currency: 'IRT', date, category: 'cheques', chequeId: cheque.id }, { syncLinks: true });
+  await spending.recordSpending(`cheque:${cheque.id}`, {
+    title, amount: cheque.amount, currency: 'IRT', date, category: cheque.category || 'other', chequeId: cheque.id, accountId: cheque.accountId || '',
+  }, { syncLinks: true });
   return 'expense';
 }
 

@@ -3,8 +3,9 @@
  *
  * One field for every link of utils/categoryLinks.js: the form renders it below the category and
  * the category decides what it offers — the asset bought or sold (PortfolioLinkFields), the loan
- * installment paid, the subscription paid, the cheque paid or cashed, the credit settled. A new
- * link is one entry in that table and one picker here.
+ * installment paid, the subscription paid, the credit settled. A new link is one entry in that
+ * table and one picker here. (A cheque is a way of paying, not a category: the forms offer it with
+ * the account, ChequeLinkPicker.)
  *
  * Every picker takes the same props: `value` / `onChange` (the link's value, as the record
  * stores it in the link's field), `onFill` (fields a choice fills in: title, amount, currency,
@@ -15,7 +16,6 @@ import React from 'react';
 import { categoryLinkOf } from '../../utils/categoryLinks.js';
 import PortfolioLinkFields from '../vault/PortfolioLinkFields.jsx';
 import CreditAccountPicker from '../../features/incomes/components/CreditAccountPicker.jsx';
-import ChequeLinkPicker from '../../features/cheques/components/ChequeLinkPicker.jsx';
 import LoanInstallmentPicker from '../../features/loans/components/LoanInstallmentPicker.jsx';
 import SubscriptionLinkPicker from '../../features/subscriptions/components/SubscriptionLinkPicker.jsx';
 
@@ -28,7 +28,6 @@ function PortfolioPicker({ side, value, onChange, toman = 0, own = null }) {
 const PICKERS = {
   portfolio: PortfolioPicker,
   credit_account: CreditAccountPicker,
-  cheque: ChequeLinkPicker,
   loan_installment: LoanInstallmentPicker,
   subscription: SubscriptionLinkPicker,
 };

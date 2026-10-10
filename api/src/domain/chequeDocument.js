@@ -8,13 +8,17 @@
  * Its status moves along a small lifecycle and every change is kept in `history` with its date
  * and an optional note, which is the cheque's tracking log.
  *
- * A cleared cheque's money is an income (received) or an expense (issued) in the cheque category
- * naming it (`chequeId`, categoryLinks.js); the cheque points back at that record
+ * A cheque is a way of paying, not a category: what it pays for is its own `category` (an expense
+ * category for an issued one, an income category for a received one; 'other' when not said) and
+ * the account it is drawn on or paid into is its `accountId`. A cleared cheque's money is an
+ * expense (issued) or an income (received) of that category, paid with it (`chequeId`,
+ * categoryLinks.js PAYMENT_LINKS); the cheque points back at that record
  * (`settlement: { side: 'income'|'expense', id }`), so clearing it records the money once and
  * taking the clearing back removes it (web/src/shared/vault/recordLinks.js).
  */
 
 import { isValidIsoDate } from './isoDate.js';
+import { isCategoryValue } from './categoryDocument.js';
 
 export const CHEQUE_DIRECTIONS = [
   { value: 'received', label: 'دریافتی' },
@@ -182,6 +186,9 @@ export function validateChequeInput(body = {}, { today } = {}) {
       notes,
       remindersMuted: Boolean(body.remindersMuted),
       history,
+      // What it pays for or brings in, and the account it is drawn on or paid into
+      category: isCategoryValue(direction === 'issued' ? 'expense' : 'income', body.category) ? String(body.category) : '',
+      accountId: RECORD_ID_RE.test(String(body.accountId ?? '')) ? String(body.accountId) : '',
       // Always returned, so clearing it takes the link away
       settlement: validateSettlement(body.settlement),
     },

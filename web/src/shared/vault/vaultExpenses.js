@@ -22,14 +22,14 @@ import {
   DAILY_GROUP_NAME,
 } from '../../utils/expenseDocument.js';
 import { sameLink } from '../../utils/portfolioLink.js';
-import { CATEGORY_LINKS } from '../../utils/categoryLinks.js';
+import { recordLinksOf } from '../../utils/categoryLinks.js';
 import { syncRecordLinks, releaseRecordLinks } from './recordLinks.js';
 import { listVaultRecords, deleteVaultRecord, putVaultRecords, VAULT_BATCH_MAX } from './vaultApi.js';
 import { putRecord, recordDateOf } from './vaultRecordMeta.js';
 import { encryptVaultRecord, decryptVaultRecord } from './vaultStore.js';
 
 /** The fields of the expense links that name a record by id (the portfolio ones always come back) */
-const ID_LINK_FIELDS = CATEGORY_LINKS.expense.filter((l) => l.target !== 'portfolio').map((l) => l.field);
+const ID_LINK_FIELDS = recordLinksOf('expense').filter((l) => l.target !== 'portfolio').map((l) => l.field);
 
 const GROUP_KIND = 'expense_group';
 const EXPENSE_KIND = 'expense';

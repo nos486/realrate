@@ -1,16 +1,16 @@
 // @vitest-environment happy-dom
 /**
  * categoryLinkForms.test.jsx — The expense and income forms link a record by its category through
- * one field (CategoryLinkField, utils/categoryLinks.js): «پرداخت چک» / «وصول چک» the cheque,
- * «پرداخت قسط» the loan installment, «اینترنت و اشتراک‌ها» the subscription (or a new one); a
- * choice fills in what it knows, another category drops the link. Accounts are offered by the
- * expense's currency.
+ * one field (CategoryLinkField, utils/categoryLinks.js): «پرداخت قسط» the loan installment,
+ * «اینترنت و اشتراک‌ها» the subscription (or a new one); a choice fills in what it knows, another
+ * category drops the link. A cheque is a way of paying, not a category: «پرداخت با چک» /
+ * «دریافت با چک» on a record of any category. Accounts are offered by the expense's currency.
  */
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { validateExpense } from '../../src/domain/expenseDocument.js';
-import { categoryLinkOf, categoryLinkFields, validateLinkValue, sameLinkValue } from '../../src/domain/categoryLinks.js';
+import { categoryLinkOf, categoryLinkFields, paymentLinkFields, validateLinkValue, sameLinkValue } from '../../src/domain/categoryLinks.js';
 
 const data = vi.hoisted(() => ({
   loans: [
@@ -61,27 +61,30 @@ const renderExpense = (props = {}) => {
 
 describe('the category link table', () => {
   it('says what each category links to, and keeps only that link on a record', () => {
-    expect(categoryLinkOf('expense', 'cheques')).toMatchObject({ target: 'cheque', field: 'chequeId' });
-    expect(categoryLinkOf('income', 'cheques')).toMatchObject({ target: 'cheque', field: 'chequeId' });
+    // A cheque is no category's link: a way of paying, on any category
+    expect(categoryLinkOf('expense', 'cheques')).toBeNull();
+    expect(paymentLinkFields('expense', { chequeId: 'chq_1' })).toEqual({ chequeId: 'chq_1' });
     expect(categoryLinkOf('expense', 'installments')).toMatchObject({ target: 'loan_installment', field: 'loanInstallment' });
     expect(categoryLinkOf('expense', 'groceries')).toBeNull();
-    expect(categoryLinkFields('expense', 'cheques', { chequeId: 'chq_1', subscriptionId: 'sub_1' })).toEqual({ chequeId: 'chq_1' });
+    expect(categoryLinkFields('expense', 'subscriptions', { chequeId: 'chq_1', subscriptionId: 'sub_1' })).toEqual({ subscriptionId: 'sub_1' });
     expect(validateLinkValue('loan_installment', { loanId: 'l', installmentId: '3' })).toEqual({ loanId: 'l', installmentId: '3' });
     expect(validateLinkValue('cheque', 'bad id!')).toBe('');
     expect(sameLinkValue({ loanId: 'l', installmentId: '3' }, { loanId: 'l', installmentId: '3' })).toBe(true);
 
     const base = { groupId: 'g', title: 'x', amount: 10, currency: 'IRT', date: '2026-02-01' };
-    // An expense keeps the link of its own category only
-    expect(validateExpense({ ...base, category: 'groceries', subscriptionId: 'sub_1', chequeId: 'chq_1' }).value).not.toHaveProperty('chequeId');
-    expect(validateExpense({ ...base, category: 'subscriptions', subscriptionId: 'sub_1', chequeId: 'chq_1' }).value).toMatchObject({ subscriptionId: 'sub_1' });
+    // An expense keeps the link of its own category only, and the cheque it was paid with on any
+    expect(validateExpense({ ...base, category: 'groceries', subscriptionId: 'sub_1', chequeId: 'chq_1' }).value).not.toHaveProperty('subscriptionId');
+    expect(validateExpense({ ...base, category: 'housing', chequeId: 'chq_1' }).value).toMatchObject({ category: 'housing', chequeId: 'chq_1' });
     expect(validateExpense({ ...base, category: 'subscriptions', subscriptionId: 'sub_1' }).value).not.toHaveProperty('chequeId');
   });
 });
 
 describe('the expense form', () => {
-  it('«پرداخت چک»: offers the open issued cheques, fills the amount, and saves the link', async () => {
+  it('«پرداخت با چک»: an expense of its own category, paid with an open issued cheque (its amount and account fill in)', async () => {
+    data.cheques[0].accountId = 'acc_toman';
     const onSubmit = renderExpense();
-    tab('پرداخت چک');
+    tab('مسکن و اجاره');
+    tab('چک');
     expect(screen.getByRole('tab', { name: /علی/ })).toBeTruthy();
     // Not a cleared one, not a received one
     expect(screen.queryByRole('tab', { name: /پاس‌شده/ })).toBeNull();
@@ -90,7 +93,8 @@ describe('the expense form', () => {
     expect(document.getElementById('expense-amount').value).toMatch(/5,?000,?000|۵/);
     submitExpense();
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());
-    expect(onSubmit.mock.calls[0][0]).toMatchObject({ category: 'cheques', chequeId: 'chq_out', amount: 5_000_000, title: 'چک علی' });
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ category: 'housing', chequeId: 'chq_out', accountId: 'acc_toman', amount: 5_000_000, title: 'چک علی' });
+    delete data.cheques[0].accountId;
   });
 
   it('«پرداخت قسط»: offers the loans with an installment to pay, and saves which one', async () => {
@@ -105,15 +109,19 @@ describe('the expense form', () => {
     expect(onSubmit.mock.calls[0][0]).toMatchObject({ category: 'installments', loanInstallment: { loanId: 'loan_1', installmentId: 'inst_7' }, amount: 4_000_000 });
   });
 
-  it('another category drops the link', async () => {
+  it('another category drops the link; paying from an account drops the cheque', async () => {
     const onSubmit = renderExpense();
-    tab('پرداخت چک');
-    tab(screen.getByRole('tab', { name: /علی/ }).getAttribute('aria-label'));
+    tab('پرداخت قسط');
+    const picker = screen.getByText('قسط کدام وام').closest('.ui-input-group');
+    fireEvent.click(within(picker).getByRole('tab', { name: 'وام مسکن' }));
     tab('خوراک و خواربار');
+    tab('چک');
+    tab(screen.getByRole('tab', { name: /علی/ }).getAttribute('aria-label'));
+    tab('حساب یا نقد');
     submitExpense();
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());
-    expect(onSubmit.mock.calls[0][0]).toMatchObject({ category: 'groceries' });
-    expect(onSubmit.mock.calls[0][0]).not.toHaveProperty('chequeId');
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ category: 'groceries', chequeId: '' });
+    expect(onSubmit.mock.calls[0][0]).not.toHaveProperty('loanInstallment');
   });
 
   it('«اینترنت و اشتراک‌ها»: picks a subscription (its price, currency and account fill in) or makes a new one', async () => {
@@ -153,15 +161,16 @@ describe('the expense form', () => {
 });
 
 describe('the income form', () => {
-  it('«وصول چک»: offers the open received cheques and saves the link', async () => {
+  it('«دریافت با چک»: an income of its own category, received with an open received cheque', async () => {
     const onSubmit = vi.fn(async () => {});
     render(<IncomeForm onSubmit={onSubmit} onClose={() => {}} />);
-    tab('وصول چک');
+    tab('پروژه و فریلنس');
+    tab('چک');
     expect(screen.queryByRole('tab', { name: /علی/ })).toBeNull();
     tab(screen.getByRole('tab', { name: /شرکت/ }).getAttribute('aria-label'));
     expect(document.getElementById('income-title').value).toBe('چک شرکت');
     fireEvent.submit(document.getElementById('income-title').closest('form'));
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());
-    expect(onSubmit.mock.calls[0][0]).toMatchObject({ category: 'cheques', chequeId: 'chq_in', amount: 9_000_000 });
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ category: 'freelance', chequeId: 'chq_in', amount: 9_000_000 });
   });
 });

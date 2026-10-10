@@ -9,12 +9,12 @@
  * moves or deletes its «sell» transaction there (portfolioFunds.js): the transaction first.
  * Its category may link it to a record (utils/categoryLinks.js): a deposit that pays a bank
  * credit's debt («تسویه بدهی اعتباری») names the credit (`creditAccountId`: a payment into it,
- * utils/creditAccount.js), a cheque cashed («وصول چک») the received cheque (`chequeId`). What
+ * utils/creditAccount.js). Received with a cheque, of any category, it names the cheque (`chequeId`). What
  * linking does to that record is recordLinks.js's, run after every save and delete.
  */
 
 import { isCategoryValue } from '../../utils/categoryDocument.js';
-import { categoryLinkFields } from '../../utils/categoryLinks.js';
+import { categoryLinkFields, paymentLinkFields } from '../../utils/categoryLinks.js';
 import { validatePortfolioLink, sameLink } from '../../utils/portfolioLink.js';
 import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
 import { putRecord, backfillRecordDates, repairRecordDates } from './vaultRecordMeta.js';
@@ -43,8 +43,8 @@ export function parseIncomeInput(body = {}) {
   // Recorded from a bank SMS: the transaction's key (bankSms.js), so it is not recorded twice
   const smsKey = String(body.smsKey ?? '').trim().slice(0, 120);
   // The record its category links it to (categoryLinks.js): «تسویه بدهی اعتباری» the credit
-  // whose debt this deposit pays, «وصول چک» the received cheque
-  const links = categoryLinkFields('income', category, body);
+  // whose debt this deposit pays; and the received cheque it came with, whatever its category
+  const links = { ...categoryLinkFields('income', category, body), ...paymentLinkFields('income', body) };
 
   if (!title) throw new IncomeValidationError('عنوان درآمد الزامی است.');
   if (title.length > TITLE_MAX_LENGTH) throw new IncomeValidationError(`عنوان درآمد نباید بیشتر از ${TITLE_MAX_LENGTH} کاراکتر باشد.`);

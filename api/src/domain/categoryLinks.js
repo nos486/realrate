@@ -1,11 +1,13 @@
 /**
- * categoryLinks.js — Which records an income or an expense is linked to, by its category
+ * categoryLinks.js — Which records an income or an expense is linked to: by its category, and by
+ * how it was paid
  *
  * One table for every such link, so a form, the encrypted store and the reports read the same
  * rule: an expense in «سرمایه‌گذاری» names the asset it bought, one in «پرداخت قسط» the loan
- * installment it paid, one in «اینترنت و اشتراک‌ها» the subscription, one in «پرداخت چک» the
- * issued cheque; an income in «فروش دارایی» names the asset sold, one in «تسویه بدهی اعتباری» the
- * credit it paid, one in «وصول چک» the received cheque.
+ * installment it paid, one in «اینترنت و اشتراک‌ها» the subscription; an income in «فروش دارایی»
+ * names the asset sold, one in «تسویه بدهی اعتباری» the credit it paid.
+ * A cheque is not a category but a way of paying (PAYMENT_LINKS): an expense of any category may
+ * be paid with an issued cheque, an income received with a received one (`chequeId`).
  *
  * Each link: `category` (a built-in category key), `target` (what kind of record it names) and
  * `field` (where the record keeps it). A record keeps only the link its category declares — an
@@ -26,14 +28,37 @@ export const CATEGORY_LINKS = {
     { category: 'investment', target: 'portfolio', field: 'investedIn' },
     { category: 'installments', target: 'loan_installment', field: 'loanInstallment' },
     { category: 'subscriptions', target: 'subscription', field: 'subscriptionId' },
-    { category: 'cheques', target: 'cheque', field: 'chequeId' },
   ],
   income: [
     { category: 'asset_sale', target: 'portfolio', field: 'soldFrom' },
     { category: 'credit_settlement', target: 'credit_account', field: 'creditAccountId' },
-    { category: 'cheques', target: 'cheque', field: 'chequeId' },
   ],
 };
+
+/** How a record was paid or received, whatever its category: with a cheque */
+export const PAYMENT_LINKS = {
+  expense: [{ method: 'cheque', target: 'cheque', field: 'chequeId' }],
+  income: [{ method: 'cheque', target: 'cheque', field: 'chequeId' }],
+};
+
+/** Every link of a side — by category and by payment — for what linking does (recordLinks.js) */
+export function recordLinksOf(side) {
+  return [...(CATEGORY_LINKS[side] || []), ...(PAYMENT_LINKS[side] || [])];
+}
+
+/**
+ * The payment links a record carries, checked, as `{ [field]: value }` (any category)
+ * @param {'expense'|'income'} side
+ * @param {object} body the record as sent
+ */
+export function paymentLinkFields(side, body = {}) {
+  const out = {};
+  for (const link of PAYMENT_LINKS[side] || []) {
+    const value = validateLinkValue(link.target, body?.[link.field]);
+    if (value) out[link.field] = value;
+  }
+  return out;
+}
 
 /** The cheque direction each side pays or receives through */
 export const CHEQUE_DIRECTION_OF = { expense: 'issued', income: 'received' };
@@ -52,9 +77,9 @@ export function categoryLinkOf(side, category) {
   return (CATEGORY_LINKS[side] || []).find((l) => l.category === category) || null;
 }
 
-/** Every link field of a side (e.g. to drop the ones a record no longer has) */
+/** Every link field of a side, by category and by payment (e.g. to drop the ones a record no longer has) */
 export function linkFieldsOf(side) {
-  return (CATEGORY_LINKS[side] || []).map((l) => l.field);
+  return recordLinksOf(side).map((l) => l.field);
 }
 
 /**

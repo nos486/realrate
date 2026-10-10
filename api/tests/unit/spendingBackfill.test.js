@@ -25,7 +25,7 @@ vi.mock('../../../web/src/shared/utils/dates.js', () => ({ todayIso: () => '2026
 vi.mock('../../../web/src/features/cheques/api/chequeApi.js', () => ({
   getCheques: async () => ({
     cheques: [
-      { id: 'c1', status: 'cleared', settlement: null, dueDate: '2026-01-01', history: [{ status: 'pending', date: '2025-12-01' }, { status: 'cleared', date: '2026-01-03' }] },
+      { id: 'c1', category: 'freelance', status: 'cleared', settlement: null, dueDate: '2026-01-01', history: [{ status: 'pending', date: '2025-12-01' }, { status: 'cleared', date: '2026-01-03' }] },
       { id: 'c2', status: 'cleared', settlement: { side: 'income', id: 'inc_1' }, dueDate: '2026-01-01', history: [] },
       { id: 'c3', status: 'pending', settlement: null, dueDate: '2026-05-01', history: [] },
     ],
@@ -45,6 +45,18 @@ vi.mock('../../../web/src/features/loans/api/loanApi.js', () => ({
   }),
   getLoanExtraPayments: async () => ({ extraPayments: [{ id: 'x1', amount: 500, paymentDate: '2026-03-01' }] }),
 }));
+const old = vi.hoisted(() => ({ updateIncome: vi.fn(async () => ({})), saveExpense: vi.fn(async () => ({})) }));
+vi.mock('../../../web/src/features/incomes/api/incomeApi.js', () => ({
+  getIncomes: async () => ({ incomes: [
+    { id: 'inc_1', title: 'چک شرکت', amount: 9, incomeDate: '2026-01-03', category: 'cheques', chequeId: 'c1', createdAt: 'x', updatedAt: 'y' },
+    { id: 'inc_2', title: 'حقوق', amount: 1, incomeDate: '2026-01-03', category: 'salary' },
+  ] }),
+  updateIncome: old.updateIncome,
+}));
+vi.mock('../../../web/src/shared/vault/vaultExpenses.js', () => ({
+  getExpenses: async () => ({ expenses: [{ id: 'exp_1', category: 'cheques', chequeId: 'c3' }, { id: 'exp_2', category: 'groceries' }] }),
+  saveExpense: old.saveExpense,
+}));
 vi.mock('../../../web/src/shared/vault/vaultSubscriptions.js', () => ({
   getSubscriptions: async () => ({ subscriptions: [
     { id: 's1', autoRenew: true, startDate: '2025-10-12', lastPaidOn: '2026-03-12' },
@@ -53,7 +65,7 @@ vi.mock('../../../web/src/shared/vault/vaultSubscriptions.js', () => ({
   saveSubscription: async (input, existing) => ({ subscription: { ...existing, ...input } }),
 }));
 
-const { runSpendingBackfill } = await import('../../../web/src/shared/vault/spendingBackfill.js');
+const { runSpendingBackfill, runChequeCategoryMigration } = await import('../../../web/src/shared/vault/spendingBackfill.js');
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -95,5 +107,17 @@ describe('the one-time backfill', () => {
     expect(m.recordInstallmentPayments).toHaveBeenCalled();
     expect(await runSpendingBackfill({ userId: 'u3', expenses: true })).toBe(true);
     warn.mockRestore();
+  });
+});
+
+describe('the retired cheque categories (v2)', () => {
+  it('records saved in them take their cheque\'s own category, once', async () => {
+    expect(await runChequeCategoryMigration({ userId: 'u9', expenses: true })).toBe(true);
+    expect(old.updateIncome).toHaveBeenCalledTimes(1);
+    expect(old.updateIncome).toHaveBeenCalledWith('inc_1', expect.objectContaining({ category: 'freelance', chequeId: 'c1', title: 'چک شرکت' }));
+    // A cheque with no category of its own: «سایر»
+    expect(old.saveExpense).toHaveBeenCalledWith({ category: 'other' }, expect.objectContaining({ id: 'exp_1' }), { syncLinks: false });
+    expect(old.saveExpense).toHaveBeenCalledTimes(1);
+    expect(await runChequeCategoryMigration({ userId: 'u9', expenses: true })).toBe(false);
   });
 });
