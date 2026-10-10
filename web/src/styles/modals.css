@@ -474,6 +474,25 @@
   margin-bottom: 0;
 }
 
+/* The date field's label row: the Shamsi / Gregorian switch next to «امروز» */
+.date-picker-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ui-filter-pills.variant-segmented.calendar-mode-toggle {
+  height: 24px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.ui-filter-pills.variant-segmented.calendar-mode-toggle .filter-pill-btn {
+  height: 18px;
+  padding: 0 8px;
+  font-size: 10.5px;
+}
+
 .btn-set-today {
   display: inline-flex;
   align-items: center;

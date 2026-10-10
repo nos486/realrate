@@ -123,6 +123,7 @@ Every feature in detail. For a summary see the [README](../../README.en.md). Per
 - CSRF protection: data-changing requests are accepted only from the app's own origins.
 - **Mobile side menu** (website): every section, the user, hide amounts, lock the encrypted data and sign out in one drawer.
 - **PWA**: installable, with an offline cache that shows the last saved prices without internet.
+- **Shamsi or Gregorian date picking**: every date field has a «شمسی / میلادی» switch; in Gregorian mode the date is typed in Gregorian (e.g. `2026/10/10`, Persian digits too) or picked from Gregorian day/month/year lists. The choice is one for all date fields and is remembered in this browser; only how the date is shown and picked changes — the stored date is the same. (`shared/calendar/calendarMode.js`, `ShamsiDatePicker.jsx`)
 - **Admin panel** in the same layout as the other pages:
   - A paged user list (10 per page) with search, sorting by registration or last sign-in, and quick filters (registered this week, inactive 30 days, unverified email, Google sign-in, blocked, Android app users) with a count for each.
   - Each user's details: sign-in method, email verification, sign-in count, active days, active sessions, encryption, their devices, and **only the counts** of portfolios, holdings, transactions, loans, cheques and incomes (never their content).
