@@ -7,6 +7,7 @@
  * - every subscription that renews by itself → each renewal from its start through today
  * - (v2) records saved in the retired «پرداخت چک» / «وصول چک» categories → their cheque's own
  *   category (a cheque is a way of paying, not a category), still paid with it
+ * - (v3) the rates older expenses stored are dropped (every rate is the price history's)
  * Each goes through spendingRecords.js: a payment already recorded by hand that day (same amount)
  * is linked instead of recorded twice, and its own id makes a second run (another device, a run
  * cut short) rewrite the same records — so it is safe to run more than once.
@@ -22,6 +23,7 @@ import { settleCheque } from './recordLinks.js';
 
 const DONE_KEY = 'realrate_spending_backfill_v1';
 const CHEQUE_CATEGORY_KEY = 'realrate_cheque_category_v1';
+const STORED_RATES_KEY = 'realrate_stored_rates_v1';
 /** The categories a cheque's record had before cheques became a way of paying */
 const RETIRED_CHEQUE_CATEGORY = 'cheques';
 
@@ -153,5 +155,21 @@ export async function runChequeCategoryMigration({ userId, expenses }) {
     }) && ok;
   }
   if (ok) markDone(userId, CHEQUE_CATEGORY_KEY);
+  return ok;
+}
+
+/**
+ * (v3) The rates older expenses stored go (every rate is the price history's by the record's
+ * day): one rewrite of those that still have one — once per user on this device
+ * @param {{ userId: string, expenses: boolean }} options
+ * @returns {Promise<boolean>} whether it ran to the end
+ */
+export async function runStoredRateCleanup({ userId, expenses }) {
+  if (!userId || !expenses || done(userId, STORED_RATES_KEY)) return false;
+  const ok = await step('stored rates', async () => {
+    const { dropStoredRates } = await import('./vaultExpenses.js');
+    await dropStoredRates();
+  });
+  if (ok) markDone(userId, STORED_RATES_KEY);
   return ok;
 }

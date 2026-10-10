@@ -172,10 +172,33 @@ export async function saveExpense(input, existing = null, { id = '', syncLinks =
   return { success: true, expense };
 }
 
+/** An expense as stored: never a rate (older records' LEGACY_RATE_FIELDS go) */
+function withoutRates(expense) {
+  const copy = { ...expense };
+  for (const field of LEGACY_RATE_FIELDS) delete copy[field];
+  return copy;
+}
+
 /**
- * Move expenses to another section (e.g. everyday expenses into a project), each re-encrypted
- * with its new section and all stored together: one request per VAULT_BATCH_MAX expenses, all or
- * none in each. What they are paid from or put into doesn't depend on the section and stays.
+ * Store expenses together, each re-encrypted: one request per VAULT_BATCH_MAX expenses, all or
+ * none in each
+ */
+async function putExpenses(expenses) {
+  for (let i = 0; i < expenses.length; i += VAULT_BATCH_MAX) {
+    const chunk = expenses.slice(i, i + VAULT_BATCH_MAX);
+    const records = await Promise.all(chunk.map(async (e) => ({
+      id: e.id,
+      payload: await encryptVaultRecord(e),
+      recordDate: recordDateOf(EXPENSE_KIND, e),
+      parentId: e.groupId,
+    })));
+    await putVaultRecords(EXPENSE_KIND, records);
+  }
+}
+
+/**
+ * Move expenses to another section (e.g. everyday expenses into a project), all stored together
+ * (putExpenses). What they are paid from or put into doesn't depend on the section and stays.
  * @param {object[]} expenses their stored copies
  * @param {string} groupId the section they move to
  * @returns {Promise<object[]>} the moved expenses
@@ -184,18 +207,21 @@ export async function moveExpenses(expenses, groupId) {
   const now = new Date().toISOString();
   const moved = expenses
     .filter((e) => e.groupId !== groupId)
-    .map((e) => ({ ...e, ...checked(validateExpense({ ...e, groupId })), updatedAt: now }));
-  for (let i = 0; i < moved.length; i += VAULT_BATCH_MAX) {
-    const chunk = moved.slice(i, i + VAULT_BATCH_MAX);
-    const records = await Promise.all(chunk.map(async (e) => ({
-      id: e.id,
-      payload: await encryptVaultRecord(e),
-      recordDate: recordDateOf(EXPENSE_KIND, e),
-      parentId: groupId,
-    })));
-    await putVaultRecords(EXPENSE_KIND, records);
-  }
+    .map((e) => withoutRates({ ...e, ...checked(validateExpense({ ...e, groupId })), updatedAt: now }));
+  await putExpenses(moved);
   return moved;
+}
+
+/**
+ * Drop the rates older expenses stored (LEGACY_RATE_FIELDS): every rate is the price history's by
+ * the expense's day. Only the expenses that still have one are rewritten, all together.
+ * @returns {Promise<number>} how many were rewritten
+ */
+export async function dropStoredRates() {
+  const { expenses } = await getExpenses();
+  const stale = expenses.filter((e) => LEGACY_RATE_FIELDS.some((field) => field in e));
+  await putExpenses(stale.map(withoutRates));
+  return stale.length;
 }
 
 /**

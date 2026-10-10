@@ -369,7 +369,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                   headers={CSV_HEADERS}
                   fileBaseName={`هزینه‌های-روزمره-${formatShamsiMonth(month.jy, month.jm)}`}
                   disabled={listed.length === 0}
-                  mapRow={(e) => expenseCsvRow(e, { withCategory: true, rates, accountById, loanById })}
+                  mapRow={(e) => expenseCsvRow(e, { withCategory: true, accountById, loanById })}
                 />
                 <Button
                   icon={<Plus size={16} />}

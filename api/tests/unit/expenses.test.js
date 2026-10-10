@@ -82,10 +82,11 @@ describe('daily expenses', () => {
     const list = [
       { ...base, category: 'dining', amount: 100 },
       { ...base, category: 'groceries', amount: 500 },
-      { ...base, category: 'dining', amount: 50, currency: 'USD', usdRate: 10 },
+      { ...base, category: 'dining', amount: 50, currency: 'USD' },
       { ...base, category: '', amount: 1 },
     ];
-    expect(summarizeByCategory(list)).toEqual([
+    // The dollar's rate that day: 10 tomans (price history)
+    expect(summarizeByCategory(list, { usdAt: () => 10 })).toEqual([
       { category: 'dining', totalToman: 600, count: 2 },
       { category: 'groceries', totalToman: 500, count: 1 },
       { category: 'other', totalToman: 1, count: 1 },
@@ -104,19 +105,21 @@ describe('daily expenses', () => {
 describe('summarizeExpenses', () => {
   const list = [
     { ...base, amount: 1_000_000, currency: 'IRT', date: '2026-09-01' },
-    { ...base, amount: 10, currency: 'USD', usdRate: 90_000, date: '2026-09-10' },
-    { ...base, amount: 5, currency: 'USD', usdRate: null, date: '2026-09-20' },
+    { ...base, amount: 10, currency: 'USD', date: '2026-09-10' },
+    { ...base, amount: 5, currency: 'USD', date: '2026-09-20' },
   ];
+  // The dollar's rate by day (price history): none for 2026-09-20
+  const usdAt = (day) => ({ '2026-09-10': 90_000 })[day] ?? null;
 
-  it('sums per currency and converts dollars at their own rate, else today\'s', () => {
-    const s = summarizeExpenses(list, { usdToman: 100_000 });
+  it('sums per currency and converts dollars at their day\'s rate, else today\'s', () => {
+    const s = summarizeExpenses(list, { usdToman: 100_000, usdAt });
     expect(s).toMatchObject({ count: 3, toman: 1_000_000, byCurrency: { IRT: 1_000_000, USD: 15 }, totalToman: 1_000_000 + 900_000 + 500_000, usesTodayRate: true, unpriced: {} });
     expect(s.firstDate).toBe('2026-09-01');
     expect(s.lastDate).toBe('2026-09-20');
   });
 
   it('leaves dollars with no rate at all out of the toman total, and says how many', () => {
-    const s = summarizeExpenses(list, { usdToman: 0 });
+    const s = summarizeExpenses(list, { usdToman: 0, usdAt });
     expect(s.totalToman).toBe(1_900_000);
     expect(s.unpriced).toEqual({ USD: 5 });
     expect(expenseInToman(list[2], { usdToman: 0 })).toBeNull();
