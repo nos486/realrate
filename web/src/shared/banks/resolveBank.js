@@ -9,9 +9,10 @@ import {
 
 export { BANKS, BANK_TYPES, getBankById, isCustomBankId, matchBankIdByName };
 
-/** Public URL of a standard bank's logo */
+/** Public URL of a standard bank's logo, or null when it has none (`noLogo`: shown by its initial) */
 export function bankLogoUrl(id) {
-  return `/banks/${id}.svg`;
+  const bank = getBankById(id);
+  return bank && !bank.noLogo ? `/banks/${id}.svg` : null;
 }
 
 /**

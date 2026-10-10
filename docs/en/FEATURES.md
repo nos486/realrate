@@ -74,7 +74,7 @@ Every feature in detail. For a summary see the [README](../../README.en.md). Per
 - Record a payment (earlier installments are paid automatically), undo a payment, extra payments (reduce the amount or the number of installments).
 - Bulk-edit installments, and a "based on total repayment" mode.
 - Warnings for overdue and upcoming installments.
-- **Standard banks with logos** (one list in `api/src/config/banks.config.js`) and the user's **custom banks**.
+- **Standard banks with logos** (one list in `api/src/config/banks.config.js`) and the user's **custom banks**. The list also has the common foreign banks (Turkey: Ziraat, VakıfBank, Halkbank, İş Bankası, Garanti BBVA, Akbank, Yapı Kredi, QNB, DenizBank, Enpara; UAE: Emirates NBD, FAB, ADCB, Mashreq; Armenia and Georgia: Ameriabank, Ardshinbank, TBC, Bank of Georgia; Europe and North America: HSBC, Barclays, Deutsche Bank, Commerzbank, Sparkasse, ING, Santander, BNP Paribas, UniCredit, Chase, Bank of America, Wells Fargo, Citi, RBC, TD) and international online accounts (Wise, Revolut, PayPal, Payoneer, N26, Monzo, Starling, bunq); a bank without a logo in the app (`noLogo`) shows its initial.
 - Loans grouped by bank, with a donut of each bank's share (by loan amount or remaining debt).
 - **Loan usage («مصرف وام»)**: in a loan's details, the expenses and portfolio purchases funded by it: spent, unspent remainder, and for portfolio purchases today's value, profit/loss and the annual return against the loan's interest rate (section 15).
 - A received loan can also be recorded from a deposit SMS (section 17).

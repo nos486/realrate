@@ -177,7 +177,7 @@ export default function BankPicker({ value, onChange, label = 'بانک / وام
                   {group.banks.map((bank) => (
                     <div key={bank.id} className={`bank-option-wrap ${selected.id === bank.id ? 'is-selected' : ''}`}>
                       <button type="button" className="bank-option" onClick={() => choose({ bankId: bank.id, lenderName: bank.name })}>
-                        <BankLogo bank={{ logo: bankLogoUrl(bank.id), name: bank.name, kind: 'standard' }} size={30} />
+                        <BankLogo bank={{ logo: bankLogoUrl(bank.id), name: bank.name, shortName: bank.shortName, kind: 'standard' }} size={30} />
                         <span>{bank.shortName}</span>
                       </button>
                     </div>
