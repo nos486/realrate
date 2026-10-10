@@ -74,6 +74,7 @@ realrate/
 | `utils/categoryLinks.js` | `domain/` — which records an income or expense links to by its category (cheque, loan installment, subscription, portfolio, credit) |
 | `utils/expenseDocument.js`, `accountDocument.js`, `creditAccount.js` | `domain/` — expenses, accounts and bank credit |
 | `utils/currencies.js` | `domain/` — the currencies money is recorded in, and converting to tomans |
+| `utils/incomeDocument.js` | `domain/` — an income's validation, and its value in tomans and dollars |
 | `utils/bankSms.js`, `bankSmsTemplates.js` | `domain/` — reading bank SMS |
 | `utils/clientInfo.js` | `domain/clientInfo.js` — the client header (app/web and version) |
 | `utils/userGroups.js` | `domain/userGroups.js` — user groups (keys, validation) |

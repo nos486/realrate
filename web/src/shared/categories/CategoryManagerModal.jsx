@@ -156,7 +156,7 @@ export default function CategoryManagerModal({ kind, onClose }) {
                     <button
                       type="button"
                       className={`btn-table-action category-count-toggle ${item.excluded ? 'is-off' : ''}`}
-                      title={item.excluded ? 'در جمع حساب شود' : 'در جمع حساب نشود (مثل مدیریت نقدینگی یا سرمایه‌گذاری)'}
+                      title={item.excluded ? 'در جمع حساب شود' : 'در جمع حساب نشود (مثل سرمایه‌گذاری یا فروش دارایی)'}
                       aria-pressed={!item.excluded}
                       aria-label={item.excluded ? `«${item.label}» در جمع حساب شود` : `«${item.label}» در جمع حساب نشود`}
                       onClick={() => update(item.value, { excluded: !item.excluded })}
@@ -209,7 +209,7 @@ export default function CategoryManagerModal({ kind, onClose }) {
         </p>
         <p className="expense-form-hint">
           <Sigma size={12} /> با دکمه‌ی Σ دسته‌ای را از جمع کنار بگذارید: موارد آن در فهرست می‌مانند ولی در جمع، نمودارها و بودجه حساب
-          نمی‌شوند — مثل «مدیریت نقدینگی» (جابه‌جایی بین حساب‌های خودتان) یا «سرمایه‌گذاری».
+          نمی‌شوند — مثل «سرمایه‌گذاری» یا «فروش دارایی». جابه‌جایی پول بین حساب‌های خودتان هزینه یا درآمد نیست: «انتقال بین حساب‌ها» در صفحه‌ی حساب‌ها.
         </p>
       </div>
     </Modal>

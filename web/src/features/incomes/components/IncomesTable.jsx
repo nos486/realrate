@@ -1,5 +1,7 @@
 /**
- * IncomesTable.jsx — Income entries list (desktop table / mobile cards via ResponsiveDataTable)
+ * IncomesTable.jsx — Income entries list (desktop table / mobile cards via ResponsiveDataTable):
+ * each in its currency — a foreign one with about how much in tomans at its day's rate — and in
+ * dollars at its day's rate (DollarValueLine)
  */
 
 import React from 'react';
@@ -7,15 +9,16 @@ import { Calendar, MessageSquare, Pencil, Trash2 } from 'lucide-react';
 import { ResponsiveDataTable } from '../../../shared/ui/index.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { formatNum } from '../../portfolio/utils/holdingHelpers.js';
+import { currencyLabel, formatCurrencyNumber, isForeignCurrency } from '../../../utils/currencies.js';
 import { getIncomeCategory } from '../constants/incomeCategories.js';
 import { DollarValueLine } from '../../../shared/ui/DollarValue.jsx';
-import { incomeDollarValue } from '../utils/incomeReport.js';
+import { incomeDollarValue, incomeInToman } from '../../../utils/incomeDocument.js';
 
 /**
- * @param {{ usdToman?: number, usdAt?: Function }} props - today's dollar rate and the rate on a
- *   date: each income is also shown in dollars at its day's rate (DollarValueLine)
+ * @param {{ rates?: object }} props - the rates bag (utils/currencies.js): today's rates and the
+ *   rates on a date (price history)
  */
-export default function IncomesTable({ incomes, onEdit, onDelete, deletingId = null, hideValues = false, readOnly = false, sortState = null, onSortChange = null, usdToman = 0, usdAt = null }) {
+export default function IncomesTable({ incomes, onEdit, onDelete, deletingId = null, hideValues = false, readOnly = false, sortState = null, onSortChange = null, rates = {} }) {
   const columns = [
     {
       key: 'title',
@@ -59,15 +62,22 @@ export default function IncomesTable({ incomes, onEdit, onDelete, deletingId = n
       key: 'amount',
       header: 'مبلغ',
       mobile: 'stat',
-      render: (income) => (
-        <div className="cell-currency-wrap">
-          <strong className={`cell-val-bold text-profit ${hideValues ? 'is-masked' : ''}`}>
-            {hideValues ? '****' : formatNum(income.amount)}
-          </strong>
-          <span className="cell-unit">تومان</span>
-          <DollarValueLine value={incomeDollarValue(income, usdToman, usdAt)} hideValues={hideValues} />
-        </div>
-      ),
+      render: (income) => {
+        const foreign = isForeignCurrency(income.currency);
+        const toman = foreign ? incomeInToman(income, rates) : null;
+        return (
+          <div className="cell-currency-wrap">
+            <strong className={`cell-val-bold text-profit ${hideValues ? 'is-masked' : ''}`}>
+              {hideValues ? '****' : formatCurrencyNumber(income.amount, income.currency)}
+            </strong>
+            <span className="cell-unit">{currencyLabel(income.currency)}</span>
+            {foreign && toman !== null && (
+              <span className="expense-toman-equiv">≈ {hideValues ? '****' : formatNum(Math.round(toman))} تومان</span>
+            )}
+            {income.currency !== 'USD' && <DollarValueLine value={incomeDollarValue(income, rates)} hideValues={hideValues} />}
+          </div>
+        );
+      },
     },
     {
       key: 'notes',

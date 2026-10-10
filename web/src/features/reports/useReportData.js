@@ -9,7 +9,7 @@
  * is end-to-end encrypted, so the figures are worked out here, each memoized on what it reads —
  * switching tabs recomputes nothing.
  *
- * What counts: the categories left out of the totals (e.g. «مدیریت نقدینگی», «سرمایه‌گذاری» in
+ * What counts: the categories left out of the totals (e.g. «سرمایه‌گذاری», «فروش دارایی» in
  * the expenses) are left out here too — and shown apart (`apart`), with each project's spending,
  * which counts only in its project.
  */
@@ -25,7 +25,7 @@ import { useFxRates } from '../market/useFxRates.js';
 import { usePricing } from '../market/index.js';
 import { useUsdAt } from '../market/dailyHistory.js';
 import { useIncomes } from '../incomes/hooks/useIncomes.js';
-import { incomeDollarValue } from '../incomes/utils/incomeReport.js';
+import { incomeDollarValue, incomeInToman } from '../../utils/incomeDocument.js';
 import { useDailyExpenses } from '../expenses/hooks/useDailyExpenses.js';
 import { useOptionalSubscriptions } from '../subscriptions/context/SubscriptionsContext.jsx';
 import {
@@ -63,9 +63,11 @@ export function useReportData(jy, throughMonth) {
   const pricing = usePricing();
   const usdToman = Number(pricing?.getAssetPrice?.('usd')) || 0;
   const usdAt = useUsdAt(true);
-  // The rates bag (utils/currencies.js): the dollar's, and every other currency the year's expenses are in
-  const fx = useFxRates(useMemo(() => [...(yearExpenses || []), ...yearProjectExpenses], [yearExpenses, yearProjectExpenses]));
+  // The rates bag (utils/currencies.js): the dollar's, and every other currency the year's
+  // expenses and incomes are in
+  const fx = useFxRates(useMemo(() => [...(yearExpenses || []), ...yearProjectExpenses, ...(incomes || [])], [yearExpenses, yearProjectExpenses, incomes]));
   const rates = useMemo(() => ({ usdToman, usdAt, ...fx }), [usdToman, usdAt, fx]);
+  const incomeToman = (i) => incomeInToman(i, rates) || 0;
 
   // Counted, and inside the year (the windows hold the month before it too, for comparisons)
   const inYear = (date) => date >= range.from && date <= range.to;
@@ -77,8 +79,9 @@ export function useReportData(jy, throughMonth) {
 
   // Month by month in tomans, by category
   const incomeSeries = useMemo(
-    () => buildYearSeries(counted.incomes.map((i) => ({ date: i.incomeDate, amount: Number(i.amount) || 0, category: i.category })), jy, { throughMonth }),
-    [counted, jy, throughMonth],
+    () => buildYearSeries(counted.incomes.map((i) => ({ date: i.incomeDate, amount: incomeToman(i), category: i.category })), jy, { throughMonth }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [counted, rates, jy, throughMonth],
   );
   const expenseSeries = useMemo(
     () => buildYearSeries(counted.expenses.map((e) => ({ date: e.date, amount: expenseInToman(e, rates) || 0, category: e.category })), jy, { throughMonth }),
@@ -97,15 +100,16 @@ export function useReportData(jy, throughMonth) {
     [hasExpenses, yearExpenses, rates],
   );
   const shareMonths = useMemo(
-    () => investmentShareByMonth(counted.incomes.map((i) => ({ date: i.incomeDate, amount: Number(i.amount) || 0 })), points, jy, { throughMonth }),
-    [counted, points, jy, throughMonth],
+    () => investmentShareByMonth(counted.incomes.map((i) => ({ date: i.incomeDate, amount: incomeToman(i) })), points, jy, { throughMonth }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [counted, points, rates, jy, throughMonth],
   );
   const shareYear = useMemo(() => summarizeInvestmentShare(shareMonths), [shareMonths]);
   const investedIn = useMemo(() => investmentBreakdown(points, range), [points, range]);
 
   // In dollars, each at its own day's rate (none at today's)
   const dollars = useMemo(() => {
-    const inc = dollarPoints(counted.incomes.filter((i) => inYear(i.incomeDate)), (i) => i.incomeDate, (i) => incomeDollarValue(i, 0, usdAt));
+    const inc = dollarPoints(counted.incomes.filter((i) => inYear(i.incomeDate)), (i) => i.incomeDate, (i) => incomeDollarValue(i, { ...rates, usdToman: 0 }));
     const exp = dollarPoints(counted.expenses.filter((e) => inYear(e.date)), (e) => e.date, (e) => expenseDollarValue(e, { ...rates, usdToman: 0 }));
     const months = dollarFlowByMonth(inc.points, exp.points, jy, { throughMonth, missing: [...inc.missing, ...exp.missing] });
     const income = months.reduce((s, m) => s + m.income, 0);
@@ -115,9 +119,9 @@ export function useReportData(jy, throughMonth) {
   }, [counted, usdAt, rates, jy, throughMonth, range]);
   // The dollar view of each side (what those dollars are worth today), for the yearly cards
   const incomeDollar = useMemo(
-    () => summarizeDollarValues(counted.incomes.filter((i) => inYear(i.incomeDate)).map((i) => incomeDollarValue(i, usdToman, usdAt)), usdToman),
+    () => summarizeDollarValues(counted.incomes.filter((i) => inYear(i.incomeDate)).map((i) => incomeDollarValue(i, rates)), usdToman),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [counted, usdToman, usdAt, range],
+    [counted, rates, usdToman, range],
   );
   const expenseDollar = useMemo(
     () => summarizeDollarValue(counted.expenses.filter((e) => inYear(e.date)), rates),
@@ -131,7 +135,7 @@ export function useReportData(jy, throughMonth) {
     const toman = (e) => expenseInToman(e, rates) || 0;
     return {
       expenses: hasExpenses ? sumApart(splitCounted('expense', yearExpenses).excluded, { dateOf: (e) => e.date, keyOf: (e) => e.category, amountOf: toman, range }) : [],
-      incomes: sumApart(splitCounted('income', incomes).excluded, { dateOf: (i) => i.incomeDate, keyOf: (i) => i.category, amountOf: (i) => Number(i.amount) || 0, range }),
+      incomes: sumApart(splitCounted('income', incomes).excluded, { dateOf: (i) => i.incomeDate, keyOf: (i) => i.category, amountOf: incomeToman, range }),
       projects: hasExpenses
         ? sumApart(yearProjectExpenses, { dateOf: (e) => e.date, keyOf: (e) => e.groupId, amountOf: toman, range }).map((p) => ({ ...p, name: projectName.get(p.key) || 'پروژه' }))
         : [],

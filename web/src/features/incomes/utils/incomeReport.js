@@ -2,22 +2,16 @@
  * incomeReport.js — Pure helpers that turn a list of incomes into report figures
  *
  * Incomes are stored with a Gregorian ISO `incomeDate`, but every period (month / year) here is a
- * Shamsi one, since that is the calendar users reason about their income in.
+ * Shamsi one, since that is the calendar users reason about their income in. Every figure is in
+ * tomans: a foreign income at its currency's rate on its day (utils/incomeDocument.js, the rates
+ * bag of utils/currencies.js).
  */
 
 import { PERSIAN_MONTHS, gregorianToShamsi, getTodayShamsi } from '../../portfolio/components/ShamsiDatePicker.jsx';
-import { dollarValueOf } from '../../../utils/dollarValue.js';
+import { incomeInToman } from '../../../utils/incomeDocument.js';
 
-/**
- * An income in dollars at the dollar's rate on the day it came in, and what those dollars are
- * worth today (utils/dollarValue.js); null while that day's rate is unknown
- * @param {object} income
- * @param {number} usdToman - today's rate
- * @param {(isoDate: string) => number|null} [usdAt] - the rate on a date (price history)
- */
-export function incomeDollarValue(income, usdToman, usdAt) {
-  return dollarValueOf(income?.amount, typeof usdAt === 'function' ? usdAt(income?.incomeDate) : 0, usdToman);
-}
+/** An income in tomans (0 for a foreign one whose rate is unknown) */
+const tomanOf = (income, rates) => incomeInToman(income, rates) || 0;
 
 /**
  * Split a Shamsi "YYYY/MM/DD" string into numeric parts
@@ -49,8 +43,9 @@ export function formatShamsiMonth(year, month) {
 }
 
 /**
- * Aggregate incomes into the figures shown on the report
+ * Aggregate incomes into the figures shown on the report (in tomans)
  * @param {Array<object>} incomes
+ * @param {object} [rates] the rates bag (utils/currencies.js), for foreign incomes
  * @returns {{
  *   total: number,
  *   count: number,
@@ -60,16 +55,16 @@ export function formatShamsiMonth(year, month) {
  *   byMonth: Array<{ key: string, label: string, total: number, count: number }>,
  * }}
  */
-export function buildIncomeReport(incomes) {
+export function buildIncomeReport(incomes, rates = {}) {
   let total = 0;
   let largest = null;
   const categoryTotals = new Map();
   const monthTotals = new Map();
 
   for (const income of incomes) {
-    const amount = Number(income.amount) || 0;
+    const amount = tomanOf(income, rates);
     total += amount;
-    if (!largest || amount > Number(largest.amount)) largest = income;
+    if (!largest || amount > tomanOf(largest, rates)) largest = income;
 
     const key = income.category || 'other';
     const cat = categoryTotals.get(key) || { total: 0, count: 0 };
@@ -133,10 +128,11 @@ export function monthsSpanned(incomes, todayShamsi = getTodayShamsi()) {
  * @param {Array<object>} incomes
  * @param {number} [months]
  * @param {string} [todayShamsi] - injectable for deterministic callers
+ * @param {object} [rates] the rates bag (utils/currencies.js), for foreign incomes
  * @returns {Array<{ key: string, label: string, monthLabel: string, total: number, count: number,
  *   byCategory: Record<string, number> }>} byCategory: amount per income category that month
  */
-export function buildMonthlySeries(incomes, months = 12, todayShamsi = getTodayShamsi()) {
+export function buildMonthlySeries(incomes, months = 12, todayShamsi = getTodayShamsi(), rates = {}) {
   const today = parseShamsiYearMonth(todayShamsi);
   if (!today) return [];
   const last = today.year * 12 + (today.month - 1);
@@ -161,7 +157,7 @@ export function buildMonthlySeries(incomes, months = 12, todayShamsi = getTodayS
     if (!ym) continue;
     const slot = series[ym.year * 12 + (ym.month - 1) - first];
     if (!slot) continue;
-    const amount = Number(income.amount) || 0;
+    const amount = tomanOf(income, rates);
     slot.total += amount;
     slot.count += 1;
     slot.byCategory[income.category] = (slot.byCategory[income.category] || 0) + amount;

@@ -20,12 +20,13 @@ import {
   validateExpense,
   compareExpensesByDate,
   expenseReceivable,
-  expensePaidInToman,
   DAILY_GROUP_NAME,
+  LEGACY_RATE_FIELDS,
 } from '../../utils/expenseDocument.js';
 import { sameLink } from '../../utils/portfolioLink.js';
 import { recordLinksOf } from '../../utils/categoryLinks.js';
 import { syncRecordLinks, releaseRecordLinks } from './recordLinks.js';
+import { tomanRateOn } from './recordRates.js';
 import { listVaultRecords, deleteVaultRecord, putVaultRecords, VAULT_BATCH_MAX } from './vaultApi.js';
 import { putRecord, recordDateOf } from './vaultRecordMeta.js';
 import { encryptVaultRecord, decryptVaultRecord } from './vaultStore.js';
@@ -99,9 +100,10 @@ const LINKS = [
   { field: 'paidFrom', write: (f, expense) => f.saveSpendTransaction(expense) },
   {
     field: 'investedIn',
-    write: (f, expense) => f.saveLinkedTransaction(expense.investedIn, {
+    // At its tomans: a foreign expense at its currency's rate on its day (the price history)
+    write: async (f, expense) => f.saveLinkedTransaction(expense.investedIn, {
       type: 'buy',
-      toman: expensePaidInToman(expense) || 0,
+      toman: (Number(expense.amount) || 0) * await tomanRateOn(expense.currency, expense.date),
       date: expense.date,
       owner: { expenseId: expense.id },
     }),
@@ -141,6 +143,8 @@ export async function saveExpense(input, existing = null, { id = '', syncLinks =
   // The record its category links it to (categoryLinks.js): a link its category no longer
   // declares — or one taken off — is not kept from the stored copy
   for (const field of ID_LINK_FIELDS) if (!(field in value)) delete expense[field];
+  // No rate is stored: an older record's goes (its day's rate is read from the price history)
+  for (const field of LEGACY_RATE_FIELDS) delete expense[field];
 
   // Its portfolio entries first (moved when the portfolio changed)
   const links = LINKS.map((l) => ({ ...l, before: existing?.[l.field] || null, after: expense[l.field] || null }));

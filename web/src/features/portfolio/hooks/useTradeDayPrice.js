@@ -2,8 +2,9 @@
  * useTradeDayPrice.js — Fills an asset's toman price for a trade's day: today's live price, or the
  * day's close from the price history for a past day (features/market/dailyHistory.js)
  *
- * Used by ReferenceAssetInputs: the asset a trade was paid with, whose price is a fact of the trade
- * and is stored on the record. A price the user typed is kept until the asset or the trade's date
+ * Used by ReferenceAssetInputs: the asset a trade was paid with. Its price is not stored: it
+ * makes the trade's own unit price (what the asset cost, a fact of the trade), which is. A price
+ * the user typed is kept until the asset or the trade's date
  * changes; an edited record (autoFill false) keeps its saved price until then too. Without history
  * for that day the live price stands in, and `source` says so.
  */

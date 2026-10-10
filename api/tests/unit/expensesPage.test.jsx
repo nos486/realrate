@@ -112,7 +112,8 @@ describe('ExpensesPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /ثبت هزینه/ }));
     expect(screen.getByText('در پروژه «بازسازی»')).toBeTruthy();
     fireEvent.click(screen.getAllByText('دلار').map((el) => el.closest('button')).find(Boolean));
-    expect(screen.getByText(/نرخ دلار در روز هزینه/)).toBeTruthy();
+    // The dollar's rate of the day, from the price history (nothing to type)
+    expect(document.body.textContent).toMatch(/نرخ دلار/);
   });
 
   it('lists the projects\' expenses with the month\'s, left out of its total and opened in their project', () => {

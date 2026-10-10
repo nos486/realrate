@@ -1,16 +1,17 @@
 // @vitest-environment happy-dom
 /**
- * currencyUi.test.jsx — Money in euros, lira and dirhams on screen: the expense form offers every
- * currency, asks for that currency's rate (read from its own history), lists only the accounts
- * holding it, and saves its own rate as `rate`; an account's card sums this month's spending in
- * each currency it was paid in, with about how much in tomans
+ * currencyUi.test.jsx — Money in euros, lira and dirhams on screen: the expense and income forms
+ * offer every currency and show that currency's rate on the day (read from its own history —
+ * nothing to type, nothing stored); the expense form lists only the accounts holding it; a foreign
+ * income has no cheque; an account's card sums this month's spending in each currency it was paid
+ * in, with about how much in tomans
  */
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
-const funds = vi.hoisted(() => ({ rateOnDay: vi.fn(async () => 60_000) }));
+const history = vi.hoisted(() => ({ priceOnDay: vi.fn(async () => 60_000) }));
 const month = vi.hoisted(() => ({ expenses: [], projectExpenses: [] }));
 
 vi.mock('../../../web/src/features/loans/context/LoansContext.jsx', () => ({ useOptionalLoans: () => [] }));
@@ -18,8 +19,12 @@ vi.mock('../../../web/src/shared/vault/portfolioFunds.js', () => ({
   CURRENCY_ASSET: { USD: 'usd', EUR: 'eur', TRY: 'try', AED: 'aed' },
   newSpendTxId: () => 'txs_1',
   newLinkTxId: () => 'txl_1',
-  rateOnDay: funds.rateOnDay,
 }));
+vi.mock('../../../web/src/features/market/dailyHistory.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  priceOnDay: history.priceOnDay,
+}));
+vi.mock('../../../web/src/features/cheques/context/ChequesContext.jsx', () => ({ useOptionalCheques: () => [] }));
 vi.mock('../../../web/src/shared/vault/useAssetFunds.js', () => ({ useAssetFunds: () => ({ funds: [], loading: false }) }));
 // The euro's rate: 60,000 tomans on any day
 vi.mock('../../../web/src/features/market/useFxRates.js', () => ({
@@ -45,6 +50,7 @@ vi.mock('../../../web/src/shared/banks/index.js', () => ({ BankLogo: () => null,
 
 const { default: ExpenseForm } = await import('../../../web/src/features/expenses/components/ExpenseForm.jsx');
 const { default: AccountsPage } = await import('../../../web/src/features/accounts/components/AccountsPage.jsx');
+const { default: IncomeForm } = await import('../../../web/src/features/incomes/components/IncomeForm.jsx');
 
 afterEach(() => {
   cleanup();
@@ -55,26 +61,51 @@ const tab = (name) => fireEvent.click(screen.getByRole('tab', { name }));
 const fa = (n) => n.toLocaleString('fa-IR');
 
 describe('an expense in euros', () => {
-  it('asks for the euro\'s rate, offers only the accounts holding euros, and saves its own rate as `rate`', async () => {
+  it('shows the euro\'s rate of the day, offers only the accounts holding euros, and stores no rate', async () => {
     const onSubmit = vi.fn(async () => {});
     render(<ExpenseForm daily accounts={ACCOUNTS} usdToman={100_000} onSubmit={onSubmit} onClose={() => {}} />);
     // Every currency of the table
     for (const name of ['تومان', 'دلار', 'یورو', 'لیر', 'درهم']) expect(screen.getByRole('tab', { name })).toBeTruthy();
     tab('یورو');
     expect(screen.getByText(/مبلغ \(یورو\)/)).toBeTruthy();
-    expect(screen.getByText(/نرخ یورو در روز هزینه/)).toBeTruthy();
+
     // Only the account holding euros
     expect(screen.getByRole('tab', { name: 'وایز' })).toBeTruthy();
     expect(screen.queryByRole('tab', { name: 'ملت' })).toBeNull();
     // A past day: that day's euro rate from its history
     fireEvent.change(document.querySelector('.date-text-input'), { target: { value: '1404/12/10' } });
-    await waitFor(() => expect(funds.rateOnDay).toHaveBeenCalledWith('eur', expect.any(String)));
+    await waitFor(() => expect(history.priceOnDay).toHaveBeenCalledWith('eur', expect.any(String)));
     fireEvent.change(document.getElementById('expense-amount'), { target: { value: '100' } });
-    fireEvent.change(document.getElementById('expense-usd-rate'), { target: { value: '62000' } });
+    await waitFor(() => expect(document.body.textContent).toMatch(new RegExp(`نرخ یورو همان روز.*${fa(60_000)}`)));
+    expect(document.body.textContent).toMatch(new RegExp(fa(6_000_000)));
+    expect(document.getElementById('expense-usd-rate')).toBeNull();
     tab('وایز');
     fireEvent.submit(document.getElementById('expense-amount').closest('form'));
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());
-    expect(onSubmit.mock.calls[0][0]).toMatchObject({ currency: 'EUR', amount: 100, rate: 62_000, usdRate: null, accountId: 'acc_eur', chequeId: '' });
+    const sent = onSubmit.mock.calls[0][0];
+    expect(sent).toMatchObject({ currency: 'EUR', amount: 100, accountId: 'acc_eur', chequeId: '' });
+    expect(sent).not.toHaveProperty('rate');
+    expect(sent).not.toHaveProperty('usdRate');
+  });
+});
+
+describe('an income in euros', () => {
+  it('is saved in its currency, shows the day\'s rate and its tomans, and has no cheque', async () => {
+    const onSubmit = vi.fn(async () => {});
+    render(<IncomeForm onSubmit={onSubmit} onClose={() => {}} />);
+    fireEvent.change(document.getElementById('income-title'), { target: { value: 'پروژه' } });
+    expect(screen.getByRole('tab', { name: 'چک' })).toBeTruthy();
+    tab('یورو');
+    // A cheque is in tomans
+    expect(screen.queryByRole('tab', { name: 'چک' })).toBeNull();
+    expect(screen.getByText(/مبلغ \(یورو\)/)).toBeTruthy();
+    fireEvent.change(document.getElementById('income-amount'), { target: { value: '2500' } });
+    fireEvent.change(document.querySelector('.date-text-input'), { target: { value: '1404/12/10' } });
+    await waitFor(() => expect(document.body.textContent).toMatch(new RegExp(fa(150_000_000))));
+    fireEvent.submit(document.getElementById('income-title').closest('form'));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ currency: 'EUR', amount: 2500, chequeId: '' });
+    expect(onSubmit.mock.calls[0][0]).not.toHaveProperty('rate');
   });
 });
 

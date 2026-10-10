@@ -1,7 +1,8 @@
 /**
  * expensePaidFromPortfolio.test.js — a dollar expense paid from a portfolio's dollars: the
  * expense keeps where it came from, the portfolio gets a «spend» transaction written first, moved
- * or removed with the expense; the day's rate comes from the price history
+ * or removed with the expense; the day's rate comes from the price history (recordRates.js), and
+ * no rate is stored on the expense
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { validateExpense } from '../../src/domain/expenseDocument.js';
@@ -16,6 +17,10 @@ vi.mock('../../../web/src/shared/vault/portfolioFunds.js', () => {
     deleteLinkedTransaction: remove,
   };
 });
+// The dollar's rate on any day: 100,000 tomans
+vi.mock('../../../web/src/shared/vault/recordRates.js', () => ({
+  tomanRateOn: vi.fn(async (currency) => (currency === 'IRT' ? 1 : 100_000)),
+}));
 vi.mock('../../../web/src/shared/vault/vaultRecordMeta.js', () => ({
   putRecord: vi.fn(async () => {
     funds.calls.push(['expense']);
@@ -32,7 +37,7 @@ vi.mock('../../../web/src/shared/vault/vaultStore.js', () => ({
 }));
 const api = await import('../../../web/src/shared/vault/vaultExpenses.js');
 
-const base = { groupId: 'exg_1', title: 'هتل', amount: 120, currency: 'USD', usdRate: 100_000, date: '2026-09-20', category: 'entertainment' };
+const base = { groupId: 'exg_1', title: 'هتل', amount: 120, currency: 'USD', date: '2026-09-20', category: 'entertainment' };
 const paidFrom = (portfolioId = 'pf_a', txId = 'txs_1') => ({ portfolioId, portfolioName: 'اصلی', assetId: 'usd', txId });
 
 beforeEach(() => {
@@ -48,9 +53,9 @@ describe('validateExpense — paidFrom', () => {
     expect(value.loanId).toBe('');
   });
 
-  it('needs dollars, a rate, and valid ids', () => {
+  it('needs dollars and valid ids (no rate: the transaction is priced from the history)', () => {
     expect(validateExpense({ ...base, currency: 'IRT', paidFrom: paidFrom() }).error).toBeTruthy();
-    expect(validateExpense({ ...base, usdRate: null, paidFrom: paidFrom() }).error).toMatch(/نرخ/);
+    expect(validateExpense({ ...base, paidFrom: paidFrom() }).value.paidFrom).toEqual(paidFrom());
     expect(validateExpense({ ...base, paidFrom: { ...paidFrom(), txId: 'bad id' } }).error).toBeTruthy();
     expect(validateExpense(base).value.paidFrom).toBeNull();
   });
@@ -104,8 +109,7 @@ describe('an investment expense added to a portfolio (investedIn)', () => {
     expect(validateExpense({ ...invest, investedIn: { ...link(), quantity: 0 } }).error).toMatch(/مقدار/);
     expect(validateExpense({ ...invest, investedIn: { ...link(), assetId: '' } }).error).toMatch(/دارایی/);
     expect(validateExpense({ ...invest, investedIn: { ...link(), txId: 'bad id' } }).error).toBeTruthy();
-    expect(validateExpense({ ...invest, currency: 'USD', amount: 100, investedIn: link() }).error).toMatch(/نرخ/);
-    expect(validateExpense({ ...invest, currency: 'USD', amount: 100, usdRate: 100_000, investedIn: link() }).value.investedIn).toBeTruthy();
+    expect(validateExpense({ ...invest, currency: 'USD', amount: 100, investedIn: link() }).value.investedIn).toBeTruthy();
     expect(validateExpense({ ...invest, myShare: 10_000_000, investedIn: link() }).error).toMatch(/دنگ/);
   });
 
@@ -117,9 +121,10 @@ describe('an investment expense added to a portfolio (investedIn)', () => {
     ]);
   });
 
-  it('a dollar investment is bought at its own rate', async () => {
-    await api.saveExpense({ ...invest, currency: 'USD', amount: 500, usdRate: 100_000, investedIn: link() });
+  it('a dollar investment is bought at the dollar\'s rate on its day (the history), and no rate is stored', async () => {
+    const { expense } = await api.saveExpense({ ...invest, currency: 'USD', amount: 500, usdRate: 90_000, investedIn: link() });
     expect(funds.calls[0][5]).toBe(50_000_000);
+    expect(expense).not.toHaveProperty('usdRate');
   });
 
   it('moves, removes and deletes with the expense', async () => {

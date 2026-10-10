@@ -228,12 +228,18 @@ asset's profit or loss in dollars (each purchase at its day's rate, valued today
   change) and `historyPriceAt` / `useDailyHistory(ids)` / `useUsdAt()` read any day off it
   (that day's close, or the last one before a quiet day). Old records get their values without any
   change to them, and a backfilled history improves them all at once.
-- **A record keeps a price of its own only when it is a fact of the trade**: the price the money
-  actually changed hands at — the rate of dollars spent from or bought into a portfolio
-  (`expense.usdRate` with `paidFrom` / `investedIn`, which prices the portfolio transaction), the
-  asset a purchase was paid with (`referencePriceToman`) — or a dollar expense's rate the user
-  typed over the history's (the rate they really got). Forms show the day's rate as the field's
-  placeholder and store nothing when it is left alone; a toman expense has no rate field.
+- **No record stores an exchange rate.** An expense or an income in a foreign currency is tomans
+  at its currency's rate on its day, read from the history whenever it is shown; forms show that
+  rate (`shared/currency/useDayRate.js`, `DayRateHint`) and nothing can be typed over it. Older
+  expenses may still carry one (`usdRate`, `rate`: `LEGACY_RATE_FIELDS`), read only for a day the
+  history doesn't have and dropped when the expense is saved again.
+- **Only a portfolio transaction carries a price** — that is what a ledger is: a purchase's unit
+  price is a fact of the trade (typed, or what the asset it was paid with cost:
+  `referenceQuantity` × that asset's price on the day, from the history — the reference price
+  itself isn't stored). One a record writes is priced from the history when the record is saved
+  (`shared/vault/recordRates.js` `tomanRateOn`): a foreign expense paid from a portfolio («spend»
+  at its currency's rate), one bought into a portfolio («buy» at its tomans), a foreign income
+  sold from one («sell» at its tomans).
 - **One computation and one look**: `api/src/domain/dollarValue.js` (`dollarValueOf`,
   `summarizeDollarValues`, shared with the web app) turns an amount on a day into dollars then and
   tomans today; `expenseDollarValue` (`expenseDayRate(expense, usdAt)`: `usdRate`, else
@@ -253,11 +259,13 @@ view. Converting money takes one **rates bag**: `usdToman` / `usdAt(date)` for t
 above) and `rateToday(code)` / `rateAt(code, date)` for the others — built by a screen as
 `{ usdToman, usdAt, ...useFxRates(records) }` (`web/src/features/market/useFxRates.js`: today's
 rate from the price book, a past day's from that currency's daily history, loaded only for the
-currencies the records are in). `expenseCurrencyRate` gives an expense's currency rate on its day
-(its own `usdRate` / `rate`, else the history's), `expenseInToman`, `summarizeExpenses`
-(`byCurrency`, `unpriced`), `summarizeByAccount` (`byCurrency`) and `subscriptionTotals` take the
-bag. A portfolio pays a foreign expense in that currency (`PAYABLE_ASSETS`: its price book id) at
-its own rate (`expenseOwnRate`).
+currencies the records are in). `expenseCurrencyRate` / `incomeCurrencyRate` give a record's
+currency rate on its day (the history's; an older expense's stored rate only for a day it lacks),
+and `expenseInToman`, `incomeInToman`, `summarizeExpenses` / `summarizeIncomes` (`byCurrency`,
+`unpriced`), `summarizeByAccount` (`byCurrency`) and `subscriptionTotals` take the bag. Incomes
+are validated by the shared `api/src/domain/incomeDocument.js`. A portfolio pays a foreign expense
+in that currency (`PAYABLE_ASSETS`: its price book id), priced at its rate on the day from the
+history (`recordRates.js`).
 
 ## 3. Feature Flags and User Groups
 

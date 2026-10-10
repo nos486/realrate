@@ -5,7 +5,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, cleanup, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, cleanup, screen, fireEvent, waitFor, within } from '@testing-library/react';
 
 vi.mock('../../../web/src/features/loans/context/LoansContext.jsx', () => ({ useOptionalLoans: () => [] }));
 vi.mock('../../../web/src/shared/vault/portfolioFunds.js', () => ({
@@ -87,7 +87,8 @@ describe('an asset-sale income', () => {
     fireEvent.click(toggle);
     // Only what is held (no dollars left)
     await waitFor(() => expect(screen.getByText('سکه امامی')).toBeTruthy());
-    expect(screen.queryByText('دلار')).toBeNull();
+    const held = screen.getByText('سکه امامی').closest('.ui-input-group');
+    expect(within(held).queryByText('دلار')).toBeNull();
     fireEvent.click(screen.getByText('سکه امامی'));
     fireEvent.change(document.getElementById('portfolio-link-qty-sell'), { target: { value: '5' } });
     expect(document.body.textContent).toMatch(/بیشتر از موجودی/);

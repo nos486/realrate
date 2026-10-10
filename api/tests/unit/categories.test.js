@@ -141,7 +141,20 @@ describe('categoryStore', () => {
     await store.loadCategories(2);
     expect(store.listCategories('expense').some((c) => c.value === 'dining')).toBe(false);
     expect(store.listCategories('expense', { keep: 'dining' }).some((c) => c.value === 'dining')).toBe(true);
-    expect(store.listCategories('expense', { includeHidden: true })).toHaveLength(BUILTIN_CATEGORIES.expense.length);
+    // Every built-in but the retired ones («مدیریت نقدینگی»: a transfer between the accounts)
+    expect(store.listCategories('expense', { includeHidden: true })).toHaveLength(BUILTIN_CATEGORIES.expense.filter((c) => !c.retired).length);
+  });
+
+  it('never offers a retired category, but its old records keep it (out of the totals)', async () => {
+    vault.records = [{ id: 'main', payload: JSON.stringify({ expense: [{ value: 'cash_management', label: 'نقدینگی', excluded: false }], income: [] }) }];
+    await store.loadCategories(3);
+    for (const kind of ['expense', 'income']) {
+      expect(store.listCategories(kind, { includeHidden: true }).some((c) => c.value === 'cash_management')).toBe(false);
+      expect(store.listCategories(kind, { keep: 'cash_management' }).some((c) => c.value === 'cash_management')).toBe(true);
+      expect(store.isExcludedCategory(kind, 'cash_management')).toBe(true);
+    }
+    // An older record of it still reads as it was
+    expect(store.getCategory('expense', 'cash_management').value).toBe('cash_management');
   });
 
   it('splits records by the user\'s exclusions', async () => {

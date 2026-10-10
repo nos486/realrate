@@ -54,7 +54,7 @@ export default function SubscriptionSummary({ totals, monthLabel, nearest, rates
         value={money(totals.yearly.toman)}
         unit="تومان"
         className="incomes-summary-card"
-        footer={<span>{fa(totals.count)} اشتراک فعال، با نرخ امروز دلار</span>}
+        footer={<span>{fa(totals.count)} اشتراک فعال، ارزها با نرخ امروز</span>}
       />
       <MiniCard
         icon={<CalendarClock size={14} />}

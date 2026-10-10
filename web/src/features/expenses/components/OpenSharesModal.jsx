@@ -51,7 +51,7 @@ export function OpenSharesList({ expenses, onPick, amountLimit = null, hideValue
 export default function OpenSharesModal({ accounts = [], usdToman = 0, hideValues = false, readOnly = false, onChanged, onClose }) {
   const { loading, error, expenses, reload } = useOpenShares();
   const [selected, setSelected] = useState(null);
-  const usdAt = useUsdAt((expenses || []).some((e) => e.currency === 'USD' && !e.usdRate));
+  const usdAt = useUsdAt((expenses || []).some((e) => e.currency === 'USD'));
   const fx = useFxRates(expenses || []);
   const summary = summarizeReceivables(expenses, { usdToman, usdAt, ...fx });
 

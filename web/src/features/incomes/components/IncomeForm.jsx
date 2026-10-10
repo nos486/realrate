@@ -1,5 +1,9 @@
 /**
- * IncomeForm.jsx — Modal form to record or edit an income
+ * IncomeForm.jsx — Modal form to record or edit an income, in tomans or a foreign currency (dollar,
+ * euro, lira, dirham: utils/currencies.js). A foreign income is tomans at its currency's rate on
+ * its day, from the price history — shown here (DayRateHint), never typed or stored. A bank
+ * credit and a cheque are in tomans: «تسویه بدهی اعتباری» and «دریافت با چک» are for a toman
+ * income only.
  *
  * An income's category may link it to a record (utils/categoryLinks.js), picked right under the
  * category (CategoryLinkField): «فروش دارایی» what was sold out of a portfolio («کم کردن از
@@ -8,8 +12,6 @@
  * A choice fills in what it knows (title, amount).
  * «دریافت با چک»: an income of any category may come with one of the user's received cheques
  * (`chequeId`: saving clears the cheque, shared/vault/recordLinks.js).
- * A new income in «مدیریت نقدینگی» offers to record it as a transfer between the user's accounts
- * instead (`onCashMove`, CashMoveNotice).
  *
  * Mounted only while open (keyed by what it edits), so its state is initialized straight from
  * props instead of being reset in an effect.
@@ -33,8 +35,13 @@ import ChequeLinkPicker from '../../cheques/components/ChequeLinkPicker.jsx';
 import { categoryLinkOf } from '../../../utils/categoryLinks.js';
 import { isLinkComplete } from '../../../utils/portfolioLink.js';
 import { newLinkTxId } from '../../../shared/vault/portfolioFunds.js';
-import CashMoveNotice from '../../accounts/components/CashMoveNotice.jsx';
-import { CASH_MANAGEMENT_CATEGORY } from '../../../utils/categoryDocument.js';
+import { CURRENCIES, allowsDecimals, currencyLabel, currencyRateToday, isForeignCurrency, normalizeCurrency } from '../../../utils/currencies.js';
+import { usePricing } from '../../market/context/PricingContext.jsx';
+import { useFxRates } from '../../market/useFxRates.js';
+import { useDayRate } from '../../../shared/currency/useDayRate.js';
+import DayRateHint from '../../../shared/currency/DayRateHint.jsx';
+
+const CURRENCY_OPTIONS = CURRENCIES.map(({ code, label }) => ({ value: code, label }));
 
 export default function IncomeForm({
   onClose,
@@ -43,8 +50,6 @@ export default function IncomeForm({
   submitting = false,
   // A new income filled in from elsewhere (a bank SMS deposit): { title, amount, incomeDate, notes }
   draft = null,
-  // «مدیریت نقدینگی»: record it as a transfer instead — called with { amount, date, notes }
-  onCashMove = null,
 }) {
   const source = editingIncome || draft;
   const [title, setTitle] = useState(source?.title || '');
@@ -57,14 +62,19 @@ export default function IncomeForm({
     icon: <Icon size={14} strokeWidth={2} />,
   }));
   const [amount, setAmount] = useState(source ? String(source.amount) : '');
+  const [currency, setCurrency] = useState(normalizeCurrency(source?.currency));
+  const isForeign = isForeignCurrency(currency);
+  const unit = currencyLabel(currency);
   const [dateShamsi, setDateShamsi] = useState(() => {
     const iso = editingIncome?.incomeDate || draft?.incomeDate;
     return iso ? gregorianToShamsi(`${iso}T00:00:00`) : getTodayShamsi();
   });
   const [notes, setNotes] = useState(source?.notes || '');
   const [submitError, setSubmitError] = useState('');
-  // The record its category links it to (categoryLinks.js), as the income stores it
-  const link = categoryLinkOf('income', category);
+  // The record its category links it to (categoryLinks.js), as the income stores it — a bank
+  // credit's only for a toman income
+  const categoryLink = categoryLinkOf('income', category);
+  const link = categoryLink?.target === 'credit_account' && isForeign ? null : categoryLink;
   const [linkValue, setLinkValue] = useState(() => linkValueOf('income', source?.category, source));
   const changeCategory = (next) => {
     setCategory(next);
@@ -87,9 +97,18 @@ export default function IncomeForm({
   // The Shamsi value is the single source of truth; the stored Gregorian date is derived from it
   // (empty while the user is still typing an incomplete date, which keeps submit disabled).
   const dateIso = shamsiToGregorian(dateShamsi);
+  // A foreign income: its currency's rate on its day (the price history), and the tomans it makes
+  const pricing = usePricing();
+  const fx = useFxRates(undefined, false);
+  const todayRate = isForeign ? currencyRateToday(currency, { usdToman: Number(pricing?.getAssetPrice?.('usd')) || 0, ...fx }) : 0;
+  const { rate: dayRate, state: rateState } = useDayRate(currency, dateIso, todayRate);
+  const toman = isForeign ? (amountNum || 0) * (dayRate || todayRate) : amountNum || 0;
+  const receivesCheque = withCheque && !isForeign;
   const isAmountValid = amountNum !== null && amountNum > 0;
   const isFormValid = Boolean(title.trim()) && isAmountValid && Boolean(dateIso) && !submitting
     && (!selling || isLinkComplete(linkValue))
+    // A sale is priced at the day's rate: it must be known
+    && (!selling || !isForeign || dayRate > 0)
     && (!settling || Boolean(linkValue));
 
   const handleSubmit = async (e) => {
@@ -102,11 +121,12 @@ export default function IncomeForm({
         title: title.trim(),
         category,
         amount: amountNum,
+        currency,
         incomeDate: dateIso,
         notes: notes.trim(),
         // Only its category's link (the store drops the others too)
         creditAccountId: settling ? linkValue : '',
-        chequeId: withCheque ? chequeId : '',
+        chequeId: receivesCheque ? chequeId : '',
         soldFrom: selling
           ? {
             portfolioId: linkValue.portfolioId,
@@ -129,7 +149,7 @@ export default function IncomeForm({
       isOpen
       onClose={onClose}
       title={editingIncome ? 'ویرایش درآمد' : 'ثبت درآمد جدید'}
-      subtitle="مبالغ به تومان ثبت می‌شوند"
+      subtitle={isForeign ? `به ${unit}، با نرخ همان روز از تاریخچه‌ی قیمت` : 'به تومان'}
       icon={<Wallet size={18} />}
       maxWidth="540px"
       onSubmit={handleSubmit}
@@ -179,35 +199,44 @@ export default function IncomeForm({
             onChange={setLinkValue}
             onFill={fill}
             recordId={editingIncome?.id || ''}
-            toman={amountNum || 0}
+            toman={toman}
             own={editingIncome?.soldFrom || null}
           />
         )}
 
         <div className="ui-input-group">
-          <label htmlFor="income-amount" className="ui-input-label">مبلغ (تومان) *</label>
+          <span className="ui-input-label">ارز</span>
+          <FilterPills options={CURRENCY_OPTIONS} activeValue={currency} onChange={setCurrency} size="sm" />
+        </div>
+
+        <div className="ui-input-group">
+          <label htmlFor="income-amount" className="ui-input-label">مبلغ ({unit}) *</label>
           <div className="ui-input-wrapper">
             <NumericInput
               id="income-amount"
               value={amount}
               onValueChange={setAmount}
-              placeholder="مثلاً ۲۵,۰۰۰,۰۰۰"
+              allowDecimals={allowsDecimals(currency)}
+              placeholder={isForeign ? 'مثلاً ۲۵۰۰' : 'مثلاً ۲۵,۰۰۰,۰۰۰'}
               className="ui-input-control"
               required
             />
           </div>
         </div>
+        {isForeign && <DayRateHint unit={unit} rate={dayRate} state={rateState} toman={amountNum > 0 ? toman : 0} portfolio={selling} />}
 
-        <div className="ui-input-group">
-          <span className="ui-input-label">دریافت با</span>
-          <FilterPills
-            options={[{ value: 'other', label: 'واریز یا نقد' }, { value: 'cheque', label: 'چک' }]}
-            activeValue={withCheque ? 'cheque' : 'other'}
-            onChange={(v) => setWithCheque(v === 'cheque')}
-            size="sm"
-          />
-        </div>
-        {withCheque && (
+        {!isForeign && (
+          <div className="ui-input-group">
+            <span className="ui-input-label">دریافت با</span>
+            <FilterPills
+              options={[{ value: 'other', label: 'واریز یا نقد' }, { value: 'cheque', label: 'چک' }]}
+              activeValue={withCheque ? 'cheque' : 'other'}
+              onChange={(v) => setWithCheque(v === 'cheque')}
+              size="sm"
+            />
+          </div>
+        )}
+        {receivesCheque && (
           <ChequeLinkPicker side="income" value={chequeId} onChange={setChequeId} onFill={fill} recordId={editingIncome?.id || ''} />
         )}
 
@@ -216,9 +245,6 @@ export default function IncomeForm({
           value={dateShamsi}
           onChange={setDateShamsi}
         />
-        {!editingIncome && onCashMove && category === CASH_MANAGEMENT_CATEGORY && (
-          <CashMoveNotice onMove={() => onCashMove({ amount: amountNum || 0, date: dateIso || '', notes: notes.trim() || title.trim() })} />
-        )}
         <Input
           id="income-notes"
           as="textarea"

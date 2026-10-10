@@ -53,13 +53,14 @@ function notify() {
 }
 
 /**
- * A kind's categories, in the user's order
+ * A kind's categories, in the user's order — never a retired one (utils/categoryDocument.js),
+ * which only its old records show
  * @param {'expense'|'income'} kind
- * @param {{ includeHidden?: boolean, keep?: string }} [options] keep: also a hidden one (the value
- *   a record being edited already has)
+ * @param {{ includeHidden?: boolean, keep?: string }} [options] keep: also a hidden or retired one
+ *   (the value a record being edited already has)
  */
 export function listCategories(kind, { includeHidden = false, keep = '' } = {}) {
-  return current()[kind].filter((c) => includeHidden || !c.hidden || c.value === keep);
+  return current()[kind].filter((c) => c.value === keep || (!c.retired && (includeHidden || !c.hidden)));
 }
 
 /** Display data of a category key; "other" for none, an unknown or a removed one */
@@ -68,7 +69,7 @@ export function getCategory(kind, value) {
   return byValue[kind][value] || byValue[kind][FALLBACK_CATEGORY];
 }
 
-/** Whether a category's records are left out of the totals («مدیریت نقدینگی», «سرمایه‌گذاری», …) */
+/** Whether a category's records are left out of the totals («سرمایه‌گذاری», «فروش دارایی», …) */
 export function isExcludedCategory(kind, value) {
   return Boolean(getCategory(kind, value)?.excluded);
 }

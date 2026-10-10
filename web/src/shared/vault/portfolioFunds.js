@@ -5,7 +5,8 @@
  * encrypted records:
  *   - the expense, with `paidFrom: { portfolioId, portfolioName, assetId, txId }`
  *   - a «spend» transaction in that portfolio (id `txId`, `expenseId`): the currency leaves the
- *     asset's ledger at the expense's own rate, realizing P&L like a sale (calculationEngine.js)
+ *     asset's ledger at its rate on the expense's day (the price history, recordRates.js),
+ *     realizing P&L like a sale (calculationEngine.js)
  * The transaction is written first and the expense second (vaultExpenses.saveExpense); a failed
  * expense write removes the transaction again. Editing the expense rewrites the transaction (or
  * moves it to another portfolio), deleting it deletes the transaction. The transaction carries no
@@ -26,7 +27,8 @@ import { getKnownPriceIds } from '../../features/market/knownPriceIds.js';
 import { resolveAssetUnit } from '../../config/sourceRegistry.js';
 import { gregorianToShamsi } from '../../features/portfolio/components/ShamsiDatePicker.jsx';
 import { toPriceId } from '../../utils/priceIds.js';
-import { PAYABLE_ASSETS, expenseOwnRate } from '../../utils/expenseDocument.js';
+import { PAYABLE_ASSETS } from '../../utils/expenseDocument.js';
+import { tomanRateOn } from './recordRates.js';
 import { getPortfolioKey, isAccountVaultPortfolio } from './vaultStore.js';
 import {
   listPortfolioHoldings,
@@ -134,7 +136,8 @@ export async function saveSpendTransaction(expense) {
     assetId: toPriceId(paidFrom.assetId),
     transactionType: 'spend',
     quantity: Number(expense.amount) || 0,
-    unitPrice: expenseOwnRate(expense),
+    // The currency's toman rate on the expense's day (the price history)
+    unitPrice: await tomanRateOn(expense.currency, expense.date),
     transactionDate: gregorianToShamsi(`${expense.date}T00:00:00`),
     notes: 'پرداخت هزینه',
     expenseId: expense.id,

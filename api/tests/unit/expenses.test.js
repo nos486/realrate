@@ -39,13 +39,15 @@ const vaultExpenses = await import('../../../web/src/shared/vault/vaultExpenses.
 const base = { groupId: 'exg_1', title: 'کاشی', amount: 1000, date: '2026-09-28' };
 
 describe('validateExpense', () => {
-  it('normalizes a toman expense; the day\'s dollar rate is kept when given (its value in dollars)', () => {
-    expect(validateExpense(base).value).toMatchObject({ currency: 'IRT', usdRate: null, source: 'manual', category: '' });
-    expect(validateExpense({ ...base, usdRate: 90000 }).value).toMatchObject({ currency: 'IRT', usdRate: 90000 });
+  it('normalizes a toman expense', () => {
+    expect(validateExpense(base).value).toMatchObject({ currency: 'IRT', source: 'manual', category: '' });
   });
 
-  it('keeps the day rate of a dollar expense', () => {
-    expect(validateExpense({ ...base, currency: 'USD', amount: 12.5, usdRate: '95000' }).value).toMatchObject({ amount: 12.5, usdRate: 95000 });
+  it('never stores a rate: its day\'s comes from the price history', () => {
+    const { value } = validateExpense({ ...base, currency: 'USD', amount: 12.5, usdRate: '95000', rate: 5 });
+    expect(value).toMatchObject({ amount: 12.5, currency: 'USD' });
+    expect(value).not.toHaveProperty('usdRate');
+    expect(value).not.toHaveProperty('rate');
   });
 
   it.each([
@@ -53,7 +55,6 @@ describe('validateExpense', () => {
     [{ title: ' ' }, 'عنوان'],
     [{ amount: 0 }, 'مبلغ'],
     [{ date: '1404-07-06' }, 'تاریخ'],
-    [{ currency: 'USD', usdRate: -1 }, 'نرخ'],
   ])('rejects %o', (patch, word) => {
     expect(validateExpense({ ...base, ...patch }).error).toContain(word);
   });

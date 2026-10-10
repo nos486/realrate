@@ -1,114 +1,92 @@
 // @vitest-environment happy-dom
 /**
- * expenseDollarForm.test.jsx — a dollar expense's rate on its day comes from the price history
- * (shown, not stored); a typed rate is stored over it; a toman expense asks for no rate
+ * expenseDollarForm.test.jsx — a foreign expense's rate on its day comes from the price history:
+ * shown under the amount with the tomans it makes, never typed, never stored (an older record's
+ * stored rate is not sent back, so saving drops it); a toman expense shows no rate
  */
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, screen, fireEvent, waitFor } from '@testing-library/react';
 
 vi.mock('../../../web/src/features/loans/context/LoansContext.jsx', () => ({ useOptionalLoans: () => [] }));
-const funds = vi.hoisted(() => ({ rateOnDay: vi.fn(async () => 100_000) }));
+const history = vi.hoisted(() => ({ priceOnDay: vi.fn(async () => 100_000) }));
+vi.mock('../../../web/src/features/market/dailyHistory.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  priceOnDay: history.priceOnDay,
+}));
 vi.mock('../../../web/src/shared/vault/portfolioFunds.js', () => ({
   CURRENCY_ASSET: { USD: 'usd' },
   newSpendTxId: () => 'txs_1',
-  rateOnDay: funds.rateOnDay,
 }));
 vi.mock('../../../web/src/shared/vault/useAssetFunds.js', () => ({ useAssetFunds: () => ({ funds: [], loading: false }) }));
 
 const { default: ExpenseForm } = await import('../../../web/src/features/expenses/components/ExpenseForm.jsx');
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  history.priceOnDay.mockReset();
+  history.priceOnDay.mockImplementation(async () => 100_000);
+});
 const project = { id: 'exg_1', name: 'تعمیر خانه', type: 'project' };
+const fa = (n) => n.toLocaleString('fa-IR');
+const submit = () => fireEvent.submit(document.getElementById('expense-amount').closest('form'));
+const dollars = (title, amount) => {
+  fireEvent.click(screen.getByRole('tab', { name: 'دلار' }));
+  fireEvent.change(document.getElementById('expense-title'), { target: { value: title } });
+  fireEvent.change(document.getElementById('expense-amount'), { target: { value: amount } });
+};
 
-describe('the dollar rate of a dollar expense', () => {
-  const submit = () => fireEvent.submit(document.getElementById('expense-amount').closest('form'));
-  const dollars = (title, amount) => {
-    fireEvent.click(screen.getByRole('tab', { name: 'دلار' }));
-    fireEvent.change(document.getElementById('expense-title'), { target: { value: title } });
-    fireEvent.change(document.getElementById('expense-amount'), { target: { value: amount } });
-  };
-
-  it("shows the day's rate and the tomans, and stores no rate of its own", async () => {
+describe('the rate of a dollar expense', () => {
+  it("shows today's rate and the tomans, with nothing to type and no rate sent", async () => {
     const onSubmit = vi.fn(async () => {});
     render(<ExpenseForm group={project} usdToman={125_000} onSubmit={onSubmit} onClose={() => {}} />);
     dollars('هاست', '20');
-    // The date picker starts on today: today's rate
-    await waitFor(() => expect(document.getElementById('expense-usd-rate').placeholder).toMatch(/۱۲۵/));
-    expect(document.getElementById('expense-usd-rate').value).toBe('');
-    expect(document.body.textContent).toMatch(/۲٬۵۰۰٬۰۰۰|۲,۵۰۰,۰۰۰/);
+    expect(document.getElementById('expense-usd-rate')).toBeNull();
+    await waitFor(() => expect(document.body.textContent).toMatch(new RegExp(fa(125_000))));
+    expect(document.body.textContent).toMatch(new RegExp(fa(2_500_000)));
     submit();
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());
-    expect(onSubmit.mock.calls[0][0]).toMatchObject({ currency: 'USD', amount: 20, usdRate: null });
+    const sent = onSubmit.mock.calls[0][0];
+    expect(sent).toMatchObject({ currency: 'USD', amount: 20 });
+    expect(sent).not.toHaveProperty('usdRate');
+    expect(sent).not.toHaveProperty('rate');
   });
 
-  it('a typed rate is stored and used instead', async () => {
-    const onSubmit = vi.fn(async () => {});
-    render(<ExpenseForm group={project} usdToman={125_000} onSubmit={onSubmit} onClose={() => {}} />);
-    dollars('هاست', '20');
-    fireEvent.change(document.getElementById('expense-usd-rate'), { target: { value: '100000' } });
-    await waitFor(() => expect(document.body.textContent).toMatch(/نرخ واردشده به جای نرخ همان روز/));
-    expect(document.body.textContent).toMatch(/۲٬۰۰۰٬۰۰۰|۲,۰۰۰,۰۰۰/);
-    submit();
-    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
-    expect(onSubmit.mock.calls[0][0].usdRate).toBe(100_000);
-  });
-
-  it("changing the date reads that day's rate and drops a typed one", async () => {
-    funds.rateOnDay.mockClear();
-    funds.rateOnDay.mockResolvedValueOnce(61_500);
+  it("a past day reads that day's rate from the history", async () => {
+    history.priceOnDay.mockResolvedValue(61_500);
     const onSubmit = vi.fn(async () => {});
     render(<ExpenseForm group={project} usdToman={125_000} onSubmit={onSubmit} onClose={() => {}} />);
     dollars('هاست', '10');
-    fireEvent.change(document.getElementById('expense-usd-rate'), { target: { value: '90000' } });
     fireEvent.change(document.querySelector('.date-text-input'), { target: { value: '1403/01/15' } });
-    await waitFor(() => expect(document.getElementById('expense-usd-rate').placeholder).toMatch(/۶۱/));
-    expect(funds.rateOnDay).toHaveBeenCalledWith('usd', '2024-04-03');
-    expect(document.getElementById('expense-usd-rate').value).toBe('');
-    expect(document.body.textContent).toMatch(/۶۱۵٬۰۰۰|۶۱۵,۰۰۰/);
+    await waitFor(() => expect(history.priceOnDay).toHaveBeenCalledWith('usd', '2024-04-03'));
+    await waitFor(() => expect(document.body.textContent).toMatch(new RegExp(fa(615_000))));
     submit();
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());
-    expect(onSubmit.mock.calls[0][0]).toMatchObject({ date: '2024-04-03', usdRate: null });
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ date: '2024-04-03' });
   });
 
-  it("an edited expense whose saved rate is the day's own drops it; a different one is kept", async () => {
-    funds.rateOnDay.mockResolvedValue(60_000);
+  it('an older record\'s stored rate is not sent back (saving drops it: the history is used)', async () => {
     const onSubmit = vi.fn(async () => {});
-    const expense = { id: 'exp_1', title: 'هاست', amount: 10, currency: 'USD', date: '2024-04-03', usdRate: 60_000, groupId: 'exg_1' };
-    const { unmount } = render(<ExpenseForm group={project} expense={expense} usdToman={125_000} onSubmit={onSubmit} onClose={() => {}} />);
-    await waitFor(() => expect(document.getElementById('expense-usd-rate').placeholder).toMatch(/۶۰/));
+    const expense = { id: 'exp_1', title: 'هاست', amount: 10, currency: 'USD', date: '2024-04-03', usdRate: 58_000, groupId: 'exg_1' };
+    render(<ExpenseForm group={project} expense={expense} usdToman={125_000} onSubmit={onSubmit} onClose={() => {}} />);
     submit();
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());
-    expect(onSubmit.mock.calls[0][0].usdRate).toBeNull();
-    unmount();
-
-    const onSubmit2 = vi.fn(async () => {});
-    render(<ExpenseForm group={project} expense={{ ...expense, usdRate: 58_000 }} usdToman={125_000} onSubmit={onSubmit2} onClose={() => {}} />);
-    await waitFor(() => expect(document.getElementById('expense-usd-rate').placeholder).toMatch(/۶۰/));
-    submit();
-    await waitFor(() => expect(onSubmit2).toHaveBeenCalled());
-    expect(onSubmit2.mock.calls[0][0].usdRate).toBe(58_000);
-    funds.rateOnDay.mockReset();
-    funds.rateOnDay.mockImplementation(async () => 100_000);
+    expect(onSubmit.mock.calls[0][0]).not.toHaveProperty('usdRate');
   });
 
   it('says so when the history has no rate for that day', async () => {
-    funds.rateOnDay.mockResolvedValueOnce(null);
+    history.priceOnDay.mockResolvedValue(null);
     render(<ExpenseForm group={project} usdToman={125_000} onSubmit={vi.fn()} onClose={() => {}} />);
     dollars('هاست', '10');
     fireEvent.change(document.querySelector('.date-text-input'), { target: { value: '1390/01/15' } });
-    await waitFor(() => expect(document.body.textContent).toMatch(/در تاریخچه نیست/));
+    await waitFor(() => expect(document.body.textContent).toMatch(/در تاریخچه‌ی قیمت نیست/));
   });
 });
 
 describe('a toman expense', () => {
-  it('asks for no rate, and drops one an older version stored', async () => {
-    const onSubmit = vi.fn(async () => {});
-    const expense = { id: 'exp_3', title: 'کاشی', amount: 1_000_000, currency: 'IRT', date: '2024-04-03', usdRate: 60_000, groupId: 'exg_1' };
-    render(<ExpenseForm group={project} expense={expense} usdToman={125_000} onSubmit={onSubmit} onClose={() => {}} />);
-    expect(document.getElementById('expense-usd-rate')).toBeNull();
-    fireEvent.submit(document.getElementById('expense-amount').closest('form'));
-    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
-    expect(onSubmit.mock.calls[0][0].usdRate).toBeNull();
+  it('shows no rate', () => {
+    const expense = { id: 'exp_3', title: 'کاشی', amount: 1_000_000, currency: 'IRT', date: '2024-04-03', groupId: 'exg_1' };
+    render(<ExpenseForm group={project} expense={expense} usdToman={125_000} onSubmit={vi.fn()} onClose={() => {}} />);
+    expect(document.body.textContent).not.toMatch(/نرخ دلار همان روز/);
   });
 });

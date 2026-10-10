@@ -9,8 +9,8 @@
  * '' for the everyday expenses). Opened from a project (`group`) it starts in that project, from
  * the everyday list (`daily`) in none. The title is optional (the category's name when left
  * empty); an expense in a project may have no category («بدون دسته‌بندی»), and then needs one.
- * A foreign expense may carry its currency's toman rate of its day (a dollar's `usdRate`, another
- * currency's `rate`); left empty, totals convert it at that day's rate from the price history.
+ * A foreign expense is tomans at its currency's rate on its day, from the price history — shown
+ * here (DayRateHint), never typed or stored.
  * With `accounts`, the account it was paid from can be picked — only the accounts
  * that hold the expense's currency (accountsForCurrency; a new everyday expense starts from the
  * last one used). A new expense may start from a `draft` (a bank SMS:
@@ -30,13 +30,11 @@
  * user's issued cheques (`chequeId`) — saving it clears the cheque.
  * Added to a portfolio («افزودن به پورتفو»: the asset and its quantity), an expense is a «buy»
  * there at its tomans (`investedIn`).
- * A new everyday toman expense in «مدیریت نقدینگی» offers to record it as a transfer between the
- * user's accounts instead (`onCashMove`, CashMoveNotice).
  * Mounted only while open, so its state starts from props.
  */
 
-import React, { useEffect, useState } from 'react';
-import { Receipt, RefreshCw } from 'lucide-react';
+import React, { useState } from 'react';
+import { Receipt } from 'lucide-react';
 import { AlertBanner, Button, FilterPills, Input, Modal, NumericInput } from '../../../shared/ui/index.js';
 import ShamsiDatePicker, {
   getTodayShamsi,
@@ -45,9 +43,7 @@ import ShamsiDatePicker, {
 } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { parseInputNumber, formatNum } from '../../portfolio/utils/holdingHelpers.js';
 import TagInput from './TagInput.jsx';
-import CashMoveNotice from '../../accounts/components/CashMoveNotice.jsx';
-import { CASH_MANAGEMENT_CATEGORY } from '../../../utils/categoryDocument.js';
-import { EXPENSE_CURRENCIES, EXPENSE_LIMITS, isSharedExpense, expenseReceivable, expenseOwnRate } from '../../../utils/expenseDocument.js';
+import { EXPENSE_CURRENCIES, EXPENSE_LIMITS, isSharedExpense, expenseReceivable } from '../../../utils/expenseDocument.js';
 import { getExpenseCategory } from '../constants/expenseCategories.js';
 import { useCategories } from '../../../shared/categories/useCategories.js';
 import CategoryManagerModal from '../../../shared/categories/CategoryManagerModal.jsx';
@@ -55,15 +51,16 @@ import { accountLabel } from '../../accounts/constants/accountDisplay.js';
 import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
 import { fundingLoanOptions } from '../../../utils/loanFunding.js';
 import { useAssetFunds } from '../../../shared/vault/useAssetFunds.js';
-import { CURRENCY_ASSET, newSpendTxId, newLinkTxId, rateOnDay } from '../../../shared/vault/portfolioFunds.js';
+import { CURRENCY_ASSET, newSpendTxId, newLinkTxId } from '../../../shared/vault/portfolioFunds.js';
 import CategoryLinkField from '../../../shared/links/CategoryLinkField.jsx';
 import { linkValueOf, isNewSubscription } from '../../../shared/links/linkValues.js';
 import ChequeLinkPicker from '../../cheques/components/ChequeLinkPicker.jsx';
 import { isLinkComplete } from '../../../utils/portfolioLink.js';
-import { todayIso } from '../../../shared/utils/dates.js';
 import { accountsForCurrency } from '../../../utils/accountDocument.js';
-import { normalizeCurrency, isForeignCurrency, currencyLabel, currencyOf, currencyRateToday, allowsDecimals } from '../../../utils/currencies.js';
+import { normalizeCurrency, isForeignCurrency, currencyLabel, currencyRateToday, allowsDecimals } from '../../../utils/currencies.js';
 import { useFxRates } from '../../market/useFxRates.js';
+import { useDayRate } from '../../../shared/currency/useDayRate.js';
+import DayRateHint from '../../../shared/currency/DayRateHint.jsx';
 import { categoryLinkOf } from '../../../utils/categoryLinks.js';
 import { useOptionalSubscriptionsContext } from '../../subscriptions/context/SubscriptionsContext.jsx';
 
@@ -94,7 +91,7 @@ const CURRENCY_OPTIONS = EXPENSE_CURRENCIES.map(({ value, label }) => ({ value, 
 const NO_CATEGORY = { value: '', label: 'بدون دسته‌بندی' };
 
 
-export default function ExpenseForm({ group = null, daily = false, projects = [], expense = null, draft = null, usdToman = 0, accounts = [], onSubmit, onClose, submitting = false, tagSuggestions = [], onCashMove = null }) {
+export default function ExpenseForm({ group = null, daily = false, projects = [], expense = null, draft = null, usdToman = 0, accounts = [], onSubmit, onClose, submitting = false, tagSuggestions = [] }) {
   const start = expense || draft;
   // Its project ('': the everyday expenses): the one it is in, else the one it was opened from
   const [projectId, setProjectId] = useState(() => {
@@ -133,9 +130,6 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
   // A draft may be in a foreign currency too (a dollar subscription's payment)
   const [currency, setCurrency] = useState(normalizeCurrency(start?.currency));
   const [amount, setAmount] = useState(start?.amount ? String(start.amount) : '');
-  // Its currency's toman rate typed over the day's (a dollar's `usdRate`, another's `rate`)
-  const [rateInput, setRateInput] = useState(
-    expense && isForeignCurrency(expense.currency) && expenseOwnRate(expense) > 0 ? String(expenseOwnRate(expense)) : '');
   const [dateShamsi, setDateShamsi] = useState(() =>
     start?.date ? gregorianToShamsi(`${start.date}T00:00:00`) : getTodayShamsi());
   // A project's expense may carry tags (summed per tag beside the list)
@@ -170,7 +164,6 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
   const isForeign = isForeignCurrency(currency);
   const unit = currencyLabel(currency);
   const amountNum = parseInputNumber(amount);
-  const rateNum = parseInputNumber(rateInput);
   const dateIso = shamsiToGregorian(dateShamsi);
   // Today's rate of its currency (the dollar's from the page, another's from the price book)
   const fx = useFxRates(undefined, false);
@@ -201,49 +194,12 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
   const fundAfter = fundAvailable - (amountNum || 0);
 
   // A foreign expense's rate on its date comes from its currency's price history (dailyHistory.js)
-  // and is not stored: the field holds only a rate the user types over it (the rate they actually
-  // got). A rate is stored on the expense only when typed, or when a portfolio transaction needs it
-  // (paid from a portfolio, bought into a portfolio). Changing the date drops a typed one.
-  // A toman expense has no rate of its own: it is seen in dollars at its day's rate in the lists.
+  // and is never stored or typed: it is shown here, with the tomans it makes. A portfolio
+  // transaction it writes (paid from a portfolio, bought into one) is priced from the same
+  // history when saved (recordRates.js), so it needs that day's rate to be known.
+  // A toman expense has no rate: it is seen in dollars at its day's rate in the lists.
   const showsRate = isForeign;
-  const ratePriceId = currencyOf(currency).priceId;
-  const [dayRate, setDayRate] = useState(0);
-  // null | 'loading' | 'filled' | 'missing': the history's rate for the date
-  const [rateFill, setRateFill] = useState(null);
-  useEffect(() => {
-    if (!showsRate || !dateIso) {
-      setDayRate(0);
-      setRateFill(null);
-      return undefined;
-    }
-    if (dateIso === todayIso() && todayRate > 0) {
-      setDayRate(Math.round(todayRate));
-      setRateFill('filled');
-      return undefined;
-    }
-    let cancelled = false;
-    setRateFill('loading');
-    rateOnDay(ratePriceId, dateIso).then((rate) => {
-      if (cancelled) return;
-      setDayRate(rate > 0 ? Math.round(rate) : 0);
-      setRateFill(rate > 0 ? 'filled' : 'missing');
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [showsRate, dateIso, todayRate, ratePriceId]);
-  const changeCurrency = (next) => {
-    // Another currency's rate is no rate of this one
-    if (next !== currency) setRateInput('');
-    setCurrency(next);
-  };
-  const changeDate = (value) => {
-    if (value !== dateShamsi) setRateInput('');
-    setDateShamsi(value);
-  };
-  // A typed rate equal to the day's is no rate of its own
-  const overrideRate = rateNum > 0 && rateNum !== dayRate ? rateNum : 0;
-  const effectiveRate = overrideRate || dayRate;
+  const { rate: dayRate, state: rateFill } = useDayRate(currency, dateIso, todayRate);
 
   // «دنگ» is for toman expenses only (and not for one added to a portfolio)
   const canShare = !isForeign && !investing;
@@ -253,15 +209,14 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
   const received = expenseReceivable(expense).received;
   const paidFromPortfolio = Boolean(fundAsset && fund);
   // A portfolio transaction is priced at the expense's rate: it is stored with it
-  const needsStoredRate = isForeign && (paidFromPortfolio || investing);
-  const isValid = (Boolean(category) || Boolean(title.trim())) && amountNum > 0 && Boolean(dateIso) && (!rateInput || rateNum > 0)
-    && (!needsStoredRate || effectiveRate > 0) && shareValid && !submitting
+  // A portfolio transaction is priced at the day's rate: it must be known
+  const needsDayRate = isForeign && (paidFromPortfolio || investing);
+  const isValid = (Boolean(category) || Boolean(title.trim())) && amountNum > 0 && Boolean(dateIso)
+    && (!needsDayRate || dayRate > 0) && shareValid && !submitting
     && (!investing || isLinkComplete(linkValue))
     // A new subscription is named after the expense
     && (!creatingSubscription || Boolean(title.trim() && subs));
-  const tomanPreview = isForeign && amountNum > 0 ? amountNum * (effectiveRate || todayRate) : 0;
-  // The rate stored on it: typed, or the one its portfolio transaction is priced at
-  const storedRate = !showsRate ? null : needsStoredRate ? effectiveRate : overrideRate || null;
+  const tomanPreview = isForeign && amountNum > 0 ? amountNum * (dayRate || todayRate) : 0;
 
   const handleSubmit = async (e) => {
     e?.preventDefault?.();
@@ -315,9 +270,6 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
         title: title.trim() || getExpenseCategory(category).label,
         amount: amountNum,
         currency,
-        // Its currency's rate: the dollar's as `usdRate`, another's as `rate`
-        usdRate: currency === 'USD' ? storedRate : null,
-        rate: currency !== 'USD' ? storedRate : null,
         date: dateIso,
         notes: notes.trim(),
         myShare: sharing ? shareNum : null,
@@ -380,7 +332,7 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
             recordId={expense?.id || ''}
             keepId={expense?.[link.field] || ''}
             title={title}
-            toman={isForeign ? (amountNum || 0) * (effectiveRate || 0) : amountNum || 0}
+            toman={isForeign ? (amountNum || 0) * (dayRate || 0) : amountNum || 0}
           />
         )}
 
@@ -397,7 +349,7 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
 
         <div className="ui-input-group">
           <span className="ui-input-label">ارز</span>
-          <FilterPills options={CURRENCY_OPTIONS} activeValue={currency} onChange={changeCurrency} size="sm" />
+          <FilterPills options={CURRENCY_OPTIONS} activeValue={currency} onChange={setCurrency} size="sm" />
         </div>
 
         <div className="ui-input-group">
@@ -415,47 +367,7 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
           </div>
         </div>
 
-        {showsRate && (
-          <div className="ui-input-group">
-            <label htmlFor="expense-usd-rate" className="ui-input-label expense-rate-label">
-              نرخ {unit} در روز هزینه (تومان)
-              {overrideRate > 0 && (
-                <button
-                  type="button"
-                  className="btn-fx-rate-refresh"
-                  title={`نرخ ${unit} همان روز (از تاریخچه)`}
-                  aria-label={`نرخ ${unit} همان روز (از تاریخچه)`}
-                  onClick={() => setRateInput('')}
-                >
-                  <RefreshCw size={11} />
-                </button>
-              )}
-            </label>
-            <div className="ui-input-wrapper">
-              <NumericInput
-                id="expense-usd-rate"
-                value={rateInput}
-                onValueChange={setRateInput}
-                allowDecimals={false}
-                placeholder={dayRate > 0 ? `${formatNum(dayRate)} — نرخ همان روز` : `نرخ هر ${unit} به تومان`}
-                className="ui-input-control"
-              />
-            </div>
-            <p className={`expense-form-hint ${!overrideRate && rateFill === 'missing' ? 'is-warning' : ''}`}>
-              {overrideRate > 0
-                ? <>نرخ واردشده به جای نرخ همان روز{dayRate > 0 && <> ({formatNum(dayRate)})</>} حساب می‌شود.</>
-                : rateFill === 'loading' ? `در حال خواندن نرخ ${unit} آن روز…`
-                  : rateFill === 'missing' ? `نرخ ${unit} این روز در تاریخچه نیست؛ اگر می‌دانید وارد کنید.`
-                    : `نرخ ${unit} همان روز از تاریخچه قیمت؛ فقط اگر با نرخ دیگری معامله کرده‌اید وارد کنید.`}
-            </p>
-            {tomanPreview > 0 && (
-              <p className="expense-form-hint">
-                معادل حدود <strong>{formatNum(tomanPreview)}</strong> تومان
-                {!effectiveRate && ' (به نرخ امروز)'}
-              </p>
-            )}
-          </div>
-        )}
+        {showsRate && <DayRateHint unit={unit} rate={dayRate} state={rateFill} toman={tomanPreview} portfolio={needsDayRate} />}
 
         {canShare && (
           <div className="ui-input-group">
@@ -571,7 +483,7 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
           </div>
         )}
 
-        <ShamsiDatePicker label="تاریخ هزینه *" value={dateShamsi} onChange={changeDate} />
+        <ShamsiDatePicker label="تاریخ هزینه *" value={dateShamsi} onChange={setDateShamsi} />
 
         {projectOptions.length > 0 && (
           <div className="ui-input-group">
@@ -590,9 +502,6 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
           </div>
         )}
 
-        {!projectId && !expense && !isForeign && onCashMove && category === CASH_MANAGEMENT_CATEGORY && (
-          <CashMoveNotice onMove={() => onCashMove({ amount: amountNum || 0, date: dateIso || '', notes: notes.trim() || title.trim(), fromAccountId: accountId || '' })} />
-        )}
 
         {projectId && <TagInput value={tags} onChange={setTags} suggestions={tagSuggestions} />}
 
