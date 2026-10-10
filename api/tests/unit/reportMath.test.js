@@ -14,6 +14,7 @@ import {
   dollarFlowByMonth,
   investmentBreakdown,
   subscriptionPayments,
+  sumApart,
   cashFlowByMonth,
   summarizeCashFlow,
   reportInsights,
@@ -142,5 +143,21 @@ describe('subscriptionPayments', () => {
     expect(out.unlinked).toEqual({ count: 1, total: 90_000 });
     expect(out.total).toBe(4_390_000);
     expect(out.count).toBe(5);
+  });
+});
+
+describe('sumApart', () => {
+  it('sums what is left out of the totals by its key over the year, largest first', () => {
+    const range = { from: '2026-03-21', to: '2027-03-20' };
+    const rows = [
+      { date: '2026-04-01', category: 'cash_management', amount: 5 },
+      { date: '2026-05-01', category: 'investment', amount: 9 },
+      { date: '2026-06-01', category: 'cash_management', amount: 7 },
+      { date: '2026-01-01', category: 'investment', amount: 100 },
+    ];
+    expect(sumApart(rows, { dateOf: (r) => r.date, keyOf: (r) => r.category, amountOf: (r) => r.amount, range })).toEqual([
+      { key: 'cash_management', total: 12, count: 2 },
+      { key: 'investment', total: 9, count: 1 },
+    ]);
   });
 });

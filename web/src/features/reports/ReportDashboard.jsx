@@ -9,7 +9,7 @@
  *   │ share of income invested (6)             │ income and expenses in $ (6)    │
  *   │ every month in one table, with totals and CSV (12)                         │
  *   │ the year's investments, table (6)        │ the year's subscriptions (6)    │
- *   │ how the figures are worked (12)                                            │
+ *   │ left out of the totals, apart (6)        │ how the figures are worked (6)  │
  *   └────────────────────────────────────────────────────────────────────────────┘
  *
  * Every figure comes from useReportData (worked out once per year). What was invested is the
@@ -17,7 +17,7 @@
  */
 
 import React from 'react';
-import { Wallet, Coins, PiggyBank, TrendingUp, DollarSign, Percent, Lightbulb, ThumbsUp, AlertTriangle, Info, BookOpen, CalendarSync } from 'lucide-react';
+import { Wallet, Coins, PiggyBank, TrendingUp, DollarSign, Percent, Lightbulb, ThumbsUp, AlertTriangle, Info, BookOpen, CalendarSync, EyeOff } from 'lucide-react';
 import { MiniCard, GenericCsvExportButton } from '../../shared/ui/index.js';
 import DonutChart from '../../shared/ui/DonutChart.jsx';
 import { CHART_COLORS } from '../../shared/ui/chartColors.js';
@@ -79,7 +79,12 @@ const CSV_HEADERS = ['ماه', 'درآمد (تومان)', 'هزینه (توما�
 const round1 = (v) => (v === null || v === undefined ? '' : Math.round(v * 10) / 10);
 
 export default function ReportDashboard({ data, f, yearLabel, hideValues }) {
-  const { hasExpenses, incomeSeries, expenseSeries, incomeYear, expenseYear, cash, cashMonths, shareMonths, shareYear, investedIn, subscriptionYear, dollars, insights } = data;
+  const { hasExpenses, incomeSeries, expenseSeries, incomeYear, expenseYear, cash, cashMonths, shareMonths, shareYear, investedIn, subscriptionYear, apart, dollars, insights } = data;
+  const apartRows = apart ? [
+    ...apart.expenses.map((r) => ({ key: `e:${r.key}`, kind: 'هزینه', label: expenseLabel(r.key), ...r })),
+    ...apart.projects.map((r) => ({ key: `p:${r.key}`, kind: 'پروژه', label: r.name, ...r })),
+    ...apart.incomes.map((r) => ({ key: `i:${r.key}`, kind: 'درآمد', label: incomeLabel(r.key), ...r })),
+  ] : [];
   const rows = cashMonths.map((m, i) => ({
     ...m,
     invested: shareMonths[i]?.invested || 0,
@@ -361,9 +366,31 @@ export default function ReportDashboard({ data, f, yearLabel, hideValues }) {
           )}
         </ReportCard>
       )}
-      <ReportCard title="روش محاسبه" Icon={BookOpen} span="span-12" className="report-method">
+      <ReportCard title="خارج از جمع (جدا)" Icon={EyeOff} span="span-6" className="report-table-card">
+        {apartRows.length ? (
+          <table className="flow-month-grid report-month-grid">
+            <caption className="sr-only">آنچه در جمع درآمد و هزینه حساب نمی‌شود: دسته‌های خارج از جمع و هزینه‌های پروژه‌ها</caption>
+            <thead>
+              <tr><th scope="col">مورد</th><th scope="col">نوع</th><th scope="col">تعداد</th><th scope="col">مبلغ</th></tr>
+            </thead>
+            <tbody>
+              {apartRows.map((r) => (
+                <tr key={r.key}>
+                  <th scope="row">{r.label}</th>
+                  <td>{r.kind}</td>
+                  <td>{r.count.toLocaleString('fa-IR')}</td>
+                  <td>{f.compact(r.total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="report-empty">در این سال چیزی خارج از جمع ثبت نشده است.</p>
+        )}
+      </ReportCard>
+      <ReportCard title="روش محاسبه" Icon={BookOpen} span="span-6" className="report-method">
         <ul>
-          <li>دسته‌های «خارج از جمع» (مثل مدیریت نقدینگی) در هیچ عددی حساب نمی‌شوند؛ هزینه‌های پروژه‌ها جدا هستند.</li>
+          <li>همه‌ی خرج‌ها در هزینه‌ها ثبت می‌شوند؛ دسته‌های «خارج از جمع» (مثل مدیریت نقدینگی) و هزینه‌های پروژه‌ها در جمع‌ها حساب نمی‌شوند و در «خارج از جمع (جدا)» آمده‌اند.</li>
           <li>سرمایه‌گذاری: هزینه‌های روزمره‌ای که با دسته‌ی «سرمایه‌گذاری» ثبت شده‌اند (سهم خود شما، هزینه‌ی دلاری به نرخ روزش)؛ این هزینه‌ها در جمع هزینه‌ها حساب نمی‌شوند. به تفکیک دارایی‌ای که به پورتفو اضافه شده، وگرنه به عنوان هزینه.</li>
           <li>اشتراک‌ها: هزینه‌هایی که به یک اشتراک وصل شده‌اند («ثبت پرداخت» در اشتراک‌ها، یا انتخاب اشتراک در فرم هزینه)؛ پرداخت‌های دسته‌ی «اینترنت و اشتراک‌ها» که به اشتراکی وصل نیستند جدا آمده‌اند.</li>
           <li>دلار: هر مورد به نرخ دلار روز خودش (نرخ ثبت‌شده، وگرنه تاریخچه‌ی قیمت)؛ مورد بی‌نرخ به نرخ امروز حساب نمی‌شود{dollars.unpriced > 0 ? ` (${dollars.unpriced.toLocaleString('fa-IR')} مورد در این سال، با * کنار نام ماه در جدول)` : ''}.</li>

@@ -16,8 +16,9 @@
  * a credit settlement changes nothing on the credit (its figures are read from the incomes).
  *
  * The other way round, a cheque cleared on the cheques page records its money here
- * (settleCheque: an income for a received cheque, an expense for an issued one), and taking the
- * clearing back removes that record (unsettleCheque).
+ * (settleCheque: an income for a received cheque, an expense for an issued one — or links the one
+ * already recorded by hand that day, spendingRecords.js), and taking the clearing back removes
+ * that record (unsettleCheque).
  * An effect that fails never undoes the saved record: it is logged, and the screens read again.
  */
 
@@ -162,15 +163,14 @@ export async function releaseRecordLinks(side, record) {
 export async function settleCheque(cheque, { date, expenses = true }) {
   if (!cheque || cheque.status !== CHEQUE_CLEARED || cheque.settlement) return null;
   const title = `چک ${cheque.counterparty}${cheque.chequeNumber ? ` (${cheque.chequeNumber})` : ''}`.slice(0, 120);
+  // Already recorded by hand that day (same amount)? That one is linked instead (spendingRecords.js)
+  const spending = await import('./spendingRecords.js');
   if (cheque.direction === 'received') {
-    const { createIncome } = await import('../../features/incomes/api/incomeApi.js');
-    await createIncome({ title, amount: cheque.amount, incomeDate: date, category: 'cheques', chequeId: cheque.id, notes: '' });
+    await spending.recordIncome({ title, amount: cheque.amount, incomeDate: date, category: 'cheques', chequeId: cheque.id });
     return 'income';
   }
   if (!expenses) return null;
-  const store = await import('./vaultExpenses.js');
-  const group = await store.ensureDailyGroup((await store.getExpenseGroups()).groups || []);
-  await store.saveExpense({ groupId: group.id, title, amount: cheque.amount, currency: 'IRT', date, category: 'cheques', chequeId: cheque.id, notes: '' });
+  await spending.recordSpending(`cheque:${cheque.id}`, { title, amount: cheque.amount, currency: 'IRT', date, category: 'cheques', chequeId: cheque.id }, { syncLinks: true });
   return 'expense';
 }
 
