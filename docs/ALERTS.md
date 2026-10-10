@@ -36,6 +36,11 @@ They are published to the store by:
 - the page that holds the data: `HoldingsView` publishes its portfolio's drift and deficit
   (`portfolio:<id>`)
 
+Alert amounts are tomans. A subscription in a foreign currency (`currencies.js`) shows its own
+amount in the item's detail («۱۲ یورو») and counts in tomans at today's rate (no `amount` when
+the rate is unknown). Android notifications and sealed push (`planDueNotifications` in
+`shared/native/dueNotifications.js`) show it in its own currency.
+
 ## The store — `alertStore.js`
 
 - `setSourceAlerts(key, alerts)` / `useAlertSource(key, alerts)`: a source's latest list replaces

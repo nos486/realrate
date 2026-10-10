@@ -4,7 +4,7 @@ Persian: [../EXPENSES.md](../EXPENSES.md)
 
 ## Stage 1
 
-Expense sections (a project, …) and each section's expenses, in tomans or dollars.
+Expense sections (a project, …) and each section's expenses, in tomans or any currency of the currency table (dollar, euro, lira, dirham; `api/src/domain/currencies.js`).
 
 ### Storage
 
@@ -13,9 +13,11 @@ Everything is an encrypted vault record (`vault_records`); no new database table
 | Record kind (`kind`) | `parent_id` | `record_date` | Encrypted content |
 |---|---|---|---|
 | `expense_group` | — | Day created | `{ id, name, type, notes, archived, createdAt, updatedAt }` |
-| `expense` | Section id | Expense date | `{ id, groupId, title, amount, currency, usdRate, date, notes, category, accountId, loanId, source, bankId, smsFingerprint, smsKey, myShare, reimbursements, paidFrom, createdAt, updatedAt }` — `paidFrom: { portfolioId, portfolioName, assetId, txId }`: a dollar expense paid from a portfolio's dollars (a «spend» transaction in that portfolio; `portfolioFunds.js`) |
+| `expense` | Section id | Expense date | `{ id, groupId, title, amount, currency, date, notes, category, accountId, loanId, subscriptionId, loanInstallment, chequeId, creditAccountId, source, bankId, smsFingerprint, smsKey, myShare, reimbursements, paidFrom, investedIn, tags, createdAt, updatedAt }` — `paidFrom: { portfolioId, portfolioName, assetId, txId }`: a foreign expense paid from that currency held in a portfolio (a «spend» transaction in that portfolio; `portfolioFunds.js`); `investedIn: { portfolioId, portfolioName, assetId, quantity, txId }`: an investment expense that recorded a «buy» in a portfolio (`portfolioLink.js`) |
 
-- `currency`: `IRT` (toman) or `USD`. `usdRate`: the dollar rate on the expense's day, in tomans (optional, dollars only).
+- `currency`: `IRT` (toman), `USD`, `EUR`, `TRY` or `AED` (`currencies.js`). No rate is stored: a foreign expense's tomans are its currency's rate on its day, read from the daily price history (today's when that day is missing). Rates older expenses stored (`usdRate`, `rate`; `LEGACY_RATE_FIELDS`) are never read and are dropped once from all of them (`dropStoredRates` in `vaultExpenses.js`).
+- `groupId`: the expense's section (a project, or the everyday section); an expense saved without one goes to the everyday section (`saveExpense`).
+- Links: `subscriptionId` (a subscription payment), `loanInstallment` (a loan installment), `chequeId` (paid with a cheque, tomans only), `creditAccountId` (a credit's fee) — `categoryLinks.js`.
 - `source`: `manual` or `sms`; an expense from an SMS carries the transaction's `bankId`, `smsFingerprint` and `smsKey` so it is never recorded twice ([BANK_SMS.md](BANK_SMS.md)).
 - An everyday expense without a title takes its category's name (`validateExpense`).
 - Validation and totals: `api/src/domain/expenseDocument.js` (shared by the browser and the server, through `web/src/utils/expenseDocument.js`).
@@ -25,15 +27,15 @@ Everything is an encrypted vault record (`vault_records`); no new database table
 ## Stage 2 — everyday expenses (done)
 
 - One section of `type: 'daily'` per user ("everyday expenses"), created with the first everyday expense (`ensureDailyGroup`) and not shown among the projects.
-- `category` on each everyday expense, from `DAILY_EXPENSE_CATEGORIES` in `expenseDocument.js` (icon and color: `web/src/features/expenses/constants/expenseCategories.js`). An invalid category isn't stored (`''`, "other" in reports).
+- `category` on every expense (everyday or project; a project's expense may have none), from `DAILY_EXPENSE_CATEGORIES` in `expenseDocument.js` (icon and color: `web/src/features/expenses/constants/expenseCategories.js`). An invalid category isn't stored (`''`, "other" in reports).
 - Month-by-month loading: `getExpenses({ parent, from, to })` filters on the plaintext metadata (`parent_id`, `record_date`); the everyday view fetches only the shown month and the one before, and the projects view fetches section by section — so the load stays the same as everyday expenses grow.
 - Shared calculations: `summarizeByCategory`, `shamsiMonthRange`, `shiftShamsiMonth`, `shamsiMonthOf`.
 - Categories (`value` — label): `groceries` groceries, `dining` restaurants and cafés, `transport` transport and fuel, `bills` bills and service charges, `housing` housing and rent, `shopping` shopping and clothing, `health` health, `education` education, `entertainment` leisure and travel, `subscriptions` internet and subscriptions, `gifts` gifts and charity, `installments` installment payments, `investment` investment, `other` other.
-- Later: custom categories.
+- Custom and left-out-of-the-totals categories live in the `category_settings` record (`categoryDocument.js`); «سرمایه‌گذاری» is left out of the totals by default (`excluded`). «مدیریت نقدینگی» (`cash_management`) is retired (`retired`): offered in no form, its older records shown out of the totals; a move between accounts is only a `transfer`.
 
 ## Accounts and budgets (done)
 
-- **Accounts** (`bank_account`, the `bank_accounts` feature): `{ id, name, type: bank|credit|cash|wallet|other, bankId, bankName, cardLast4, accountNumber, currency, notes, archived }` — `api/src/domain/accountDocument.js`, page `web/src/features/accounts/`.
+- **Accounts** (`bank_account`, the `bank_accounts` feature): `{ id, name, type: bank|credit|cash|wallet|other, bankId, bankName, cardLast4, accountNumber, currencies, currency, notes, archived }` — `currencies`: the currencies it holds (one or more; `currency` is the first of them, for older clients) — `api/src/domain/accountDocument.js`, page `web/src/features/accounts/`.
 - Expense: `accountId` (the account it was paid from).
 - **Bank credit**: an account with `type: 'credit'` and `credit: { limit, openingDebt, startDate, conversions }` (tomans only; a bank and card like a bank account) — no bank rules. The debt is worked out in the browser (`creditStatus` in `api/src/domain/creditAccount.js`): the opening debt, plus the expenses paid from it (`accountId`, the whole amount paid) and the transfers out of it (cash), less what reached it from transfers into it (`amount − fee`, as in `transferDocument.js`) and the incomes in `credit_settlement` («تسویه بدهی اعتباری») that name it (`creditAccountId`), from `startDate`. «تسویه بدهی» is a transfer into the credit of what was paid, its `fee` the part beyond the debt settled (`settlementOf`), plus that fee as an expense from the paying account. «تبدیل به قسط» stores a plan in `conversions: [{ id, date, principal, installments: [{ dueDate, amount, paidOn?, transferId? }], feeExpenseId? }]` (`validateConversion`; `monthlyDates` fills rows); its fee — the installments' total less the principal (`conversionCost`) — is an expense charged to the credit itself (`feeExpenseId`). An installment is paid with a transfer into the credit and marked `paidOn`. Fee expenses: category `credit_fees` («کارمزد و سود اعتبار») with `creditAccountId` (`creditCostsPaid`). The accounts page reads one batch of expenses and one of transfers since the earliest credit's start (`useCreditStatus`).
 - Expense: `loanId` ("funded by"; empty = the user's own money). A loan is not income; what it pays for is linked to it with this field, and `api/src/domain/loanFunding.js` computes each loan's usage (spent, remaining, over the principal). The loan's details show "loan usage" and count only expenses from the loan's start date. Portfolio holdings have a `loanId` too (`holdingRecord` in `vaultPortfolioItems.js`); `listAccountHoldings` reads the holdings of every portfolio under the account's vault for this report. For those purchases, `loanInvestmentReturn` gives today's value, the gain and a simple annual return over the cost-weighted holding period (from 30 days up), compared with the loan's rate.
@@ -44,7 +46,7 @@ Everything is an encrypted vault record (`vault_records`); no new database table
 The Android app reads bank withdrawal and deposit SMS, extracts the amount, date and bank with each bank's template and asks the user only for the category/title — or records small expenses by itself. Everything stays end-to-end encrypted:
 
 1. **Parsing on the phone**: the bank templates in `domain/bankSmsTemplates.js` (and the engine `domain/bankSms.js`), shared with the app; the SMS text never goes to the server and is not stored.
-2. **Encryption on the phone**: the app is the web app; the expense is encrypted with the vault key on the phone and sent with `PUT /api/vault/records/expense/:id`, with `source: 'sms'`, `bankId`, `smsKey` and `accountId` (the account whose bank and last four digits match the SMS). No separate device token was needed: the app uses the user's normal session.
+2. **Encryption on the phone**: the app is the web app; the expense is encrypted with the vault key on the phone and sent with `PUT /api/vault/records/expense/:id`, with `source: 'sms'`, `bankId`, `smsKey` and `accountId` (the toman account whose bank and last four digits match the SMS). An expense or income from an SMS is always in tomans. No separate device token was needed: the app uses the user's normal session.
 3. **The SMS queue**: unrecorded withdrawals and deposits wait on the phone on the "SMS" page (with a notification); "record" fills the form, "quick record" records without a form, and "automatic recording" records small withdrawals by itself.
 4. **No duplicates**: `smsKey` (bank, direction, amount, day and time) is inside the encrypted expense/income, so the vault itself decides what is "recorded" — even from another device or after reinstalling.
 5. **Deposit as a loan**: a deposit can be a received loan, not income (linked to an existing loan, or a new loan is recorded with the same amount).
@@ -55,8 +57,8 @@ Details: [ANDROID.md](ANDROID.md#bank-sms) and [BANK_SMS.md](BANK_SMS.md).
 
 When the user pays for the whole group (say 10M for dinner) and only part of it is theirs (say 3M):
 
-- On the expense: `myShare` (the user's part, in the expense's currency; `null` = an ordinary expense) and `reimbursements`: `[{ id, amount, date, accountId, notes, source: manual|sms, bankId, smsKey }]` — what came back from the others, in any number of pieces and into any account.
-- Totals, categories, budgets, the home dashboard, an account's "everyday expenses this month" and loan usage count only the user's share (`expenseInToman`); the whole amount paid is `expensePaidInToman` (e.g. to match a withdrawal SMS).
+- On the expense: `myShare` (the user's part; toman expenses only; `null` = an ordinary expense) and `reimbursements`: `[{ id, amount, date, accountId, notes, source: manual|sms, bankId, smsKey }]` — what came back from the others, in any number of pieces and into any account.
+- Totals, categories, budgets, the home dashboard, an account's «هزینه‌های این ماه» and loan usage count only the user's share (`expenseInToman`); the whole amount paid is `expensePaidInToman` (e.g. to match a withdrawal SMS).
 - What is still owed: `expenseReceivable` (`owed` = amount − share, `received`, `remaining`) and `summarizeReceivables`. Reimbursements can't exceed the others' part, and sharing can't be turned off while reimbursements remain.
 - Reimbursements are never income: they stay inside the expense's own encrypted record.
 - UI: «سهم: با دیگران (دنگ)» and «سهم من» in the expense form; «سهم شما» and «طلب …/تسویه شد» in the table; «دریافتی‌ها» (`ReimbursementsModal.jsx`); the «طلب‌های دنگ» card in everyday expenses and «همه‌ی طلب‌ها» (`OpenSharesModal.jsx`, across every section and month).
