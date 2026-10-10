@@ -1,6 +1,7 @@
 /**
  * SubscriptionCard.jsx — One subscription in the list: what it costs (and its monthly share), when
- * it renews or ran out, its state, and its actions (record a payment; edit, open its site, pause /
+ * it renews or ran out — with a bar of how much of its current period is left and the days until
+ * its next renewal (or its end) — its state, and its actions (record a payment; edit, open its site, pause /
  * resume, cancel / reactivate, delete)
  */
 
@@ -9,24 +10,26 @@ import { Receipt, Pencil, Pause, Play, Ban, Trash2, ExternalLink, BellOff } from
 import { ActionMenu, Button } from '../../../shared/ui/index.js';
 import { accountLabel } from '../../accounts/constants/accountDisplay.js';
 import {
-  STATE_BADGES, cycleLabel, daysLabel, formatSubscriptionAmount, shamsiDay, subscriptionIcon,
+  STATE_BADGES, cycleLabel, formatSubscriptionAmount, periodDaysLabel, periodLeftLabel, shamsiDay,
+  subscriptionIcon,
 } from '../constants/subscriptionDisplay.js';
 
 /**
- * @param {{ sub: object, view: object, account?: object, hideValues?: boolean, readOnly?: boolean,
+ * @param {{ sub: object, view: object, period?: object|null, account?: object, hideValues?: boolean, readOnly?: boolean,
  *   onPay: Function, onEdit: Function, onStatus: Function, onDelete: Function }} props
- *   view: subscriptionView(sub, today)
+ *   view: subscriptionView(sub, today); period: subscriptionPeriod(sub, today)
  */
-export default function SubscriptionCard({ sub, view, account, hideValues, readOnly, onPay, onEdit, onStatus, onDelete }) {
+export default function SubscriptionCard({ sub, view, period, account, hideValues, readOnly, onPay, onEdit, onStatus, onDelete }) {
   const badge = STATE_BADGES[view.state];
   const money = (v, c) => (hideValues ? '****' : formatSubscriptionAmount(v, c));
   const live = sub.status !== 'cancelled' && view.state !== 'ended';
-  const when = view.nextRenewal
-    ? `${view.state === 'expired' ? 'اعتبار تا' : 'تمدید'} ${shamsiDay(view.nextRenewal)} — ${daysLabel(view.daysLeft)}`
+  // The period's bar and the days chip say when it renews or ends; otherwise say where it stands
+  const when = period ? ''
     : view.state === 'ended' ? `پایان ${shamsiDay(sub.endDate)}`
       : view.state === 'cancelled' ? `لغو ${sub.cancelledOn ? shamsiDay(sub.cancelledOn) : ''}`.trim()
         : view.state === 'paused' ? 'متوقف — تمدیدی حساب نمی‌شود'
           : 'تمدید دیگری تا پایان نیست';
+  const left = period ? Math.round((1 - period.progress) * 100) : 0;
 
   return (
     <li className={`sub-card ${badge.tone}`}>
@@ -36,6 +39,7 @@ export default function SubscriptionCard({ sub, view, account, hideValues, readO
           <span className="sub-card-name">{sub.name}</span>
           <span className={`sub-badge ${badge.tone}`}>{badge.label}</span>
           {sub.remindersMuted && live && <BellOff size={13} className="sub-card-muted" aria-label="بدون یادآوری" />}
+          {period && <span className={`sub-card-days ${badge.tone}`}>{periodDaysLabel(period)}</span>}
         </div>
         <div className="sub-card-amount">
           <strong>{money(sub.amount, sub.currency)}</strong>
@@ -43,12 +47,29 @@ export default function SubscriptionCard({ sub, view, account, hideValues, readO
           {sub.cycleMonths > 1 && <span className="sub-card-monthly">ماهی {money(view.monthly, sub.currency)}</span>}
         </div>
         <div className="sub-card-meta">
-          <span>{when}</span>
+          {when && <span>{when}</span>}
           {sub.autoRenew === false && live && <span>تمدید دستی</span>}
-          {view.endsSoon && view.state !== 'ended' && <span className="sub-card-warn">پایان {shamsiDay(sub.endDate)}</span>}
+          {view.endsSoon && view.state !== 'ended' && period?.until !== 'end' && <span className="sub-card-warn">پایان {shamsiDay(sub.endDate)}</span>}
           {account && <span>از {accountLabel(account)}</span>}
           {sub.lastPaidOn && <span>آخرین پرداخت {shamsiDay(sub.lastPaidOn)}</span>}
         </div>
+        {period && (
+          <div className={`sub-period ${badge.tone}`}>
+            <div
+              className="sub-period-bar"
+              role="progressbar"
+              aria-label={periodLeftLabel(period)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={left}
+            >
+              <span style={{ width: `${left}%` }} />
+            </div>
+            <span className="sub-period-text">
+              {periodLeftLabel(period)} · {period.until === 'end' ? 'پایان' : view.state === 'expired' ? 'اعتبار تا' : 'تمدید بعدی'} {shamsiDay(period.to)}
+            </span>
+          </div>
+        )}
         {sub.notes && <p className="sub-card-notes">{sub.notes}</p>}
       </div>
       <div className="sub-card-actions">

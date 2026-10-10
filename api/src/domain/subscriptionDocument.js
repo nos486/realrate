@@ -202,6 +202,44 @@ export function subscriptionView(sub, today) {
 }
 
 /**
+ * The period a subscription is in on `today` — from its last renewal (or the day a hand renewal
+ * was paid) to its next renewal, or to its end date when it ends first — and how far through it
+ * today is, for the card's progress bar. Paused, cancelled and ended ones have none.
+ * @returns {{ from: string, to: string, until: 'renewal'|'end', daysLeft: number,
+ *   totalDays: number, progress: number }|null} progress: 0…1 of the period gone by
+ */
+export function subscriptionPeriod(sub, today) {
+  const view = subscriptionView(sub, today);
+  if (!view.running && view.state !== 'expired') return null;
+  let to = view.nextRenewal;
+  let until = 'renewal';
+  if (sub.endDate && (!to || sub.endDate < to)) {
+    to = sub.endDate;
+    until = 'end';
+  }
+  if (!to) return null;
+
+  // Its last renewal on or before today; a hand renewal's period starts a cycle before it runs out
+  let from = '';
+  if (sub.autoRenew) {
+    for (let k = 0; k < 2400; k++) {
+      const day = renewalAt(sub.startDate, sub.cycleMonths, k);
+      if (day > today || day >= to) break;
+      from = day;
+    }
+  } else {
+    from = computeClampedDueDate(parseDateParts(sub.renewOn || to), -1, sub.cycleMonths);
+    if (from < sub.startDate) from = sub.startDate;
+  }
+  if (!from || from > today) from = '';
+
+  const daysLeft = daysBetween(today, to);
+  const totalDays = from ? Math.max(daysBetween(from, to), 1) : Math.max(daysLeft, 1);
+  const gone = from ? daysBetween(from, today) / totalDays : 0;
+  return { from, to, until, daysLeft, totalDays, progress: Math.min(Math.max(gone, 0), 1) };
+}
+
+/**
  * The totals of what is running: a monthly equivalent per currency and in tomans, a year of it,
  * and what renews in [monthFrom, monthTo] (a Shamsi month)
  * @param {object[]} subs

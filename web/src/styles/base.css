@@ -1524,6 +1524,14 @@ input.search-bar-input:focus-visible {
   border-radius: var(--radius-md);
 }
 
+/* In a portal on the page (ActionMenu.jsx sets its place in the viewport) */
+.ui-action-menu-list.is-floating {
+  position: fixed;
+  top: auto;
+  inset-inline-end: auto;
+  z-index: 1100;
+}
+
 .ui-action-menu-item {
   display: flex;
   align-items: center;

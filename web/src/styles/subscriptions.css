@@ -139,3 +139,60 @@
   .sub-card { flex-wrap: wrap; }
   .sub-card-actions { justify-content: flex-end; width: 100%; }
 }
+
+/* Days until the next renewal (or the end), next to the name */
+.sub-card-days {
+  margin-inline-start: auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg-control);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.sub-card-days.is-due { background: var(--color-warning-soft); color: var(--color-warning-text); }
+.sub-card-days.is-expired { background: var(--color-negative-soft); color: var(--color-negative-text); }
+
+/* How much of the current period is left: the bar shrinks toward the renewal */
+.sub-period {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.sub-period-bar {
+  flex: 1;
+  min-width: 60px;
+  max-width: 320px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--border-medium);
+}
+
+.sub-period-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-primary);
+  transition: width 0.3s ease;
+}
+
+.sub-period.is-due .sub-period-bar > span { background: var(--color-warning); }
+.sub-period.is-expired .sub-period-bar > span { background: var(--color-negative); }
+
+.sub-period-text {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .sub-period { flex-wrap: wrap; }
+  .sub-period-bar { max-width: none; }
+  .sub-period-text { white-space: normal; }
+}

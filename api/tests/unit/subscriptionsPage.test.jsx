@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 /**
  * subscriptionsPage.test.jsx — The subscriptions page: the monthly total (dollars in tomans at
- * today's rate), a new subscription from the form, and «ثبت پرداخت» — an everyday expense in
+ * today's rate), each card's days until renewal and the bar of its period left, its menu (not
+ * cut off by the list's card), a new subscription from the form, and «ثبت پرداخت» — an everyday expense in
  * «اینترنت و اشتراک‌ها» in the subscription's currency, naming it; one renewed by hand then runs a
  * cycle longer
  */
@@ -67,6 +68,24 @@ describe('the subscriptions page', () => {
     expect(screen.getAllByText('۲٬۰۰۰٬۰۰۰')).toHaveLength(2);
     expect(screen.getByText('تمام شده — تمدید نشده')).toBeTruthy();
     expect(screen.getByText('نزدیک تمدید')).toBeTruthy();
+  });
+
+  it('shows on each card the days until its renewal and how much of its period is left', () => {
+    render(<SubscriptionsPage />);
+    expect(screen.getByText('۶ روز تا تمدید')).toBeTruthy();
+    expect(screen.getByText('۲ روز از تمدید گذشته')).toBeTruthy();
+    const bars = screen.getAllByRole('progressbar');
+    expect(bars.map((b) => b.getAttribute('aria-valuenow'))).toEqual(['0', '20']);
+    expect(screen.getByText('نزدیک‌ترین تمدید')).toBeTruthy();
+  });
+
+  it('opens a card\'s menu above the page, outside the list\'s clipping card', () => {
+    render(<SubscriptionsPage />);
+    fireEvent.click(screen.getAllByRole('button', { name: 'گزینه‌های بیشتر' })[0]);
+    const menu = screen.getByRole('menu');
+    expect(menu.parentElement).toBe(document.body);
+    expect(menu.closest('.portfolio-table-card')).toBeNull();
+    expect(screen.getByRole('menuitem', { name: 'ویرایش' })).toBeTruthy();
   });
 
   it('records a renewal as an everyday expense in its currency, and moves one renewed by hand on', async () => {

@@ -1,4 +1,5 @@
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { MoreVertical } from 'lucide-react';
 
 /**
@@ -7,20 +8,54 @@ import { MoreVertical } from 'lucide-react';
  * For rows with more actions than fit on a phone: the main action stays a button, the rest go
  * here. Closes on a choice, a tap outside, or Escape.
  *
+ * The list floats above the page (a portal, fixed under the button — or above it when there is no
+ * room below), so a card or list that clips its overflow never cuts it off.
+ *
  * @param {Array<{ key: string, label: string, icon?: React.ReactNode, onClick: () => void,
  *   disabled?: boolean, danger?: boolean, title?: string }>} items — falsy entries are skipped
  * @param {string} [label] — the button's accessible name
  */
 export default function ActionMenu({ items = [], label = 'گزینه‌های بیشتر', disabled = false, className = '' }) {
   const [open, setOpen] = useState(false);
+  const [place, setPlace] = useState(null);
   const rootRef = useRef(null);
+  const menuRef = useRef(null);
   const menuId = useId();
   const list = items.filter(Boolean);
+
+  // Pin the list to the button in the viewport; follow it while the page scrolls or resizes
+  useLayoutEffect(() => {
+    if (!open) return undefined;
+    const update = () => {
+      const trigger = rootRef.current;
+      if (!trigger) return;
+      const r = trigger.getBoundingClientRect();
+      const menuHeight = menuRef.current?.offsetHeight || 0;
+      const below = window.innerHeight - r.bottom;
+      const up = below < menuHeight + 12 && r.top > below;
+      const rtl = getComputedStyle(trigger).direction === 'rtl';
+      setPlace({
+        top: up ? 'auto' : r.bottom + 6,
+        bottom: up ? window.innerHeight - r.top + 6 : 'auto',
+        left: rtl ? r.left : 'auto',
+        right: rtl ? 'auto' : window.innerWidth - r.right,
+        direction: rtl ? 'rtl' : 'ltr',
+      });
+    };
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return undefined;
     const onDown = (e) => {
-      if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false);
+      const inside = rootRef.current?.contains(e.target) || menuRef.current?.contains(e.target);
+      if (!inside) setOpen(false);
     };
     const onKey = (e) => {
       if (e.key === 'Escape') setOpen(false);
@@ -49,8 +84,14 @@ export default function ActionMenu({ items = [], label = 'گزینه‌های ب
       >
         <MoreVertical size={16} />
       </button>
-      {open && (
-        <ul className="ui-action-menu-list" role="menu" id={menuId}>
+      {open && createPortal(
+        <ul
+          ref={menuRef}
+          className="ui-action-menu-list is-floating"
+          role="menu"
+          id={menuId}
+          style={place || { visibility: 'hidden' }}
+        >
           {list.map((item) => (
             <li key={item.key} role="none">
               <button
@@ -69,7 +110,8 @@ export default function ActionMenu({ items = [], label = 'گزینه‌های ب
               </button>
             </li>
           ))}
-        </ul>
+        </ul>,
+        document.body
       )}
     </div>
   );

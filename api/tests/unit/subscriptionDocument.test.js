@@ -1,13 +1,13 @@
 /**
  * subscriptionDocument.test.js — Subscriptions: validation, renewals on the Shamsi day of the
- * month, where one stands today, the monthly totals (tomans and dollars), renewing by hand, and
+ * month, where one stands today, how far through its current period it is, the monthly totals (tomans and dollars), renewing by hand, and
  * the reminder row each one gives (reminders.js)
  */
 
 import { describe, it, expect } from 'vitest';
 import {
   validateSubscription, renewalAt, renewalsBetween, renewalOnOrAfter, renewedAfter,
-  subscriptionView, subscriptionTotals, compareSubscriptions,
+  subscriptionView, subscriptionTotals, compareSubscriptions, subscriptionPeriod,
 } from '../../src/domain/subscriptionDocument.js';
 import { reminderOf, reminderCanBeOverdue, occurrencesBetween, REMINDER_KINDS } from '../../src/domain/reminders.js';
 
@@ -144,5 +144,31 @@ describe('the reminder row of a subscription', () => {
     expect(reminderOf('subscription', sub({ status: 'cancelled' }), { today: '2026-02-05' })).toBeNull();
     expect(reminderOf('subscription', sub({ endDate: '2026-02-01' }), { today: '2026-02-05' })).toBeNull();
     expect(reminderOf('subscription', sub({ remindersMuted: true }), { today: '2026-02-05' }).muted).toBe(true);
+  });
+});
+
+describe('subscriptionPeriod', () => {
+  it('runs from the last renewal to the next one', () => {
+    // Renewals on the 22nd of each Shamsi month: 2026-01-12, then 2026-02-11
+    expect(subscriptionPeriod(sub(), '2026-02-05')).toEqual({
+      from: '2026-01-12', to: '2026-02-11', until: 'renewal', daysLeft: 6, totalDays: 30, progress: 0.8,
+    });
+  });
+
+  it('runs to the end date when the subscription ends before its next renewal', () => {
+    const period = subscriptionPeriod(sub({ endDate: '2026-02-08' }), '2026-02-05');
+    expect(period).toMatchObject({ from: '2026-01-12', to: '2026-02-08', until: 'end', daysLeft: 3 });
+  });
+
+  it('is gone by once a hand renewal has run out', () => {
+    const period = subscriptionPeriod(sub({ autoRenew: false, renewOn: '2026-02-03', cycleMonths: 3, startDate: '2025-11-11' }), '2026-02-05');
+    expect(period).toMatchObject({ to: '2026-02-03', until: 'renewal', daysLeft: -2, progress: 1 });
+  });
+
+  it('has not begun before the start, and is none when paused, cancelled or ended', () => {
+    expect(subscriptionPeriod(sub({ startDate: '2026-03-01' }), '2026-02-05')).toMatchObject({ to: '2026-03-01', progress: 0 });
+    expect(subscriptionPeriod(sub({ status: 'paused' }), '2026-02-05')).toBeNull();
+    expect(subscriptionPeriod(sub({ status: 'cancelled' }), '2026-02-05')).toBeNull();
+    expect(subscriptionPeriod(sub({ endDate: '2026-02-01' }), '2026-02-05')).toBeNull();
   });
 });
