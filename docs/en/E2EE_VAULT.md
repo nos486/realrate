@@ -3,7 +3,7 @@
 Persian: [../E2EE_VAULT.md](../E2EE_VAULT.md)
 
 End-to-end encryption is **mandatory for every account** and encrypts all financial data before it is sent:
-portfolios (holdings, transactions and custom categories), loans (with installments and extra payments), incomes (with fixed-income rules), cheques (with their tracking history), expenses and their sections, and accounts.
+portfolios (holdings, transactions and custom categories), loans (with installments and extra payments), incomes (with fixed-income rules), cheques (with their tracking history), expenses and their sections, accounts and the transfers between them, subscriptions, and the user's categories.
 The Android app encrypts on the phone in the same way, and its offline copy is ciphertext too.
 The server stores only ciphertext and the passphrase never leaves the device.
 
@@ -24,7 +24,7 @@ The server stores only ciphertext and the passphrase never leaves the device.
 passphrase ──PBKDF2 (SHA-256, 100,000 rounds, random salt)──▶ KEK
 KEK ──unwraps──▶ account data key (random, 256-bit)           ← on the server only wrapped
 account data key ──unwraps──▶ each portfolio's key (random, 256-bit)  ← wrapped on the portfolio
-account data key ──encrypts──▶ loan, income, fixed-income, cheque, expense, expense-section and account records
+account data key ──encrypts──▶ loan, income, fixed-income, cheque, expense, expense-section, account, transfer, subscription and category records
 portfolio key ──encrypts──▶ that portfolio's holdings, transactions and categories
 ```
 
@@ -40,7 +40,7 @@ Code: `web/src/lib/e2ee.js` (primitives) and `web/src/shared/vault/` (state, mig
 | Data | Storage |
 | :--- | :--- |
 | Salt and the wrapped data key | Table `user_vaults` (a row = encryption on) |
-| Loans, incomes, cheques, holdings, transactions, portfolio categories, expense sections, expenses and accounts | Table `vault_records`: the encrypted `payload`, plus `record_date` (the main date, plaintext) and `parent_id` (the portfolio for holdings, transactions and portfolio categories; the section for expenses) |
+| Loans, incomes, cheques, holdings, transactions, portfolio categories, expense sections, expenses, accounts, transfers, subscriptions and categories | Table `vault_records`: the encrypted `payload`, plus `record_date` (the main date, plaintext) and `parent_id` (the portfolio for holdings, transactions and portfolio categories; the section for expenses) |
 | Portfolio key | `portfolios.e2ee_wrapped_key` |
 
 **Standard:** everything is encrypted except **one main date** per record, so the server can search and filter by date range:
@@ -67,6 +67,13 @@ Records whose date is empty or not yet Gregorian (`?undated=1`) are found once p
 **Not encrypted:** these dates, portfolio names, custom bank names, record counts and created/updated times.
 
 The server accepts no plaintext data: without encryption `403`, and with encryption on, creating a plaintext loan, income, cheque or portfolio is `409` (so an old version of the app can't leak data).
+
+### What an income or an expense holds
+
+- An income (validated by `api/src/domain/incomeDocument.js` `validateIncome`, wrapped by `vaultIncomes.parseIncomeInput`) and an expense (`api/src/domain/expenseDocument.js`) hold their amount in their own `currency`: `IRT` (toman), `USD`, `EUR`, `TRY` or `AED` (`api/src/domain/currencies.js`). **No exchange rate is stored in them.** Their value in tomans or dollars is computed in the browser at their currency's rate on the record's day, read from the daily price history (`GET /api/prices/history`); the forms show that rate read-only.
+- An income's cheque, bank-credit and bank-SMS links are kept only on a toman income.
+- The one place a price is stored is a portfolio transaction a record writes (a foreign expense paid from a portfolio, an expense put into an asset, an income sold from a portfolio) — a ledger's unit price, taken from the same history when the record is saved (`shared/vault/recordRates.js` `tomanRateOn`) and encrypted with that portfolio's key.
+- **One-time cleanup:** older expenses stored a rate (`usdRate`, `rate`: `LEGACY_RATE_FIELDS`). It is never read, and it is dropped on every save or move of an expense and once from every stored expense: after the vault is unlocked, `SpendingBackfill.jsx` runs `runStoredRateCleanup` (`shared/vault/spendingBackfill.js`) once per user on each device (not in the read-only demo, and only with the expenses feature), which calls `vaultExpenses.dropStoredRates` to re-encrypt and store again only the expenses that still have one, in batches. It is temporary and safe to run more than once.
 
 ### Incremental sync (the app's offline copy)
 
@@ -143,3 +150,20 @@ Details in [API.md](../API.md#end-to-end-encryption-vault-protected).
 - **Explicit exemption in the encryption gate (`encryptionGate.js`)**: the endpoint only processes and is stateless — it **stores nothing on the server or in the database** — so it is explicitly exempted from the ciphertext requirement (`path === '/api/cheques/scan'`).
 - **No image or text storage**: the uploaded image and the model's output are never stored in any database, cloud storage or log.
 - **The saved cheque stays confidential**: the extracted values only prefill the cheque form in the browser. The user reviews and edits them and chooses the cheque type. On save, the cheque is end-to-end encrypted (AES-GCM-256) with the vault key like any other and its ciphertext goes to `vault_records`. The server has no access to the final cheque data.
+
+## 11. What the server sees for reminders
+
+To send due reminders (the server's daily email, the Android app's local notifications, and Web Push), a minimal plaintext index is stored in the `vault_reminders` table:
+
+- **What the server sees:**
+  - how many loans, cheques and subscriptions each user has (`kind`)
+  - the next due date and the repeat interval (`due_date` and `interval_months`: a loan's installments, a subscription's cycle)
+  - the number of installments left on a loan (`remaining`)
+  - whether a record's reminder is muted (`muted`)
+  - a cheque's direction (issued or received), only when the user turned on «نوع چک در ایمیل بیاید» in the settings
+- **What is stored on the server for browser notifications (sealed Web Push):**
+  - the fully encrypted notification (`sealed_payload`, 256-bit AES-GCM) and its delivery date (`fire_date`). The decryption key is in the browser's IndexedDB and never sent to the server; the server only hands the opaque payload, untouched, to the push service.
+- **What happens for Android notifications:**
+  - all the computing and scheduling runs offline on the user's device, and nothing is sent to the server.
+- **What the server never sees:**
+  - amounts, titles, bank names or counterparties. All of these stay encrypted on the client.
