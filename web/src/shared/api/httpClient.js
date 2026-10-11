@@ -6,6 +6,8 @@
  * - Automatic Authorization header injection for authenticated requests
  * - Global network loading status pub/sub: writes (the blocking loader) and every request in
  *   flight (subscribeRequests: what a tab being opened is still waiting for, TabLoadingGate)
+ * - `background` requests (offline-copy sync) are counted by neither loader: they are housekeeping,
+ *   so a tab never waits on them behind a blocking overlay
  * - Standardized HttpError handling preserving backend response format
  * - Reads give up after READ_TIMEOUT_MS with no answer (TIMEOUT): a hung connection never keeps a
  *   tab loading, nor the screen blocked behind it
@@ -181,12 +183,15 @@ async function sendRequest(path, options = {}) {
   // Reads are silent by default: each view shows its own skeleton instead of the blocking
   // full-screen loader, which is kept for writes (save/delete/import). Pass `silent` to override.
   const method = String(options.method || 'GET').toUpperCase();
-  const isSilent = options.silent !== undefined ? Boolean(options.silent) : method === 'GET';
+  const isBackground = Boolean(options.background);
+  const isSilent = isBackground || (options.silent !== undefined ? Boolean(options.silent) : method === 'GET');
   if (!isSilent) {
     startGlobalLoading();
   }
-  activeRequestCount++;
-  emitRequestChange();
+  if (!isBackground) {
+    activeRequestCount++;
+    emitRequestChange();
+  }
   let timeoutId = null;
 
   try {
@@ -206,7 +211,7 @@ async function sendRequest(path, options = {}) {
       ? path
       : `${API_BASE}${path}`;
 
-    const { silent: _silent, timeout = method === 'GET' ? READ_TIMEOUT_MS : 0, ...fetchOptions } = options;
+    const { silent: _silent, background: _background, timeout = method === 'GET' ? READ_TIMEOUT_MS : 0, ...fetchOptions } = options;
     // The time limit aborts through a controller of its own, which the caller's signal also aborts
     let timedOut = false;
     const controller = timeout > 0 ? new AbortController() : null;
@@ -288,8 +293,10 @@ async function sendRequest(path, options = {}) {
     if (!isSilent) {
       stopGlobalLoading();
     }
-    activeRequestCount = Math.max(0, activeRequestCount - 1);
-    emitRequestChange();
+    if (!isBackground) {
+      activeRequestCount = Math.max(0, activeRequestCount - 1);
+      emitRequestChange();
+    }
   }
 }
 

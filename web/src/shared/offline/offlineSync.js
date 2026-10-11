@@ -258,14 +258,14 @@ const seg = encodeURIComponent;
 async function send(op) {
   if (op.op === 'delete') {
     try {
-      await httpClient.delete(`/api/vault/records/${seg(op.kind)}/${seg(op.id)}`, { silent: true });
+      await httpClient.delete(`/api/vault/records/${seg(op.kind)}/${seg(op.id)}`, { silent: true, background: true });
     } catch (err) {
       // Already gone: nothing left to do
       if (!(err instanceof HttpError && err.status === 404)) throw err;
     }
     return;
   }
-  await httpClient.put(`/api/vault/records/${seg(op.kind)}/${seg(op.id)}`, op.body, { silent: true });
+  await httpClient.put(`/api/vault/records/${seg(op.kind)}/${seg(op.id)}`, op.body, { silent: true, background: true });
 }
 
 async function pushOutbox() {
@@ -309,7 +309,7 @@ async function pull() {
   let request = overlapped(cursor);
 
   for (;;) {
-    const res = await httpClient.get(`/api/vault/sync?cursor=${seg(request)}&limit=${SYNC_PAGE}`, { silent: true });
+    const res = await httpClient.get(`/api/vault/sync?cursor=${seg(request)}&limit=${SYNC_PAGE}`, { silent: true, background: true });
     markReachable();
     if (!restarted && (res.reset || (epoch && res.epoch !== epoch))) {
       // Another vault (a reset account) or deletions no longer known: start the copy over

@@ -4,7 +4,7 @@
  * gets its own copy; writes and later reads are never shared
  */
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { httpClient } from '../../../web/src/shared/api/httpClient.js';
+import { httpClient, subscribeRequests, subscribeLoading } from '../../../web/src/shared/api/httpClient.js';
 
 let fetchMock;
 beforeEach(() => {
@@ -36,5 +36,22 @@ describe('shared reads', () => {
     expect(results.map((r) => r.status)).toEqual(['rejected', 'rejected']);
     await expect(httpClient.get('/api/z')).resolves.toEqual({ items: [1, 2] });
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('background requests', () => {
+  it('count toward neither the tab gate nor the blocking loader', async () => {
+    const counts = [];
+    const loading = [];
+    const offRequests = subscribeRequests((n) => counts.push(n));
+    const offLoading = subscribeLoading((v) => loading.push(v));
+    await httpClient.put('/api/bg', { a: 1 }, { background: true });
+    expect(Math.max(...counts)).toBe(0);
+    expect(loading.every((v) => v === false)).toBe(true);
+    await httpClient.put('/api/fg', { a: 1 });
+    expect(Math.max(...counts)).toBe(1);
+    expect(loading).toContain(true);
+    offRequests();
+    offLoading();
   });
 });
