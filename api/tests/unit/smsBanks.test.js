@@ -6,7 +6,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const plugin = vi.hoisted(() => ({ read: vi.fn(async () => ({ messages: [] })), configure: vi.fn(async () => {}), checkPermissions: vi.fn(), requestPermissions: vi.fn(), addListener: vi.fn() }));
-vi.mock('../../../web/src/shared/native/nativeApp.js', () => ({ isNativeApp: () => true }));
+vi.mock('../../../web/src/shared/native/nativeApp.js', () => ({ isNativeApp: () => true, smsEnabled: () => true }));
 vi.mock('../../../web/src/shared/native/nativePlugins.js', () => ({ BankSms: plugin, BiometricVault: {} }));
 
 import {

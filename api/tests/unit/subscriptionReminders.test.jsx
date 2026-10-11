@@ -7,7 +7,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 
-vi.mock('../../../web/src/shared/native/nativeApp.js', () => ({ isNativeApp: () => true }));
+vi.mock('../../../web/src/shared/native/nativeApp.js', () => ({ isNativeApp: () => true, smsEnabled: () => true }));
 
 const { planDueNotifications } = await import('../../../web/src/shared/native/dueNotifications.js');
 const { subscriptionAlerts } = await import('../../../web/src/shared/alerts/alertRules.js');
