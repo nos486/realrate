@@ -7,11 +7,21 @@
  * A cheque is a way of paying: «بابت» is what it pays for (an expense category, issued) or brings
  * in (an income category, received), and «حساب» the account it is drawn on or paid into — its
  * expense or income, recorded when it clears, takes both (shared/vault/recordLinks.js).
+ *
+ * Laid out as an entry form (shared/form/, like the expense and income forms): the amount first
+ * (tomans, in words under it), received or issued as a segmented choice, the other party, the due
+ * day (often ahead, so the full Shamsi picker), «بابت» as category tiles of the matching kind,
+ * the account as a picker row, the status (a new cheque only), and the rarely needed — the bank,
+ * the cheque number, the Sayad id, the note — folded under «جزئیات بیشتر». A new cheque can be
+ * saved with «ثبت و بعدی» (a stack of cheques): the form stays open, keeping the direction, the
+ * other party, the bank, «بابت», the account and the status. A cheque filled from an AI scan
+ * keeps its low-confidence warnings on the fields it filled.
  */
 
 import React, { useState } from 'react';
-import { ReceiptText } from 'lucide-react';
-import { AlertBanner, Button, FilterPills, Input, Modal, NumericInput } from '../../../shared/ui/index.js';
+import { CircleDashed, ReceiptText } from 'lucide-react';
+import { AlertBanner, FilterPills, Input, Modal } from '../../../shared/ui/index.js';
+import { AmountField, CategoryGrid, EntryFormActions, MoreDetails, PickerRow } from '../../../shared/form/index.js';
 import ShamsiDatePicker, {
   getTodayShamsi,
   gregorianToShamsi,
@@ -38,7 +48,12 @@ const statusOptions = (direction) =>
     return { value, label, icon: <Icon size={13} strokeWidth={2} /> };
   });
 
+/** «بابت» left open: the cheque pays for / brings in nothing in particular */
+const NO_CATEGORY = { value: '', label: 'نامشخص', Icon: CircleDashed };
+
 const digitsOnly = (v) => toAsciiDigits(v).replace(/[^\d]/g, '');
+
+const SCAN_HINT = 'از اسکن — لطفاً بررسی کنید';
 
 export default function ChequeForm({
   onClose,
@@ -85,10 +100,7 @@ export default function ChequeForm({
   const [accountId, setAccountId] = useState(editingCheque?.accountId || '');
   const expenseCats = useCategories('expense', { keep: editingCheque?.category });
   const incomeCats = useCategories('income', { keep: editingCheque?.category });
-  const categoryOptions = [
-    { value: '', label: 'نامشخص' },
-    ...(direction === 'issued' ? expenseCats : incomeCats).map(({ value, label, Icon }) => ({ value, label, icon: <Icon size={13} strokeWidth={2} /> })),
-  ];
+  const categoryOptions = [NO_CATEGORY, ...(direction === 'issued' ? expenseCats : incomeCats)];
   const { accounts = [] } = useAccounts();
   // A cheque is in tomans: the accounts that hold them (the one it names stays)
   const chequeAccounts = accountsForCurrency(accounts.filter((a) => !a.archived || a.id === accountId), 'IRT', editingCheque?.accountId);
@@ -112,10 +124,24 @@ export default function ChequeForm({
     if (!statusesFor(next).some((s) => s.value === status)) setStatus('pending');
   };
 
-  const handleSubmit = async (e) => {
+  // «ثبت و بعدی»: the next cheque of the stack keeps all but what is its own
+  const [saved, setSaved] = useState('');
+  const [round, setRound] = useState(0);
+  const startNext = (savedName) => {
+    setAmount('');
+    setChequeNumber('');
+    setSayadId('');
+    setNotes('');
+    setSaved(savedName);
+    // The amount field again, focused
+    setRound((r) => r + 1);
+  };
+
+  const handleSubmit = async (e, next = false) => {
     e?.preventDefault?.();
     if (!isFormValid) return;
     setSubmitError('');
+    setSaved('');
     const payload = {
       direction,
       amount: amountNum,
@@ -146,11 +172,19 @@ export default function ChequeForm({
         // The registration opens the tracking log, dated in the user's own time zone
         await onSubmit({ ...payload, status, history: [{ status, date: todayIso(), note: '' }] });
       }
-      onClose();
+      if (next) startNext(payload.counterparty);
+      else onClose();
     } catch (err) {
       setSubmitError(err.message || 'خطا در ذخیره چک');
     }
   };
+
+  const detailsFilled = [
+    ...(bank.bankId || bank.lenderName ? ['بانک'] : []),
+    ...(chequeNumber.trim() ? ['شماره چک'] : []),
+    ...(sayadId.trim() ? ['شناسه صیادی'] : []),
+    ...(notes.trim() ? ['یادداشت'] : []),
+  ];
 
   return (
     <Modal
@@ -162,18 +196,18 @@ export default function ChequeForm({
       maxWidth="560px"
       onSubmit={handleSubmit}
       footer={
-        <div className="modal-actions">
-          <Button variant="secondary" block disabled={submitting} onClick={onClose}>
-            انصراف
-          </Button>
-          <Button type="submit" block loading={submitting} disabled={!isFormValid}>
-            {editingCheque ? 'ذخیره تغییرات' : 'ثبت چک'}
-          </Button>
-        </div>
+        <EntryFormActions
+          submitLabel={editingCheque ? 'ذخیره تغییرات' : 'ثبت چک'}
+          valid={isFormValid}
+          submitting={submitting}
+          onCancel={onClose}
+          onNext={editingCheque || initialValues ? null : () => handleSubmit(null, true)}
+        />
       }
     >
-      <div className="cheque-form-body">
+      <div className="entry-form-body cheque-entry-form">
         {submitError && <AlertBanner type="error" message={submitError} />}
+        {saved && <p className="entry-form-saved" role="status">چک «{saved}» ثبت شد؛ چک بعدی را وارد کنید.</p>}
         {initialValues && !editingCheque && (
           <AlertBanner
             type="info"
@@ -181,34 +215,23 @@ export default function ChequeForm({
           />
         )}
 
-        <div className="ui-input-group">
-          <span className="ui-input-label">نوع چک</span>
-          <FilterPills options={DIRECTION_OPTIONS} activeValue={direction} onChange={changeDirection} size="sm" />
+        <div className={isLow('amount') ? 'has-scan-warning' : undefined}>
+          <AmountField
+            key={round}
+            id="cheque-amount"
+            value={amount}
+            onValueChange={setAmount}
+            currency="IRT"
+            placeholder="مثلاً ۵۰,۰۰۰,۰۰۰"
+            autoFocus={!editingCheque && !initialValues}
+          >
+            {isLow('amount') && <span className="scan-confidence-hint">{SCAN_HINT}</span>}
+          </AmountField>
         </div>
 
-        <div className="cheque-form-row">
-          <div className={`ui-input-group ${isLow('amount') ? 'has-scan-warning' : ''}`}>
-            <label htmlFor="cheque-amount" className="ui-input-label">مبلغ (تومان) *</label>
-            <div className="ui-input-wrapper">
-              <NumericInput
-                id="cheque-amount"
-                value={amount}
-                onValueChange={setAmount}
-                placeholder="مثلاً ۵۰,۰۰۰,۰۰۰"
-                className={`ui-input-control ${isLow('amount') ? 'scan-low-confidence' : ''}`}
-                required
-              />
-            </div>
-            {isLow('amount') && (
-              <span className="scan-confidence-hint">از اسکن — لطفاً بررسی کنید</span>
-            )}
-          </div>
-          <div className={`scan-date-group ${isLow('dueDate') ? 'has-scan-warning' : ''}`}>
-            <ShamsiDatePicker label="تاریخ سررسید *" value={dueShamsi} onChange={setDueShamsi} />
-            {isLow('dueDate') && (
-              <span className="scan-confidence-hint">از اسکن — لطفاً بررسی کنید</span>
-            )}
-          </div>
+        <div className="ui-input-group">
+          <span className="ui-input-label">نوع چک</span>
+          <FilterPills variant="segmented" size="sm" options={DIRECTION_OPTIONS} activeValue={direction} onChange={changeDirection} />
         </div>
 
         <Input
@@ -218,64 +241,38 @@ export default function ChequeForm({
           value={counterparty}
           onChange={(e) => setCounterparty(e.target.value)}
           maxLength={CHEQUE_LIMITS.counterpartyLength}
-          autoFocus={!editingCheque && !initialValues}
           required
           className={isLow('counterparty') ? 'scan-low-confidence-group' : ''}
-          hint={isLow('counterparty') ? 'از اسکن — لطفاً بررسی کنید' : undefined}
+          hint={isLow('counterparty') ? SCAN_HINT : undefined}
         />
 
-        <div className={`scan-bank-group ${isLow('bankName') ? 'has-scan-warning' : ''}`}>
-          <BankPicker id="cheque-bank" value={bank} onChange={setBank} label="بانک" />
-          {isLow('bankName') && (
-            <span className="scan-confidence-hint">از اسکن — لطفاً بررسی کنید</span>
-          )}
+        {/* Usually ahead: the full picker, not «امروز / دیروز» */}
+        <div className={`scan-date-group ${isLow('dueDate') ? 'has-scan-warning' : ''}`}>
+          <ShamsiDatePicker label="تاریخ سررسید *" value={dueShamsi} onChange={setDueShamsi} />
+          {isLow('dueDate') && <span className="scan-confidence-hint">{SCAN_HINT}</span>}
         </div>
 
-        <div className="ui-input-group">
-          <span className="ui-input-label">بابت (اختیاری)</span>
-          <FilterPills options={categoryOptions} activeValue={category} onChange={setCategory} size="sm" className="income-category-picker" />
+        <div className="entry-form-section">
+          <CategoryGrid
+            key={direction}
+            kind={direction === 'issued' ? 'expense' : 'income'}
+            label="بابت (اختیاری)"
+            options={categoryOptions}
+            value={category}
+            onChange={setCategory}
+          />
           <p className="expense-form-hint">با پاس شدن، {direction === 'issued' ? 'هزینه‌ای' : 'درآمدی'} با همین دسته ثبت می‌شود.</p>
         </div>
-        {chequeAccounts.length > 0 && (
-          <div className="ui-input-group">
-            <span className="ui-input-label">{direction === 'issued' ? 'از حساب (اختیاری)' : 'واریز به حساب (اختیاری)'}</span>
-            <FilterPills
-              options={[{ value: '', label: 'نامشخص' }, ...chequeAccounts.map((a) => ({ value: a.id, label: accountLabel(a) }))]}
-              activeValue={accountId}
-              onChange={setAccountId}
-              size="sm"
-              className="income-category-picker"
-            />
-          </div>
-        )}
 
-        <div className="cheque-form-row">
-          <Input
-            id="cheque-number"
-            label="شماره چک"
-            placeholder="اختیاری"
-            value={chequeNumber}
-            onChange={(e) => setChequeNumber(e.target.value)}
-            maxLength={CHEQUE_LIMITS.chequeNumberLength}
-            inputMode="numeric"
-            dir="ltr"
-            className={isLow('chequeNumber') ? 'scan-low-confidence-group' : ''}
-            hint={isLow('chequeNumber') ? 'از اسکن — لطفاً بررسی کنید' : undefined}
+        {chequeAccounts.length > 0 && (
+          <PickerRow
+            label={direction === 'issued' ? 'از حساب' : 'واریز به حساب'}
+            value={accountId}
+            options={[{ value: '', label: 'نامشخص' }, ...chequeAccounts.map((a) => ({ value: a.id, label: accountLabel(a) }))]}
+            onChange={setAccountId}
+            placeholder="نامشخص"
           />
-          <Input
-            id="cheque-sayad"
-            label="شناسه صیادی (۱۶ رقم)"
-            placeholder="اختیاری"
-            value={sayadId}
-            onChange={(e) => setSayadId(e.target.value)}
-            maxLength={24}
-            inputMode="numeric"
-            dir="ltr"
-            error={sayadInvalid ? 'شناسه صیادی باید ۱۶ رقم باشد.' : undefined}
-            className={isLow('sayadId') ? 'scan-low-confidence-group' : ''}
-            hint={!sayadInvalid && isLow('sayadId') ? 'از اسکن — لطفاً بررسی کنید' : undefined}
-          />
-        </div>
+        )}
 
         {!editingCheque && (
           <div className="ui-input-group">
@@ -284,18 +281,53 @@ export default function ChequeForm({
           </div>
         )}
 
-        <Input
-          id="cheque-notes"
-          as="textarea"
-          label="یادداشت (اختیاری)"
-          placeholder="بابت چه چیزی، شرایط، شماره حساب و..."
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          maxLength={CHEQUE_LIMITS.notesLength}
-          rows={2}
-        />
+        <MoreDetails filled={detailsFilled}>
+          <div className={`scan-bank-group ${isLow('bankName') ? 'has-scan-warning' : ''}`}>
+            <BankPicker id="cheque-bank" value={bank} onChange={setBank} label="بانک" />
+            {isLow('bankName') && <span className="scan-confidence-hint">{SCAN_HINT}</span>}
+          </div>
 
-        <label className="income-recurring-toggle" style={{ marginTop: '4px' }}>
+          <div className="cheque-form-row">
+            <Input
+              id="cheque-number"
+              label="شماره چک"
+              placeholder="اختیاری"
+              value={chequeNumber}
+              onChange={(e) => setChequeNumber(e.target.value)}
+              maxLength={CHEQUE_LIMITS.chequeNumberLength}
+              inputMode="numeric"
+              dir="ltr"
+              className={isLow('chequeNumber') ? 'scan-low-confidence-group' : ''}
+              hint={isLow('chequeNumber') ? SCAN_HINT : undefined}
+            />
+            <Input
+              id="cheque-sayad"
+              label="شناسه صیادی (۱۶ رقم)"
+              placeholder="اختیاری"
+              value={sayadId}
+              onChange={(e) => setSayadId(e.target.value)}
+              maxLength={24}
+              inputMode="numeric"
+              dir="ltr"
+              error={sayadInvalid ? 'شناسه صیادی باید ۱۶ رقم باشد.' : undefined}
+              className={isLow('sayadId') ? 'scan-low-confidence-group' : ''}
+              hint={!sayadInvalid && isLow('sayadId') ? SCAN_HINT : undefined}
+            />
+          </div>
+
+          <Input
+            id="cheque-notes"
+            as="textarea"
+            label="یادداشت"
+            placeholder="بابت چه چیزی، شرایط، شماره حساب و..."
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            maxLength={CHEQUE_LIMITS.notesLength}
+            rows={2}
+          />
+        </MoreDetails>
+
+        <label className="income-recurring-toggle">
           <input
             type="checkbox"
             checked={remindersEnabled}

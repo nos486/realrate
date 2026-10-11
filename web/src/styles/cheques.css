@@ -111,9 +111,9 @@
 .cheque-due-hint.is-soon { background: var(--gold-soft-bg); color: var(--gold-light); }
 .cheque-due-hint.is-late { background: var(--rose-soft); color: var(--color-negative-text); font-weight: 700; }
 
-/* Status choices wrap instead of hiding behind a horizontal scroll */
-.cheque-form-body .ui-filter-pills,
-.cheque-update-section .ui-filter-pills {
+/* Status choices wrap instead of hiding behind a horizontal scroll (the segmented ones span) */
+.cheque-entry-form .ui-filter-pills:not(.variant-segmented),
+.cheque-update-section .ui-filter-pills:not(.variant-segmented) {
   flex-wrap: wrap;
   overflow: visible;
 }
@@ -129,8 +129,7 @@
   box-shadow: inset -3px 0 0 var(--color-negative-text);
 }
 
-/* Form */
-.cheque-form-body,
+/* Form (the entry form itself: styles/entry-form.css) */
 .cheque-tracking {
   display: flex;
   flex-direction: column;
@@ -858,7 +857,8 @@
 }
 
 .has-scan-warning .ui-input-control,
-.has-scan-warning .shamsi-picker-input {
+.has-scan-warning .shamsi-picker-input,
+.has-scan-warning .amount-field-box {
   border-color: var(--color-warning) !important;
 }
 

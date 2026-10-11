@@ -4,27 +4,30 @@
  * by hand (then: until when it runs), an optional end day, the account it is paid from (only the
  * accounts holding its currency), and its reminders (utils/subscriptionDocument.js). Its payments
  * are recorded in the expenses when it is saved (useSubscriptions: a new one's first payment).
+ *
+ * Laid out as an entry form (shared/form/, like the expense and income forms): the cost per
+ * period first (its currency beside it, in words under it), the name, the category as icon
+ * tiles, the cycle and the renewal as segmented choices, the start (and, renewed by hand, until
+ * when — both may be ahead, so the full Shamsi picker), the account as a picker row, and the
+ * rarely needed — the end day, the site, the note — folded under «جزئیات بیشتر».
  * Mounted only while open, so its state starts from props.
  */
 
 import React, { useState } from 'react';
 import { CalendarSync } from 'lucide-react';
-import { AlertBanner, Button, FilterPills, Input, Modal, NumericInput } from '../../../shared/ui/index.js';
+import { AlertBanner, FilterPills, Input, Modal } from '../../../shared/ui/index.js';
+import { AmountField, CategoryGrid, EntryFormActions, MoreDetails, PickerRow } from '../../../shared/form/index.js';
 import ShamsiDatePicker, { getTodayShamsi, gregorianToShamsi, shamsiToGregorian } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import {
   SUBSCRIPTION_CATEGORIES, SUBSCRIPTION_CYCLES, SUBSCRIPTION_LIMITS, renewalAt,
 } from '../../../utils/subscriptionDocument.js';
 import { accountLabel } from '../../accounts/constants/accountDisplay.js';
 import { accountsForCurrency } from '../../../utils/accountDocument.js';
-import { CURRENCIES, allowsDecimals, currencyLabel, normalizeCurrency } from '../../../utils/currencies.js';
+import { normalizeCurrency } from '../../../utils/currencies.js';
 import { subscriptionIcon } from '../constants/subscriptionDisplay.js';
 
-const CATEGORY_OPTIONS = SUBSCRIPTION_CATEGORIES.map(({ value, label }) => {
-  const Icon = subscriptionIcon(value);
-  return { value, label, icon: <Icon size={14} strokeWidth={2} /> };
-});
+const CATEGORY_OPTIONS = SUBSCRIPTION_CATEGORIES.map(({ value, label }) => ({ value, label, Icon: subscriptionIcon(value) }));
 const CYCLE_OPTIONS = SUBSCRIPTION_CYCLES.map(({ months, label }) => ({ value: String(months), label }));
-const CURRENCY_OPTIONS = CURRENCIES.map(({ code, label }) => ({ value: code, label }));
 const RENEW_OPTIONS = [{ value: 'auto', label: 'خودکار تمدید می‌شود' }, { value: 'manual', label: 'دستی تمدید می‌کنم' }];
 const amountOf = (v) => Number(String(v || '').replace(/[^\d.]/g, '')) || 0;
 const shamsiOf = (iso) => (iso ? gregorianToShamsi(`${iso}T00:00:00`) : '');
@@ -87,6 +90,12 @@ export default function SubscriptionForm({ subscription = null, accounts = [], o
     }
   };
 
+  const detailsFilled = [
+    ...(endShamsi ? ['پایان'] : []),
+    ...(url.trim() ? ['سایت'] : []),
+    ...(notes.trim() ? ['یادداشت'] : []),
+  ];
+
   return (
     <Modal
       isOpen
@@ -97,72 +106,73 @@ export default function SubscriptionForm({ subscription = null, accounts = [], o
       maxWidth="560px"
       onSubmit={handleSubmit}
       footer={(
-        <div className="modal-actions">
-          <Button variant="secondary" block disabled={submitting} onClick={onClose}>انصراف</Button>
-          <Button type="submit" block loading={submitting} disabled={!isValid}>{s ? 'ذخیره تغییرات' : 'افزودن اشتراک'}</Button>
-        </div>
+        <EntryFormActions
+          submitLabel={s ? 'ذخیره تغییرات' : 'افزودن اشتراک'}
+          valid={isValid}
+          submitting={submitting}
+          onCancel={onClose}
+        />
       )}
     >
-      <div className="income-form-body">
+      <div className="entry-form-body">
         {error && <AlertBanner type="error" message={error} />}
+
+        <AmountField
+          id="sub-amount"
+          label="هزینه‌ی هر دوره"
+          value={amount}
+          onValueChange={setAmount}
+          currency={currency}
+          onCurrencyChange={setCurrency}
+          autoFocus={!s}
+        />
 
         <Input id="sub-name" label="نام اشتراک *" placeholder="مثلاً: نتفلیکس، ChatGPT، فیلیمو، اینترنت خانه" value={name}
           onChange={(e) => setName(e.target.value)} maxLength={SUBSCRIPTION_LIMITS.nameLength} required />
 
-        <div className="ui-input-group">
-          <span className="ui-input-label">دسته</span>
-          <FilterPills options={CATEGORY_OPTIONS} activeValue={category} onChange={setCategory} size="sm" className="income-category-picker" />
-        </div>
-
-        <div className="ui-input-group">
-          <span className="ui-input-label">ارز</span>
-          <FilterPills options={CURRENCY_OPTIONS} activeValue={currency} onChange={setCurrency} size="sm" />
-        </div>
-
-        <div className="ui-input-group">
-          <label htmlFor="sub-amount" className="ui-input-label">هزینه‌ی هر دوره ({currencyLabel(currency)}) *</label>
-          <div className="ui-input-wrapper">
-            <NumericInput id="sub-amount" value={amount} onValueChange={setAmount} allowDecimals={allowsDecimals(currency)} className="ui-input-control" required />
-          </div>
-        </div>
+        <CategoryGrid kind="subscription" label="دسته" options={CATEGORY_OPTIONS} value={category} onChange={setCategory} />
 
         <div className="ui-input-group">
           <span className="ui-input-label">دوره‌ی تمدید</span>
-          <FilterPills options={CYCLE_OPTIONS} activeValue={cycle} onChange={setCycle} size="sm" />
+          <FilterPills variant="segmented" size="sm" options={CYCLE_OPTIONS} activeValue={cycle} onChange={setCycle} />
         </div>
 
-        <ShamsiDatePicker label="شروع (اولین پرداخت) *" value={startShamsi} onChange={setStartShamsi} />
-        <p className="expense-form-hint">تمدیدها هر دوره در همین روزِ ماه هستند. برای دوره‌ی آزمایشی، اولین پرداخت را روز پایان آزمایش بگذارید.</p>
-
-        <div className="ui-input-group">
-          <span className="ui-input-label">تمدید</span>
-          <FilterPills options={RENEW_OPTIONS} activeValue={renewMode} onChange={setRenewMode} size="sm" />
+        <div className="entry-form-section">
+          <ShamsiDatePicker label="شروع (اولین پرداخت) *" value={startShamsi} onChange={setStartShamsi} />
+          <p className="expense-form-hint">تمدیدها هر دوره در همین روزِ ماه هستند. برای دوره‌ی آزمایشی، اولین پرداخت را روز پایان آزمایش بگذارید.</p>
         </div>
-        {manual && (
-          <>
-            <ShamsiDatePicker label="اعتبار تا (تمدید بعدی)" value={renewShamsi || shamsiOf(defaultRenewOn)} onChange={setRenewShamsi} />
-            <p className="expense-form-hint">با ثبت پرداخت تمدید، این تاریخ یک دوره جلو می‌رود؛ اگر بگذرد و تمدید نکنید، اشتراک «تمام شده» نشان داده می‌شود.</p>
-          </>
-        )}
 
-        <ShamsiDatePicker label="پایان (اختیاری)" value={endShamsi} onChange={setEndShamsi} />
-        <p className="expense-form-hint">اگر تا تاریخ مشخصی است یا لغوش کرده‌اید و تا پایان دوره فعال است؛ بعد از آن تمدیدی حساب نمی‌شود.</p>
+        <div className="entry-form-section">
+          <div className="ui-input-group">
+            <span className="ui-input-label">تمدید</span>
+            <FilterPills variant="segmented" size="sm" options={RENEW_OPTIONS} activeValue={renewMode} onChange={setRenewMode} />
+          </div>
+          {manual && (
+            <>
+              <ShamsiDatePicker label="اعتبار تا (تمدید بعدی)" value={renewShamsi || shamsiOf(defaultRenewOn)} onChange={setRenewShamsi} />
+              <p className="expense-form-hint">با ثبت پرداخت تمدید، این تاریخ یک دوره جلو می‌رود؛ اگر بگذرد و تمدید نکنید، اشتراک «تمام شده» نشان داده می‌شود.</p>
+            </>
+          )}
+        </div>
 
         {payAccounts.length > 0 && (
-          <div className="ui-input-group">
-            <span className="ui-input-label">پرداخت از (اختیاری)</span>
-            <FilterPills
-              options={[{ value: '', label: 'نامشخص' }, ...payAccounts.map((a) => ({ value: a.id, label: accountLabel(a) }))]}
-              activeValue={effectiveAccountId}
-              onChange={setAccountId}
-              size="sm"
-              className="income-category-picker"
-            />
-          </div>
+          <PickerRow
+            label="پرداخت از"
+            value={effectiveAccountId}
+            options={[{ value: '', label: 'نامشخص' }, ...payAccounts.map((a) => ({ value: a.id, label: accountLabel(a) }))]}
+            onChange={setAccountId}
+            placeholder="نامشخص"
+          />
         )}
 
-        <Input id="sub-url" label="سایت (اختیاری)" placeholder="https://" value={url} dir="ltr" onChange={(e) => setUrl(e.target.value)} maxLength={SUBSCRIPTION_LIMITS.urlLength} />
-        <Input id="sub-notes" as="textarea" label="یادداشت (اختیاری)" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={SUBSCRIPTION_LIMITS.notesLength} rows={2} />
+        <MoreDetails filled={detailsFilled}>
+          <div className="entry-form-section">
+            <ShamsiDatePicker label="پایان" value={endShamsi} onChange={setEndShamsi} />
+            <p className="expense-form-hint">اگر تا تاریخ مشخصی است یا لغوش کرده‌اید و تا پایان دوره فعال است؛ بعد از آن تمدیدی حساب نمی‌شود.</p>
+          </div>
+          <Input id="sub-url" label="سایت" placeholder="https://" value={url} dir="ltr" onChange={(e) => setUrl(e.target.value)} maxLength={SUBSCRIPTION_LIMITS.urlLength} />
+          <Input id="sub-notes" as="textarea" label="یادداشت" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={SUBSCRIPTION_LIMITS.notesLength} rows={2} />
+        </MoreDetails>
 
         {!s && (
           <p className="expense-form-hint">پرداخت این اشتراک (و هر تمدید خودکارش، سر موعد) در «هزینه‌ها» ثبت می‌شود، با همین مبلغ، ارز و حساب.</p>
