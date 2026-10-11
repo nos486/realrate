@@ -228,8 +228,11 @@ export function syncNow() {
     try {
       do {
         again = false;
-        await pushOutbox();
-        await pull();
+        // Tabs of one browser share the copy: one round at a time among them
+        await withTabLock(async () => {
+          await pushOutbox();
+          await pull();
+        });
       } while (again && state.online);
       setState({ lastSyncAt: Date.now() });
     } catch (err) {
@@ -241,6 +244,13 @@ export function syncNow() {
     }
   })();
   return round;
+}
+
+/** Run `fn` while no other tab of this browser is syncing the same copy (Web Locks, when there are) */
+function withTabLock(fn) {
+  const locks = typeof navigator !== 'undefined' ? navigator.locks : null;
+  if (!locks?.request || !userId) return fn();
+  return locks.request(`realrate-sync-${userId}`, fn);
 }
 
 const seg = encodeURIComponent;

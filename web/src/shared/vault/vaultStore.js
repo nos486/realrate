@@ -24,7 +24,6 @@ import {
   base64ToBytes,
 } from '../../lib/e2ee.js';
 import { getVault, saveVault, resetVaultData, configureVaultApi } from './vaultApi.js';
-import { isNativeApp } from '../native/nativeApp.js';
 import {
   configureOffline,
   startOffline,
@@ -32,9 +31,9 @@ import {
   VAULT_CHANGED_EVENT,
 } from '../offline/offlineSync.js';
 
-// The Android app keeps an encrypted copy of the records on the device (offline, fast screens);
-// when a sync brings changes, screens holding records read them again
-configureOffline({ isEnabled: isNativeApp });
+// The device keeps an encrypted copy of the records (the Android app and the website: fast
+// screens, and offline); when a sync brings changes, screens holding records read them again
+configureOffline({ isEnabled: () => true });
 if (typeof window !== 'undefined') {
   window.addEventListener(VAULT_CHANGED_EVENT, () => bumpVaultEpoch());
 }

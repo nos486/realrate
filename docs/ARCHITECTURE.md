@@ -11,7 +11,7 @@ RealRate is a market analysis and personal finance platform for Iran: it calcula
 The system is built as an ultra-fast, serverless monorepo consisting of:
 - **Backend (`api/`)**: Built as an Edge-native Cloudflare Worker with zero framework overhead, Cloudflare D1 (the app's data, the daily price history, counters and other state that must read back exactly) and Workers KV (the price book and per-source lists).
 - **Frontend (`web/`)**: A modern React SPA built with Vite, utilizing a modular **feature-based architecture**, custom hooks, vanilla CSS design tokens, and Web Crypto API for client-side Zero-Knowledge End-to-End Encryption (E2EE).
-- **Android app (`web/android`)**: The same SPA packaged with Capacitor 8, plus native plugins (bank SMS, fingerprint) and an encrypted offline copy of the user's records.
+- **Android app (`web/android`)**: The same SPA packaged with Capacitor 8, plus native plugins (bank SMS, fingerprint) and an encrypted offline copy of the user's records (the website keeps the same copy).
 - **Display Engine Bridge (`displayEngine.js`)**: Symlinked between `api/src/domain/displayEngine.js` and `web/src/config/displayEngine.js`, guaranteeing 100% identical formatting, naming, unit resolution, and category metadata across both tiers.
 
 ```mermaid
@@ -169,7 +169,7 @@ web/src/
 ├── shared/
 │   ├── api/httpClient.js    # Fetch wrapper: token, X-RealRate-Client header, errors
 │   ├── vault/               # E2EE state, one encrypted store per record kind, record links, spending records, recordRates
-│   ├── offline/             # IndexedDB ciphertext copy, sync engine, outbox (Android)
+│   ├── offline/             # IndexedDB ciphertext copy, sync engine, outbox (Android and web)
 │   ├── native/              # Capacitor bridges: SMS, fingerprint, haptics, isNativeApp
 │   ├── app/                 # Android shell: bottom navigation, quick add, "More"
 │   ├── ui/                  # AppLayout, Modal (bottom sheet in the app), charts, tables, RowCard, BlockingOverlay
@@ -189,7 +189,7 @@ Each tab reads only what it shows, and only when needed:
 - **Opening a tab** loads its own data (its hooks). News answers are kept for the visit, so a tab opened again shows them without a request.
 - **The header's refresh button** (`PageRefreshButton`), **coming back to the app** and **the window getting focus again** read the open tab's data again — nothing on a timer. **Opening a tab** loads its records with it; the prices and the news are kept for the whole visit (`PricingContext`, `useNews`' answers: `KEPT_SCOPES`), so opening a tab again also reads those of its scopes again, each at most once per `AUTO_REFRESH_GAP_MS` (`refreshOnTabOpen`) — back on the home, its rates and news are fresh. Coming back means the Android app's `resume` (Capacitor `App`; the web view's own events are not reliable there) or the page becoming visible after being hidden: it refreshes every time, the events of one return merged into one refresh (`RETURN_MERGE_MS`, 2 s). A plain window focus (the website, the page still visible) refreshes at most once per `AUTO_REFRESH_GAP_MS` (30 s). While a tab just opened is still waiting on the server, `TabLoadingGate` (MainPage) blocks the screen: it watches the requests in flight (`httpClient.subscribeRequests`), shows `BlockingOverlay` if any are left after `SHOW_DELAY_MS` (300 ms) and lets go when none is — so a slow or dropped connection never lets another tab open or the same reads go out again; it is never stuck, since a read with no answer gives up after `READ_TIMEOUT_MS` (20 s, `TIMEOUT`; writes and uploads have no limit, `options.timeout` overrides it). The write loader (`FullscreenLoader`) uses the same overlay.
 - Every loader registers under the kind of data it reads — a *scope*: `prices`, `news`, `portfolio`, `loans`, `cheques`, `incomes`, `expenses`, `accounts`, `subscriptions` — with `useRefreshHandler(scope, load)` (or `useRefreshToken(scope)` in an effect's dependencies). `tabScopes.js` (`TAB_REFRESH_SCOPES`) names each tab's scopes; MainPage sets them (`usePageScopes`). Only mounted loaders run, so the news tab never reads the price book and the incomes tab never reads the loans (loaded app-wide for the due alerts). A tab with no scope (settings) hides the button.
-- With the Android app's offline copy, a refresh of record scopes runs one `syncNow()` round first, then the loaders re-read the copy.
+- With the device's offline copy (Android app and website), a refresh of record scopes runs one `syncNow()` round first, then the loaders re-read the copy.
 - The opt-in Android news notifications (`features/news/newsAlerts.js`) are the one check that runs on its own (every two minutes, only when turned on).
 
 ### Key Frontend Features
@@ -332,7 +332,7 @@ Costly features (like the cheque scan, which calls Gemini on every use) have a d
 - **One table for all encrypted data**: `vault_records (user_id, kind, id, payload, record_date, parent_id, created_at, updated_at)`. Kinds: `loan`, `income`, `recurring_income`, `cheque`, `holding`, `transaction`, `portfolio_layout`, `risk_profile`, `expense_group`, `expense`, `bank_account`, `transfer`, `category_settings`, `subscription`. Only `record_date` (the record's main date) and `parent_id` (portfolio or expense section) are plaintext, so the server can filter by date range and page lists without seeing amounts.
 - **Tombstones**: deleting a record writes `vault_tombstones (user_id, kind, id, deleted_at)`; saving it again removes the tombstone. Tombstones older than 180 days are pruned.
 - **`GET /api/vault/sync?cursor=`** returns every change after the cursor (`updated_at|kind|id`), oldest first, a page at a time: saved records (the same ciphertext) and deletions, plus the vault's `epoch` (its creation time). The index `idx_vault_records_updated` keeps this proportional to the new changes, not to the data.
-- **Offline client (Android)** — `web/src/shared/offline/`:
+- **Offline client (Android and web)** — `web/src/shared/offline/`:
   - `localStore.js`: IndexedDB, one database per user: the ciphertext records, an `outbox` of changes made offline, and `meta` (the vault, the cursor, the epoch). The vault key is only ever in memory.
   - `offlineSync.js`: sends the outbox first, then pulls `/api/vault/sync` page by page. Runs on start, on reconnect, after an offline change, when the app comes back to the foreground with changes still queued, and when the open tab's records are refreshed (header button, window focus) — never on a timer while online (every 15 s while offline), and not on every read of the copy. A queued change the server refuses is dropped, reported, and the copy is rebuilt; a new `epoch` or `reset` rebuilds the copy.
   - `vaultApi.js`: lists are read from the device copy (same filters and order as the server, `filterRecords`) and refreshed in the background (`VAULT_CHANGED_EVENT`). Writes go to the server first and are queued only when there is no connection (network error, 502/503/504).
