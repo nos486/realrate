@@ -9,7 +9,7 @@
  * (utils/assetLedger.js) reads it with the transactions.
  *
  * Laid out as an entry form (shared/form/, docs/en/DESIGN.md «Entry forms»): «خرید / فروش» as a
- * segmented switch, the asset, its quantity large (UnitAmountField), the buy price per unit (or
+ * segmented switch, the asset, its quantity large (AmountField with the asset's unit), the buy price per unit (or
  * paid with another asset), a personal or bourse asset's price of today, the day (optional, so the
  * full picker with its «امروز» that also fills today's price), and «تأمین از» and the note folded
  * under «جزئیات بیشتر». A new buy can be saved with «ثبت و بعدی»: the form stays open, keeping the
@@ -20,11 +20,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Coins } from 'lucide-react';
 import { FilterPills, Input, Modal, NumericInput } from '../../../shared/ui/index.js';
-import { EntryFormActions, MoreDetails, PickerRow } from '../../../shared/form/index.js';
+import { AmountField, EntryFormActions, MoreDetails, PickerRow } from '../../../shared/form/index.js';
 import UniversalAssetSearch from '../../../components/UniversalAssetSearch.jsx';
 import ShamsiDatePicker from './ShamsiDatePicker.jsx';
 import ReferenceAssetInputs from './ReferenceAssetInputs.jsx';
-import UnitAmountField from './UnitAmountField.jsx';
 import { parseInputNumber } from '../utils/holdingHelpers.js';
 import { toPriceId, isCustomAssetId } from '../../../utils/priceIds.js';
 import {
@@ -399,7 +398,7 @@ export default function AddHoldingForm({
           </div>
         )}
 
-        <UnitAmountField
+        <AmountField
           key={`amount-${round}`}
           id="holding-amount"
           label="مقدار"
@@ -412,7 +411,7 @@ export default function AddHoldingForm({
 
         {/* Buy price — Toman (default), unless paid/swapped with another asset */}
         {!referenceAsset && (
-          <UnitAmountField
+          <AmountField
             id="holding-buy-price"
             label={`قیمت خرید هر ${unitLabel} (تومان، اختیاری)`}
             unit="تومان"

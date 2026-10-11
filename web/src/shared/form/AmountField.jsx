@@ -3,8 +3,11 @@
  * the number (a compact selector, not a row of its own) and the amount in words under it — a zero
  * too many or too few in tomans is plain to see there
  *
- * Shared by the expense and income forms (EntryForm design: docs/en/DESIGN.md). What else belongs
- * under the amount (a foreign currency's rate of the day, DayRateHint) is passed as children.
+ * Shared by every entry form (docs/en/DESIGN.md «Entry forms»). What else belongs under the amount
+ * (a foreign currency's rate of the day, DayRateHint) is passed as children. An amount that is not
+ * money — an asset's quantity in its own unit (grams, coins, shares) — passes `unit` (shown beside
+ * the number; the label is then used as given) and its own `allowDecimals`; an optional one
+ * `required={false}`.
  */
 
 import React from 'react';
@@ -16,32 +19,34 @@ import { numberToWords } from '../utils/numberWords.js';
 const CURRENCY_OPTIONS = CURRENCIES.map(({ code, label }) => ({ value: code, label }));
 
 /**
- * @param {{ id: string, value: string, onValueChange: (v: string) => void, currency: string,
- *   onCurrencyChange?: (code: string) => void, label?: string, placeholder?: string,
- *   autoFocus?: boolean, children?: React.ReactNode }} props — without onCurrencyChange the
- *   currency is shown, not chosen
+ * @param {{ id: string, value: string, onValueChange: (v: string) => void, currency?: string,
+ *   onCurrencyChange?: (code: string) => void, unit?: string, allowDecimals?: boolean,
+ *   required?: boolean, label?: string, placeholder?: string, autoFocus?: boolean,
+ *   children?: React.ReactNode }} props — without onCurrencyChange the currency is shown, not
+ *   chosen; `unit` instead of a currency for an amount that isn't money
  */
 export default function AmountField({
-  id, value, onValueChange, currency, onCurrencyChange, label = 'مبلغ', placeholder = '', autoFocus = false, children = null,
+  id, value, onValueChange, currency = 'IRT', onCurrencyChange, unit: ownUnit = '', allowDecimals, required = true,
+  label = 'مبلغ', placeholder = '', autoFocus = false, children = null,
 }) {
-  const unit = currencyLabel(currency);
+  const unit = ownUnit || currencyLabel(currency);
   const amount = parseInputNumber(value);
   const words = amount > 0 && Number.isInteger(amount) ? numberToWords(amount) : '';
   return (
     <div className="ui-input-group amount-field">
-      <label htmlFor={id} className="ui-input-label">{label} ({unit}) *</label>
+      <label htmlFor={id} className="ui-input-label">{ownUnit ? label : `${label} (${unit})`}{required ? ' *' : ''}</label>
       <div className="amount-field-box">
         <NumericInput
           id={id}
           value={value}
           onValueChange={onValueChange}
-          allowDecimals={allowsDecimals(currency)}
+          allowDecimals={allowDecimals ?? (ownUnit ? true : allowsDecimals(currency))}
           placeholder={placeholder || '۰'}
           className="amount-field-input"
           autoFocus={autoFocus}
-          required
+          required={required}
         />
-        {onCurrencyChange ? (
+        {onCurrencyChange && !ownUnit ? (
           <select
             className="amount-field-currency"
             aria-label="ارز"

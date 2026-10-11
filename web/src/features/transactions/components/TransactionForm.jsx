@@ -3,7 +3,7 @@
  *
  * Laid out as an entry form (shared/form/, docs/en/DESIGN.md «Entry forms»): «خرید / فروش» as a
  * segmented switch (on a new entry «خرید / موجودی» goes to the buy form, `onSwitchToBuy`), the
- * asset, the quantity large in the asset's own unit (UnitAmountField), the price of one unit in
+ * asset, the quantity large in the asset's own unit (AmountField with the asset's unit), the price of one unit in
  * tomans (AmountField; or paid / settled with another asset), the trade's total and the oversell
  * warning, the day («امروز»/«دیروز»/«روز دیگر»), and the note folded under «جزئیات بیشتر». A new
  * transaction can be saved with «ثبت و بعدی»: the form stays open, keeping the asset, side, price
@@ -18,7 +18,6 @@ import { AmountField, DateField, EntryFormActions, MoreDetails } from '../../../
 import UniversalAssetSearch from '../../../components/UniversalAssetSearch.jsx';
 import { getTodayShamsi } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import ReferenceAssetInputs from '../../portfolio/components/ReferenceAssetInputs.jsx';
-import UnitAmountField from '../../portfolio/components/UnitAmountField.jsx';
 import { parseInputNumber } from '../../portfolio/utils/holdingHelpers.js';
 import { toPriceId, isCustomAssetId } from '../../../utils/priceIds.js';
 import {
@@ -231,7 +230,7 @@ export default function TransactionForm({
           />
         </div>
 
-        <UnitAmountField
+        <AmountField
           key={`quantity-${round}`}
           id="tx-quantity"
           label="مقدار"
