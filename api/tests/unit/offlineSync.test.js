@@ -186,6 +186,19 @@ describe('offline copy', () => {
     window.removeEventListener(offline.VAULT_CHANGED_EVENT, changed);
   });
 
+  it('a sync round runs inside the browser lock shared by the tabs, when there is one', async () => {
+    seed('income', 'i1');
+    const request = vi.fn((name, fn) => fn());
+    Object.defineProperty(navigator, 'locks', { value: { request }, configurable: true });
+    try {
+      await start();
+      expect(request).toHaveBeenCalledWith(expect.stringContaining('realrate-sync-'), expect.any(Function));
+      expect((await listVaultRecords('income', undefined, {})).records.map((r) => r.id)).toEqual(['i1']);
+    } finally {
+      delete navigator.locks;
+    }
+  });
+
   it('a reset account (new epoch) starts the copy over', async () => {
     seed('income', 'old');
     await start();
