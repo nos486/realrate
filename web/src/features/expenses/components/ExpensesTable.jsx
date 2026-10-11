@@ -14,6 +14,8 @@ import { Link } from 'react-router-dom';
 import { DollarValueLine } from '../../../shared/ui/DollarValue.jsx';
 import { Calendar, FolderInput, FolderOpen, HandCoins, Landmark, MessageSquare, Pencil, Trash2 } from 'lucide-react';
 import { ResponsiveDataTable } from '../../../shared/ui/index.js';
+import OwnedRecordLink from '../../../shared/ui/OwnedRecordLink.jsx';
+import { recordOwnerOf } from '../../../utils/recordOwners.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { formatAmount } from '../utils/format.js';
 import {
@@ -229,23 +231,28 @@ export default function ExpensesTable({
                   <HandCoins size={13} strokeWidth={2} />
                 </button>
               )}
-              {onMove && !projectFor(e) && (
-                <button type="button" className="btn-table-action" title="انتقال به پروژه" aria-label="انتقال به پروژه" onClick={() => onMove(e)}>
-                  <FolderInput size={13} strokeWidth={2} />
-                </button>
+              {/* Recorded by another feature (recordOwners.js): changed only from its page */}
+              {recordOwnerOf(e) ? <OwnedRecordLink record={e} /> : (
+                <>
+                  {onMove && !projectFor(e) && (
+                    <button type="button" className="btn-table-action" title="انتقال به پروژه" aria-label="انتقال به پروژه" onClick={() => onMove(e)}>
+                      <FolderInput size={13} strokeWidth={2} />
+                    </button>
+                  )}
+                  <button type="button" className="btn-table-action edit" title="ویرایش هزینه" onClick={() => onEdit(e)}>
+                    <Pencil size={13} strokeWidth={2} />
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn-table-action delete ${deletingId === e.id ? 'loading' : ''}`}
+                    title="حذف هزینه"
+                    onClick={() => onDelete(e)}
+                    disabled={deletingId === e.id}
+                  >
+                    <Trash2 size={13} strokeWidth={2} />
+                  </button>
+                </>
               )}
-              <button type="button" className="btn-table-action edit" title="ویرایش هزینه" onClick={() => onEdit(e)}>
-                <Pencil size={13} strokeWidth={2} />
-              </button>
-              <button
-                type="button"
-                className={`btn-table-action delete ${deletingId === e.id ? 'loading' : ''}`}
-                title="حذف هزینه"
-                onClick={() => onDelete(e)}
-                disabled={deletingId === e.id}
-              >
-                <Trash2 size={13} strokeWidth={2} />
-              </button>
             </div>
           ),
         }]

@@ -1,0 +1,1 @@
+../../../api/src/domain/recordOwners.js

@@ -50,6 +50,7 @@ import { validatePortfolioLink } from './portfolioLink.js';
 import { jalaliToGregorian, getJalaliMonthLength, gregorianToJalali } from './loanCalculator.js';
 import { isCategoryValue } from './categoryDocument.js';
 import { categoryLinkFields, paymentLinkFields } from './categoryLinks.js';
+import { isRecordOwner } from './recordOwners.js';
 import {
   BASE_CURRENCY, CURRENCIES, normalizeCurrency, currencyRateOn, currencyRateToday,
 } from './currencies.js';
@@ -244,6 +245,8 @@ export function validateExpense(body = {}) {
       ...links,
       smsFingerprint, smsKey, myShare, reimbursements, paidFrom, investedIn,
       tags: normalizeTags(body.tags),
+      // Recorded by another feature: changed only from its page (recordOwners.js)
+      ...(isRecordOwner(body.recordedBy) ? { recordedBy: body.recordedBy } : {}),
     },
   };
 }

@@ -102,16 +102,17 @@ describe('cheque links', () => {
     expect(await settleCheque(clearedOut, { date: '2026-02-04', expenses: false })).toBeNull();
     expect(await settleCheque(clearedOut, { date: '2026-02-04' })).toBe('expense');
     // No category of its own: «سایر»; from its account
-    expect(mocks.saveExpense.mock.calls[0][0]).toMatchObject({ groupId: 'grp_daily', currency: 'IRT', category: 'other', chequeId: 'chq_out', accountId: 'acc_1' });
-    // Its own id (recorded once), and saving it points the cheque back at it
-    expect(mocks.saveExpense.mock.calls[0][2]).toMatchObject({ id: expect.stringMatching(/^exp_s/), syncLinks: true });
+    expect(mocks.saveExpense.mock.calls[0][0]).toMatchObject({ groupId: 'grp_daily', currency: 'IRT', category: 'other', chequeId: 'chq_out', accountId: 'acc_1', recordedBy: 'cheque' });
+    // Its own id (recorded once), and saving it points the cheque back at it; the cheques' own
+    expect(mocks.saveExpense.mock.calls[0][2]).toMatchObject({ id: expect.stringMatching(/^exp_s/), syncLinks: true, asOwner: true });
     // Already recorded: nothing more
     expect(await settleCheque({ ...clearedIn, settlement: { side: 'income', id: 'inc_9' } }, { date: '2026-02-04' })).toBeNull();
 
     await unsettleCheque({ ...received, settlement: { side: 'income', id: 'inc_9' } });
-    expect(mocks.deleteIncome).toHaveBeenCalledWith('inc_9');
+    // Taken back by the cheques, the records' owner
+    expect(mocks.deleteIncome).toHaveBeenCalledWith('inc_9', { asOwner: true });
     await unsettleCheque({ ...issued, settlement: { side: 'expense', id: 'exp_9' } });
-    expect(mocks.deleteExpense).toHaveBeenCalledWith('exp_9', { id: 'exp_9', chequeId: 'chq_out' });
+    expect(mocks.deleteExpense).toHaveBeenCalledWith('exp_9', { id: 'exp_9', chequeId: 'chq_out' }, { asOwner: true });
   });
 });
 

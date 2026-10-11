@@ -114,9 +114,9 @@ describe('the retired cheque categories (v2)', () => {
   it('records saved in them take their cheque\'s own category, once', async () => {
     expect(await runChequeCategoryMigration({ userId: 'u9', expenses: true })).toBe(true);
     expect(old.updateIncome).toHaveBeenCalledTimes(1);
-    expect(old.updateIncome).toHaveBeenCalledWith('inc_1', expect.objectContaining({ category: 'freelance', chequeId: 'c1', title: 'چک شرکت' }));
+    expect(old.updateIncome).toHaveBeenCalledWith('inc_1', expect.objectContaining({ category: 'freelance', chequeId: 'c1', title: 'چک شرکت' }), { asOwner: true });
     // A cheque with no category of its own: «سایر»
-    expect(old.saveExpense).toHaveBeenCalledWith({ category: 'other' }, expect.objectContaining({ id: 'exp_1' }), { syncLinks: false });
+    expect(old.saveExpense).toHaveBeenCalledWith({ category: 'other' }, expect.objectContaining({ id: 'exp_1' }), { syncLinks: false, asOwner: true });
     expect(old.saveExpense).toHaveBeenCalledTimes(1);
     expect(await runChequeCategoryMigration({ userId: 'u9', expenses: true })).toBe(false);
   });

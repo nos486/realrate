@@ -21,6 +21,7 @@ import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
 import { putRecord, backfillRecordDates, repairRecordDates } from './vaultRecordMeta.js';
 import { encryptVaultRecord, decryptVaultRecord } from './vaultStore.js';
 import { syncRecordLinks, releaseRecordLinks } from './recordLinks.js';
+import { recordOwnerOf, ownedRecordMessage } from '../../utils/recordOwners.js';
 
 const KIND = 'income';
 
@@ -114,15 +115,34 @@ export async function createIncome(incomeData) {
   return { success: true, income: await save(income) };
 }
 
-export async function updateIncome(incomeId, incomeData) {
+/**
+ * An income another feature recorded (a cleared cheque's) is changed only by that feature
+ * (recordOwners.js): its page, through recordLinks.js / spendingRecords.js, which pass `asOwner`
+ */
+function assertNotOwned(income, asOwner) {
+  if (income && !asOwner && recordOwnerOf(income)) throw new IncomeValidationError(ownedRecordMessage(income, 'income'), 403);
+}
+
+/**
+ * @param {string} incomeId
+ * @param {object} incomeData
+ * @param {{ asOwner?: boolean }} [options] the feature that recorded it is changing it
+ */
+export async function updateIncome(incomeId, incomeData, { asOwner = false } = {}) {
   const existing = await findIncome(incomeId);
   if (!existing) throw new IncomeValidationError('درآمد مورد نظر یافت نشد.', 404);
+  assertNotOwned(existing, asOwner);
   const income = { ...existing, ...parseIncomeInput(incomeData), updatedAt: new Date().toISOString() };
   return { success: true, income: await save(income, existing) };
 }
 
-export async function deleteIncome(incomeId) {
+/**
+ * @param {string} incomeId
+ * @param {{ asOwner?: boolean }} [options] the feature that recorded it is removing it
+ */
+export async function deleteIncome(incomeId, { asOwner = false } = {}) {
   const existing = (await findIncome(incomeId).catch(() => null)) || null;
+  assertNotOwned(existing, asOwner);
   await deleteVaultRecord(KIND, incomeId);
   incomes.delete(incomeId);
   // Its sale leaves the portfolio too

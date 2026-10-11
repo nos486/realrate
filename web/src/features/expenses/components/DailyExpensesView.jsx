@@ -61,6 +61,7 @@ import { splitCounted } from '../../../shared/categories/categoryStore.js';
 import { useShowExcluded } from '../../../shared/categories/useShowExcluded.js';
 import CategoryManagerModal from '../../../shared/categories/CategoryManagerModal.jsx';
 import { useQuickAddParam } from '../../../shared/hooks/useQuickAddParam.js';
+import { recordOwnerOf } from '../../../utils/recordOwners.js';
 
 const CSV_HEADERS = expenseCsvHeaders({ withCategory: true });
 const EXPENSES_PAGE_SIZE = 20;
@@ -198,14 +199,16 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
   });
   const togglePage = (checked) => setSelected((prev) => {
     const next = new Set(prev);
-    for (const e of listRows.filter((row) => !projectOf(row))) {
+    for (const e of listRows.filter((row) => !projectOf(row) && !recordOwnerOf(row))) {
       if (checked) next.add(e.id);
       else next.delete(e.id);
     }
     return next;
   });
   // A project's expense is moved by its form («پروژه»): only the everyday ones are picked to move
-  const selection = readOnly ? null : { selected, onToggle: toggle, onToggleAll: togglePage, label: (e) => `انتخاب «${e.title}»`, canSelect: (e) => !projectOf(e) };
+  // …and not one another feature recorded (recordOwners.js: changed only from its page)
+  const movable = useMemo(() => listed.filter((e) => !projectOf(e) && !recordOwnerOf(e)), [listed, projectOf]);
+  const selection = readOnly ? null : { selected, onToggle: toggle, onToggleAll: togglePage, label: (e) => `انتخاب «${e.title}»`, canSelect: (e) => !projectOf(e) && !recordOwnerOf(e) };
   const movingTotal = useMemo(() => {
     if (!moving) return 0;
     const ids = new Set(moving);
@@ -439,9 +442,9 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                         <strong>{picked.length.toLocaleString('fa-IR')}</strong> هزینه انتخاب شد
                         {pickedTotal > 0 && <> · {money(pickedTotal)} تومان</>}
                       </span>
-                      {picked.length < listed.length && (
-                        <Button size="sm" variant="secondary" onClick={() => setSelected(new Set(listed.map((e) => e.id)))}>
-                          انتخاب همه‌ی {listed.length.toLocaleString('fa-IR')} مورد
+                      {picked.length < movable.length && (
+                        <Button size="sm" variant="secondary" onClick={() => setSelected(new Set(movable.map((e) => e.id)))}>
+                          انتخاب همه‌ی {movable.length.toLocaleString('fa-IR')} مورد
                         </Button>
                       )}
                       <Button size="sm" icon={<FolderInput size={15} />} onClick={() => setMoving(picked.map((e) => e.id))}>

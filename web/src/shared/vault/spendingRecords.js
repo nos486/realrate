@@ -18,11 +18,15 @@
  * same subscription — writes the same expense, never a second one. The record it names was
  * already changed by its own page, so saving the expense doesn't change it again
  * (`syncLinks: false`). Nothing is recorded without the expenses feature, or in the read-only demo.
+ *
+ * What is recorded here belongs to the feature that recorded it (`recordedBy`, recordOwners.js):
+ * the expenses and incomes don't edit or delete it — only its own page does, through here.
  */
 
 import { SUBSCRIPTION_EXPENSE_CATEGORY, duePayments } from '../../utils/subscriptionDocument.js';
 import { categoryLinkOf, linkFieldsOf, sameLinkValue } from '../../utils/categoryLinks.js';
 import { BASE_CURRENCY, normalizeCurrency } from '../../utils/currencies.js';
+import { SPENDING_ID_PREFIX } from '../../utils/recordOwners.js';
 
 /** The expense category of a loan's payments (categoryLinks.js: links the installment) */
 export const INSTALLMENT_EXPENSE_CATEGORY = 'installments';
@@ -44,7 +48,7 @@ const sameAmount = (a, b) => Math.abs((Number(a) || 0) - (Number(b) || 0)) < 0.0
  * @param {{ amount: number, currency?: string }} payment
  */
 export function matchingRecord(side, records, { amount, currency = BASE_CURRENCY }) {
-  return records.find((r) => !String(r.id).startsWith('exp_s')
+  return records.find((r) => !String(r.id).startsWith(SPENDING_ID_PREFIX)
     && normalizeCurrency(r.currency) === normalizeCurrency(currency)
     && sameAmount(r.amount, amount)
     && !LINK_FIELDS[side].some((f) => r[f])) || null;
@@ -67,7 +71,7 @@ function hash(key) {
  * @param {string} key e.g. `sub:<id>:<day>`, `loan:<id>:<installment>`
  */
 export function spendingExpenseId(key) {
-  return `exp_s${hash(String(key))}`;
+  return `${SPENDING_ID_PREFIX}${hash(String(key))}`;
 }
 
 /**
@@ -75,9 +79,11 @@ export function spendingExpenseId(key) {
  * of that day recorded by hand, now linked), else a new everyday expense under its own id
  * @param {string} key what it records (spendingExpenseId)
  * @param {object} expense its fields: title, amount, currency, date, category, the link, account
- * @param {{ syncLinks?: boolean }} [options] whether saving it updates the record it names
+ * @param {{ owner: string, syncLinks?: boolean }} options the feature recording it
+ *   (recordOwners.js: it is that feature's from now on); whether saving it updates the record it
+ *   names
  */
-export async function recordSpending(key, expense, { syncLinks = false } = {}) {
+export async function recordSpending(key, expense, { owner, syncLinks = false } = {}) {
   const { ensureDailyGroup, getExpenseGroups, getExpenses, saveExpense } = await store();
   const id = spendingExpenseId(key);
   const currency = normalizeCurrency(expense.currency);
@@ -90,11 +96,17 @@ export async function recordSpending(key, expense, { syncLinks = false } = {}) {
       ...(categoryLinkOf('expense', expense.category) ? { category: expense.category } : {}),
       ...Object.fromEntries(LINK_FIELDS.expense.filter((f) => expense[f]).map((f) => [f, expense[f]])),
       ...(match.accountId || !expense.accountId ? {} : { accountId: expense.accountId }),
-    }, match, { syncLinks });
+      // Now this payment's: changed from its feature's page only
+      recordedBy: owner,
+    }, match, { syncLinks, asOwner: true });
     return saved;
   }
   const group = await ensureDailyGroup((await getExpenseGroups()).groups || []);
-  const { expense: saved } = await saveExpense({ notes: '', ...expense, currency, groupId: own?.groupId || group.id }, own, { id, syncLinks });
+  const { expense: saved } = await saveExpense(
+    { notes: '', ...expense, currency, groupId: own?.groupId || group.id, recordedBy: owner },
+    own,
+    { id, syncLinks, asOwner: true },
+  );
   return saved;
 }
 
@@ -102,8 +114,9 @@ export async function recordSpending(key, expense, { syncLinks = false } = {}) {
  * Record one inflow as an income: a matching one of that day recorded by hand (linked now), else
  * a new one (a received cheque's money)
  * @param {object} income its fields: title, amount, incomeDate, category, the link
+ * @param {{ owner: string }} options the feature recording it (recordOwners.js)
  */
-export async function recordIncome(income) {
+export async function recordIncome(income, { owner } = {}) {
   const { getIncomes, createIncome, updateIncome } = await import('../../features/incomes/api/incomeApi.js');
   const { incomes: sameDay = [] } = await getIncomes({ from: income.incomeDate, to: income.incomeDate });
   const match = matchingRecord('income', sameDay.filter((i) => i.incomeDate === income.incomeDate), { amount: income.amount });
@@ -111,9 +124,9 @@ export async function recordIncome(income) {
     const { id: _id, createdAt: _c, updatedAt: _u, ...fields } = match;
     // Its own category stays unless the link is a category's
     const category = categoryLinkOf('income', income.category) ? income.category : fields.category;
-    return (await updateIncome(match.id, { ...fields, category, chequeId: income.chequeId || '' })).income;
+    return (await updateIncome(match.id, { ...fields, category, chequeId: income.chequeId || '', recordedBy: owner }, { asOwner: true })).income;
   }
-  return (await createIncome({ notes: '', ...income })).income;
+  return (await createIncome({ notes: '', ...income, recordedBy: owner })).income;
 }
 
 /**
@@ -136,7 +149,7 @@ export async function recordSubscriptionPayments(sub, today, { saveSubscription 
       category: SUBSCRIPTION_EXPENSE_CATEGORY,
       subscriptionId: sub.id,
       accountId: sub.accountId || '',
-    });
+    }, { owner: 'subscription' });
   }
   return saveSubscription({ lastPaidOn: days[days.length - 1] }, sub);
 }
@@ -157,7 +170,7 @@ export async function recordInstallmentPayments(loan, installments) {
       date: inst.paidDate,
       category: INSTALLMENT_EXPENSE_CATEGORY,
       loanInstallment: { loanId: loan.id, installmentId: String(inst.id) },
-    });
+    }, { owner: 'loan' });
   }
 }
 
@@ -176,7 +189,7 @@ export async function removeInstallmentPayment(loanId, installmentId, paidDate) 
     const { expenses = [] } = await getExpenses({ from: paidDate, to: paidDate });
     for (const e of expenses) if (e.loanInstallment && sameLinkValue(e.loanInstallment, link)) ids.add(e.id);
   }
-  for (const id of ids) await deleteExpense(id, null, { syncLinks: false }).catch(() => {});
+  for (const id of ids) await deleteExpense(id, null, { syncLinks: false, asOwner: true }).catch(() => {});
 }
 
 /**
@@ -194,5 +207,5 @@ export async function recordExtraPayment(loan, payment) {
     currency: BASE_CURRENCY,
     date,
     category: INSTALLMENT_EXPENSE_CATEGORY,
-  });
+  }, { owner: 'loan' });
 }

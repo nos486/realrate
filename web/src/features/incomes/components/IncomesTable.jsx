@@ -7,6 +7,8 @@
 import React from 'react';
 import { Calendar, MessageSquare, Pencil, Trash2 } from 'lucide-react';
 import { ResponsiveDataTable } from '../../../shared/ui/index.js';
+import OwnedRecordLink from '../../../shared/ui/OwnedRecordLink.jsx';
+import { recordOwnerOf } from '../../../utils/recordOwners.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { formatNum } from '../../portfolio/utils/holdingHelpers.js';
 import { currencyLabel, formatCurrencyNumber, isForeignCurrency } from '../../../utils/currencies.js';
@@ -102,23 +104,28 @@ export default function IncomesTable({ incomes, onEdit, onDelete, deletingId = n
             mobile: 'actions',
             render: (income) => (
               <div className="row-actions-group">
-                <button
-                  type="button"
-                  className="btn-table-action edit"
-                  title="ویرایش درآمد"
-                  onClick={() => onEdit(income)}
-                >
-                  <Pencil size={13} strokeWidth={2} />
-                </button>
-                <button
-                  type="button"
-                  className={`btn-table-action delete ${deletingId === income.id ? 'loading' : ''}`}
-                  title="حذف درآمد"
-                  onClick={() => onDelete(income)}
-                  disabled={deletingId === income.id}
-                >
-                  <Trash2 size={13} strokeWidth={2} />
-                </button>
+                {/* Recorded by another feature (a cleared cheque's): changed only from its page */}
+                {recordOwnerOf(income) ? <OwnedRecordLink record={income} /> : (
+                  <>
+                    <button
+                      type="button"
+                      className="btn-table-action edit"
+                      title="ویرایش درآمد"
+                      onClick={() => onEdit(income)}
+                    >
+                      <Pencil size={13} strokeWidth={2} />
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn-table-action delete ${deletingId === income.id ? 'loading' : ''}`}
+                      title="حذف درآمد"
+                      onClick={() => onDelete(income)}
+                      disabled={deletingId === income.id}
+                    >
+                      <Trash2 size={13} strokeWidth={2} />
+                    </button>
+                  </>
+                )}
               </div>
             ),
           },
