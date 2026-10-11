@@ -177,6 +177,16 @@ export async function dbDeletePushReminder(env, deviceId, kind, recordId, dueDat
   `).bind(deviceId, kind, recordId, dueDate, reason).run();
 }
 
+/** Delete several reminders in one batch (each is the row `dbDeletePushReminder` names) */
+export async function dbDeletePushReminders(env, reminders = []) {
+  if (!reminders.length) return;
+  await ensureSchema(env);
+  await env.DB.batch(reminders.map((r) => env.DB.prepare(`
+    DELETE FROM push_reminders
+    WHERE device_id = ? AND kind = ? AND record_id = ? AND due_date = ? AND reason = ?
+  `).bind(r.deviceId, r.kind, r.recordId, r.dueDate, r.reason)));
+}
+
 export async function dbPurgeOldPushReminders(env, beforeDate) {
   await ensureSchema(env);
   await env.DB.prepare(`
