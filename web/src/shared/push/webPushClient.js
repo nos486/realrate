@@ -186,7 +186,7 @@ export async function deletePushOnServer(deviceId) {
 }
 
 export async function uploadSealedReminders({ deviceId, items }) {
-  return httpClient.put('/api/alerts/push/reminders', { deviceId, items });
+  return httpClient.put('/api/alerts/push/reminders', { deviceId, items }, { background: true });
 }
 
 export async function sendTestPushOnServer({ deviceId, sealed }) {
