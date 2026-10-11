@@ -1,22 +1,26 @@
 /**
  * PortfolioHistoryChart.jsx — How the portfolio's value moved from its first entry to today
  *
- * A line of the daily value (utils/portfolioHistory.js) in tomans or dollars, over a chosen span.
- * Hovering (or dragging a finger) marks a day and shows its value. Computed in the browser from
- * the decrypted ledgers and the public price history; nothing about the portfolio is sent out.
+ * Closed by default: one row with today's value and the change over 24 hours, 7 days and 1 month
+ * (what prices alone gained: money put in or taken out is not gain). Opening it shows the daily
+ * value (utils/portfolioHistory.js) as a line in tomans or dollars over a chosen span; hovering
+ * (or dragging a finger) marks a day. Computed in the browser from the decrypted ledgers and the
+ * public price history; nothing about the portfolio is sent out.
  */
 
 import React, { useMemo, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import FilterPills from '../../../shared/ui/FilterPills.jsx';
 import { CHART_COLORS } from '../../../shared/ui/chartColors.js';
 import { useDailyHistory, useUsdAt } from '../../market/dailyHistory.js';
 import { todayIso } from '../../../shared/utils/dates.js';
 import { formatPct } from '../../../shared/utils/formatters.js';
-import { buildPortfolioSeries, sliceSeries } from '../utils/portfolioHistory.js';
+import { buildPortfolioSeries, sliceSeries, windowChange } from '../utils/portfolioHistory.js';
 
-const W = 300;
-const H = 120;
-const PAD = 6;
+const W = 600;
+const H = 200;
+const PAD_Y = 12;
+const GRID = 3;
 
 const RANGES = [
   { value: '30', label: '۱ ماه' },
@@ -28,15 +32,37 @@ const UNITS = [
   { value: 'toman', label: 'تومان' },
   { value: 'usd', label: 'دلار' },
 ];
+const CHANGES = [
+  { span: 1, label: '۲۴ ساعت' },
+  { span: 7, label: '۷ روز' },
+  { span: 30, label: '۱ ماه' },
+];
 
 const dayFormat = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { year: 'numeric', month: 'short', day: 'numeric' });
 const dayLabel = (iso) => dayFormat.format(new Date(`${iso}T12:00:00+03:30`));
+const compact = new Intl.NumberFormat('fa-IR', { notation: 'compact', maximumFractionDigits: 1 });
 const fmt = (v, unit) => (Number.isFinite(v) ? Math.round(v).toLocaleString('fa-IR') : '-') + (unit === 'usd' ? ' $' : ' تومان');
+const signed = (pct) => `${pct >= 0 ? '+' : '−'}${formatPct(Math.abs(pct))}٪`;
+
+/** One change chip: «۷ روز +۲٫۱٪», green or red */
+function ChangeChip({ label, change, unit, hideValues }) {
+  if (!change || change.pct === null) {
+    return <span className="portfolio-history-chip is-flat"><span>{label}</span><b>—</b></span>;
+  }
+  const dir = Math.abs(change.pct) < 0.05 ? 'flat' : change.pct > 0 ? 'up' : 'down';
+  return (
+    <span className={`portfolio-history-chip is-${dir}`} title={hideValues ? undefined : fmt(change.gain, unit)}>
+      <span>{label}</span>
+      <b dir="ltr">{signed(change.pct)}</b>
+    </span>
+  );
+}
 
 /**
  * @param {{ assets: object[], hideValues?: boolean }} props - assets from buildAssetLedgers
  */
 export default function PortfolioHistoryChart({ assets, hideValues = false }) {
+  const [open, setOpen] = useState(false);
   const [range, setRange] = useState('90');
   const [unit, setUnit] = useState('toman');
   const [hover, setHover] = useState(null);
@@ -56,75 +82,110 @@ export default function PortfolioHistoryChart({ assets, hideValues = false }) {
 
   const values = series[unit];
   const known = values.filter((v) => Number.isFinite(v));
-  if (known.length < 2) return null;
-
-  const min = Math.min(...known);
-  const max = Math.max(...known);
-  const span = max - min;
   const n = values.length;
-  const x = (i) => (n === 1 ? W / 2 : (i / (n - 1)) * W);
-  const y = (v) => (span === 0 ? H / 2 : PAD + (1 - (v - min) / span) * (H - 2 * PAD));
-  const path = values
-    .map((v, i) => (Number.isFinite(v) ? `${i === 0 || !Number.isFinite(values[i - 1]) ? 'M' : 'L'}${x(i).toFixed(1)},${y(v).toFixed(1)}` : ''))
-    .join('');
+  const nowValue = full[unit][full.days.length - 1];
+  const canPlot = known.length >= 2;
 
-  const first = known[0];
-  const last = known[known.length - 1];
-  const changePct = first > 0 ? ((last - first) / first) * 100 : null;
+  const min = canPlot ? Math.min(...known) : 0;
+  const max = canPlot ? Math.max(...known) : 0;
+  const pad = (max - min) * 0.08 || max * 0.02 || 1;
+  const lo = min - pad;
+  const hi = max + pad;
+  const x = (i) => (i / (n - 1)) * W;
+  const y = (v) => PAD_Y + (1 - (v - lo) / (hi - lo)) * (H - 2 * PAD_Y);
+  const line = canPlot
+    ? values.map((v, i) => (Number.isFinite(v) ? `${i === 0 || !Number.isFinite(values[i - 1]) ? 'M' : 'L'}${x(i).toFixed(1)},${y(v).toFixed(1)}` : '')).join('')
+    : '';
+  const firstOk = values.findIndex((v) => Number.isFinite(v));
+  const area = line ? `${line}L${x(n - 1).toFixed(1)},${H}L${x(firstOk).toFixed(1)},${H}Z` : '';
+  const gridValues = Array.from({ length: GRID }, (_, k) => lo + ((hi - lo) * (k + 0.5)) / GRID);
+
   const shown = hover !== null && Number.isFinite(values[hover]) ? hover : n - 1;
-
   const pick = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const frac = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
     setHover(Math.round(frac * (n - 1)));
   };
+  const hoverLeft = hover !== null ? (hover / (n - 1)) * 100 : null;
 
   return (
-    <section className="portfolio-history-card" aria-label="تاریخچه ارزش پورتفو">
-      <div className="portfolio-history-head">
-        <div>
+    <section className={`portfolio-history-card ${open ? 'is-open' : ''}`} aria-label="تاریخچه ارزش پورتفو">
+      <button
+        type="button"
+        className="portfolio-history-toggle"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className="portfolio-history-title">
           <span className="stat-label">تاریخچه ارزش پورتفو</span>
-          <div className="portfolio-history-value">
-            {hideValues ? '****' : fmt(values[shown], unit)}
-            <span className="portfolio-history-day">{shown === n - 1 ? 'امروز' : dayLabel(series.days[shown])}</span>
+          <span className="portfolio-history-now">{hideValues ? '****' : fmt(nowValue, unit)}</span>
+        </span>
+        <span className="portfolio-history-chips">
+          {CHANGES.map((c) => (
+            <ChangeChip key={c.span} label={c.label} change={windowChange(full, unit, c.span)} unit={unit} hideValues={hideValues} />
+          ))}
+        </span>
+        <ChevronDown size={18} className="portfolio-history-chevron" aria-hidden="true" />
+      </button>
+
+      {open && (
+        <div className="portfolio-history-body">
+          <div className="portfolio-history-controls">
+            <FilterPills options={UNITS} activeValue={unit} onChange={setUnit} variant="segmented" size="sm" />
+            <FilterPills options={RANGES} activeValue={range} onChange={setRange} variant="segmented" size="sm" />
           </div>
-          {changePct !== null && !hideValues && (
-            <span className={`portfolio-history-change ${changePct >= 0 ? 'is-up' : 'is-down'}`} dir="ltr">
-              {changePct >= 0 ? '+' : '−'}{formatPct(Math.abs(changePct))}٪
-            </span>
+
+          {hideValues ? (
+            <p className="portfolio-history-note">مقادیر پنهان است.</p>
+          ) : canPlot ? (
+            <div className="portfolio-history-chart" dir="ltr">
+              <div className="portfolio-history-axis-y" aria-hidden="true">
+                {gridValues.map((v) => (
+                  <span key={v} style={{ top: `${(y(v) / H) * 100}%` }}>{compact.format(v)}</span>
+                ))}
+              </div>
+              <div
+                className="portfolio-history-plot"
+                role="img"
+                aria-label={`ارزش پورتفو از ${dayLabel(series.days[0])} تا امروز`}
+                onPointerMove={pick}
+                onPointerDown={pick}
+                onPointerLeave={() => setHover(null)}
+              >
+                <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true" focusable="false">
+                  {gridValues.map((v) => (
+                    <line key={v} x1="0" x2={W} y1={y(v)} y2={y(v)} className="portfolio-history-grid" vectorEffect="non-scaling-stroke" />
+                  ))}
+                  <path d={area} fill={CHART_COLORS[0]} fillOpacity="0.12" />
+                  <path d={line} fill="none" stroke={CHART_COLORS[0]} strokeWidth="2" vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
+                </svg>
+                {hover !== null && Number.isFinite(values[hover]) && (
+                  <>
+                    <span className="portfolio-history-cursor" style={{ left: `${hoverLeft}%` }} />
+                    <span className="portfolio-history-dot" style={{ left: `${hoverLeft}%`, top: `${(y(values[hover]) / H) * 100}%`, background: CHART_COLORS[0] }} />
+                    <span className={`portfolio-history-tip ${hoverLeft > 70 ? 'is-left' : ''}`} style={{ left: `${hoverLeft}%` }} dir="rtl">
+                      <b>{fmt(values[shown], unit)}</b>
+                      <span>{dayLabel(series.days[shown])}</span>
+                    </span>
+                  </>
+                )}
+              </div>
+              <div className="portfolio-history-axis-x" aria-hidden="true">
+                <span>{dayLabel(series.days[0])}</span>
+                <span>امروز</span>
+              </div>
+            </div>
+          ) : (
+            <p className="portfolio-history-note">برای این بازه هنوز داده‌ی کافی نیست.</p>
           )}
-        </div>
-        <div className="portfolio-history-controls">
-          <FilterPills options={UNITS} activeValue={unit} onChange={setUnit} variant="segmented" size="sm" />
-          <FilterPills options={RANGES} activeValue={range} onChange={setRange} variant="segmented" size="sm" />
-        </div>
-      </div>
 
-      {hideValues ? (
-        <p className="portfolio-history-note">مقادیر پنهان است.</p>
-      ) : (
-        <div
-          className="portfolio-history-plot"
-          dir="ltr"
-          role="img"
-          aria-label={`ارزش پورتفو از ${dayLabel(series.days[0])} تا امروز`}
-          onPointerMove={pick}
-          onPointerDown={pick}
-          onPointerLeave={() => setHover(null)}
-        >
-          <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true" focusable="false">
-            <path d={path} fill="none" stroke={CHART_COLORS[0]} strokeWidth="1.6" vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
-            {hover !== null && Number.isFinite(values[hover]) && (
-              <line x1={x(hover)} x2={x(hover)} y1="0" y2={H} className="portfolio-history-cursor" vectorEffect="non-scaling-stroke" />
-            )}
-          </svg>
+          {(loading || full.estimated) && !hideValues && (
+            <p className="portfolio-history-note">
+              {loading ? 'در حال دریافت تاریخچه قیمت…' : 'برای بعضی دارایی‌ها تاریخچه قیمت کامل نیست؛ ارزش آن روزها با نزدیک‌ترین قیمت معلوم برآورد شده است.'}
+            </p>
+          )}
+          <p className="portfolio-history-note">تغییر، فقط اثر قیمت‌هاست؛ خرید و فروش جزو سود حساب نمی‌شود.</p>
         </div>
-      )}
-
-      {(loading || full.estimated) && !hideValues && (
-        <p className="portfolio-history-note">
-          {loading ? 'در حال دریافت تاریخچه قیمت…' : 'برای بعضی دارایی‌ها تاریخچه قیمت کامل نیست؛ ارزش آن روزها با نزدیک‌ترین قیمت معلوم برآورد شده است.'}
-        </p>
       )}
     </section>
   );
