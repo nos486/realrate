@@ -5,12 +5,18 @@
  * into an account) is added to the expense itself — never recorded as income — in as many
  * pieces as it comes back. Saved through `onSave(input, expense)` (the views' saveExpense,
  * resolving to the saved expense).
+ *
+ * The form for the next amount is laid out as an entry form (shared/form/): the amount first and
+ * large (in the expense's currency, in words under it), «واریز به» as a picker row, the day
+ * («امروز»/«دیروز»/«روز دیگر») and the note under «جزئیات بیشتر». Each amount is saved as it is
+ * added, so the footer closes («بستن») rather than cancels.
  */
 
 import React, { useState } from 'react';
 import { HandCoins, Trash2, Plus } from 'lucide-react';
-import { AlertBanner, Button, FilterPills, Input, Modal, NumericInput } from '../../../shared/ui/index.js';
-import ShamsiDatePicker, {
+import { AlertBanner, Button, Input, Modal } from '../../../shared/ui/index.js';
+import { AmountField, DateField, MoreDetails, PickerRow } from '../../../shared/form/index.js';
+import {
   getTodayShamsi,
   formatShamsiDisplay,
   shamsiToGregorian,
@@ -21,7 +27,7 @@ import { newReimbursement } from '../../../shared/vault/vaultExpenses.js';
 import { accountLabel } from '../../accounts/constants/accountDisplay.js';
 import { accountsForCurrency } from '../../../utils/accountDocument.js';
 import { formatAmount } from '../utils/format.js';
-import { allowsDecimals, currencyLabel } from '../../../utils/currencies.js';
+import { currencyLabel } from '../../../utils/currencies.js';
 
 export default function ReimbursementsModal({ expense: initial, accounts = [], onSave, onClose, readOnly = false }) {
   // The saved copy after each change (the opener's object is not refreshed)
@@ -89,7 +95,7 @@ export default function ReimbursementsModal({ expense: initial, accounts = [], o
         </div>
       }
     >
-      <div className="income-form-body">
+      <div className="entry-form-body">
         {error && <AlertBanner type="error" message={error} />}
 
         <dl className="expense-share-facts">
@@ -134,43 +140,31 @@ export default function ReimbursementsModal({ expense: initial, accounts = [], o
 
         {remaining > 0 && !readOnly && (
           <>
-            <div className="ui-input-group">
-              <label htmlFor="reimbursement-amount" className="ui-input-label">مبلغ دریافتی ({unit}) *</label>
-              <div className="ui-input-wrapper">
-                <NumericInput
-                  id="reimbursement-amount"
-                  value={amount}
-                  onValueChange={setAmount}
-                  allowDecimals={allowsDecimals(expense.currency)}
-                  className="ui-input-control"
-                />
-              </div>
+            <AmountField id="reimbursement-amount" label="مبلغ دریافتی" value={amount} onValueChange={setAmount} currency={expense.currency}>
               {amountNum > remaining + 1e-6 && <p className="expense-form-hint">بیشتر از مانده‌ی طلب ({money(remaining)}) است.</p>}
-            </div>
+            </AmountField>
 
             {payInto.length > 0 && (
-              <div className="ui-input-group">
-                <span className="ui-input-label">واریز به</span>
-                <FilterPills
-                  options={[{ value: '', label: 'نامشخص / نقد' }, ...payInto.map((a) => ({ value: a.id, label: accountLabel(a) }))]}
-                  activeValue={accountId}
-                  onChange={setAccountId}
-                  size="sm"
-                  className="income-category-picker"
-                />
-              </div>
+              <PickerRow
+                label="واریز به"
+                value={accountId}
+                options={[{ value: '', label: 'نامشخص / نقد' }, ...payInto.map((a) => ({ value: a.id, label: accountLabel(a) }))]}
+                onChange={setAccountId}
+              />
             )}
 
-            <ShamsiDatePicker label="تاریخ دریافت *" value={dateShamsi} onChange={setDateShamsi} />
+            <DateField label="تاریخ دریافت *" value={dateShamsi} onChange={setDateShamsi} />
 
-            <Input
-              id="reimbursement-notes"
-              label="توضیح (اختیاری)"
-              placeholder="مثلاً: سهم علی"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              maxLength={EXPENSE_LIMITS.reimbursementNotesLength}
-            />
+            <MoreDetails filled={notes.trim() ? ['توضیح'] : []}>
+              <Input
+                id="reimbursement-notes"
+                label="توضیح (اختیاری)"
+                placeholder="مثلاً: سهم علی"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                maxLength={EXPENSE_LIMITS.reimbursementNotesLength}
+              />
+            </MoreDetails>
           </>
         )}
       </div>

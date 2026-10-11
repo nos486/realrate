@@ -18,6 +18,7 @@ vi.mock('../../../web/src/shared/vault/vaultExpenses.js', () => ({
   newReimbursement: (input) => ({ id: 'rmb_new', ...input }),
 }));
 
+import ReimbursementsModal from '../../../web/src/features/expenses/components/ReimbursementsModal.jsx';
 import TransferForm from '../../../web/src/features/accounts/components/TransferForm.jsx';
 import CreditConversionForm from '../../../web/src/features/accounts/components/CreditConversionForm.jsx';
 import CreditPaymentForm from '../../../web/src/features/accounts/components/CreditPaymentForm.jsx';
@@ -131,5 +132,32 @@ describe('CreditConversionForm', () => {
     fireEvent.submit(document.querySelector('form'));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     expect(onSave.mock.calls[0][0]).toMatchObject({ date: '2026-09-23', principal: 6_000_000, installments: [{ amount: 6_000_000 }] });
+  });
+});
+
+describe('ReimbursementsModal', () => {
+  const expense = { id: 'exp_1', title: 'شام', amount: 300, currency: 'USD', myShare: 100, date: '2026-09-20', reimbursements: [] };
+  const accounts = [{ id: 'acc_w', name: 'وایز', type: 'bank', currencies: ['USD'] }, { id: 'acc_1', name: 'ملت', type: 'bank' }];
+
+  it('the next amount first, in the expense\'s currency; «واریز به» a row of the accounts holding it; the note folded', async () => {
+    const onSave = vi.fn(async (input, existing) => ({ ...existing, ...input }));
+    render(<ReimbursementsModal expense={expense} accounts={accounts} onSave={onSave} onClose={vi.fn()} />);
+    const amount = document.querySelector('.entry-form-body > .amount-field #reimbursement-amount');
+    expect(amount.value.replace(/[^\d]/g, '')).toBe('200');
+    expect(screen.getByLabelText('مبلغ دریافتی (دلار) *')).toBeTruthy();
+    expect(screen.queryByLabelText('ارز')).toBeNull();
+    expect(rowValue('واریز به')).toBe('نامشخص / نقد');
+    pickRow('واریز به', 'وایز');
+    expect(document.getElementById('reimbursement-notes')).toBeNull();
+    openDetails();
+    setValue(document.getElementById('reimbursement-notes'), 'سهم علی');
+    setDay('1405/07/01');
+    setValue(amount, '50');
+    fireEvent.submit(screen.getByText('ثبت دریافت').closest('form'));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave.mock.calls[0][0].reimbursements[0]).toMatchObject({ amount: 50, accountId: 'acc_w', date: '2026-09-23', notes: 'سهم علی' });
+    // What is left is offered next, the note cleared
+    await waitFor(() => expect(document.getElementById('reimbursement-amount').value.replace(/[^\d]/g, '')).toBe('150'));
+    expect(document.getElementById('reimbursement-notes').value).toBe('');
   });
 });
