@@ -430,6 +430,23 @@ export async function rebuildBubbleHistory(env, bubbles, { ounceKey, usdKey, tro
 }
 
 /**
+ * Some keys' history in brief: how many days, the first and the last
+ * @param {object} env
+ * @param {string[]} keys
+ * @returns {Promise<Map<string, { days: number, first: string, last: string }>>}
+ */
+export async function readHistoryKeyStats(env, keys) {
+  const stats = new Map();
+  if (!env?.DB?.prepare || !keys?.length) return stats;
+  await ensureSchema(env);
+  const { results } = await env.DB.prepare(
+    "SELECT item_key, COUNT(*) AS days, MIN(day) AS first, MAX(day) AS last FROM price_daily WHERE item_key IN (SELECT value FROM json_each(?)) GROUP BY item_key"
+  ).bind(JSON.stringify(keys)).all();
+  for (const r of results || []) stats.set(r.item_key, { days: Number(r.days) || 0, first: r.first, last: r.last });
+  return stats;
+}
+
+/**
  * The closes of a few days (the days an averages move reads)
  * @returns {Promise<Array<{ item_key: string, day: string, value: number }>|null>}
  */

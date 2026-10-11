@@ -8,13 +8,16 @@
  *   ones with a target, the dollar first (dollar series are converted with its history).
  * - The history: every id with its days; an id the price book doesn't know is read by no card and
  *   can be moved to the right item or deleted, one by one or all at once.
+ * - «محاسبه‌ی دوباره»: what is computed from the history — the coin bubbles' past days (from the
+ *   coins', the ounce's and the dollar's), every average and so the coins' standard price — computed
+ *   again now, with a report of each bubble's days against its inputs' (RecomputeReport).
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { History, Play, Eye, Trash2, Plus, ArrowLeftRight, RefreshCw, ExternalLink, Sparkles } from 'lucide-react';
+import { History, Play, Eye, Trash2, Plus, ArrowLeftRight, RefreshCw, ExternalLink, Sparkles, Calculator } from 'lucide-react';
 import { Button, FeaturePageHeader, SearchBar } from '../../../shared/ui/index.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
-import { getHistoryAdmin, saveHistoryMappings, previewHistorySeries, runHistoryBackfill, editHistoryKeys } from '../api/adminApi.js';
+import { getHistoryAdmin, saveHistoryMappings, previewHistorySeries, runHistoryBackfill, editHistoryKeys, recomputeDerivedHistory } from '../api/adminApi.js';
 
 const HEADER = {
   icon: <History size={24} />,
@@ -119,6 +122,47 @@ function Preview({ preview, onApplyUnit, unit }) {
       </table>
       </div>
       <small>اعداد همان‌طور که tgju می‌دهد (بدون تبدیل واحد).</small>
+    </div>
+  );
+}
+
+/** A key's history in brief: «۷۳۰ روز · ۱۴۰۳/۰۷/۲۰ تا ۱۴۰۵/۰۷/۱۹» */
+const span = (h) => (h?.days ? `${fa(h.days)} روز · ${faDate(h.first)} تا ${faDate(h.last)}` : 'بدون تاریخچه');
+
+/**
+ * What a «محاسبه‌ی دوباره» did: the inputs' history, and per bubble its days against its coin's
+ * (a bubble has a day only where its coin, the ounce and the dollar all do) and the coin's mean
+ * bubble over the year
+ */
+function RecomputeReport({ report }) {
+  return (
+    <div className="history-report" role="status">
+      <p className="history-hint">
+        {fa(report.written)} روز حباب ساخته شد · میانگین‌ها تا {faDate(report.averagesThrough)} {report.averagesThrough ? 'دوباره حساب شدند' : 'حساب نشدند (دفتر قیمت در دسترس نبود)'}
+      </p>
+      <div className="history-report-inputs">
+        <span>انس (دلاری): {span(report.inputs.ounce)}</span>
+        <span>دلار: {span(report.inputs.usd)}</span>
+      </div>
+      <div className="history-keys">
+        {report.bubbles.map((b) => {
+          const short = b.coin.days > 0 && b.history.days < b.coin.days;
+          return (
+            <div key={b.id} className="history-key">
+              <div className="history-mapping-name">
+                <strong>{b.name}</strong>
+                <small dir="ltr">{b.id}</small>
+              </div>
+              <span className="history-status">{span(b.history)}</span>
+              <span className="history-status">{b.coin.name}: {span(b.coin)}</span>
+              <span className="history-status">
+                {b.targetBubblePct !== null ? `میانگین حباب یک سال: ${fa(b.targetBubblePct)}٪ (${fa(b.targetBubbleDays)} روز)` : 'میانگین حباب یک سال: ندارد'}
+              </span>
+              {short && <span className="history-status is-error">{fa(b.coin.days - b.history.days)} روزِ سکه انس یا دلار ندارد</span>}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -284,6 +328,23 @@ export default function PriceHistoryAdmin() {
     }
   };
 
+  // «محاسبه‌ی دوباره»: the derived history and the averages, with what came of it
+  const [recomputing, setRecomputing] = useState(false);
+  const [report, setReport] = useState(null);
+  const recompute = async () => {
+    setRecomputing(true);
+    try {
+      const res = await recomputeDerivedHistory();
+      setReport(res.report);
+      setData((d) => ({ ...d, history: res.history || d.history }));
+      toast.success('حباب سکه‌ها و میانگین‌ها دوباره حساب شدند');
+    } catch (err) {
+      toast.error(err?.message || 'محاسبه انجام نشد');
+    } finally {
+      setRecomputing(false);
+    }
+  };
+
   const orphans = data.history.filter((h) => !h.inBook);
   const deleteOrphans = async () => {
     if (!orphans.length) return;
@@ -421,6 +482,21 @@ export default function PriceHistoryAdmin() {
             </div>
           ))}
         </div>
+      </section>
+
+      <section className="fintech-card history-section">
+        <div className="history-section-head">
+          <h3>محاسبه‌ی دوباره</h3>
+        </div>
+        <p className="history-hint">
+          حباب سکه‌ها از تاریخچه‌ی خود سکه، انس و دلار ساخته می‌شود و میانگین‌ها (و میانگین حباب یک‌ساله، یعنی قیمت استاندارد سکه‌ها) از تاریخچه‌ی همه‌ی قیمت‌ها. بعد از پر کردن تاریخچه این‌ها خودکار در ساعت بعد دوباره حساب می‌شوند؛ این دکمه همین حالا حسابشان می‌کند و گزارش می‌دهد.
+        </p>
+        <div className="history-toolbar">
+          <Button icon={<Calculator size={16} />} loading={recomputing} disabled={recomputing} onClick={recompute}>
+            محاسبه‌ی دوباره‌ی همه
+          </Button>
+        </div>
+        {report && <RecomputeReport report={report} />}
       </section>
 
       <section className="fintech-card history-section">

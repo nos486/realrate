@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 /**
  * priceHistoryAdmin.test.js — The admin price history page: suggested mappings land on book items,
- * a preview offers the matching unit, "run all" goes dollar first, and stray ids can be removed
+ * a preview offers the matching unit, "run all" goes dollar first, stray ids can be removed, and
+ * «محاسبه‌ی دوباره» computes the derived history now and reports it
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -13,6 +14,7 @@ const api = vi.hoisted(() => ({
   previewHistorySeries: vi.fn(),
   runHistoryBackfill: vi.fn(),
   editHistoryKeys: vi.fn(),
+  recomputeDerivedHistory: vi.fn(),
 }));
 vi.mock('../../../web/src/features/admin/api/adminApi.js', () => api);
 
@@ -103,5 +105,31 @@ describe('price history admin', () => {
     fireEvent.click(await screen.findByText('حذف', { selector: 'button, button *' }));
     await waitFor(() => expect(api.editHistoryKeys).toHaveBeenCalledWith({ action: 'delete-orphans' }));
     await waitFor(() => expect(container.querySelectorAll('.history-key.is-orphan')).toHaveLength(0));
+  });
+
+  it('«محاسبه‌ی دوباره» computes the bubbles and averages now, and reports each bubble against its inputs', async () => {
+    api.recomputeDerivedHistory.mockResolvedValue({
+      history,
+      report: {
+        written: 300,
+        averagesThrough: '2026-01-09',
+        inputs: { ounce: { key: 'ons_gold@usd', days: 730, first: '2024-01-10', last: '2026-01-09' }, usd: { key: 'usd', days: 700, first: '2024-01-01', last: '2026-01-09' } },
+        bubbles: [{
+          id: 'bubble_full_coin', name: 'حباب سکه امامی',
+          history: { days: 300, first: '2025-03-15', last: '2026-01-09' },
+          coin: { id: 'full_coin', name: 'سکه امامی', days: 320, first: '2025-02-23', last: '2026-01-09' },
+          targetBubblePct: 6.5, targetBubbleDays: 300,
+        }],
+      },
+    });
+    page();
+    fireEvent.click(await screen.findByText('محاسبه‌ی دوباره‌ی همه'));
+    await waitFor(() => expect(api.recomputeDerivedHistory).toHaveBeenCalled());
+    await screen.findByText(/حباب ساخته شد/);
+    const report = document.querySelector('.history-report');
+    expect(report.textContent).toMatch(/۳۰۰ روز حباب ساخته شد/);
+    expect(report.textContent).toMatch(/میانگین حباب یک سال: ۶٫۵٪ \(۳۰۰ روز\)/);
+    // The coin's days the bubble lacks: no ounce or dollar those days
+    expect(report.textContent).toMatch(/۲۰ روزِ سکه انس یا دلار ندارد/);
   });
 });

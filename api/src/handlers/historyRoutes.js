@@ -7,6 +7,8 @@
  *   POST /api/admin/history/backfill            { slug, target, unit, days, overwrite, usdTarget? }
  *   POST /api/admin/history/keys                { action: "delete", key } | { action: "move", key, to }
  *                                               | { action: "delete-orphans" }
+ *   POST /api/admin/history/recompute           → compute the derived history (coin bubbles) and every
+ *                                               average again now, with a report (bubbleHistory.service.js)
  */
 
 import { getAuthenticatedUser } from "../lib/auth.js";
@@ -26,6 +28,7 @@ import {
   moveHistoryKey,
   MAX_BACKFILL_DAYS,
 } from "../services/market/historyBackfill.service.js";
+import { recomputeDerivedHistory } from "../services/market/bubbleHistory.service.js";
 
 /** The book's items a series can fill (catalogs — thousands of symbols — left out) */
 function bookItems(book) {
@@ -70,6 +73,8 @@ export async function handleAdminHistory(request, env) {
       throw err;
     }
   }
+
+  if (path === "/recompute") return ok({ report: await recomputeDerivedHistory(env), history: await listHistoryKeys(env) });
 
   if (path === "/keys") {
     if (body.action === "delete") return ok({ deleted: await deleteHistoryKey(env, String(body.key || "")), history: await listHistoryKeys(env) });

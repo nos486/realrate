@@ -111,6 +111,14 @@ export async function runHistoryBackfill({ slug, target, unit, days, overwrite, 
   return httpClient.post('/api/admin/history/backfill', { slug, target, unit, days, overwrite, usdTarget });
 }
 
+/**
+ * Compute the derived history (coin bubbles from the coins', ounce's and dollar's history) and
+ * every average again now: { report, history }
+ */
+export async function recomputeDerivedHistory() {
+  return httpClient.post('/api/admin/history/recompute', {});
+}
+
 /** Delete an id's history, move it to a book id, or delete every id the book doesn't know */
 export async function editHistoryKeys(body) {
   return httpClient.post('/api/admin/history/keys', body);
