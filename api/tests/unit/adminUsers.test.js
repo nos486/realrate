@@ -85,7 +85,7 @@ describe('admin user detail', () => {
   it('counts encrypted records apart from plaintext ones and flags plaintext left behind', async () => {
     const env = detailEnv({
       vault: true,
-      plain: { portfolios: 2, holdings: 5, transactions: 0, loans: 0, cheques: 0, incomes: 1, recurringIncomes: 0 },
+      plain: { portfolios: 2, holdings: 5, transactions: 0, loans: 0, cheques: 0, incomes: 1 },
       vaultRows: [{ kind: 'income', count: 36 }, { kind: 'loan', count: 2 }],
       e2eePortfolios: 2,
     });
@@ -98,7 +98,7 @@ describe('admin user detail', () => {
   it('never flags plaintext data of an account without the vault', async () => {
     const env = detailEnv({
       vault: false,
-      plain: { portfolios: 1, holdings: 0, transactions: 0, loans: 3, cheques: 1, incomes: 10, recurringIncomes: 1 },
+      plain: { portfolios: 1, holdings: 0, transactions: 0, loans: 3, cheques: 1, incomes: 10 },
       vaultRows: [],
       e2eePortfolios: 0,
     });

@@ -22,7 +22,6 @@ const USAGE_LABELS = [
   ['loans', 'وام'],
   ['cheques', 'چک'],
   ['incomes', 'درآمد'],
-  ['recurringIncomes', 'درآمد ثابت'],
   ['expenses', 'هزینه'],
   ['accounts', 'حساب'],
   ['transfers', 'انتقال بین حساب‌ها'],
@@ -257,7 +256,7 @@ export default function AdminUserDetailModal({ userId, fallback, onClose, onChan
             {detail.plaintextPending > 0 && (
               <AlertBanner
                 type="warning"
-                message={`رمزنگاری این حساب فعال است اما ${faNum(detail.plaintextPending)} مورد (وام، درآمد، چک یا درآمد ثابت) هنوز رمزنگاری‌نشده ذخیره شده است. کاربر باید در تنظیمات حساب (بخش رمزنگاری سرتاسری) دکمه «رمزنگاری» را بزند.`}
+                message={`رمزنگاری این حساب فعال است اما ${faNum(detail.plaintextPending)} مورد (وام، درآمد یا چک) هنوز رمزنگاری‌نشده ذخیره شده است. کاربر باید در تنظیمات حساب (بخش رمزنگاری سرتاسری) دکمه «رمزنگاری» را بزند.`}
               />
             )}
             <div className="admin-usage">

@@ -252,30 +252,6 @@ export const APP_TABLES = [
     ],
   },
   {
-    name: "recurring_incomes",
-    columns: ["id", "user_id", "title", "category", "amount", "day_of_month", "interval_months", "start_date", "end_date",
-      "notes", "active", "generated_through", "created_at", "updated_at"],
-    ddl: [
-      `CREATE TABLE IF NOT EXISTS recurring_incomes (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        title TEXT NOT NULL,
-        category TEXT NOT NULL DEFAULT 'other',
-        amount REAL NOT NULL,
-        day_of_month INTEGER NOT NULL,
-        interval_months INTEGER NOT NULL DEFAULT 1,
-        start_date TEXT NOT NULL,
-        end_date TEXT NOT NULL DEFAULT '',
-        notes TEXT NOT NULL DEFAULT '',
-        active INTEGER NOT NULL DEFAULT 1,
-        generated_through TEXT NOT NULL DEFAULT '',
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      )`,
-      "CREATE INDEX IF NOT EXISTS idx_recurring_incomes_user ON recurring_incomes(user_id)",
-    ],
-  },
-  {
     name: "cheques",
     columns: ["id", "user_id", "direction", "status", "amount", "due_date", "issue_date", "counterparty", "bank_id",
       "bank_name", "cheque_number", "sayad_id", "notes", "history", "created_at", "updated_at"],
@@ -642,6 +618,8 @@ export const APP_TABLES = [
       )`,
       // Left over from the one-time copy out of Postgres
       "DROP TABLE IF EXISTS pg_migration",
+      // Recurring incomes were retired; the table and its rows go with the next schema run
+      "DROP TABLE IF EXISTS recurring_incomes",
     ],
   },
 ];

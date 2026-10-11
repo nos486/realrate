@@ -142,7 +142,7 @@ export async function dbSaveUserVault(env, userId, { salt, wrappedKey, previousW
 }
 
 /** Plaintext tables of a user's own data (an empty auto-created portfolio does not count) */
-const PLAINTEXT_DATA_TABLES = ["portfolio_holdings", "transactions", "loans", "incomes", "cheques", "recurring_incomes"];
+const PLAINTEXT_DATA_TABLES = ["portfolio_holdings", "transactions", "loans", "incomes", "cheques"];
 
 /** Whether the user has any data stored in the plaintext tables */
 export async function dbUserHasPlaintextData(env, userId) {
@@ -182,7 +182,6 @@ const USER_DATA_TABLES = [
   "loan_installment_states",
   "loan_extra_payments",
   "incomes",
-  "recurring_incomes",
   "cheques",
   "custom_banks",
   "vault_records",
@@ -275,9 +274,6 @@ function deletePlainStatements(env, userId, kind, id) {
   }
   if (kind === "cheque") {
     return [env.DB.prepare(`DELETE FROM cheques WHERE id = ? AND user_id = ?`).bind(id, userId)];
-  }
-  if (kind === "recurring_income") {
-    return [env.DB.prepare(`DELETE FROM recurring_incomes WHERE id = ? AND user_id = ?`).bind(id, userId)];
   }
   if (kind === "holding") {
     return [env.DB.prepare(`DELETE FROM portfolio_holdings WHERE id = ? AND user_id = ?`).bind(id, userId)];

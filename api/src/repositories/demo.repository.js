@@ -172,7 +172,6 @@ export async function dbResetDemoData(env) {
       env.DB.prepare("DELETE FROM transactions WHERE user_id = ?").bind(userId),
       env.DB.prepare("DELETE FROM loans WHERE user_id = ?").bind(userId),
       env.DB.prepare("DELETE FROM incomes WHERE user_id = ?").bind(userId),
-      env.DB.prepare("DELETE FROM recurring_incomes WHERE user_id = ?").bind(userId),
       env.DB.prepare("DELETE FROM cheques WHERE user_id = ?").bind(userId),
       env.DB.prepare("DELETE FROM custom_banks WHERE user_id = ?").bind(userId),
       env.DB.prepare("DELETE FROM vault_records WHERE user_id = ?").bind(userId),

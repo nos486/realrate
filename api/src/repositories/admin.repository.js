@@ -189,7 +189,6 @@ const USAGE_TABLES = [
   ["loans", "loans"],
   ["cheques", "cheques"],
   ["incomes", "incomes"],
-  ["recurringIncomes", "recurring_incomes"],
 ];
 
 /** Encrypted-account record kinds counted like the plain tables above */
@@ -197,7 +196,6 @@ const VAULT_KIND_KEYS = {
   loan: "loans",
   cheque: "cheques",
   income: "incomes",
-  recurring_income: "recurringIncomes",
   holding: "holdings",
   transaction: "transactions",
   expense: "expenses",
@@ -206,7 +204,7 @@ const VAULT_KIND_KEYS = {
 };
 /** Kinds whose plaintext rows are leftovers once the vault is on (portfolio items of a
  *  portfolio still behind its own older passphrase legitimately stay in their tables) */
-const PENDING_KEYS = ["loans", "cheques", "incomes", "recurringIncomes"];
+const PENDING_KEYS = ["loans", "cheques", "incomes"];
 
 /**
  * One user's account facts and usage counts (never the records themselves)

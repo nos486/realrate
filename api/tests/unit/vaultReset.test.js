@@ -20,7 +20,7 @@ import { hashPassword } from '../../src/lib/security.js';
 const CIPHER = 'enc:e2ee:v1:QUJDREVGR0g=';
 const TABLES = [
   'portfolios', 'portfolio_holdings', 'transactions', 'loans', 'loan_installment_states', 'loan_extra_payments',
-  'incomes', 'recurring_incomes', 'cheques', 'custom_banks', 'vault_records', 'vault_tombstones', 'user_vaults',
+  'incomes', 'cheques', 'custom_banks', 'vault_records', 'vault_tombstones', 'user_vaults',
   'vault_reminders', 'alert_email_prefs', 'alert_email_sent',
 ];
 
