@@ -155,6 +155,26 @@ export async function recordSubscriptionPayments(sub, today, { saveSubscription 
 }
 
 /**
+ * The number of an installment (its place in the schedule). Its id is not stable: the same
+ * installment is `inst_<loan>_N` while computed, a generated id once a payment row exists, and a
+ * new one after being unpaid and paid again — so what it records is keyed by this number.
+ * @param {{ installmentNumber?: number, id?: string|number }} inst
+ * @returns {number} 0 when unknown
+ */
+export function installmentNumberOf(inst) {
+  const n = Number(inst?.installmentNumber);
+  if (n > 0) return n;
+  const id = String(inst?.id ?? '');
+  return Number(id.match(/^(\d+)$|_(\d+)$/)?.slice(1).find(Boolean)) || 0;
+}
+
+/** The key of the expense that records a loan's installment (spendingExpenseId) */
+export const installmentSpendingKey = (loanId, inst) => {
+  const n = installmentNumberOf(inst);
+  return `loan:${loanId}:${n ? `n${n}` : inst.id}`;
+};
+
+/**
  * A loan's installments just marked paid on the loans page: each one's expense
  * @param {object} loan the loan (its title)
  * @param {Array<{ id: string, paidDate: string, paidAmount: number }>} installments
@@ -163,7 +183,7 @@ export async function recordInstallmentPayments(loan, installments) {
   for (const inst of installments) {
     const amount = Number(inst.paidAmount) || 0;
     if (!inst?.id || !inst.paidDate || !(amount > 0)) continue;
-    await recordSpending(`loan:${loan.id}:${inst.id}`, {
+    await recordSpending(installmentSpendingKey(loan.id, inst), {
       title: `قسط ${loan.title || 'وام'}`,
       amount,
       currency: BASE_CURRENCY,
@@ -180,11 +200,16 @@ export async function recordInstallmentPayments(loan, installments) {
  * @param {string} loanId
  * @param {string} installmentId
  * @param {string} paidDate the day it had been paid
+ * @param {number} [installmentNumber] its place in the schedule (installmentNumberOf)
  */
-export async function removeInstallmentPayment(loanId, installmentId, paidDate) {
+export async function removeInstallmentPayment(loanId, installmentId, paidDate, installmentNumber = 0) {
   const { getExpenses, deleteExpense } = await store();
   const link = { loanId, installmentId: String(installmentId) };
-  const ids = new Set([spendingExpenseId(`loan:${loanId}:${installmentId}`)]);
+  const ids = new Set([
+    spendingExpenseId(installmentSpendingKey(loanId, { id: installmentId, installmentNumber })),
+    // Recorded under the id it had then, before expenses were keyed by number
+    spendingExpenseId(`loan:${loanId}:${installmentId}`),
+  ]);
   if (paidDate) {
     const { expenses = [] } = await getExpenses({ from: paidDate, to: paidDate });
     for (const e of expenses) if (e.loanInstallment && sameLinkValue(e.loanInstallment, link)) ids.add(e.id);
