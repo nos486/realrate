@@ -120,6 +120,33 @@ describe('SMS inbox', () => {
     expect(getSmsSettings().lastRead).toBeGreaterThanOrEqual(before);
   });
 
+  it('reads a long span (a year) a window at a time, each message once; never more than two years', async () => {
+    // Every window answers; the newest window also returns a message the next one repeats
+    plugin.read.mockReset();
+    plugin.read.mockImplementation(async ({ since, until }) => ({
+      messages: until && until - since < 31 * 86_400_000 && since > Date.now() - 31 * 86_400_000
+        ? [DEBIT, CREDIT]
+        : [CREDIT],
+    }));
+    const before = Date.now();
+    const res = await readSmsDays(365);
+    const calls = plugin.read.mock.calls.map(([arg]) => arg);
+    // 30-day windows back to a year ago, each with an end, the newest first
+    expect(calls.length).toBe(Math.ceil(365 / 30));
+    expect(calls.every((c) => c.until > c.since && c.until - c.since <= 30 * 86_400_000 + 1)).toBe(true);
+    expect(calls[0].until).toBeGreaterThanOrEqual(before);
+    expect(before - calls.at(-1).since).toBeGreaterThanOrEqual(365 * 86_400_000 - 1000);
+    // Consecutive windows touch: no gap between them
+    for (let i = 1; i < calls.length; i++) expect(calls[i].until).toBe(calls[i - 1].since + 1);
+    // The same message from two windows counts once
+    expect(res.read).toBe(2);
+
+    plugin.read.mockClear();
+    await readSmsDays(5000);
+    const oldest = Math.min(...plugin.read.mock.calls.map(([arg]) => arg.since));
+    expect(Date.now() - oldest).toBeLessThanOrEqual(730 * 86_400_000 + 1000);
+  });
+
   it('reads automatically (on unless turned off) when allowed, only messages from then on', async () => {
     expect(getSmsSettings().auto).toBe(true);
     plugin.checkPermissions.mockResolvedValue({ sms: 'granted' });

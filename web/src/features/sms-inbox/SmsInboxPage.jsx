@@ -7,7 +7,8 @@
  *   expense the user paid (ShareDepositSheet), so neither is recorded as income; a withdrawal can
  *   go to a project instead of everyday expenses («ثبت در یک پروژه», ProjectPickSheet)
  * - "read earlier messages": automatic reading only picks up messages from the moment it is on;
- *   older ones are read here on demand (the last 24 hours, 7, 30 or 90 days)
+ *   older ones are read here on demand: the last 24 hours, 7, 30 or 90 days, a year, or any number
+ *   of days the user types («دلخواه», up to MAX_READ_DAYS; a long span is read a window at a time)
  * Recording writes encrypted records, so the vault must be unlocked for it. Once it is, messages
  * already recorded (recordedCheck.js) leave the list — by their transaction key, or a
  * hand-recorded expense/income of the same day, amount and kind.
@@ -15,14 +16,14 @@
 
 import React, { useEffect, useState } from 'react';
 import { MessageSquareText, History } from 'lucide-react';
-import { AlertBanner, Button, Card, FeaturePageHeader, FilterPills } from '../../shared/ui/index.js';
+import { AlertBanner, Button, Card, FeaturePageHeader, FilterPills, NumericInput } from '../../shared/ui/index.js';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import VaultUnlockCard from '../../shared/vault/VaultUnlockCard.jsx';
 import { useVault } from '../../shared/vault/useVault.js';
 import { useDemo } from '../demo/index.js';
 import { useAccounts } from '../accounts/hooks/useAccounts.js';
 import { usePricing } from '../market/index.js';
-import { markSmsHandled, readSmsDays, smsPermission, getSmsSettings, smsOutcome, getPendingSms } from '../../shared/native/smsInbox.js';
+import { markSmsHandled, readSmsDays, smsPermission, getSmsSettings, smsOutcome, getPendingSms, MAX_READ_DAYS } from '../../shared/native/smsInbox.js';
 import SmsReadHistory from './SmsReadHistory.jsx';
 import { useSmsInbox } from '../../shared/native/useSmsInbox.js';
 import { createIncome } from '../incomes/api/incomeApi.js';
@@ -39,9 +40,14 @@ import { saveSmsExpense, recordSmsExpense, dropAlreadyRecorded } from './smsReco
 import { getExpenseCategory } from '../expenses/constants/expenseCategories.js';
 import { bumpVaultEpoch } from '../../shared/vault/vaultStore.js';
 
+/** «دلخواه»: the number of days typed */
+const CUSTOM_DAYS = 'custom';
+
 const DAY_OPTIONS = [
   { value: 1, label: '۲۴ ساعت' },
   ...[7, 30, 90].map((d) => ({ value: d, label: `${d.toLocaleString('fa-IR')} روز` })),
+  { value: 365, label: '۱ سال' },
+  { value: CUSTOM_DAYS, label: 'دلخواه' },
 ];
 
 export default function SmsInboxPage() {
@@ -55,6 +61,10 @@ export default function SmsInboxPage() {
   const [incomeDraft, setIncomeDraft] = useState(null);
   const [saving, setSaving] = useState(false);
   const [days, setDays] = useState(30);
+  const [customDays, setCustomDays] = useState('');
+  const typedDays = Number(String(customDays).replace(/,/g, ''));
+  const customValid = Number.isInteger(typedDays) && typedDays >= 1 && typedDays <= MAX_READ_DAYS;
+  const readDays = days === CUSTOM_DAYS ? (customValid ? typedDays : null) : days;
   const [reading, setReading] = useState(false);
   // What the last «بخوان» found that is already recorded or dismissed: on screen only
   const [readHistory, setReadHistory] = useState([]);
@@ -133,6 +143,7 @@ export default function SmsInboxPage() {
   };
 
   const handleReadPast = async () => {
+    if (!readDays) return;
     setReading(true);
     try {
       if ((await smsPermission()) !== 'granted' && (await smsPermission({ request: true })) !== 'granted') {
@@ -142,7 +153,7 @@ export default function SmsInboxPage() {
       // With the vault open, recorded ones are read again and checked against it: a message whose
       // expense or income was deleted comes back
       const unlocked = vaultStatus === 'unlocked';
-      const { read, added, transactions = [] } = await readSmsDays(days, { recheckRecorded: unlocked });
+      const { read, added, transactions = [] } = await readSmsDays(readDays, { recheckRecorded: unlocked });
       const dropped = unlocked && added ? await dropAlreadyRecorded() : 0;
       // The rest of what it read: not waiting any more (recorded, or dismissed)
       const waiting = new Set(getPendingSms().map((p) => p.tx?.key));
@@ -192,8 +203,25 @@ export default function SmsInboxPage() {
       >
         <div className="app-setting-actions">
           <FilterPills options={DAY_OPTIONS} activeValue={days} onChange={setDays} size="sm" />
-          <Button size="sm" onClick={handleReadPast} loading={reading}>بخوان</Button>
+          {days === CUSTOM_DAYS && (
+            <label className="sms-read-days">
+              <NumericInput
+                id="sms-read-days"
+                value={customDays}
+                onValueChange={setCustomDays}
+                placeholder="مثلاً ۱۸۰"
+                className="ui-input-control"
+                aria-label="تعداد روز"
+              />
+              <span>روز گذشته</span>
+            </label>
+          )}
+          <Button size="sm" onClick={handleReadPast} loading={reading} disabled={!readDays}>بخوان</Button>
         </div>
+        {days === CUSTOM_DAYS && !customValid && customDays !== '' && (
+          <p className="expense-form-hint is-warning">بین ۱ تا {MAX_READ_DAYS.toLocaleString('fa-IR')} روز.</p>
+        )}
+        {readDays > 90 && <p className="expense-form-hint">خواندن بازه‌ی طولانی ممکن است چند ثانیه طول بکشد.</p>}
       </Card>
 
       <SmsReadHistory items={readHistory} />
