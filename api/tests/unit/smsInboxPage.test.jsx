@@ -152,6 +152,35 @@ describe('SmsInboxPage', () => {
     await waitFor(() => expect(screen.queryByText('قبلاً ثبت‌شده')).toBeNull());
   });
 
+  it('reads earlier messages over a year, or any number of days typed (up to two years)', async () => {
+    render(<SmsInboxPage />);
+    plugin.read.mockClear();
+    plugin.read.mockResolvedValue({ messages: [] });
+    fireEvent.click(screen.getByRole('tab', { name: '۱ سال' }));
+    fireEvent.click(screen.getByText('بخوان').closest('button'));
+    await waitFor(() => expect(plugin.read).toHaveBeenCalled());
+    const oldest = () => Math.min(...plugin.read.mock.calls.map(([arg]) => arg.since));
+    await waitFor(() => expect(Date.now() - oldest()).toBeGreaterThanOrEqual(365 * 86_400_000 - 5000));
+
+    // «دلخواه»: the days typed; out of range, nothing to read
+    plugin.read.mockClear();
+    fireEvent.click(screen.getByRole('tab', { name: 'دلخواه' }));
+    const read = screen.getByText('بخوان').closest('button');
+    expect(read.disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText('تعداد روز'), { target: { value: '900' } });
+    expect(read.disabled).toBe(true);
+    expect(screen.getByText(/بین ۱ تا ۷۳۰ روز/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('تعداد روز'), { target: { value: '200' } });
+    expect(read.disabled).toBe(false);
+    fireEvent.click(read);
+    await waitFor(() => expect(plugin.read).toHaveBeenCalled());
+    await waitFor(() => {
+      const span = Date.now() - oldest();
+      expect(span).toBeGreaterThanOrEqual(200 * 86_400_000 - 5000);
+      expect(span).toBeLessThan(201 * 86_400_000);
+    });
+  });
+
   it('dismisses a message with «رد» beside the main action (not in the menu)', async () => {
     render(<SmsInboxPage />);
     await waitFor(() => expect(screen.getAllByText('رد')).toHaveLength(2));

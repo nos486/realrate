@@ -30,14 +30,15 @@ import java.util.regex.Pattern;
  * Reads bank messages from the phone's SMS inbox (the app's "read SMS automatically").
  *
  * Only withdrawals and deposits are returned: messages from the banks' senders that one of that
- * bank's templates reads (`rules`, BankSmsRules), newer than `since`; nothing else leaves the
- * inbox. The web app reads them with bankSms.js and keeps them on the phone until they are
+ * bank's templates reads (`rules`, BankSmsRules), newer than `since` (and, with `until`, older
+ * than it: a long span is read a window at a time, each within MAX_MESSAGES); nothing else leaves
+ * the inbox. The web app reads them with bankSms.js and keeps them on the phone until they are
  * recorded or dismissed.
  *
  * New messages are caught as they arrive by BankSmsReceiver, which shows a notification and tells
  * the open app (event "smsReceived") to read them.
  *
- * JS: BankSms.read({ senders: string[], rules: Rule[], since: epochMillis, limit?: number })
+ * JS: BankSms.read({ senders: string[], rules: Rule[], since: epochMillis, until?: epochMillis, limit?: number })
  *     → { messages: [{ id, address, body, date }] }, newest first
  *     BankSms.configure({ enabled: boolean, senders: string[], rules: Rule[] })   what BankSmsReceiver notifies for
  *     Rule = { senders: string[], patterns: string[] }   (nativeSmsRules in bankSms.js)
@@ -175,15 +176,24 @@ public class BankSmsPlugin extends Plugin {
         // Epoch millis: JSON gives a Long (or a Double), so read it as any number
         Object sinceValue = call.getData().opt("since");
         long since = sinceValue instanceof Number ? ((Number) sinceValue).longValue() : 0L;
+        // Optional end of the window (exclusive): none, up to now
+        Object untilValue = call.getData().opt("until");
+        long until = untilValue instanceof Number ? ((Number) untilValue).longValue() : 0L;
         int limit = Math.min(call.getInt("limit", MAX_MESSAGES), MAX_MESSAGES);
+        String selection = until > 0
+            ? Telephony.Sms.DATE + " > ? AND " + Telephony.Sms.DATE + " < ?"
+            : Telephony.Sms.DATE + " > ?";
+        String[] selectionArgs = until > 0
+            ? new String[] { String.valueOf(since), String.valueOf(until) }
+            : new String[] { String.valueOf(since) };
 
         JSArray messages = new JSArray();
         String[] projection = { Telephony.Sms._ID, Telephony.Sms.ADDRESS, Telephony.Sms.BODY, Telephony.Sms.DATE };
         try (Cursor cursor = getContext().getContentResolver().query(
             Telephony.Sms.Inbox.CONTENT_URI,
             projection,
-            Telephony.Sms.DATE + " > ?",
-            new String[] { String.valueOf(since) },
+            selection,
+            selectionArgs,
             Telephony.Sms.DATE + " DESC"
         )) {
             if (cursor != null) {

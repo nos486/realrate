@@ -36,6 +36,41 @@ const DISMISSED_KEY = 'realrate_sms_dismissed';
 const MAX_HANDLED = 3000;
 const DAY_MS = 86_400_000;
 const READ_OVERLAP_MS = 60 * 60 * 1000;
+
+/** A long span is read a window at a time, newest first: the plugin gives at most 1000 messages
+ *  a call (BankSmsPlugin MAX_MESSAGES), and a busy account has that many in a few months */
+export const READ_WINDOW_DAYS = 30;
+
+/** How far back a read by hand may go (days) */
+export const MAX_READ_DAYS = 730;
+
+/**
+ * The bank messages since `since` (epoch millis), newest first: one call for a short span, else a
+ * window of READ_WINDOW_DAYS at a time back to `since` (each message once)
+ */
+async function readMessagesSince(senders, rules, since, now) {
+  const start = Math.max(0, Math.floor(since));
+  if (now - start <= READ_WINDOW_DAYS * DAY_MS) {
+    return (await BankSms.read({ senders, rules, since: start })).messages || [];
+  }
+  const seen = new Set();
+  const all = [];
+  // Each window takes the messages after its start and before its end; the next ends just after
+  // this one's start, so a message exactly on the boundary is not missed
+  for (let until = now + 1; until > start;) {
+    const from = Math.max(start, until - READ_WINDOW_DAYS * DAY_MS);
+    const { messages = [] } = await BankSms.read({ senders, rules, since: from, until });
+    for (const m of messages) {
+      const id = m.id ?? `${m.address}|${m.date}|${m.body}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      all.push(m);
+    }
+    if (from === start) break;
+    until = from + 1;
+  }
+  return all;
+}
 /** Where the notification of a bank message leads (BankSmsReceiver.INBOX_LINK) */
 export const SMS_INBOX_LINK = 'ir.realrate.app://sms-inbox';
 export const SMS_INBOX_EVENT = 'realrate:sms-inbox';
@@ -269,7 +304,7 @@ export async function readSmsSince(since, options = {}) {
     setSmsSettings({ lastRead: now });
     return { read: 0, added: 0 };
   }
-  const { messages = [] } = await BankSms.read({ senders, rules, since: Math.max(0, Math.floor(since)) });
+  const messages = await readMessagesSince(senders, rules, since, now);
   const added = addSmsMessages(messages, options);
   setSmsSettings({ lastRead: now });
   return { read: messages.length, added, transactions: readTransactions(messages) };
@@ -307,12 +342,14 @@ export function smsOutcome(item) {
 }
 
 /**
- * "Read the last N days"; `transactions`: everything read, waiting or not
+ * "Read the last N days" (a day to MAX_READ_DAYS; a long span a window at a time); `transactions`:
+ * everything read, waiting or not
  * @param {number} days
  * @param {{ recheckRecorded?: boolean }} [options] see addSmsMessages
  */
 export function readSmsDays(days, options = {}) {
-  return readSmsSince(Date.now() - days * DAY_MS, options);
+  const span = Math.min(Math.max(Math.round(Number(days) || 1), 1), MAX_READ_DAYS);
+  return readSmsSince(Date.now() - span * DAY_MS, options);
 }
 
 /**
