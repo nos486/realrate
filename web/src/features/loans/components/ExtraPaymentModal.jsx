@@ -4,21 +4,44 @@
  * Supports two reduction modes:
  * 1. reduce_amount: Keeps remaining term length, reduces monthly installment amounts
  * 2. reduce_term: Keeps monthly installment amount, shortens total repayment period
+ *
+ * Laid out as an entry form (shared/form/, docs/en/DESIGN.md «Entry forms»): the amount first and
+ * large (in words under it), the day paid («امروز»/«دیروز»/«روز دیگر»), the reduction mode as a
+ * segmented choice with what it does under it, and the note under «جزئیات بیشتر».
  */
 
 import React, { useState } from 'react';
-import { DollarSign, AlertCircle, Sparkles, CheckCircle2, TrendingDown, Clock } from 'lucide-react';
-import Modal from '../../../shared/ui/Modal.jsx';
-import NumericInput from '../../../shared/ui/NumericInput.jsx';
-import ShamsiDatePicker, {
+import { DollarSign, Sparkles, CheckCircle2 } from 'lucide-react';
+import { AlertBanner, Button, FilterPills, Input, Modal } from '../../../shared/ui/index.js';
+import { AmountField, DateField, EntryFormActions, MoreDetails } from '../../../shared/form/index.js';
+import {
   getTodayShamsi,
   shamsiToGregorian,
 } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { todayIso } from '../../../shared/utils/dates.js';
-import TextField from '../../../shared/ui/TextField.jsx';
+import { BASE_CURRENCY } from '../../../utils/currencies.js';
 
 const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
 
+/** The reduction modes, and what each does to the remaining installments */
+const REDUCTION_MODES = [
+  {
+    value: 'reduce_amount',
+    label: 'کاهش مبلغ اقساط',
+    hint: 'تعداد اقساط باقیمانده بدون تغییر می‌ماند، ولی مبلغ پرداختی هر قسط سبک‌تر و کمتر می‌شود.',
+  },
+  {
+    value: 'reduce_term',
+    label: 'کاهش تعداد اقساط',
+    hint: 'مبلغ هر قسط ثابت می‌ماند، ولی مدت زمان وام کوتاه‌تر شده و وام زودتر تسویه می‌شود.',
+  },
+];
+
+/**
+ * @param {{ isOpen: boolean, onClose: () => void, loan: object|null,
+ *   onSubmit: (payment: { amount: number, paymentDate: string, reductionMode: string, notes: string }) => Promise<object|void>,
+ *   submitting?: boolean }} props
+ */
 export default function ExtraPaymentModal({
   isOpen,
   onClose,
@@ -84,66 +107,24 @@ export default function ExtraPaymentModal({
         onClose={handleClose}
         title="تبریک! وام تسویه شد"
         subtitle="با این پرداخت مازاد، کل بدهی این وام تسویه گردید."
-        icon={<Sparkles size={22} className="text-emerald-400" />}
+        icon={<Sparkles size={22} />}
         maxWidth="480px"
         footer={
-          <div className="modal-actions" style={{ width: '100%' }}>
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={handleClose}
-              style={{ width: '100%' }}
-            >
-              متوجه شدم، مشاهده وام
-            </button>
+          <div className="modal-actions">
+            <Button block onClick={handleClose}>متوجه شدم، مشاهده وام</Button>
           </div>
         }
       >
-        <div style={{ textAlign: 'center', padding: '24px 10px' }}>
-          <div style={{
-            width: '64px',
-            height: '64px',
-            borderRadius: '50%',
-            background: 'rgba(16, 185, 129, 0.15)',
-            color: 'var(--color-positive-text)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto 16px auto',
-          }}>
-            <CheckCircle2 size={36} />
-          </div>
-          <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>
-            وام با موفقیت تسویه شد!
-          </h3>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6, maxWidth: '360px', margin: '0 auto' }}>
-            تمام اقساط باقیمانده حذف شدند و مانده بدهی شما برای این وام به صفر رسید.
-          </p>
+        <div className="loan-payoff-done">
+          <span className="loan-payoff-done-icon"><CheckCircle2 size={36} /></span>
+          <h3>وام با موفقیت تسویه شد!</h3>
+          <p>تمام اقساط باقیمانده حذف شدند و مانده بدهی شما برای این وام به صفر رسید.</p>
         </div>
       </Modal>
     );
   }
 
-  const footerActions = (
-    <div className="modal-actions">
-      <button
-        type="button"
-        className="btn-cancel"
-        onClick={handleClose}
-        disabled={submitting}
-      >
-        انصراف
-      </button>
-      <button
-        type="submit"
-        className="btn-primary"
-        disabled={submitting || cleanAmount <= 0}
-        style={{ minWidth: '130px' }}
-      >
-        {submitting ? 'در حال ثبت...' : 'ثبت پرداخت اضافه'}
-      </button>
-    </div>
-  );
+  const mode = REDUCTION_MODES.find((m) => m.value === reductionMode) || REDUCTION_MODES[0];
 
   return (
     <Modal
@@ -155,149 +136,67 @@ export default function ExtraPaymentModal({
           ? `وام: ${loan.title} • مانده فعلی: ${formatNum(remainingBalance)} تومان`
           : 'ثبت مبلغ مازاد برای کاهش اقساط یا مدت بازپرداخت'
       }
-      icon={<DollarSign size={20} className="text-amber-500" />}
-      footer={footerActions}
+      icon={<DollarSign size={20} />}
+      footer={
+        <EntryFormActions
+          submitLabel="ثبت پرداخت اضافه"
+          valid={cleanAmount > 0}
+          submitting={submitting}
+          onCancel={handleClose}
+          onNext={null}
+        />
+      }
       onSubmit={handleSubmit}
       maxWidth="520px"
     >
-      <div className="extra-payment-form" style={{ padding: '4px 0' }}>
-        {formError && (
-          <div className="form-error-banner" style={{
-            background: 'rgba(239, 68, 68, 0.12)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            borderRadius: '10px',
-            padding: '10px 14px',
-            color: 'var(--color-negative-text)',
-            fontSize: '0.85rem',
-            marginBottom: '14px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}>
-            <AlertCircle size={16} />
-            <span>{formError}</span>
-          </div>
-        )}
+      <div className="entry-form-body extra-payment-form">
+        {formError && <AlertBanner type="error" message={formError} />}
 
-        {/* Row 1: Amount */}
-        <div className="form-item" style={{ marginBottom: '14px' }}>
-          <label className="ui-input-label" style={{ display: 'block', marginBottom: '6px' }}>
-            مبلغ پرداخت مازاد (تومان) *
-          </label>
-          <NumericInput
-            value={amount}
-            onValueChange={(val) => setAmount(val)}
-            placeholder="مثلاً: ۲۰,۰۰۰,۰۰۰"
-            affix="تومان"
-            className="form-input"
-            required
-          />
+        <AmountField
+          id="extra-payment-amount"
+          label="مبلغ پرداخت"
+          value={amount}
+          onValueChange={setAmount}
+          currency={BASE_CURRENCY}
+          placeholder="مثلاً ۲۰,۰۰۰,۰۰۰"
+          autoFocus
+        >
           {cleanAmount > 0 && remainingBalance > 0 && cleanAmount >= remainingBalance && (
-            <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--color-positive-text)', marginTop: '6px', fontWeight: 600 }}>
-              ✓ این مبلغ کل مانده را تسویه خواهد کرد.
-            </span>
+            <p className="loan-form-payoff-hint">✓ این مبلغ کل مانده را تسویه خواهد کرد.</p>
           )}
-        </div>
+        </AmountField>
 
-        {/* Row 2: Date */}
-        <div style={{ marginBottom: '16px' }}>
-          <ShamsiDatePicker
-            label="تاریخ واریز وجه *"
-            value={paymentDateShamsi}
-            onChange={(val) => {
-              setPaymentDateShamsi(val);
-              const iso = shamsiToGregorian(val);
-              if (iso) setPaymentDateIso(iso);
-            }}
-            onChangeIso={(iso) => setPaymentDateIso(iso)}
+        <DateField
+          label="تاریخ واریز وجه *"
+          value={paymentDateShamsi}
+          onChange={(val) => {
+            setPaymentDateShamsi(val);
+            const iso = shamsiToGregorian(val);
+            if (iso) setPaymentDateIso(iso);
+          }}
+        />
+
+        <div className="ui-input-group">
+          <span className="ui-input-label">نحوه اعمال بر اقساط باقیمانده</span>
+          <FilterPills
+            variant="segmented"
+            size="sm"
+            options={REDUCTION_MODES}
+            activeValue={reductionMode}
+            onChange={setReductionMode}
           />
+          <p className="expense-form-hint">{mode.hint}</p>
         </div>
 
-        {/* Row 3: Reduction Mode Selection */}
-        <div className="form-item" style={{ marginBottom: '16px' }}>
-          <label className="ui-input-label" style={{ display: 'block', marginBottom: '8px' }}>
-            نحوه اعمال بر اقساط باقیمانده:
-          </label>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {/* Mode 1: reduce_amount */}
-            <label style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: '10px',
-              padding: '12px 14px',
-              borderRadius: '10px',
-              background: reductionMode === 'reduce_amount' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(255, 255, 255, 0.03)',
-              border: reductionMode === 'reduce_amount' ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}>
-              <input
-                type="radio"
-                name="reductionMode"
-                value="reduce_amount"
-                checked={reductionMode === 'reduce_amount'}
-                onChange={() => setReductionMode('reduce_amount')}
-                style={{ marginTop: '3px', accentColor: 'var(--color-warning)', cursor: 'pointer' }}
-              />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                <strong style={{ fontSize: '0.88rem', color: reductionMode === 'reduce_amount' ? 'var(--color-warning-text)' : 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <TrendingDown size={15} />
-                  کاهش مبلغ اقساط باقیمانده
-                </strong>
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                  تعداد اقساط باقیمانده بدون تغییر می‌ماند، ولی مبلغ پرداختی هر قسط سبک‌تر و کمتر می‌شود.
-                </span>
-              </div>
-            </label>
-
-            {/* Mode 2: reduce_term */}
-            <label style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: '10px',
-              padding: '12px 14px',
-              borderRadius: '10px',
-              background: reductionMode === 'reduce_term' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(255, 255, 255, 0.03)',
-              border: reductionMode === 'reduce_term' ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}>
-              <input
-                type="radio"
-                name="reductionMode"
-                value="reduce_term"
-                checked={reductionMode === 'reduce_term'}
-                onChange={() => setReductionMode('reduce_term')}
-                style={{ marginTop: '3px', accentColor: 'var(--color-warning)', cursor: 'pointer' }}
-              />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                <strong style={{ fontSize: '0.88rem', color: reductionMode === 'reduce_term' ? 'var(--color-warning-text)' : 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Clock size={15} />
-                  کاهش تعداد اقساط (مبلغ هر قسط ثابت بمونه)
-                </strong>
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                  مبلغ هر قسط ثابت می‌ماند، ولی مدت زمان وام کوتاه‌تر شده و وام زودتر تسویه می‌شود.
-                </span>
-              </div>
-            </label>
-          </div>
-        </div>
-
-        {/* Row 4: Notes */}
-        <div className="form-item">
-          <label className="ui-input-label" style={{ display: 'block', marginBottom: '6px' }}>
-            توضیحات یا منبع واریزی (اختیاری)
-          </label>
-          <TextField
-            type="text"
-            className="form-input"
+        <MoreDetails filled={notes.trim() ? ['یادداشت'] : []}>
+          <Input
+            id="extra-payment-notes"
+            label="توضیحات یا منبع واریزی"
             placeholder="مثلاً: پاداش، فروش طلا، تسویه پیش از موعد..."
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            style={{ width: '100%' }}
           />
-        </div>
+        </MoreDetails>
       </div>
     </Modal>
   );
