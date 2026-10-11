@@ -18,6 +18,7 @@ import {
   canAdvance,
   shiftDay,
   AVERAGE_REBUILD_DAYS,
+  AVERAGE_STATE_VERSION,
 } from '../../src/domain/priceAverages.js';
 import { readAverageSums, readDayCloses, importDailyCandles } from '../../src/repositories/priceHistory.repository.js';
 import { averageStateThrough, withAverages, resetPriceAverages, AVERAGES_STATE_KEY, AVERAGES_RETRY_MS } from '../../src/services/market/priceAverages.service.js';
@@ -35,7 +36,7 @@ describe('averages: pure', () => {
   });
 
   it('moves the running sums a day forward', () => {
-    const state = { v: 1, through: '2026-05-09', rebuiltOn: '2026-05-09', sums: { '30d': { usd: [300, 3] }, '1y': { usd: [300, 3] } } };
+    const state = { v: AVERAGE_STATE_VERSION, through: '2026-05-09', rebuiltOn: '2026-05-09', sums: { '30d': { usd: [300, 3] }, '1y': { usd: [300, 3] } } };
     const next = advanceAverageState(state, [
       { item_key: 'usd', day: '2026-05-10', value: 130 },
       { item_key: 'usd', day: '2026-04-10', value: 90 }, // leaves the 30 days
@@ -47,7 +48,7 @@ describe('averages: pure', () => {
   });
 
   it('sums again when the state is missing, behind by more than a day, or too old', () => {
-    const state = { v: 1, through: '2026-05-09', rebuiltOn: '2026-05-01', sums: {} };
+    const state = { v: AVERAGE_STATE_VERSION, through: '2026-05-09', rebuiltOn: '2026-05-01', sums: {} };
     expect(canAdvance(state, '2026-05-10')).toBe(true);
     expect(canAdvance(state, '2026-05-11')).toBe(false);
     expect(canAdvance(null, '2026-05-10')).toBe(false);

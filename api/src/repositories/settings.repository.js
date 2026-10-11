@@ -6,10 +6,11 @@ import { ensureSchema } from "./schema.repository.js";
 import { logger } from "../lib/logger.js";
 import { SETTINGS_MEMORY_CACHE_TTL_MS } from "../config/constants.js";
 
+/**
+ * The settings there are. The coins' target bubbles once were (`bubble_pct_*`, columns kept in
+ * the table): each coin's is now its bubble's mean over the last year (domain/priceAverages.js).
+ */
 export const DEFAULT_SETTINGS = {
-  bubble_pct_full: 15,
-  bubble_pct_half: 20,
-  bubble_pct_quarter: 25,
   announcement: "",
   // Maintenance ("under development") mode: only admins can sign in and use the API
   maintenance_mode: 0,
@@ -75,21 +76,14 @@ export async function saveGlobalSettings(env, newSettings) {
     await ensureSchema(env);
     try {
       await env.DB.prepare(`
-        INSERT INTO settings (id, bubble_pct_full, bubble_pct_half, bubble_pct_quarter, announcement,
-                              maintenance_mode, maintenance_message, updated_at)
-        VALUES (1, ?, ?, ?, ?, ?, ?, datetime('now'))
+        INSERT INTO settings (id, announcement, maintenance_mode, maintenance_message, updated_at)
+        VALUES (1, ?, ?, ?, datetime('now'))
         ON CONFLICT(id) DO UPDATE SET
-          bubble_pct_full      = excluded.bubble_pct_full,
-          bubble_pct_half      = excluded.bubble_pct_half,
-          bubble_pct_quarter   = excluded.bubble_pct_quarter,
           announcement         = excluded.announcement,
           maintenance_mode     = excluded.maintenance_mode,
           maintenance_message  = excluded.maintenance_message,
           updated_at           = excluded.updated_at
       `).bind(
-        mergedSettings.bubble_pct_full,
-        mergedSettings.bubble_pct_half,
-        mergedSettings.bubble_pct_quarter,
         mergedSettings.announcement,
         mergedSettings.maintenance_mode ? 1 : 0,
         mergedSettings.maintenance_message

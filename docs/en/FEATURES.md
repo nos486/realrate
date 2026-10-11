@@ -6,7 +6,7 @@ Every feature in detail. For a summary see the [README](../../README.en.md). Per
 
 ## 1. Intrinsic value and bubble of gold and coins
 - **Raw mathematical value**: the value of a gram of 18k and 24k gold from the world ounce price and the free-market dollar, with the legal weight and standard purity (750 and 999.9).
-- **Two bubbles**: against the raw gold value, and against the market's expected price with the union's approved bubble.
+- **Two bubbles**: against the raw gold value, and against the **standard price**. A coin's standard price = its gold value × (1 + the coin's mean bubble percent over the last year). The mean comes from the price history, never a fixed percent: each day both the coin's price and its bubble (tgju) closed, that day's bubble percent = bubble ÷ (coin − bubble), averaged over the last 365 days (through yesterday). A day missing either is left out, and the number of days averaged is kept. A coin without a bubble series (the old design coin) or without such a day yet has no standard price; gold's standard price is its gold value. (`api/src/domain/priceAverages.js`)
 - **Official coins**: Emami, Bahar Azadi, half, quarter and gram coins.
 - **Smart buy suggestion**: the asset with the lowest bubble is highlighted.
 - **Negative bubble and missing prices**: a negative bubble is told apart from items that have no price, without inventing prices.
@@ -134,7 +134,7 @@ Every feature in detail. For a summary see the [README](../../README.en.md). Per
   - User management: block/unblock (with sign-out everywhere; the admin account can't be blocked), sign out everywhere, and resend the verification email.
   - Statistics: users, active today, registered this week, public portfolios, and a 30-day chart of daily active users, registrations and app users.
   - **Android app users**: every signed-in request carries `X-RealRate-Client` (`android/<version>` from the app, `web` from the site; `api/src/domain/clientInfo.js`). With `/api/auth/me` (every time the app opens) the server records it in `user_clients` (first/last time and latest version of each client) and `client_activity` (each client's daily use). In the panel: an "app users" card (active today and in 30 days), an "app users" filter, an "app" badge with the version in the list, an "active in the app" series in the chart, an "app versions" card (how many users are on each version — who needs to update) and a "devices" section in each user's details. The app's version is set by the APK build (`VITE_APP_VERSION`); versions from before this change send no header and are not counted until updated.
-  - Site settings: the approved coin bubbles and the site-wide notice; fetching all sources at once in the sources section.
+  - Site settings: the site-wide notice (coin bubbles are no longer set by hand: each is its year's mean from the history); fetching all sources at once in the sources section.
 - **Maintenance mode**: with one switch in the admin panel only admins can sign in and use the site; everyone else (guest or signed in) sees an "updating" page with a configurable message and the server rejects their requests. While it is on, a banner reminds the admin.
 
 ## 13. Demo account and trial visit

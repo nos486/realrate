@@ -77,7 +77,8 @@ describe('buildPriceBook', () => {
   it('adds intrinsic values: on market items, and as items where no source prices them', () => {
     const goldGram = (2400 / TROY_OUNCE_GRAMS) * 100000;
     expect(book.items.gold_18k.params.intrinsic).toBe(Math.round(goldGram * 0.75));
-    expect(book.items.gold_18k.params.targetBubblePct).toBe(3);
+    // No fixed target bubble: a coin's comes from its history (priceAverages.js), gold has none
+    expect(book.items.gold_18k.params).not.toHaveProperty('targetBubblePct');
     expect(book.items.gold_24k).toMatchObject({ price: Math.round(goldGram), sourceId: null });
     expect(book.items.gold_24k.params.derived).toBe('intrinsic');
     expect(book.items.toman).toMatchObject({ price: 1, params: { derived: 'static' } });

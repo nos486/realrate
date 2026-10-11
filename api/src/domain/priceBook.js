@@ -25,7 +25,8 @@
  *   others become `${sourceId}__${id}`.
  * - Prices computed from others are items too: the intrinsic value of gold, coins and silver with
  *   no market source (from the ounce and USD), and cash (1 toman). Items that also have a market
- *   price carry their intrinsic value and bubble in `params`.
+ *   price carry their intrinsic value and bubble in `params`; a coin with a bubble series also its
+ *   year's mean bubble (`params.targetBubblePct`, from the history: priceAverages.js).
  * - Market indicators are items too (a coin's bubble from tgju, category `bubble`): a value in
  *   tomans like any price, not holdable (categories.config.js). One that measures another item
  *   (`bubbleOf` in its spec) also carries its percent of it (`params.bubblePct`).
@@ -386,10 +387,9 @@ export function buildPriceBook(sources, { now = new Date().toISOString(), source
     const market = items[id];
     if (market) {
       const bubble = calculateBubble(market.price, intrinsic);
-      const targetBubblePct = market.sourceId
-        ? (list.find((s) => s.id === market.sourceId)?.bubblePct ?? spec.targetBubblePct ?? 0)
-        : (spec.targetBubblePct ?? 0);
-      market.params = { ...market.params, intrinsic, bubblePct: bubble.bubblePct, targetBubblePct };
+      // Its target bubble (the standard price's) is its bubble's mean over the year, put on by
+      // the averages (priceAverages.js applyBubbleTargets) — never a fixed percent
+      market.params = { ...market.params, intrinsic, bubblePct: bubble.bubblePct };
     } else {
       items[id] = {
         id,
@@ -399,7 +399,7 @@ export function buildPriceBook(sources, { now = new Date().toISOString(), source
         unit: spec.unit || "",
         sourceId: null,
         updatedAt: now,
-        params: { intrinsic, derived: "intrinsic", targetBubblePct: spec.targetBubblePct ?? 0 },
+        params: { intrinsic, derived: "intrinsic" },
       };
     }
   }
