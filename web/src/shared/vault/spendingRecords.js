@@ -184,7 +184,7 @@ export async function recordInstallmentPayments(loan, installments) {
     const amount = Number(inst.paidAmount) || 0;
     if (!inst?.id || !inst.paidDate || !(amount > 0)) continue;
     await recordSpending(installmentSpendingKey(loan.id, inst), {
-      title: `قسط ${loan.title || 'وام'}`,
+      title: `قسط ${installmentNumberOf(inst) ? `${installmentNumberOf(inst).toLocaleString('fa-IR')} ` : ''}${loan.title || 'وام'}`,
       amount,
       currency: BASE_CURRENCY,
       date: inst.paidDate,
