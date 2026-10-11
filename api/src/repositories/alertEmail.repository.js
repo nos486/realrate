@@ -120,18 +120,33 @@ export async function dbGetReminderEmailRecipients(env) {
   }));
 }
 
+/** D1 allows 100 bound parameters per query: user ids go in chunks that leave room for the rest */
+const MAX_BOUND_PARAMS = 100;
+
+/** `ids` cut into chunks of at most `size` */
+export function chunkIds(ids, size) {
+  const chunks = [];
+  for (let i = 0; i < ids.length; i += size) chunks.push(ids.slice(i, i + size));
+  return chunks;
+}
+
 /**
- * Batched load of reminders for a list of user IDs
+ * Batched load of reminders for a list of user IDs (queried in chunks: D1's bound-parameter limit)
  */
 export async function dbGetRemindersForUsers(env, userIds = []) {
   if (!userIds.length) return [];
   await ensureSchema(env);
-  const marks = userIds.map(() => '?').join(', ');
-  const { results = [] } = await env.DB.prepare(`
-    SELECT user_id, kind, record_id, due_date, interval_months, remaining, direction, muted, updated_at
-    FROM vault_reminders
-    WHERE user_id IN (${marks}) AND muted = 0 AND kind IN (${REMINDER_KINDS.map(() => '?').join(', ')})
-  `).bind(...userIds, ...REMINDER_KINDS).all();
+  const chunks = chunkIds(userIds, MAX_BOUND_PARAMS - REMINDER_KINDS.length);
+  const pages = await Promise.all(chunks.map(async (chunk) => {
+    const marks = chunk.map(() => '?').join(', ');
+    const { results = [] } = await env.DB.prepare(`
+      SELECT user_id, kind, record_id, due_date, interval_months, remaining, direction, muted, updated_at
+      FROM vault_reminders
+      WHERE user_id IN (${marks}) AND muted = 0 AND kind IN (${REMINDER_KINDS.map(() => '?').join(', ')})
+    `).bind(...chunk, ...REMINDER_KINDS).all();
+    return results;
+  }));
+  const results = pages.flat();
 
   return results.map((r) => ({
     userId: r.user_id,
@@ -152,12 +167,15 @@ export async function dbGetRemindersForUsers(env, userIds = []) {
 export async function dbGetSentHistoryForUsers(env, userIds = [], sinceIso = '') {
   if (!userIds.length) return [];
   await ensureSchema(env);
-  const marks = userIds.map(() => '?').join(', ');
-  const query = sinceIso
-    ? `SELECT user_id, kind, record_id, due_date, reason FROM alert_email_sent WHERE user_id IN (${marks}) AND sent_at >= ?`
-    : `SELECT user_id, kind, record_id, due_date, reason FROM alert_email_sent WHERE user_id IN (${marks})`;
-  const params = sinceIso ? [...userIds, sinceIso] : userIds;
-  const { results = [] } = await env.DB.prepare(query).bind(...params).all();
+  const pages = await Promise.all(chunkIds(userIds, MAX_BOUND_PARAMS - 1).map(async (chunk) => {
+    const marks = chunk.map(() => '?').join(', ');
+    const query = sinceIso
+      ? `SELECT user_id, kind, record_id, due_date, reason FROM alert_email_sent WHERE user_id IN (${marks}) AND sent_at >= ?`
+      : `SELECT user_id, kind, record_id, due_date, reason FROM alert_email_sent WHERE user_id IN (${marks})`;
+    const { results = [] } = await env.DB.prepare(query).bind(...(sinceIso ? [...chunk, sinceIso] : chunk)).all();
+    return results;
+  }));
+  const results = pages.flat();
 
   return results.map((r) => ({
     userId: r.user_id,

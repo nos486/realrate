@@ -10,13 +10,16 @@
 
 import {
   dbGetDuePushReminders,
-  dbDeletePushReminder,
+  dbDeletePushReminders,
   dbDeletePushSubscription,
   dbPurgeOldPushReminders,
 } from '../repositories/push.repository.js';
 import { sendWebPush, isWebPushConfigured } from '../lib/webPush.js';
 import { tehranTime, addDaysIso } from './reminderEmail.job.js';
 import { logger } from '../lib/logger.js';
+
+/** Pushes sent at the same time */
+const PUSH_CONCURRENCY = 10;
 
 /**
  * Sends all due Web Push reminders for today.
@@ -42,10 +45,11 @@ export async function runReminderPushDigest(env, options = {}) {
   let sentCount = 0;
   let errorCount = 0;
 
-  for (const rem of dueReminders) {
+  const sentReminders = [];
+  const sendOne = async (rem) => {
     if (!rem.subscription) {
       errorCount++;
-      continue;
+      return;
     }
 
     try {
@@ -59,15 +63,8 @@ export async function runReminderPushDigest(env, options = {}) {
         await dbDeletePushSubscription(env, rem.userId, rem.deviceId);
       } else if (res.success) {
         sentCount++;
-        // Delete sent reminder so it is not re-sent
-        await dbDeletePushReminder(
-          env,
-          rem.deviceId,
-          rem.kind,
-          rem.recordId,
-          rem.dueDate,
-          rem.reason
-        );
+        // Deleted afterwards, together, so it is not re-sent
+        sentReminders.push(rem);
       } else {
         errorCount++;
       }
@@ -78,7 +75,15 @@ export async function runReminderPushDigest(env, options = {}) {
         error: err.message,
       });
     }
+  };
+
+  // A few pushes at a time, and one batch to delete the sent ones
+  for (let i = 0; i < dueReminders.length; i += PUSH_CONCURRENCY) {
+    await Promise.all(dueReminders.slice(i, i + PUSH_CONCURRENCY).map(sendOne));
   }
+  await dbDeletePushReminders(env, sentReminders).catch((err) => {
+    logger.warn('[ReminderPush] Failed to delete sent reminders:', { error: err.message });
+  });
 
   return { sentCount, errorCount };
 }

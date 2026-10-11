@@ -17,6 +17,9 @@ import { sendEmail, reminderDigestEmail, isEmailConfigured } from '../lib/email.
 import { siteOrigin } from '../lib/siteOrigin.js';
 import { logger } from '../lib/logger.js';
 
+/** Digests built and sent at the same time */
+const DIGEST_CONCURRENCY = 5;
+
 const toFa = (n) => Number(n || 0).toLocaleString('fa-IR');
 
 export function addDaysIso(isoDate, days) {
@@ -140,11 +143,11 @@ export async function runReminderEmailDigest(env, options = {}) {
 
   let sentCount = 0;
 
-  for (const recipient of recipients) {
+  const digestFor = async (recipient) => {
     try {
       const { userId, email, prefs } = recipient;
       const userReminders = remindersByUser.get(userId) || [];
-      if (!userReminders.length) continue;
+      if (!userReminders.length) return;
 
       const allowedSources = new Set(prefs.sources || []);
       const leadDays = prefs.leadDays || [1, 0];
@@ -229,7 +232,7 @@ export async function runReminderEmailDigest(env, options = {}) {
         }
       }
 
-      if (!allLines.length) continue;
+      if (!allLines.length) return;
 
       const baseAppUrl = (appUrl || siteOrigin(env)).replace(/\/$/, '');
       const digest = reminderDigestEmail({
@@ -255,6 +258,11 @@ export async function runReminderEmailDigest(env, options = {}) {
     } catch (err) {
       logger.error('[ReminderEmail] failed to send digest for user:', { userId: recipient.userId, error: err.message });
     }
+  };
+
+  // A few digests at a time: faster than one by one, and the sends stay within a Worker's limits
+  for (let i = 0; i < recipients.length; i += DIGEST_CONCURRENCY) {
+    await Promise.all(recipients.slice(i, i + DIGEST_CONCURRENCY).map(digestFor));
   }
 
   return { recipientsCount: recipients.length, sentCount, emailsSent: sentCount };
