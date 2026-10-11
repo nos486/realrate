@@ -88,16 +88,15 @@ export const PRICE_SOURCES_CONFIG = [
 - **سورس tgju** (`sourceType: "tgju_indicators"`): هر سری tgju (`tgju.org/profile/<slug>`) با یک شناسه در `series` تعریف می‌شود و آخرین مقدار جدول روزانه‌اش خوانده می‌شود (`services/market/tgju.client.js`، همان خواننده‌ی بک‌فیل تاریخچه). واحد با `quote` سورس است (tgju معمولاً ریال). سری‌ای که خطا بدهد کنار می‌ماند و بقیه به‌روز می‌شوند:
 
 ```javascript
-// طلا، سکه و حباب سکه: یک سورس چندخروجی؛ نام، دسته و واحد هر قلم از مشخصه‌ی (spec) خودش است
+// طلا و سکه: یک سورس چندخروجی؛ نام، دسته و واحد هر قلم از مشخصه‌ی (spec) خودش است
+// (حباب سکه از سورس خوانده نمی‌شود: دفتر قیمت خودش حساب می‌کند)
 { id: "src_def_tgju", sourceType: "tgju_indicators", quote: "rial", outputs: "multi",
   series: [
     { slug: "geram18", id: "gold_18k" }, { slug: "sekee", id: "full_coin" }, ...
-    // حباب اختلاف دو قیمت است و درصدی خیلی بیشتر از قیمت تکان می‌خورد: محافظ جهش خودش را دارد
-    { slug: "coin_blubber", id: "bubble_full_coin", maxJumpPct: 100 }, ...
   ] }
 ```
 
-هر سری یک درخواست است (موازی، در همان اجرای زمان‌بند). خروجی‌ای که در `series` حد جهش (`maxJumpPct`) خودش را دارد، با همان حد سنجیده می‌شود و بقیه با حد سورس (`guardOf` در `domain/priceSources.js`).
+هر سری یک درخواست است (موازی، در همان اجرای زمان‌بند). خروجی‌ای که در `series` حد جهش (`maxJumpPct`) خودش را بگذارد، با همان حد سنجیده می‌شود و بقیه با حد سورس (`guardOf` در `domain/priceSources.js`).
 
 - **دسته‌ی غیرقابل نگهداری:** دسته‌ای با `holdable: false` در `categories.config.js` (مثل `bubble`) روی کارت‌ها و نمودارها هست ولی در پورتفو و جستجوی خرید نیست (`isHoldableCategory`).
 - **شاخصِ یک دارایی دیگر:** مشخصه‌ای با `bubbleOf` (مثل `bubble.spec.js`) درصدش از ارزش آن دارایی بدون خودش را در `params.bubblePct` می‌گیرد.

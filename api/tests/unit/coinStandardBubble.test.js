@@ -1,9 +1,10 @@
 /**
  * coinStandardBubble.test.js — A coin's standard price is its gold value plus its bubble's mean
  * over the last year, from the price history (never a fixed percent): each day both the coin and
- * its bubble (tgju) closed gives a ratio coin ÷ (coin − bubble); the ratios are averaged by the
+ * its bubble closed gives a ratio coin ÷ (coin − bubble); the ratios are averaged by the
  * running sums the price averages keep (priceAverages.js), and the year's mean is put on the coin
- * (`params.targetBubblePct`) — what «قیمت استاندارد» and the calculator use
+ * (`params.targetBubblePct`) — what «قیمت استاندارد» and the calculator use. The bubble is the price
+ * book's own (coin − its gold value), so the ratio is the coin over its gold value
  */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { sqliteD1 } from '../helpers/sqliteD1.js';
@@ -26,6 +27,8 @@ import { metricValue } from '../../src/domain/cardMetrics.js';
 import { COIN_SPECS } from '../../src/domain/specs/coin.spec.js';
 import { GOLD_SPECS } from '../../src/domain/specs/gold.spec.js';
 import { targetBubbleOf } from '../../../web/src/utils/calculator.js';
+import { ensureBubbleHistory, invalidateBubbleHistory } from '../../src/services/market/bubbleHistory.service.js';
+import { TROY_OUNCE_GRAMS } from '../../src/domain/specs/gold.spec.js';
 
 const close = (day, value) => ({ day, open: value, high: value, low: value, close: value });
 const mean = (list) => list.reduce((a, b) => a + b, 0) / list.length;
@@ -141,5 +144,62 @@ describe('the year\'s mean bubble, on the real SQL', () => {
     await withAverages(env, book, null, now);
     expect(book.items.full_coin.params.targetBubblePct).toBeCloseTo(mean(year), 2);
     expect(book.items.full_coin.params.targetBubbleDays).toBe(year.length);
+  });
+});
+
+describe('a coin bubble\'s past days, from our own history', () => {
+  let db;
+  beforeEach(() => resetD1SchemaCache());
+  afterEach(() => {
+    db?.close();
+    db = null;
+  });
+
+  it('are the coin\'s close less its gold value at that day\'s ounce and dollar, once per version', async () => {
+    db = sqliteD1();
+    const env = { DB: db };
+    const now = Date.parse('2026-05-20T12:00:00+03:30');
+    const days = ['2026-05-15', '2026-05-16', '2026-05-17'];
+    const ounce = [4000, 4100, 4050];
+    const dollar = [100_000, 101_000, 102_000];
+    const coinCloses = [110_000_000, 112_000_000, 113_000_000];
+    await importDailyCandles(env, 'full_coin', days.map((d, i) => close(d, coinCloses[i])), { now });
+    await importDailyCandles(env, 'ons_gold@usd', days.map((d, i) => close(d, ounce[i])), { now });
+    // No dollar on the last day: that day gets no bubble
+    await importDailyCandles(env, 'usd', days.slice(0, 2).map((d, i) => close(d, dollar[i])), { now });
+    // What tgju had: dropped
+    await importDailyCandles(env, 'bubble_full_coin', [close('2026-05-14', 9_000_000), close('2026-05-15', 9_100_000)], { now });
+
+    expect(await ensureBubbleHistory(env, now)).toEqual({ written: 2 });
+    const { results } = await db.prepare("SELECT day, value FROM price_daily WHERE item_key = 'bubble_full_coin' ORDER BY day").all();
+    const weight = COIN_SPECS.full_coin.gold24kWeight;
+    const gold = (i) => Math.round(weight * (ounce[i] / TROY_OUNCE_GRAMS) * dollar[i]);
+    expect(results).toEqual([
+      { day: '2026-05-15', value: coinCloses[0] - gold(0) },
+      { day: '2026-05-16', value: coinCloses[1] - gold(1) },
+    ]);
+    // Done for this version
+    expect(await ensureBubbleHistory(env, now)).toBeNull();
+  });
+});
+
+describe('a backfill of what a bubble is computed from', () => {
+  let db;
+  beforeEach(() => resetD1SchemaCache());
+  afterEach(() => {
+    db?.close();
+    db = null;
+  });
+
+  it('has the bubbles\' past days computed again; another item\'s does not', async () => {
+    db = sqliteD1();
+    const env = { DB: db };
+    await ensureBubbleHistory(env, Date.parse('2026-05-20T12:00:00Z'));
+    const stored = () => db.prepare("SELECT key FROM app_state WHERE key = 'bubble_history_version'").first();
+    expect(await stored()).toBeTruthy();
+    await invalidateBubbleHistory(env, ['eur']);
+    expect(await stored()).toBeTruthy();
+    await invalidateBubbleHistory(env, ['ons_gold@usd']);
+    expect(await stored()).toBeNull();
   });
 });

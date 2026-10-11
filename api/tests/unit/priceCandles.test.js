@@ -53,9 +53,15 @@ describe('backfill', () => {
   const now = Date.parse('2026-01-10T08:00:00Z');
   const today = tehranDay(now);
   // The live price book: the targets a series may be written to
-  const book = { items: { usd: { name: 'دلار', price: 101000 }, try: { name: 'لیر', price: 3000 }, ons_gold: { name: 'انس', price: 4000 * 102000 }, full_coin: { name: 'سکه', price: 100000000 } } };
+  const book = { items: { usd: { name: 'دلار', price: 101000 }, try: { name: 'لیر', price: 3000 }, ons_gold: { name: 'انس', price: 4000 * 102000 }, full_coin: { name: 'سکه', price: 100000000 }, bubble_full_coin: { name: 'حباب سکه امامی', price: 3000000, params: { derived: 'bubble' } } } };
   const getBook = async () => book;
   const backfillPriceHistory = (e, o) => backfill(e, { getBook, ...o });
+
+  it('never fills a coin\'s bubble from a feed (the app computes it from its own history)', async () => {
+    const env = { DB: db };
+    await expect(backfillPriceHistory(env, { slug: 'coin_blubber', target: 'bubble_full_coin', unit: 'rial', fetchImpl: async () => { throw new Error('not fetched'); }, now }))
+      .rejects.toThrow(/خود برنامه/);
+  });
 
   it('imports past days, keeps recorded ones unless overwriting, never today', async () => {
     await recordPriceHistory(env, [{ id: 'usd', price: 105 }], '2026-01-09T08:00:00Z');

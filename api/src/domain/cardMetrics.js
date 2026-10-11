@@ -36,7 +36,9 @@ export const CARD_METRICS = {
   price: { label: "آخرین قیمت", kind: "price" },
   ...Object.fromEntries(AVERAGE_WINDOW_KEYS.map((w) => [avgKey(w), { label: `میانگین ${AVERAGE_WINDOWS[w].label}`, kind: "price", window: w }])),
   change: { label: "تغییر روز", kind: "pct" },
-  bubblePct: { label: "درصد حباب", kind: "pct" },
+  // On a coin's bubble it is its coin's own percent (`params.bubbleOf`): offered on the bubble's
+  // card, not again on its coin's (slotOptionsOf)
+  bubblePct: { label: "درصد حباب", kind: "pct", ofItem: "bubbleOf" },
   intrinsic: { label: "ارزش ذاتی", kind: "price" },
   standard: { label: "قیمت استاندارد", kind: "price" },
   deviation: { label: "انحراف از استاندارد", kind: "pct" },
@@ -172,14 +174,18 @@ export function metricValue(item, metric, { analysis = null, display = null } = 
  */
 export function slotOptionsOf(id, itemOf, { analysisOf = () => null, display = null } = {}) {
   const options = [];
+  const key = normalizePriceId(id);
   const add = (link, linkedId, item, analysis, itemDisplay) => {
     for (const metric of Object.keys(CARD_METRICS)) {
       if (!link && metric === "price") continue; // the card's own price is its main figure
+      // A linked item's value of this card's own item (a bubble's percent of its coin) is the
+      // card's own metric already
+      const of = CARD_METRICS[metric].ofItem;
+      if (link && of && item?.params?.[of] === key) continue;
       const value = metricValue(item, metric, { analysis, display: itemDisplay });
       if (value) options.push({ key: slotKeyOf(link, metric), link, linkedId, metric, label: CARD_METRICS[metric].label, ...value });
     }
   };
-  const key = normalizePriceId(id);
   add(null, null, itemOf(key), analysisOf(key), display);
   for (const { kind, id: linkedId } of linksOf(key)) {
     const linked = itemOf(linkedId);

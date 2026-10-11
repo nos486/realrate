@@ -392,6 +392,44 @@ export async function readBubbleRatioSums(env, series, through) {
 }
 
 /**
+ * ?1: the bubble's key, ?2: its coin's key, ?3: the ounce's dollar key, ?4: the dollar's key,
+ * ?5: the coin's grams of pure gold, ?6: grams in a troy ounce, ?7: now (ms) → the bubble's days
+ * computed as the price book computes it: the coin's close less its gold value at that day's ounce
+ * and dollar (priceBook.js intrinsicOf). Days missing one of the three, or with no bubble above
+ * zero, get none. A flat candle at the value.
+ */
+export const BUBBLE_DAYS_SQL = `
+INSERT INTO price_daily (item_key, day, value, updated_at, open, high, low)
+SELECT ?1, day, v, ?7, v, v, v FROM (
+  SELECT c.day AS day, ROUND(c.value - ROUND(?5 * o.value / ?6 * u.value)) AS v
+  FROM price_daily c
+  JOIN price_daily o ON o.item_key = ?3 AND o.day = c.day
+  JOIN price_daily u ON u.item_key = ?4 AND u.day = c.day
+  WHERE c.item_key = ?2
+)
+WHERE v > 0
+`;
+
+/**
+ * Compute coin bubbles' whole history again from their coins' and the ounce's and dollar's own
+ * (dropping what each had), one transaction
+ * @param {object} env
+ * @param {Array<{ bubbleId: string, coinId: string, gold24kWeight: number }>} bubbles
+ * @param {{ ounceKey: string, usdKey: string, troyOunceGrams: number, now?: number }} keys
+ * @returns {Promise<number|null>} rows written; null when the history is unavailable
+ */
+export async function rebuildBubbleHistory(env, bubbles, { ounceKey, usdKey, troyOunceGrams, now = Date.now() }) {
+  if (!env?.DB?.prepare || !bubbles?.length) return null;
+  await ensureSchema(env);
+  const statements = bubbles.flatMap(({ bubbleId, coinId, gold24kWeight }) => [
+    env.DB.prepare("DELETE FROM price_daily WHERE item_key = ?").bind(bubbleId),
+    env.DB.prepare(BUBBLE_DAYS_SQL).bind(bubbleId, coinId, ounceKey, usdKey, gold24kWeight, troyOunceGrams, now),
+  ]);
+  const results = await env.DB.batch(statements);
+  return results.filter((_, i) => i % 2 === 1).reduce((sum, r) => sum + (Number(r?.meta?.changes) || 0), 0);
+}
+
+/**
  * The closes of a few days (the days an averages move reads)
  * @returns {Promise<Array<{ item_key: string, day: string, value: number }>|null>}
  */

@@ -13,6 +13,7 @@ import { runNewsPolling } from "../services/news/news.service.js";
 import { dbPurgeOldNews } from "../repositories/news.repository.js";
 import { NEWS_LIMITS } from "../config/news.config.js";
 import { logger } from "../lib/logger.js";
+import { ensureBubbleHistory } from "../services/market/bubbleHistory.service.js";
 
 /**
  * Run scheduled polling jobs
@@ -59,6 +60,10 @@ export async function runCronPolling(event, env, ctx) {
         }),
         dbPurgeOldNews(env, scheduledDate.getTime() - NEWS_LIMITS.retentionDays * 86400_000).catch(err => {
           logger.error("[CronPolling] Old news purge error:", { error: err.message });
+        }),
+        // Coin bubbles' past days from our own history, once per version (a no-op after)
+        ensureBubbleHistory(env, scheduledDate.getTime()).catch(err => {
+          logger.error("[CronPolling] Bubble history error:", { error: err.message });
         }),
       ])
     );
