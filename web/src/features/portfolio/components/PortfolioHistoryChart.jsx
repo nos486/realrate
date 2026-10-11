@@ -1,8 +1,8 @@
 /**
  * PortfolioHistoryChart.jsx — How the portfolio's value moved from its first entry to today
  *
- * Closed by default: one row with today's value and the change over 24 hours, 7 days and 1 month
- * (what prices alone gained: money put in or taken out is not gain). Opening it shows the daily
+ * Lives inside the «ارزش کل» card. Closed by default: a row with the change over 24 hours, 7 days
+ * and 1 month (what prices alone gained: money put in or taken out is not gain). Opening it shows the daily
  * value (utils/portfolioHistory.js) as a line in tomans or dollars over a chosen span; hovering
  * (or dragging a finger) marks a day. Computed in the browser from the decrypted ledgers and the
  * public price history; nothing about the portfolio is sent out.
@@ -83,7 +83,6 @@ export default function PortfolioHistoryChart({ assets, hideValues = false }) {
   const values = series[unit];
   const known = values.filter((v) => Number.isFinite(v));
   const n = values.length;
-  const nowValue = full[unit][full.days.length - 1];
   const canPlot = known.length >= 2;
 
   const min = canPlot ? Math.min(...known) : 0;
@@ -109,17 +108,14 @@ export default function PortfolioHistoryChart({ assets, hideValues = false }) {
   const hoverLeft = hover !== null ? (hover / (n - 1)) * 100 : null;
 
   return (
-    <section className={`portfolio-history-card ${open ? 'is-open' : ''}`} aria-label="تاریخچه ارزش پورتفو">
+    <div className={`portfolio-history-panel ${open ? 'is-open' : ''}`}>
       <button
         type="button"
         className="portfolio-history-toggle"
         aria-expanded={open}
+        aria-label="تاریخچه ارزش پورتفو"
         onClick={() => setOpen((v) => !v)}
       >
-        <span className="portfolio-history-title">
-          <span className="stat-label">تاریخچه ارزش پورتفو</span>
-          <span className="portfolio-history-now">{hideValues ? '****' : fmt(nowValue, unit)}</span>
-        </span>
         <span className="portfolio-history-chips">
           {CHANGES.map((c) => (
             <ChangeChip key={c.span} label={c.label} change={windowChange(full, unit, c.span)} unit={unit} hideValues={hideValues} />
@@ -187,6 +183,6 @@ export default function PortfolioHistoryChart({ assets, hideValues = false }) {
           <p className="portfolio-history-note">تغییر، فقط اثر قیمت‌هاست؛ خرید و فروش جزو سود حساب نمی‌شود.</p>
         </div>
       )}
-    </section>
+    </div>
   );
 }

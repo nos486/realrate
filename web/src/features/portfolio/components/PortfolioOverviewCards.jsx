@@ -3,6 +3,7 @@ import { ArrowUpRight, ArrowDownRight, Lock } from 'lucide-react';
 import { CategoryIcon, formatNum } from '../utils/holdingHelpers.js';
 import { formatPct } from '../../../shared/utils/formatters.js';
 import DonutChart from '../../../shared/ui/DonutChart.jsx';
+import PortfolioHistoryChart from './PortfolioHistoryChart.jsx';
 import PortfolioPlanCards from './PortfolioPlanCards.jsx';
 import { DollarPnl } from '../../../shared/ui/DollarValue.jsx';
 
@@ -26,6 +27,8 @@ export default function PortfolioOverviewCards({
   hidePlanCards = false,
   // The open positions in dollars (utils/assetLedger.js sumDollarPnl), or null
   dollarPnl = null,
+  // The portfolio's asset ledgers (utils/assetLedger.js): the value history under the total value
+  historyAssets = [],
 }) {
   const hasData = portfolioMetrics.hasAnyCost;
   const isProfit = (portfolioMetrics.totalPnl || 0) >= 0;
@@ -85,6 +88,9 @@ export default function PortfolioOverviewCards({
                   : 'ثبت‌نشده'
               }`}
         </div>
+        {!isVaultLocked && historyAssets.length > 0 && (
+          <PortfolioHistoryChart assets={historyAssets} hideValues={hideValues} />
+        )}
       </div>
 
       {/* Card 2: Total PnL */}
