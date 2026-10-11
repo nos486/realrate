@@ -84,7 +84,7 @@ describe('loans', () => {
     ]);
     expect(m.saved.size).toBe(2);
     expect(m.saved.get(spendingExpenseId('loan:loan_1:n3'))).toMatchObject({
-      title: 'قسط وام مسکن', amount: 4_000_000, currency: 'IRT', date: '2026-02-05', category: 'installments',
+      title: 'قسط ۳ وام مسکن', amount: 4_000_000, currency: 'IRT', date: '2026-02-05', category: 'installments',
       loanInstallment: { loanId: 'loan_1', installmentId: 'inst_3' },
     });
   });
