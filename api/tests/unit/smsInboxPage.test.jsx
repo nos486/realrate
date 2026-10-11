@@ -16,8 +16,12 @@ vi.mock('../../../web/src/shared/vault/useVault.js', () => ({ useVault: () => ({
 vi.mock('../../../web/src/features/demo/index.js', () => ({ useDemo: () => ({ readOnly: false }) }));
 const accountList = vi.hoisted(() => ({ list: [{ id: 'acc_1', name: 'بلو', bankId: 'blu', type: 'bank' }] }));
 vi.mock('../../../web/src/features/accounts/hooks/useAccounts.js', () => ({
-  useAccounts: () => ({ accounts: accountList.list }),
+  useAccounts: () => ({ accounts: accountList.list, enabled: true }),
 }));
+const accountsApi = vi.hoisted(() => ({
+  saveAccount: vi.fn(async (input) => ({ account: { id: 'acc_new', ...input } })),
+}));
+vi.mock('../../../web/src/shared/vault/vaultAccounts.js', () => accountsApi);
 vi.mock('../../../web/src/features/market/index.js', () => ({ usePricing: () => null }));
 const expenses = vi.hoisted(() => ({
   getExpenses: vi.fn(async () => ({ expenses: [] })),
@@ -86,7 +90,7 @@ describe('SmsInboxPage', () => {
     render(<SmsInboxPage />);
     await waitFor(() => expect(recordButtons()).toHaveLength(2));
     fireEvent.click(recordButtons()[0]);
-    fireEvent.submit(screen.getByText('ثبت هزینه').closest('form'));
+    fireEvent.submit((await screen.findByText('ثبت هزینه')).closest('form'));
     await waitFor(() => expect(expenses.saveExpense).toHaveBeenCalled());
     // As saved (no project: the everyday expenses)
     expect((await expenses.saveExpense.mock.results[0].value).expense).toMatchObject({
@@ -100,7 +104,7 @@ describe('SmsInboxPage', () => {
     render(<SmsInboxPage />);
     await waitFor(() => expect(recordButtons()).toHaveLength(2));
     fireEvent.click(recordButtons()[1]);
-    fireEvent.submit(screen.getByText('ثبت درآمد').closest('form'));
+    fireEvent.submit((await screen.findByText('ثبت درآمد')).closest('form'));
     await waitFor(() => expect(incomes.createIncome).toHaveBeenCalled());
     expect(incomes.createIncome.mock.calls[0][0]).toMatchObject({
       title: 'واریز بلو', amount: 250000, incomeDate: '2026-09-25', smsKey: 'blu|credit|250000|2026-09-25|18:23',
@@ -191,6 +195,32 @@ describe('SmsInboxPage', () => {
   });
 });
 
+describe('an account for every message', () => {
+  afterEach(() => { accountList.list = [{ id: 'acc_1', name: 'بلو', bankId: 'blu', type: 'bank' }]; });
+
+  it('a withdrawal from a bank with no account makes one from the message, and the expense is tied to it', async () => {
+    accountList.list = [];
+    render(<SmsInboxPage />);
+    await waitFor(() => expect(recordButtons()).toHaveLength(2));
+    fireEvent.click(recordButtons()[0]);
+    fireEvent.submit((await screen.findByText('ثبت هزینه')).closest('form'));
+    await waitFor(() => expect(expenses.saveExpense).toHaveBeenCalled());
+    expect(accountsApi.saveAccount).toHaveBeenCalledTimes(1);
+    expect(accountsApi.saveAccount.mock.calls[0][0]).toMatchObject({ type: 'bank', bankId: 'blu', currencies: ['IRT'] });
+    expect(expenses.saveExpense.mock.calls[0][0]).toMatchObject({ accountId: 'acc_new' });
+  });
+
+  it('a deposit is tied to the matched account', async () => {
+    render(<SmsInboxPage />);
+    await waitFor(() => expect(recordButtons()).toHaveLength(2));
+    fireEvent.click(recordButtons()[1]);
+    fireEvent.submit((await screen.findByText('ثبت درآمد')).closest('form'));
+    await waitFor(() => expect(incomes.createIncome).toHaveBeenCalled());
+    expect(incomes.createIncome.mock.calls[0][0]).toMatchObject({ accountId: 'acc_1' });
+    expect(accountsApi.saveAccount).not.toHaveBeenCalled();
+  });
+});
+
 describe('«ثبت در یک پروژه»: a withdrawal into a project', () => {
   it('lists the open projects, opens the form for the chosen one and records into it', async () => {
     expenses.getExpenseGroups.mockResolvedValue({ groups: [
@@ -208,7 +238,7 @@ describe('«ثبت در یک پروژه»: a withdrawal into a project', () => {
     expect(screen.queryByText('پروژه‌ی بایگانی')).toBeNull();
     expect(screen.queryByText('روزمره')).toBeNull();
     fireEvent.click(screen.getByText('سفر شمال').closest('button'));
-    fireEvent.submit(screen.getAllByText('ثبت هزینه').map((el) => el.closest('form')).find(Boolean));
+    fireEvent.submit((await screen.findAllByText('ثبت هزینه')).map((el) => el.closest('form')).find(Boolean));
     await waitFor(() => expect(expenses.saveExpense).toHaveBeenCalled());
     expect(expenses.saveExpense.mock.calls[0][0]).toMatchObject({
       groupId: 'exg_trip', title: 'برداشت بلو', amount: 2000000, source: 'sms', smsKey: 'blu|debit|2000000|2026-09-28|10:47',
@@ -236,6 +266,7 @@ describe('«انتقال بین حساب‌های خودم»: neither expense no
     fireEvent.click(screen.getAllByLabelText('گزینه‌های این پیامک')[0]);
     fireEvent.click(screen.getByText('انتقال بین حساب‌های خودم').closest('button'));
     // To: the cash account (from is the withdrawal's account)
+    await screen.findByText('ثبت انتقال');
     pickRow('به حساب', 'نقد');
     fireEvent.submit(screen.getByText('ثبت انتقال').closest('form'));
     await waitFor(() => expect(transfers.saveTransfer).toHaveBeenCalled());

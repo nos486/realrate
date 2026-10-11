@@ -14,7 +14,7 @@ import { compareAccounts } from '../../../utils/accountDocument.js';
 import * as api from '../../../shared/vault/vaultAccounts.js';
 
 export function useAccounts() {
-  const { user } = useAuth();
+  const { user } = useAuth() || {};
   const enabled = useFeature('bank_accounts');
   const { status: vaultStatus, epoch: vaultEpoch } = useVault();
   const vaultLocked = vaultStatus === 'locked';
