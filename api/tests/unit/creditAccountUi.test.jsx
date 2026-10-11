@@ -71,7 +71,7 @@ describe('a bank credit on the accounts page', () => {
     store.expenses = spent(10_000_000);
     store.transfers = [];
     renderPage();
-    await waitFor(() => expect(within(card()).getByText('۱۰٬۰۰۰٬۰۰۰ تومان', { selector: 'strong' })).toBeTruthy());
+    await waitFor(() => expect(within(card()).getAllByText('۱۰٬۰۰۰٬۰۰۰ تومان', { selector: 'strong' }).length).toBeGreaterThan(0));
     expect(within(card()).getByText(/آزاد: ۹۰٬۰۰۰٬۰۰۰/)).toBeTruthy();
     expect(within(card()).getByText('بدهی خارج از اقساط')).toBeTruthy();
     expect(within(card()).getByText(/تسویه بدهی/)).toBeTruthy();

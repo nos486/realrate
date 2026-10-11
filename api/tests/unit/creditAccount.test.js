@@ -12,6 +12,7 @@ import {
   conversionCost,
   monthlyDates,
   creditStatus,
+  cycleStartOf,
   creditCostsPaid,
 } from '../../src/domain/creditAccount.js';
 import { validateAccount, isCreditAccount } from '../../src/domain/accountDocument.js';
@@ -38,9 +39,9 @@ const plan = (patch = {}) => ({
 describe('terms', () => {
   it('only a limit, the debt already owed and the day to count from', () => {
     expect(validateCreditTerms({}).error).toBeTruthy();
-    expect(validateCreditTerms({ limit: '100,000,000', openingDebt: '5,000,000' }, TODAY).value).toEqual({ limit: 100_000_000, openingDebt: 5_000_000, startDate: TODAY });
+    expect(validateCreditTerms({ limit: '100,000,000', openingDebt: '5,000,000' }, TODAY).value).toEqual({ limit: 100_000_000, openingDebt: 5_000_000, startDate: TODAY, cycleDay: 15 });
     // Rules of an earlier version are dropped
-    expect(validateCreditTerms({ limit: 1, closingDay: 15, settleFeePct: 2 }, TODAY).value).toEqual({ limit: 1, openingDebt: 0, startDate: TODAY });
+    expect(validateCreditTerms({ limit: 1, closingDay: 15, settleFeePct: 2 }, TODAY).value).toEqual({ limit: 1, openingDebt: 0, startDate: TODAY, cycleDay: 15 });
   });
 
   it('a credit is an account of its own type, in tomans, with its bank and card', () => {
@@ -115,6 +116,17 @@ describe('where a credit stands', () => {
     const moved = summarizeTransfersByAccount([settle]);
     expect(moved.get('bank').out).toBe(10_200_000);
     expect(moved.get('c1').in).toBe(10_000_000);
+  });
+
+  it('the period starts on the cycle day; figures count from it (not before the start date)', () => {
+    // 15 Mehr 1405 = 2026-10-07: day 15 → today; day 20 → 20 Shahrivar (2026-09-11)
+    expect(cycleStartOf(15, TODAY)).toBe('2026-10-07');
+    expect(cycleStartOf(20, TODAY)).toBe('2026-09-11');
+    const a = account({ startDate: '2026-09-01', cycleDay: 15 });
+    const s = creditStatus(a, { expenses: [buy('2026-10-06', 1_000_000), buy('2026-10-07', 700_000)], transfers: [pay('2026-10-07', 311_000)] }, TODAY);
+    expect(s.period).toEqual({ from: '2026-10-07', spent: 700_000, paidIn: 311_000, takenOut: 0 });
+    expect(s.breakdown).toEqual({ opening: 0, charged: 1_700_000, paid: 311_000 });
+    expect(s.debt).toBe(1_389_000);
   });
 
   it('a foreign expense is owed at its day\'s rate; without any rate it cannot be counted', () => {

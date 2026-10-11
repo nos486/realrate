@@ -20,7 +20,9 @@
  *     to the credit itself (so the credit owes the installments' total). Each installment is
  *     paid by hand: a transfer into the credit, and the installment marked paid.
  *
- * Terms (`account.credit`): { limit, openingDebt, startDate, conversions }. What is owed is the
+ * Terms (`account.credit`): { limit, openingDebt, startDate, cycleDay, conversions }: `cycleDay` is the Shamsi
+ * day of the month its period starts on (the card's «this period» figures); `startDate` is the day its
+ * records began to count (the debt before it is `openingDebt`). What is owed is the
  * opening debt, plus what was spent or taken from the credit since `startDate`, less what was
  * paid into it — transfers and settlement deposits (creditStatus). Shared by the browser and the API, like the other domain modules.
  */
@@ -71,6 +73,28 @@ export function monthlyDates(firstDueDate, count) {
     return isoOf(jalaliToGregorian(ty, tm, Math.min(jd, getJalaliMonthLength(ty, tm))));
   });
 }
+
+/**
+ * The first day of the credit's current period: the latest day, up to `today`, that falls on its
+ * Shamsi `cycleDay` (clamped to short months)
+ * @param {number} cycleDay - 1..31
+ * @param {string} today - YYYY-MM-DD
+ */
+export function cycleStartOf(cycleDay, today) {
+  const [y, m, d] = today.split('-').map(Number);
+  const { jy, jm, jd } = gregorianToJalali(y, m, d);
+  const dayIn = (ty, tm) => Math.min(cycleDay, getJalaliMonthLength(ty, tm));
+  if (jd >= dayIn(jy, jm)) return isoOf(jalaliToGregorian(jy, jm, dayIn(jy, jm)));
+  const py = jm === 1 ? jy - 1 : jy;
+  const pm = jm === 1 ? 12 : jm - 1;
+  return isoOf(jalaliToGregorian(py, pm, dayIn(py, pm)));
+}
+
+/** The Shamsi day of month of a Gregorian YYYY-MM-DD */
+const shamsiDayOf = (iso) => {
+  const [y, m, d] = iso.split('-').map(Number);
+  return gregorianToJalali(y, m, d).jd;
+};
 
 /** A fee as a percent of `base`, two decimals */
 const pctOf = (fee, base) => (base > 0 ? Math.round((fee / base) * 10000) / 100 : 0);
@@ -157,7 +181,12 @@ export function validateCreditTerms(body = {}, today = '') {
   const openingDebt = amountOf(body.openingDebt) || 0;
   if (openingDebt < 0 || openingDebt > CREDIT_LIMITS.maxAmount) return { error: 'بدهی فعلی نامعتبر است.' };
 
-  const startDate = DATE_RE.test(String(body.startDate || '')) ? body.startDate : today;
+  const cycleGiven = parseInt(body.cycleDay, 10);
+  if (body.cycleDay != null && body.cycleDay !== '' && !(cycleGiven >= 1 && cycleGiven <= 31)) return { error: 'روز شروع دوره باید بین ۱ تا ۳۱ باشد.' };
+  // Counting starts on the start of the period the credit was added in, unless a day is given
+  const cycleDay = cycleGiven >= 1 ? cycleGiven : null;
+  const given = DATE_RE.test(String(body.startDate || '')) ? body.startDate : '';
+  const startDate = given || (cycleDay && DATE_RE.test(today) ? cycleStartOf(cycleDay, today) : today);
   if (!DATE_RE.test(startDate)) return { error: 'تاریخ شروع نامعتبر است.' };
 
   const conversions = [];
@@ -167,7 +196,7 @@ export function validateCreditTerms(body = {}, today = '') {
     conversions.push(c.value);
   }
 
-  return { value: { limit, openingDebt, startDate, ...(conversions.length ? { conversions } : {}) } };
+  return { value: { limit, openingDebt, startDate, cycleDay: cycleDay || shamsiDayOf(startDate), ...(conversions.length ? { conversions } : {}) } };
 }
 
 /** What was charged to the credit and paid into it, from its expenses, transfers and incomes */
@@ -195,6 +224,26 @@ function movementsOf(account, expenses, transfers, incomes, today, rates) {
     }
   }
   return { opening, charged, paid };
+}
+
+/** This period's spending from the credit and what moved through it (from the period's first day) */
+function periodOf(account, expenses, transfers, today, rates) {
+  const terms = account.credit;
+  const periodStart = cycleStartOf(terms.cycleDay || shamsiDayOf(terms.startDate || today), today);
+  const from = terms.startDate && terms.startDate > periodStart ? terms.startDate : periodStart;
+  const inRange = (date) => DATE_RE.test(date || '') && date >= from && date <= today;
+  let spent = 0;
+  let paidIn = 0;
+  let takenOut = 0;
+  for (const e of expenses) {
+    if (e.accountId === account.id && inRange(e.date)) spent += Math.round(expensePaidInToman(e, rates) || 0);
+  }
+  for (const t of transfers) {
+    if (!inRange(t.date)) continue;
+    if (t.toAccountId === account.id) paidIn += Math.round((Number(t.amount) || 0) - (Number(t.fee) || 0));
+    else if (t.fromAccountId === account.id) takenOut += Math.round(Number(t.amount) || 0);
+  }
+  return { from, spent, paidIn, takenOut };
 }
 
 /**
@@ -242,6 +291,7 @@ export function creditStatus(account, { expenses = [], transfers = [], incomes =
     limit: terms.limit,
     // How the debt adds up: the opening debt, plus what was charged since the start date, less what was paid
     breakdown: { opening, charged, paid },
+    period: periodOf(account, expenses, transfers, today, rates),
     debt,
     available: Math.max(0, terms.limit - debt),
     prepaid: Math.max(0, -balance),

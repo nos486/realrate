@@ -16,12 +16,13 @@
 import React, { useState } from 'react';
 import { WalletCards } from 'lucide-react';
 import { AlertBanner, Input, Modal, NumericInput } from '../../../shared/ui/index.js';
-import { CategoryGrid, DateField, EntryFormActions, MoreDetails } from '../../../shared/form/index.js';
+import { CategoryGrid, EntryFormActions, MoreDetails } from '../../../shared/form/index.js';
 import { BankPicker } from '../../../shared/banks/index.js';
 import { ACCOUNT_TYPES, ACCOUNT_LIMITS, accountCurrencies } from '../../../utils/accountDocument.js';
 import { CURRENCIES } from '../../../utils/currencies.js';
 import { todayIso } from '../../../shared/utils/dates.js';
-import { gregorianToShamsi, shamsiToGregorian } from '../../portfolio/components/ShamsiDatePicker.jsx';
+import { cycleStartOf } from '../../../utils/creditAccount.js';
+import { gregorianToJalali } from '../../../utils/loanCalculator.js';
 import { getAccountTypeIcon } from '../constants/accountDisplay.js';
 
 /** The types as icon tiles (CategoryGrid) */
@@ -29,12 +30,18 @@ const TYPE_OPTIONS = ACCOUNT_TYPES.map(({ value, label }) => ({ value, label, Ic
 const CURRENCY_OPTIONS = CURRENCIES.map(({ code, label }) => ({ value: code, label }));
 const digits = (v) => String(v ?? '').replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[^\d]/g, '');
 
+/** The Shamsi day of month of a Gregorian YYYY-MM-DD */
+function shamsiDayOf(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return gregorianToJalali(y, m, d).jd;
+}
+
 /** A credit's terms as the form edits them (strings) */
 function creditFields(credit) {
   return {
     limit: credit?.limit ? String(credit.limit) : '',
     openingDebt: credit?.openingDebt ? String(credit.openingDebt) : '',
-    startShamsi: gregorianToShamsi(`${credit?.startDate || todayIso()}T00:00:00`),
+    cycleDay: String(credit?.cycleDay || shamsiDayOf(credit?.startDate || todayIso())),
   };
 }
 
@@ -60,8 +67,9 @@ export default function AccountForm({ account = null, onSubmit, onClose, submitt
   // An empty name falls back to the bank's
   const effectiveName = name.trim() || (isBank ? bank.lenderName : '');
   const limitNum = Number(digits(credit.limit)) || 0;
+  const cycleDayNum = parseInt(digits(credit.cycleDay), 10) || 0;
   const isValid = Boolean(effectiveName) && !submitting
-    && (!isCredit || limitNum > 0);
+    && (!isCredit || (limitNum > 0 && cycleDayNum >= 1 && cycleDayNum <= 31));
 
   // What «جزئیات بیشتر» holds that is filled in (a bank's card and number only for a bank)
   const detailsFilled = [
@@ -88,7 +96,11 @@ export default function AccountForm({ account = null, onSubmit, onClose, submitt
           credit: {
             limit: limitNum,
             openingDebt: Number(digits(credit.openingDebt)) || 0,
-            startDate: shamsiToGregorian(credit.startShamsi) || todayIso(),
+            cycleDay: cycleDayNum,
+            // Counting starts on the first day of the period the day gives, kept while the day is unchanged
+            startDate: account?.credit?.startDate && account.credit.cycleDay === cycleDayNum
+              ? account.credit.startDate
+              : cycleStartOf(cycleDayNum, todayIso()),
             // Its installment plans stay
             conversions: account?.credit?.conversions || [],
           },
@@ -193,7 +205,7 @@ export default function AccountForm({ account = null, onSubmit, onClose, submitt
   );
 }
 
-/** A credit's terms: its limit, the debt already owed, and from when its records count */
+/** A credit's terms: its limit, the debt already owed, and the day of the month its period starts */
 function CreditTermsFields({ credit, setTerm }) {
   const numberField = (id, key, label, hint) => (
     <div className="ui-input-group">
@@ -208,7 +220,7 @@ function CreditTermsFields({ credit, setTerm }) {
     <div className="credit-terms-fields">
       {numberField('credit-limit', 'limit', 'سقف اعتبار (تومان) *')}
       {numberField('credit-opening', 'openingDebt', 'بدهی فعلی هنگام ثبت (تومان، اختیاری)', 'آنچه پیش از افزودن این حساب خرج شده و هنوز پرداخت نشده')}
-      <DateField label="محاسبه از تاریخ" value={credit.startShamsi} onChange={setTerm('startShamsi')} />
+      {numberField('credit-cycle-day', 'cycleDay', 'روز شروع دوره‌ی هر ماه (روز چندم ماه شمسی) *', 'بدهی و «هزینه‌ها و انتقال این دوره» از این روز حساب می‌شوند؛ «بدهی فعلی» همان بدهی در شروع همین دوره است')}
       <p className="expense-form-hint">خرید از اعتبار را مثل هر هزینه با «پرداخت از» همین حساب ثبت کنید؛ تسویه‌ی بدهی و تبدیل به قسط از روی کارت اعتبار، دستی و با مبلغ‌های واقعی ثبت می‌شوند.</p>
     </div>
   );

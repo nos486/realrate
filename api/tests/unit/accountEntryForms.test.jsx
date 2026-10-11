@@ -185,16 +185,17 @@ describe('AccountForm', () => {
     expect(onSubmit.mock.calls[0][0]).toMatchObject({ type: 'cash', name: 'حقوق', cardLast4: '', currencies: ['IRT'] });
   });
 
-  it('an edit opens «جزئیات بیشتر» when something in it is set; a credit counts from a day picked as today/yesterday/other', async () => {
+  it('an edit opens «جزئیات بیشتر» when something in it is set; a credit period starts on a day of the month', async () => {
     const onSubmit = vi.fn(async () => {});
     render(<AccountForm account={{ id: 'acc_1', type: 'bank', name: 'ملت', cardLast4: '9876', notes: '' }} onSubmit={onSubmit} onClose={vi.fn()} />);
     expect(document.getElementById('account-card').value).toBe('9876');
     expect(screen.getByText('انصراف')).toBeTruthy();
     fireEvent.click(screen.getByRole('radio', { name: 'اعتبار بانکی' }));
     setValue(screen.getByLabelText('سقف اعتبار (تومان) *'), '50000000');
-    setDay('1405/07/01');
+    setValue(screen.getByLabelText('روز شروع دوره‌ی هر ماه (روز چندم ماه شمسی) *'), '15');
     fireEvent.submit(screen.getByText('ذخیره تغییرات').closest('form'));
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());
-    expect(onSubmit.mock.calls[0][0]).toMatchObject({ type: 'credit', credit: { limit: 50_000_000, startDate: '2026-09-23' } });
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ type: 'credit', credit: { limit: 50_000_000, cycleDay: 15 } });
+    expect(onSubmit.mock.calls[0][0].credit.startDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });

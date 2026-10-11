@@ -107,29 +107,16 @@ export default function AccountsPage() {
   const usdToman = Number(usePricing()?.getAssetPrice?.('usd')) || 0;
   const usdAt = useUsdAt(monthExpenses.some((e) => e.currency === 'USD'));
   const fx = useFxRates(monthExpenses);
-  // A credit counts from its «محاسبه از تاریخ» (its debt does), so its month figures start there too
-  const creditSince = useMemo(
-    () => new Map(accounts.filter(isCreditAccount).map((a) => [a.id, a.credit.startDate || ''])),
-    [accounts]
+  const spentBy = useMemo(
+    () => new Map(summarizeByAccount(monthExpenses, { usdToman, usdAt, ...fx }).map((s) => [s.accountId, s])),
+    [monthExpenses, usdToman, usdAt, fx]
   );
-  const spentBy = useMemo(() => {
-    const counted = monthExpenses.filter((e) => !(e.date < (creditSince.get(e.accountId) || '')));
-    return new Map(summarizeByAccount(counted, { usdToman, usdAt, ...fx }).map((s) => [s.accountId, s]));
-  }, [monthExpenses, creditSince, usdToman, usdAt, fx]);
 
   // Transfers of the month shown (this month to start with)
   const [transferMonth, setTransferMonth] = useState(thisMonth);
   const transferRange = useMemo(() => shamsiMonthRange(transferMonth.jy, transferMonth.jm), [transferMonth]);
   const { transfers, saveTransfer, deleteTransfer, submitting: savingTransfer } = useTransfers({ from: transferRange.from, to: transferRange.to });
-  const movedBy = useMemo(() => {
-    const byAccount = summarizeTransfersByAccount(transfers);
-    for (const [id, since] of creditSince) {
-      const own = summarizeTransfersByAccount(transfers.filter((t) => (t.fromAccountId === id || t.toAccountId === id) && t.date >= since)).get(id);
-      if (own) byAccount.set(id, own);
-      else byAccount.delete(id);
-    }
-    return byAccount;
-  }, [transfers, creditSince]);
+  const movedBy = useMemo(() => summarizeTransfersByAccount(transfers), [transfers]);
   const isThisMonth = transferMonth.jy === thisMonth.jy && transferMonth.jm === thisMonth.jm;
   const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
   const money = (v) => (hideValues ? '****' : formatAmount(v));
@@ -275,6 +262,7 @@ export default function AccountsPage() {
           {accounts.map((account) => {
             const Icon = getAccountTypeIcon(account.type);
             const spent = spentBy.get(account.id);
+            const isCredit = isCreditAccount(account);
             const bank = (account.type === 'bank' || account.type === 'credit') && account.bankId
               ? resolveBank({ bankId: account.bankId, lenderName: account.bankName }, customBanks)
               : null;
@@ -296,7 +284,7 @@ export default function AccountsPage() {
                     •••• •••• •••• {account.cardLast4}
                   </div>
                 )}
-                {isCreditAccount(account) && (
+                {isCredit && (
                   <CreditSummary
                     status={credit.statusById.get(account.id)}
                     costsPaid={credit.costsById.get(account.id) || 0}
@@ -308,8 +296,8 @@ export default function AccountsPage() {
                     onUndoConversion={(plan) => handleUndoConversion(account, plan)}
                   />
                 )}
-                {hasExpenses && <AccountSpending spent={spent} hideValues={hideValues} />}
-                {movedBy.has(account.id) && (
+                {hasExpenses && !isCredit && <AccountSpending spent={spent} hideValues={hideValues} />}
+                {!isCredit && movedBy.has(account.id) && (
                   <div className="account-card-stat">
                     <span>انتقال {isThisMonth ? 'این ماه' : formatShamsiMonth(transferMonth.jy, transferMonth.jm)}</span>
                     <strong className="account-card-moved">

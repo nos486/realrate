@@ -123,6 +123,24 @@ export default function CreditSummary({
         </div>
       )}
 
+      {status.period && (
+        <>
+          <div className="account-card-stat">
+            <span>هزینه‌های این دوره <small>از {day(status.period.from)}</small></span>
+            <strong>{money(status.period.spent)} تومان</strong>
+          </div>
+          {(status.period.paidIn > 0 || status.period.takenOut > 0) && (
+            <div className="account-card-stat">
+              <span>انتقال این دوره</span>
+              <strong className="account-card-moved">
+                {status.period.paidIn > 0 && <span className="is-in">+{money(status.period.paidIn)}</span>}
+                {status.period.takenOut > 0 && <span className="is-out">−{money(status.period.takenOut)}</span>}
+              </strong>
+            </div>
+          )}
+        </>
+      )}
+
       {costsPaid > 0 && (
         <div className="account-card-stat">
           <span>کارمزدهای پرداخت‌شده</span>
