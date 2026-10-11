@@ -321,7 +321,10 @@ export const APP_TABLES = [
         PRIMARY KEY (user_id, kind, id)
       )`,
       "CREATE INDEX IF NOT EXISTS idx_vault_records_date ON vault_records(user_id, kind, record_date)",
-      "CREATE INDEX IF NOT EXISTS idx_vault_records_parent ON vault_records(user_id, kind, parent_id)",
+      // A portfolio's items, ordered/filtered by their date in the same index (it also serves the
+      // parent-only lookup, so the older parent-only index is dropped)
+      "CREATE INDEX IF NOT EXISTS idx_vault_records_parent_date ON vault_records(user_id, kind, parent_id, record_date)",
+      "DROP INDEX IF EXISTS idx_vault_records_parent",
       // Incremental sync (GET /api/vault/sync): a user's records in the order they changed
       "CREATE INDEX IF NOT EXISTS idx_vault_records_updated ON vault_records(user_id, updated_at, kind, id)",
     ],
@@ -340,6 +343,8 @@ export const APP_TABLES = [
         PRIMARY KEY (user_id, kind, id)
       )`,
       "CREATE INDEX IF NOT EXISTS idx_vault_tombstones_time ON vault_tombstones(user_id, deleted_at, kind, id)",
+      // The hourly purge across all users (cronPolling.job.js) finds the old ones without a scan
+      "CREATE INDEX IF NOT EXISTS idx_vault_tombstones_age ON vault_tombstones(deleted_at)",
     ],
   },
   {

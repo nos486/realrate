@@ -433,6 +433,20 @@ export const VAULT_TOMBSTONE_RETENTION_DAYS = 180;
 const DAY_MS = 86_400_000;
 
 /**
+ * Delete tombstones older than the retention, for every user (hourly cron): a user who never syncs
+ * again would otherwise keep theirs forever. Bounded per run, the rest goes next hour.
+ * @returns {Promise<number>} rows deleted
+ */
+export async function dbPurgeOldVaultTombstones(env, now = Date.now(), limit = 5000) {
+  await ensureSchema(env);
+  const oldest = new Date(now - VAULT_TOMBSTONE_RETENTION_DAYS * DAY_MS).toISOString();
+  const res = await env.DB.prepare(
+    `DELETE FROM vault_tombstones WHERE rowid IN (SELECT rowid FROM vault_tombstones WHERE deleted_at < ? LIMIT ?)`
+  ).bind(oldest, limit).run();
+  return res?.meta?.changes ?? 0;
+}
+
+/**
  * A sync position: the (time, kind, id) of the last change a device has, "time|kind|id"
  * @returns {{ time: string, kind: string, id: string }|null} null = from the start
  */
