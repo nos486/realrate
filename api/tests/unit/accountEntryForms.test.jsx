@@ -11,6 +11,7 @@ import { openDetails, pickRow, rowValue, setDay } from '../helpers/entryForm.js'
 
 vi.mock('../../../web/src/shared/ui/FeedbackProvider.jsx', () => ({ useFeedback: () => ({ confirm: vi.fn(async () => true), toast: { success: vi.fn(), error: vi.fn() } }) }));
 
+vi.mock('../../../web/src/shared/banks/bankApi.js', () => ({ listCustomBanks: vi.fn(async () => ({ banks: [] })), createCustomBank: vi.fn(), deleteCustomBank: vi.fn() }));
 vi.mock('../../../web/src/shared/vault/vaultExpenses.js', () => ({
   getExpenseGroups: vi.fn(async () => ({ groups: [] })),
   ensureDailyGroup: vi.fn(async () => ({ id: 'grp_daily' })),
@@ -18,6 +19,7 @@ vi.mock('../../../web/src/shared/vault/vaultExpenses.js', () => ({
   newReimbursement: (input) => ({ id: 'rmb_new', ...input }),
 }));
 
+import AccountForm from '../../../web/src/features/accounts/components/AccountForm.jsx';
 import ReimbursementsModal from '../../../web/src/features/expenses/components/ReimbursementsModal.jsx';
 import TransferForm from '../../../web/src/features/accounts/components/TransferForm.jsx';
 import CreditConversionForm from '../../../web/src/features/accounts/components/CreditConversionForm.jsx';
@@ -159,5 +161,40 @@ describe('ReimbursementsModal', () => {
     // What is left is offered next, the note cleared
     await waitFor(() => expect(document.getElementById('reimbursement-amount').value.replace(/[^\d]/g, '')).toBe('150'));
     expect(document.getElementById('reimbursement-notes').value).toBe('');
+  });
+});
+
+describe('AccountForm', () => {
+  it('the type as icon tiles; the card, account number and notes folded under «جزئیات بیشتر»', async () => {
+    const onSubmit = vi.fn(async () => {});
+    render(<AccountForm onSubmit={onSubmit} onClose={vi.fn()} />);
+    const tiles = [...document.querySelectorAll('.account-type-field .category-tile')];
+    expect(tiles.map((t) => t.getAttribute('aria-label'))).toEqual(['حساب بانکی', 'اعتبار بانکی', 'نقد', 'کیف پول الکترونیک', 'سایر']);
+    expect(document.querySelector('.category-tile[aria-checked="true"]').getAttribute('aria-label')).toBe('حساب بانکی');
+    expect(document.getElementById('account-card')).toBeNull();
+    expect(screen.queryByText('ثبت و بعدی')).toBeNull();
+    openDetails();
+    setValue(document.getElementById('account-card'), '1234');
+    setValue(document.getElementById('account-name'), 'حقوق');
+    fireEvent.click(screen.getByRole('radio', { name: 'نقد' }));
+    // A cash account has no card: only the notes are left in it
+    expect(document.getElementById('account-card')).toBeNull();
+    expect(document.getElementById('account-notes')).toBeTruthy();
+    fireEvent.submit(screen.getByText('افزودن حساب').closest('form'));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ type: 'cash', name: 'حقوق', cardLast4: '', currencies: ['IRT'] });
+  });
+
+  it('an edit opens «جزئیات بیشتر» when something in it is set; a credit counts from a day picked as today/yesterday/other', async () => {
+    const onSubmit = vi.fn(async () => {});
+    render(<AccountForm account={{ id: 'acc_1', type: 'bank', name: 'ملت', cardLast4: '9876', notes: '' }} onSubmit={onSubmit} onClose={vi.fn()} />);
+    expect(document.getElementById('account-card').value).toBe('9876');
+    expect(screen.getByText('انصراف')).toBeTruthy();
+    fireEvent.click(screen.getByRole('radio', { name: 'اعتبار بانکی' }));
+    setValue(screen.getByLabelText('سقف اعتبار (تومان) *'), '50000000');
+    setDay('1405/07/01');
+    fireEvent.submit(screen.getByText('ذخیره تغییرات').closest('form'));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled());
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ type: 'credit', credit: { limit: 50_000_000, startDate: '2026-09-23' } });
   });
 });
