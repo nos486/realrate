@@ -1,80 +1,65 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code in this repository.
 
-RealRate is a market-analysis and personal-finance app for Iran, live at realrate.geekio.org. On the market side it shows the intrinsic value and bubble of gold and coins, plus currencies, Tehran Stock Exchange symbols and funds. It also has AI-curated market news and a daily AI analysis (Workers AI). On the personal side it covers portfolios, expenses and budgets, accounts, loans, incomes, cheques, subscriptions and a yearly report, and all of this data is end-to-end encrypted. The Android app also records expenses from bank SMS.
+RealRate (realrate.geekio.org) is a market-analysis and personal-finance app for Iran: intrinsic value and bubble of gold and coins, currencies, TSE symbols and funds, AI-curated news and a daily AI analysis (Workers AI); plus end-to-end encrypted portfolios, expenses, budgets, accounts, loans, incomes, cheques and a yearly report. The Android app also records expenses from bank SMS.
 
-It is an npm-workspaces monorepo: `api/` is a framework-less Cloudflare Worker (D1 + KV + Workers AI), and `web/` is a React 19 + Vite 8 SPA/PWA that is also packaged as the Android app with Capacitor 8 (`web/android`, id `ir.realrate.app`). The UI is Persian only: right-to-left, Shamsi (Jalali) dates, amounts in **tomans** (a record may also be in another currency of `domain/currencies.js`; totals are in tomans), dark theme, Vazirmatn font. Write UI strings and CHANGELOG entries in Persian. The primary docs are in Persian, with English versions in `docs/en/` (`docs/ARCHITECTURE.md` and `docs/API.md`, the REST route reference, are English only). The doc index is the table in `README.en.md`.
-
-External services: Gemini (`GEMINI_API_KEY`) for AI cheque scanning, Resend (`RESEND_API_KEY`) for verification, password-reset and reminder emails, and Google OAuth for sign-in.
+npm-workspaces monorepo: `api/` is a framework-less Cloudflare Worker (D1 + KV + Workers AI); `web/` is a React 19 + Vite SPA/PWA, also packaged as the Android app with Capacitor (`web/android`, id `ir.realrate.app`). UI is Persian only: RTL, Shamsi dates with Persian digits, amounts in **tomans** (records may use other currencies; totals in tomans), Tehran days, dark flat theme. UI strings and CHANGELOG entries are Persian. Docs index: the table in `README.en.md`.
 
 ## Commands
 
 ```bash
 npm install
-npm run dev                 # API (wrangler dev, :8787) + web (Vite, :5173) together
-npm run api:dev / web:dev   # one side only
-npm test                    # api Vitest suite, then web SEO tests (node --test)
-
-# Single test file / test name (run from api/)
-cd api && npx vitest run tests/unit/priceBook.test.js
-cd api && npx vitest run -t "part of the test name"
-
+npm run dev                 # API (wrangler dev, :8787) + web (Vite, :5173)
+cd api && npx vitest run tests/unit/priceBook.test.js   # one test file
+cd api && npx vitest run -t "part of the test name"     # one test name
 cd web && npm run lint      # oxlint
-cd web && npm run build     # vite build + scripts/build-seo.mjs (static SEO pages, sitemap)
-cd web && npm run build:app # Android web bundle (--mode app → dist-app); android:sync also runs cap sync
-cd api && npm run db:schema # print the D1 DDL generated from src/repositories/d1Schema.js
+cd web && npm run build     # vite build + static SEO pages
+cd web && npm run build:app # Android web bundle (dist-app)
 ```
 
-- Vite's `/api` proxy targets the **live** backend (`https://realrate-api.geekio.org`) unless `VITE_PROXY_TARGET` is set (e.g. `VITE_PROXY_TARGET=http://localhost:8787`).
-- Web build-time env: `VITE_API_URL` (API address), `VITE_GOOGLE_CLIENT_ID`, and `VITE_APP_VERSION` (set by the APK build and sent in `X-RealRate-Client`).
-- To preview the Android app shell in a desktop browser, add `?app=1` to the URL.
-- `wrangler dev` uses local D1/KV; tables are created on first use (`ensureSchema`), so there are no migrations to run. To develop without the email service, run `npx wrangler dev --var EMAIL_DEBUG_LOG:true` and email bodies go to the log.
-- **All Vitest tests live in `api/tests/unit/`, including the web's React/UI tests** (`*.test.jsx`, importing `../../../web/src/...`, using happy-dom + Testing Library). `web/tests/` only holds the SEO page tests. Test helpers (`api/tests/helpers/`) provide an in-memory/SQLite D1 (`sqliteD1.js`, `memoryStateDb.js`).
+- Vite's `/api` proxy targets the **live** backend unless `VITE_PROXY_TARGET=http://localhost:8787`. Add `?app=1` to preview the Android shell in a browser.
+- `wrangler dev` uses local D1/KV; tables are created on first use (no migrations). `--var EMAIL_DEBUG_LOG:true` logs emails instead of sending.
+- **All Vitest tests live in `api/tests/unit/`**, including web UI tests (`*.test.jsx` importing `../../../web/src/...`). `web/tests/` holds only SEO tests.
+
+## Testing
+
+- Locally, run only the tests related to the change (the touched module's test file, or `-t`), plus `cd web && npm run lint` if web code changed. Run `npm run build` only when the change touches build config, routing or SEO pages.
+- The full suite, lint and build run in CI on every PR (`.github/workflows/ci.yml`); a PR merges only when it is green.
+- Add or update tests with the change.
 
 ## Deployment
 
-Merging to `main` deploys everything: web to Cloudflare Pages, API via Cloudflare Workers Builds, and a signed APK to GitHub Releases (`.github/workflows/android.yml`). Release notes come from lines added to `CHANGELOG.md` since the previous `v1.0.N` tag (`.github/scripts/release-notes.mjs`), and the Android app shows them in its update prompt — user-visible changes get a Persian bullet under `## [Unreleased]`. Plain Worker vars belong in `api/wrangler.toml` (`wrangler deploy` overwrites dashboard vars).
+Merging to `main` deploys everything: web to Cloudflare Pages, API via Workers Builds, and a signed APK to GitHub Releases (`android.yml`). The APK's release notes are the `CHANGELOG.md` lines added since the last `v1.0.N` tag, so user-visible changes get a Persian bullet under `## [Unreleased]`. Plain Worker vars go in `api/wrangler.toml`.
 
 ## Architecture
 
-### Shared code via symlinks
-Shared config and pure domain logic are written **only in `api/src/`**; `web/src/config/*` and many `web/src/utils/*` files are symlinks into `api/src/config/` and `api/src/domain/` (table in `docs/en/PROJECT_STRUCTURE.md`). Always edit the `api/` source. Code in `api/src/domain/` therefore must run in both the Worker and the browser (no Worker bindings; e.g. the price-history writer is injected by `index.js` via `setPriceHistoryWriter`). `displayEngine.js` is the single source for item names, units, categories, colors and icons on both sides — don't hardcode display logic in components.
-
-### API (`api/src/`)
-- `index.js`: hand-written router + `scheduled` handler (cron every minute). Request gates in order: CORS preflight → CSRF origin check on writes → sign-in routes → maintenance → demo gate → mandatory-encryption gate → route. Feature-gated routes call `requireFeature` (`lib/features.js`), costly ones `consumeQuota` (`lib/usageQuota.js`). Errors are thrown as `AppError` (`lib/AppError.js`) and serialized by `middlewares/errorHandler.js`.
-- Layers: `handlers/` (HTTP) → `services/` / `domain/` (logic) → `repositories/` (all SQL/KV access). Tables are defined in `repositories/d1Schema.js`; bumping the schema version reruns the DDL.
-- **Storage standard** (see `docs/ARCHITECTURE.md`): KV (`kvStore.repository.js`) only for large read-mostly blobs (price book `prices`, `source_items:*`, `history:<id>` snapshots); D1 `app_state` (`stateStore.repository.js`) for small state that must read back exactly (counters, quotas, source sync state, overrides) because KV is eventually consistent and write-limited; hot small values (sessions, groups, feature rules) cached in isolate memory (`lib/isolateCache.js`).
-- **Price pipeline**: `services/market/sourceSync.service.js` (`syncAllSources`) is the only price pipeline. Source adapters in `services/market/sources/` implement `ISourceAdapter` (`fetchRaw` / `parse` → `{ items, datetime }`) and never write. Sources are declared in `config/sources.config.js` / `sourceRegistry.js`. The sync builds the **price book** (`domain/priceBook.js`): every item is `{ id, price, name, category, unit, sourceId, updatedAt, params }` with `price` always in tomans and normalized lowercase ids; dollar-quoted assets also carry `currency: "usd"` / `priceUsd`. `domain/priceGuard.js` holds back implausible jumps. Each source is fetched at most every 5 minutes (`MIN_FETCH_INTERVAL_SEC`, `domain/priceSources.js`; the cron only checks which are due), and an item's `updatedAt` is when its price last changed (cards show it as «آخرین تغییر»). Every other price shape (reference rates, legacy endpoints) is a view in `domain/priceBookViews.js`. Old stored ids map to book ids via `domain/priceIds.js` (`toPriceId`, `PRICE_ID_VERSION`).
-- Daily price history: D1 `price_daily` candles (`priceHistory.repository.js`), served from KV snapshots (`priceHistoryStore.repository.js`) so history reads hit no D1 rows.
-- Guides: `docs/en/ADDING_NEW_PRICE_SOURCE.md`, `docs/en/ADDING_NEW_ASSET.md`, `docs/en/BANK_SMS.md` (bank SMS templates in `domain/bankSmsTemplates.js`).
-
-### Web (`web/src/`)
-- Feature-based: `features/<feature>/` colocates UI, hooks and API modules; `pages/MainPage` hosts the app sections; `shared/` holds UI primitives, `httpClient` (token + `X-RealRate-Client` header), Android shell (`shared/app`), native Capacitor bridges (`shared/native`), offline IndexedDB copy and outbox (`shared/offline`), and feature flags (`shared/features`).
-- The browser never computes prices: `PricingContext` / `features/market/priceBookAssets.js` load `/api/prices/book?part=core` plus `/api/prices/catalog` and look prices up by book id.
-- **E2EE** (`shared/vault/`, `lib/e2ee.js`, `docs/en/E2EE_VAULT.md`): financial records (portfolios, transactions, loans, incomes, cheques, expenses, accounts) are encrypted client-side; the server stores only ciphertext in `vault_records`. Each feature's API module (`loanApi`, `chequeApi`, …) reads/writes through its vault store (`vaultLoans.js`, …) and validates with the shared domain document module (`domain/*Document.js`, e.g. `incomeDocument.js`). On the server, `lib/encryptionGate.js` rejects any unencrypted write of financial data. The legacy plaintext repositories are read/delete only. The Android offline copy syncs incrementally through `GET /api/vault/sync`, which includes tombstones for deletes.
-- Android-only behavior is branched on `isNativeApp()` (`shared/native`): the bottom-nav shell, a personal dashboard on home, bank SMS reading (the text stays on the device), fingerprint unlock and offline use. See `docs/en/ANDROID.md`.
-- Styling: semantic color tokens in `styles/tokens.css` only (no raw hex), flat design — no shadows, glows or gradients; categorical chart colors only from `shared/ui/chartColors.js`; list rows of loans and subscriptions use the one row card `shared/ui/RowCard.jsx` (`styles/row-card.css`); every entry form (expenses, incomes, portfolio, loans, cheques, subscriptions, accounts) is built from the entry-form parts in `shared/form/` (amount with words, category tiles, picker rows, «جزئیات بیشتر», «ثبت و بعدی»; `styles/entry-form.css`). Android-specific layout in `styles/app-shell.css`. Full rules: `docs/en/DESIGN.md`.
+- **Shared code via symlinks**: shared config and pure domain logic live **only in `api/src/`**; `web/src/config/*` and many `web/src/utils/*` are symlinks into `api/src/config/` and `api/src/domain/`. Always edit the `api/` source; `domain/` code must run in both Worker and browser. `displayEngine.js` is the single source of item names, units, categories, colors and icons.
+- **API** (`api/src/`): `index.js` is the hand-written router + per-minute cron. Layers: `handlers/` → `services/` / `domain/` → `repositories/` (all SQL/KV). Errors are `AppError`. Tables in `repositories/d1Schema.js`.
+- **Storage**: KV only for large read-mostly blobs (price book, history snapshots); D1 `app_state` for small state that must read back exactly; hot small values cached in isolate memory (`lib/isolateCache.js`). Details: `docs/ARCHITECTURE.md`.
+- **Prices**: `services/market/sourceSync.service.js` is the only pipeline; source adapters (`services/market/sources/`) only fetch and parse. It builds the **price book** (`domain/priceBook.js`): items with normalized ids and `price` always in tomans. Each source is fetched at most every 5 minutes (`MIN_FETCH_INTERVAL_SEC`). Other shapes are views (`domain/priceBookViews.js`). The browser never computes prices; it looks them up by book id. Guides: `docs/en/ADDING_NEW_PRICE_SOURCE.md`, `docs/en/ADDING_NEW_ASSET.md`.
+- **Web** (`web/src/`): feature folders under `features/`; shared primitives, http client, Android shell, offline store and feature flags under `shared/`. Android-only behavior branches on `isNativeApp()`.
+- **E2EE**: financial records are encrypted in the browser (`shared/vault/`); the server stores only ciphertext and `lib/encryptionGate.js` rejects plaintext writes. See `docs/en/E2EE_VAULT.md`.
 
 ## Working rules
 
-- **The repo is public.** Never commit secrets: the Android signing key and keystore passwords, API keys, tokens. They live only in GitHub Secrets / Cloudflare secrets.
-- The owner writes in Persian: answer in Persian. Code, comments, commit messages and PRs stay in English, with no model names in them.
-- Work like a senior engineer: principled, standard, efficient. Don't hard-code special cases (an asset id, a bank, a channel) — when something needs a rule, make it a config or rule table others can extend, and extend the existing standard (a config entry, a spec, a shared component) before adding a parallel one.
-- Changes go through a PR to `main`, merged with a merge commit, after the checks for what changed pass (`cd api && npx vitest run`; `cd web && npm run lint && npm run build && npm test`). Add tests with the change.
-- Update the docs in the same change: `docs/FEATURES.md` (Persian, per feature), `docs/API.md`, `docs/ARCHITECTURE.md`, the source/asset guides, and both READMEs (`README.md`, `README.en.md`) for user-visible features.
-- Match the surrounding code: each file opens with a header comment saying what it is and why; JSDoc on exports; comments explain intent.
+- **The repo is public.** Never commit secrets (signing keys, passwords, API keys, tokens).
+- Answer the owner in Persian. Code, comments, commits and PRs are in English, with no model names.
+- No hard-coded special cases (an asset id, a bank, a channel): extend a config, spec or rule table, or an existing shared component, before adding a parallel one.
+- Changes go through a PR to `main`, merged with a merge commit.
+- **Docs**: update the doc that describes what you changed, in the same PR — a user-visible feature → `docs/FEATURES.md` (+ READMEs if it is notable); an API route → `docs/API.md`; architecture/storage → `docs/ARCHITECTURE.md`. Nothing else.
+- Match the surrounding code: a header comment per file, JSDoc on exports, comments explain intent.
 
-## Standards to keep
+## Standards
 
-- **Low server load.** Public read endpoints are cached at Cloudflare's edge with `edgeCachedJson` (`api/src/lib/edgeCache.js`), so visitors share one D1 read per data center — use that before adding storage (e.g. the landing page's AI analysis reads the already-cached `/api/news/today`). No new per-request D1 reads on hot paths; load in bulk (the reports page loads a year in one request per source).
-- **Client-side computation for encrypted data.** Reports, totals and exports are computed in the browser; nothing a user owns goes to the server in plaintext or to a third party (the reports' «خروجی PDF» is the browser's own print: `features/reports/printReport.js` and `@media print` in `styles/reports.css`; website only, not in the Android web view).
-- **Dollar-priced assets.** A source declares `quote: "usd"` (world ounces, oil, BTC/ETH) — never branch on an asset id for units or rounding. The item keeps its one id and a toman `price` (stored records and portfolio totals stay in tomans) plus `currency: "usd"` / `priceUsd` (absent `currency` = toman; `currencyOf` in `priceBook.js`). Its day range and change are in dollars (`params.dayCurrency`); its dollar closes are recorded under `<id>@usd` (`usdSeriesKey`; `historyKeysOf` lists every history key, so the admin's orphan cleanup keeps them). Screens show an asset's own price through `web/src/features/market/assetPrice.js` (`ownPriceOf`, `formatPrice`); a home card can be switched to dollars or tomans per section (`currencies` in `domain/homeLayout.js`). Asset specs: `api/src/domain/specs/*.spec.js` (world commodities in `commodity.spec.js`, category `commodity`).
-- **Refreshing data.** A tab loads its own data when opened; after that, data is read again only by the open tab's refresh — the header's button, coming back to the app (Android `resume`, the page visible again: every time) or the window getting focus again (at most every 30 s) (`web/src/shared/refresh/`). Opening a tab again also reads its kept scopes (prices, news: `KEPT_SCOPES`, at most every 30 s), since those outlive the tab. No timers. A new loader registers under its scope (`useRefreshHandler` / `useRefreshToken`) and a new tab names its scopes in `tabScopes.js`. While a newly opened tab still waits on the server, `shared/refresh/TabLoadingGate.jsx` blocks the screen (`shared/ui/BlockingOverlay.jsx`; requests in flight from `httpClient.subscribeRequests`); a read with no answer gives up after 20 s (`READ_TIMEOUT_MS`), so it is never stuck.
-- **Home card metrics.** What a card shows besides its last price is a metric in `CARD_METRICS` (`api/src/domain/cardMetrics.js`) read off the book item; linked items (a coin ↔ its bubble) come from spec fields through `ITEM_LINKS`, never from ids in code; per-card choices live in the layout (`cards: { id: { main, slots } }`). Averages are book data (`params.avg`, `domain/priceAverages.js`): moved once a Tehran day from running sums (`price_averages` state), carried on every other tick — never computed per request or in the browser. A change to past history calls `resetPriceAverages`. A coin's standard price uses its bubble's mean percent over the last year from the same sums (`params.targetBubblePct`, derived `<bubbleId>@ratio` from the coin's and its bubble's closes, i.e. coin ÷ its gold value) — never a fixed or admin-set percent. A user-built card combines assets with a formula (`domain/cardFormula.js`, section `formulas`): parsed, never `eval`ed; its chart is computed in the browser from its assets' series fetched in one request.
-- **Currencies and rates.** The currencies money is recorded in (toman, dollar, euro, lira, dirham) are one table, `domain/currencies.js` (code, label, adjective, `priceId`, decimals) — a new currency is a row there, and nothing branches on a code except the dollar as reference. Accounts, expenses, incomes and subscriptions can be in any of them. No record stores an exchange rate: a record's rate is its currency's close on the record's day in the daily price history, through the rates bag `{ usdToman, usdAt, rateToday, rateAt }` from `web/src/features/market/useFxRates.js`; forms only show that day's rate (`shared/currency/useDayRate.js`, `DayRateHint.jsx`), never take one typed. A portfolio transaction a record writes is priced from the history when saved (`shared/vault/recordRates.js` `tomanRateOn`). An income's cheque, bank-credit and bank-SMS links are kept only when it is in tomans (`incomeDocument.js`).
-- **All spending is in the expenses.** Money another feature pays out (a subscription's due payment, a paid loan installment or extra payment) is recorded as an expense by `web/src/shared/vault/spendingRecords.js`, linked to a matching one entered by hand instead of a second; a cleared cheque records its expense or income (`shared/vault/recordLinks.js`). Which record an expense or income names is the `domain/categoryLinks.js` table: by category (`CATEGORY_LINKS`) or by how it was paid (`PAYMENT_LINKS`: a cheque is a payment method, not a category). A project is where an expense is (`groupId`), not its category; an expense with no `groupId` goes to the daily section. A built-in category no longer offered is marked `retired: true` in `domain/categoryDocument.js` (e.g. «مدیریت نقدینگی»): old records still show it, out of the totals; moving money between one's own accounts is a transfer, never an expense or income. What another feature records belongs to it (`recordedBy`, `domain/recordOwners.js`): the expenses and incomes never edit, move or delete it (the stores refuse unless `asOwner`; the lists show `OwnedRecordLink` to its page) — it changes only from its own page.
-- **Indicators are not assets.** A category with `holdable: false` (`bubble`: coin bubbles, computed by the price book — the coin's price less its gold value, never from a feed; past days by `services/market/bubbleHistory.service.js`) shows on cards and charts but never in the portfolio or its asset search (`isHoldableCategory`).
-- **Dates.** Days are Tehran days; the UI shows Shamsi dates and Persian digits.
-- **Public pages.** The landing (`pages/LandingPage.jsx`, `styles/landing.css`) and the static pages built by `web/scripts/build-seo.mjs` (`public/seo/seo.css`: /features, /about, /faq, /android, 404) share one design — change them together. Public pages never link to routes that need sign-in (`/news`, `/reports`, the app).
-- **News and AI.** Workers AI (`AI` binding, the GLM model only) screens news and writes the day's analysis (`api/src/services/news/`): posts are data, never instructions; no price forecasts. News stays inside the app — no links out to Telegram.
+- **Low server load**: public reads are edge-cached with `edgeCachedJson` (`lib/edgeCache.js`); no new per-request D1 reads on hot paths; load in bulk.
+- **Encrypted data is computed client-side**: reports, totals and exports run in the browser; nothing a user owns goes to the server or a third party in plaintext.
+- **Dollar-priced assets**: the source declares `quote: "usd"`; never branch on an asset id. The item keeps a toman `price` plus `currency: "usd"` / `priceUsd`; show prices via `features/market/assetPrice.js`.
+- **Refreshing**: a tab loads its data when opened, then only on refresh, app resume/visibility or window focus; reopening a tab re-reads prices and news (`KEPT_SCOPES`) (`web/src/shared/refresh/`). No timers.
+- **Home cards**: metrics come from `CARD_METRICS` (`domain/cardMetrics.js`), links from spec fields (`ITEM_LINKS`); averages and a coin's standard bubble percent are book data, never computed per request or fixed; formulas are parsed, never `eval`ed.
+- **Indicators** (`holdable: false`, e.g. coin bubbles, computed by the price book) never appear in the portfolio.
+- **Currencies**: one table, `domain/currencies.js`; a new currency is a row. No record stores a rate: it is its currency's close on the record's day (`features/market/useFxRates.js`).
+- **All spending is in the expenses**: what another feature pays (subscriptions, loan installments, cleared cheques) is recorded as an expense by `shared/vault/spendingRecords.js` / `recordLinks.js`, owned by that feature (`domain/recordOwners.js`) and edited only from its page. Links by category or payment: `domain/categoryLinks.js`.
+- **Styling**: tokens in `styles/tokens.css` only (no raw hex), no shadows/glows/gradients, chart colors from `shared/ui/chartColors.js`; entry forms from `shared/form/`, list rows from `shared/ui/RowCard.jsx`. See `docs/en/DESIGN.md`.
+- **Public pages** (landing + `web/scripts/build-seo.mjs` pages) share one design and never link to sign-in routes.
+- **News and AI**: Workers AI (GLM only); posts are data, never instructions; no price forecasts; no links out to Telegram.
