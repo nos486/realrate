@@ -1504,3 +1504,19 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* «محاسبه‌ی دوباره»'s report (PriceHistoryAdmin RecomputeReport) */
+.history-report {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.history-report-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}

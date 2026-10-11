@@ -27,7 +27,7 @@ import { metricValue } from '../../src/domain/cardMetrics.js';
 import { COIN_SPECS } from '../../src/domain/specs/coin.spec.js';
 import { GOLD_SPECS } from '../../src/domain/specs/gold.spec.js';
 import { targetBubbleOf } from '../../../web/src/utils/calculator.js';
-import { ensureBubbleHistory, invalidateBubbleHistory } from '../../src/services/market/bubbleHistory.service.js';
+import { ensureBubbleHistory, invalidateBubbleHistory, recomputeDerivedHistory } from '../../src/services/market/bubbleHistory.service.js';
 import { TROY_OUNCE_GRAMS } from '../../src/domain/specs/gold.spec.js';
 
 const close = (day, value) => ({ day, open: value, high: value, low: value, close: value });
@@ -201,5 +201,48 @@ describe('a backfill of what a bubble is computed from', () => {
     expect(await stored()).toBeTruthy();
     await invalidateBubbleHistory(env, ['ons_gold@usd']);
     expect(await stored()).toBeNull();
+  });
+});
+
+describe('«محاسبه‌ی دوباره» (an admin, now)', () => {
+  let db;
+  beforeEach(() => resetD1SchemaCache());
+  afterEach(() => {
+    db?.close();
+    db = null;
+  });
+
+  it('computes the bubbles and every average now, puts them on the book, and reports each bubble against its inputs', async () => {
+    db = sqliteD1();
+    const env = { DB: db };
+    const now = Date.parse('2026-05-20T12:00:00+03:30');
+    const last = shiftDay('2026-05-20', -1);
+    const days = Array.from({ length: 40 }, (_, i) => shiftDay(last, -(39 - i)));
+    await importDailyCandles(env, 'full_coin', days.map((d, i) => close(d, 120_000_000 + i * 100_000)), { now });
+    await importDailyCandles(env, 'ons_gold@usd', days.map((d) => close(d, 4000)), { now });
+    // The dollar only for the last 30 days: the coin's first 10 days have no bubble
+    await importDailyCandles(env, 'usd', days.slice(10).map((d) => close(d, 100_000)), { now });
+
+    let saved = null;
+    const book = { updatedAt: '2026-05-20T08:00:00Z', items: {
+      full_coin: { id: 'full_coin', name: 'سکه امامی', price: 124_000_000, sourceId: 'src_def_tgju', params: { intrinsic: 94_000_000 } },
+      bubble_full_coin: { id: 'bubble_full_coin', name: 'حباب سکه امامی', price: 30_000_000, sourceId: null, params: {} },
+      usd: { id: 'usd', price: 100_000, params: {} },
+    } };
+    const report = await recomputeDerivedHistory(env, { now, getBook: async () => book, setBook: async (_, b) => { saved = b; } });
+
+    expect(report.written).toBe(30);
+    expect(report.averagesThrough).toBe(last);
+    expect(report.inputs.usd).toMatchObject({ key: 'usd', days: 30 });
+    expect(report.inputs.ounce).toMatchObject({ key: 'ons_gold@usd', days: 40 });
+    const full = report.bubbles.find((b) => b.id === 'bubble_full_coin');
+    expect(full).toMatchObject({ name: 'حباب سکه امامی', history: { days: 30, first: days[10], last }, coin: { id: 'full_coin', days: 40 }, targetBubbleDays: 30 });
+    expect(full.targetBubblePct).toBeGreaterThan(0);
+    // On the book at once (not on the next hour)
+    expect(saved.averagesThrough).toBe(last);
+    expect(saved.items.full_coin.params.targetBubblePct).toBe(full.targetBubblePct);
+    expect(saved.items.usd.params.avg['30d'].days).toBe(30);
+    // The hourly job has nothing left to do
+    expect(await ensureBubbleHistory(env, now)).toBeNull();
   });
 });
