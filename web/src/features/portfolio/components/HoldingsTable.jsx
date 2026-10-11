@@ -96,7 +96,7 @@ export default function HoldingsTable({
       tdClassName: 'td-real-price',
       render: (item) => {
         // A dollar-priced asset (the ounce, oil) also shows its own price, in dollars
-        const usd = !hideValues && usdPriceOf(item);
+        const usd = hideValues ? 0 : usdPriceOf(item);
         return (
           <>
             <div className="cell-currency-wrap">
@@ -105,7 +105,7 @@ export default function HoldingsTable({
               </span>
               <span className="cell-unit">تومان</span>
             </div>
-            {usd && <span className="cell-usd-price"><bdi>${formatPrice(usd, 'usd')}</bdi></span>}
+            {usd > 0 && <span className="cell-usd-price"><bdi>${formatPrice(usd, 'usd')}</bdi></span>}
           </>
         );
       },

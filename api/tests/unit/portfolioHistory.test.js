@@ -52,8 +52,18 @@ describe('buildPortfolioSeries', () => {
     expect(s.estimated).toBe(true);
   });
 
-  it('returns null when no entry has a date', () => {
+  it('returns null when no entry has a date or a recording day', () => {
     expect(buildPortfolioSeries({ assets: ledger([hold(1, '')]), priceAt, today: '2026-03-05' })).toBeNull();
+  });
+
+  it('counts an undated entry from the day it was recorded', () => {
+    const assets = ledger([{ ...hold(10, ''), createdAt: '2026-03-02T09:00:00.000Z' }, hold(5, '2026-03-01')]);
+    assets[0].unitRealPrice = priceAt('usd', '2026-03-04');
+    const s = buildPortfolioSeries({ assets, priceAt, today: '2026-03-04' });
+    expect(s.days[0]).toBe('2026-03-01');
+    // 5 held on the 1st; 15 from the 2nd, when the undated record was made
+    expect(s.toman).toEqual([5 * 100_000, 15 * 110_000, 15 * 120_000, 15 * 130_000]);
+    expect(s.datedByCreation).toBe(true);
   });
 });
 
