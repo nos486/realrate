@@ -17,6 +17,7 @@ import DailyExpensesView from './DailyExpensesView.jsx';
 const HEADER = {
   icon: <HandCoins size={24} />,
   title: 'هزینه‌ها',
+  help: 'expenses',
   subtitle: 'هزینه‌های روزمره با دسته‌بندی، بودجه و مقایسه با ماه قبل',
 };
 

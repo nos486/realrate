@@ -54,6 +54,7 @@ import {
 const HEADER = {
   icon: <Wallet size={24} />,
   title: 'درآمدها',
+  help: 'incomes',
   subtitle: 'ورودی‌ها ماه‌به‌ماه، به تفکیک منبع',
 };
 

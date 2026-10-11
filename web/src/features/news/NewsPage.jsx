@@ -244,6 +244,7 @@ export default function NewsPage() {
       <FeaturePageHeader
         icon={<Newspaper size={22} />}
         title="اخبار"
+        help="news"
         subtitle="خبرهای مهم دلار، طلا، بورس و اقتصاد — هر دقیقه از کانال‌های خبری"
         actions={<NewsAlertsToggle />}
       />

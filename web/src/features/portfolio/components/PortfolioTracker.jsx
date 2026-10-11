@@ -67,6 +67,7 @@ export default function PortfolioTracker({
       <FeaturePageHeader
         icon={<Briefcase size={24} />}
         title="پورتفو"
+        help="portfolio"
         subtitle="دارایی‌ها با خرید، فروش و سود و زیان هرکدام، بر پایه نرخ لحظه‌ای"
         actions={
           <Button

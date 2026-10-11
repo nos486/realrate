@@ -155,6 +155,9 @@ export default function TransferForm({ transfer = null, draft = null, accounts =
             />
           </div>
         )}
+        {isCreditAccount(accounts.find((x) => x.id === toAccountId)) && (
+          <p className="expense-form-hint">پرداخت بدهی اعتبار از حساب خودتان است. اگر پول از بیرون واریز شده، به‌جای انتقال درآمد «تسویه بدهی اعتباری» ثبت کنید؛ هر دو برای یک پرداخت بدهی را دو بار کم می‌کنند.</p>
+        )}
 
         <DateField label="تاریخ انتقال *" value={dateShamsi} onChange={setDateShamsi} />
 

@@ -244,6 +244,9 @@ export default function IncomeForm({
             own={editingIncome?.soldFrom || null}
           />
         )}
+        {settling && (
+          <p className="expense-form-hint">این برای واریز از بیرون است. اگر پول را از یکی از حساب‌های خودتان به اعتبار داده‌اید، «انتقال بین حساب‌ها» ثبت کنید، نه این درآمد.</p>
+        )}
 
         <Input
           id="income-title"

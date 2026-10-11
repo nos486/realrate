@@ -258,3 +258,26 @@
 .dollar-value-line .is-loss,
 .dollar-value-foot .is-loss { color: var(--rose-red); font-weight: 700; }
 .dollar-value-foot small { color: var(--text-muted); }
+
+/* ── Page help (shared/help/HelpButton.jsx) ───────────────────────────────── */
+.page-help-btn {
+  margin-inline-start: 8px;
+  vertical-align: middle;
+}
+
+.page-help-intro {
+  margin: 0 0 12px;
+  color: var(--text-primary);
+  line-height: 1.9;
+}
+
+.page-help-steps {
+  margin: 0;
+  padding-inline-start: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--text-secondary);
+  line-height: 1.9;
+  font-size: 0.9rem;
+}

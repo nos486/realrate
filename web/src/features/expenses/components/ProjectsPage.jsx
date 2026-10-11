@@ -17,6 +17,7 @@ import ProjectExpensesView from './ProjectExpensesView.jsx';
 const HEADER = {
   icon: <FolderKanban size={24} />,
   title: 'پروژه‌ها',
+  help: 'projects',
   subtitle: 'هزینه‌های هر پروژه به تومان یا دلار، با بودجه‌ی خودش',
 };
 

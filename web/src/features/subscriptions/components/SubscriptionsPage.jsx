@@ -45,6 +45,7 @@ import { subscriptionIcon } from '../constants/subscriptionDisplay.js';
 const HEADER = {
   icon: <CalendarSync size={24} />,
   title: 'اشتراک‌ها',
+  help: 'subscriptions',
   subtitle: 'هزینه‌ی ماهانه و یادآوری قبل از هر تمدید',
 };
 

@@ -53,6 +53,7 @@ import CreditConversionForm from './CreditConversionForm.jsx';
 const HEADER = {
   icon: <WalletCards size={24} />,
   title: 'حساب‌ها',
+  help: 'accounts',
   subtitle: 'حساب‌های بانکی، اعتبارها، پول نقد و کیف پول؛ منبع هزینه‌های شما',
 };
 

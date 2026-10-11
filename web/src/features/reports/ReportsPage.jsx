@@ -28,6 +28,7 @@ import { isNativeApp } from '../../shared/native/nativeApp.js';
 const HEADER = {
   icon: <ChartColumn size={24} />,
   title: 'گزارش‌ها',
+  help: 'reports',
   subtitle: 'سال شما در یک نگاه: درآمد و هزینه، پس‌انداز، سرمایه‌گذاری و ارزش دلاری',
 };
 

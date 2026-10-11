@@ -314,6 +314,7 @@ export default function LoansPage({ initialLoanId = null }) {
         <FeaturePageHeader
           icon={<Landmark size={24} />}
           title="وام‌ها و اقساط"
+        help="loans"
           subtitle="برنامه استهلاک بانکی، جدول سررسید و ثبت تسویه اقساط"
         />
         <VaultUnlockCard title="وام‌های شما رمزنگاری شده‌اند" />

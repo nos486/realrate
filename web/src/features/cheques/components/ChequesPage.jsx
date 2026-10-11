@@ -52,6 +52,7 @@ const STATE_FILTERS = [
 const HEADER = {
   icon: <ReceiptText size={24} />,
   title: 'چک‌ها',
+  help: 'cheques',
   subtitle: 'چک‌های دریافتی و صادره، سررسیدها و پیگیری وضعیت',
 };
 

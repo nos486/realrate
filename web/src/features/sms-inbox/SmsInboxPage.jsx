@@ -175,6 +175,7 @@ export default function SmsInboxPage() {
       <FeaturePageHeader
         icon={<MessageSquareText size={24} />}
         title="پیامک‌های بانکی"
+        help="sms"
         subtitle="برداشت‌ها و واریزهای خوانده‌شده از پیامک بانک؛ دسته را انتخاب و ثبت کنید"
       />
 
