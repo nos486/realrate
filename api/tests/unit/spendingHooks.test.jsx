@@ -90,7 +90,7 @@ describe('the loans page', () => {
       [expect.objectContaining({ id: 'inst_3' }), expect.objectContaining({ id: 'inst_1' })],
     );
     await act(() => result.current.unmarkPaid('inst_2'));
-    expect(m.removeInstallmentPayment).toHaveBeenCalledWith('loan_1', 'inst_2', '2026-03-05');
+    expect(m.removeInstallmentPayment).toHaveBeenCalledWith('loan_1', 'inst_2', '2026-03-05', undefined);
   });
 
   it('an extra payment is recorded too', async () => {
