@@ -1,10 +1,13 @@
 // @vitest-environment happy-dom
-import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
 import {
   generateE2eeSalt,
   deriveE2eeKey,
   e2eeEncrypt,
   e2eeDecrypt,
+  e2eeDecryptMany,
+  bytesToBase64,
+  base64ToBytes,
   createE2eeVerifier,
   verifyE2eeKey,
   encryptHoldingForApi,
@@ -230,5 +233,47 @@ describe('E2EE client crypto (web/src/lib/e2ee.js)', () => {
       expect(getVaultPassphraseFromSession('p1')).toBeNull();
       expect(getVaultPassphraseFromSession('p2')).toBe('pass-2');
     });
+  });
+});
+
+describe('E2EE decrypt cache and batches', () => {
+  it('opens a ciphertext once per key; each caller gets its own object', async () => {
+    const salt = generateE2eeSalt();
+    const key = await deriveE2eeKey('pw', salt);
+    const cipher = await e2eeEncrypt(key, { a: 1 });
+    const spy = vi.spyOn(globalThis.crypto.subtle, 'decrypt');
+    const first = await e2eeDecrypt(key, cipher);
+    const second = await e2eeDecrypt(key, cipher);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(second).toEqual({ a: 1 });
+    first.a = 2;
+    expect(second.a).toBe(1);
+    expect(await e2eeDecrypt(key, cipher)).toEqual({ a: 1 });
+    spy.mockRestore();
+  });
+
+  it('a wrong key never gets a cached answer, and failures are not kept', async () => {
+    const key = await deriveE2eeKey('pw', generateE2eeSalt());
+    const other = await deriveE2eeKey('other', generateE2eeSalt());
+    const cipher = await e2eeEncrypt(key, { a: 1 });
+    expect(await e2eeDecrypt(key, cipher)).toEqual({ a: 1 });
+    expect(await e2eeDecrypt(other, cipher)).toBeNull();
+  });
+
+  it('decrypts many in order, in batches, across the batch size', async () => {
+    const key = await deriveE2eeKey('pw', generateE2eeSalt());
+    const values = Array.from({ length: 150 }, (_, i) => ({ i }));
+    const payloads = await Promise.all(values.map((v) => e2eeEncrypt(key, v)));
+    payloads.splice(70, 0, 'plain text');
+    const out = await e2eeDecryptMany(key, payloads);
+    expect(out).toHaveLength(151);
+    expect(out[70]).toBe('plain text');
+    expect(out.filter((v) => v && typeof v === 'object').map((v) => v.i)).toEqual(values.map((v) => v.i));
+  });
+
+  it('round-trips bytes through the base64 helpers, large inputs included', () => {
+    const bytes = Uint8Array.from({ length: 100000 }, (_, i) => i % 251);
+    expect(base64ToBytes(bytesToBase64(bytes))).toEqual(bytes);
+    expect(bytesToBase64(Uint8Array.from([1, 2, 3, 4]))).toBe(btoa('\x01\x02\x03\x04'));
   });
 });

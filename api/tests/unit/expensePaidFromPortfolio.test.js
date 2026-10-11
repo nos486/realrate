@@ -34,6 +34,7 @@ vi.mock('../../../web/src/shared/vault/vaultApi.js', () => ({
 vi.mock('../../../web/src/shared/vault/vaultStore.js', () => ({
   encryptVaultRecord: vi.fn(async (v) => JSON.stringify(v)),
   decryptVaultRecord: vi.fn(async (p) => JSON.parse(p)),
+  decryptVaultRecords: async (payloads) => Promise.all(payloads.map(async (p) => JSON.parse(p))),
 }));
 const api = await import('../../../web/src/shared/vault/vaultExpenses.js');
 

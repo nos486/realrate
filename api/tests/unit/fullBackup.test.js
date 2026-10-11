@@ -19,6 +19,7 @@ vi.mock('../../../web/src/shared/vault/vaultApi.js', () => ({
 vi.mock('../../../web/src/shared/vault/vaultStore.js', () => ({
   encryptVaultRecord: async (value) => `acct:${JSON.stringify(value)}`,
   decryptVaultRecord: async (payload) => JSON.parse(payload.replace(/^acct:/, '')),
+  decryptVaultRecords: async (payloads) => Promise.all(payloads.map(async (payload) => JSON.parse(payload.replace(/^acct:/, '')))),
   isAccountVaultPortfolio: (p) => Boolean(p?.e2eeWrappedKey),
   getPortfolioKey: async (p) => `key-${p.id}`,
   createPortfolioKey: async () => ({ wrapped: 'wrapped-new' }),

@@ -20,6 +20,7 @@ import {
   unwrapRawKey,
   e2eeEncrypt,
   e2eeDecrypt,
+  e2eeDecryptMany,
   bytesToBase64,
   base64ToBytes,
 } from '../../lib/e2ee.js';
@@ -343,6 +344,12 @@ export async function encryptVaultRecord(value) {
 export async function decryptVaultRecord(payload) {
   const value = await e2eeDecrypt(requireDataKey(), payload);
   return value && typeof value === 'object' ? value : null;
+}
+
+/** Decrypt many vault records in batches; one entry per payload, null where one can't be decrypted */
+export async function decryptVaultRecords(payloads) {
+  const values = await e2eeDecryptMany(requireDataKey(), payloads);
+  return values.map((value) => (value && typeof value === 'object' ? value : null));
 }
 
 // ── Portfolio keys ──────────────────────────────────────────────────────────

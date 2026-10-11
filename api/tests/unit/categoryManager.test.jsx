@@ -12,6 +12,7 @@ vi.mock('../../../web/src/shared/vault/vaultRecordMeta.js', () => ({ putRecord: 
 vi.mock('../../../web/src/shared/vault/vaultStore.js', () => ({
   encryptVaultRecord: vi.fn(async (plain) => JSON.stringify(plain)),
   decryptVaultRecord: vi.fn(async (payload) => JSON.parse(payload)),
+  decryptVaultRecords: async (payloads) => Promise.all(payloads.map(async (payload) => JSON.parse(payload))),
 }));
 vi.mock('../../../web/src/shared/vault/useVault.js', () => ({ useVault: () => ({ status: vault.status, epoch: 1 }) }));
 
