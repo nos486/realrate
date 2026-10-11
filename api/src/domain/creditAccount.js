@@ -206,14 +206,9 @@ function movementsOf(account, expenses, transfers, incomes, today, rates) {
   const opening = account.credit.openingDebt || 0;
   let charged = 0;
   let paid = 0;
-  // Every record counted, to show how the debt adds up
-  const items = [];
-  const count = (kind, date, amount, title) => items.push({ kind, date, amount, title: title || '' });
   for (const e of expenses) {
     if (e.accountId !== account.id || !inRange(e.date)) continue;
-    const amount = Math.round(expensePaidInToman(e, rates) || 0);
-    charged += amount;
-    count('expense', e.date, amount, e.title);
+    charged += Math.round(expensePaidInToman(e, rates) || 0);
   }
   for (const t of transfers) {
     if (!inRange(t.date)) continue;
@@ -221,25 +216,18 @@ function movementsOf(account, expenses, transfers, incomes, today, rates) {
     // (transferDocument.js): into the credit, what reached it pays the debt; out of it (cash), the
     // whole amount is owed
     if (t.toAccountId === account.id) {
-      const amount = Math.round((Number(t.amount) || 0) - (Number(t.fee) || 0));
-      paid += amount;
-      count('transferIn', t.date, amount, t.notes);
+      paid += Math.round((Number(t.amount) || 0) - (Number(t.fee) || 0));
     } else if (t.fromAccountId === account.id) {
-      const amount = Math.round(Number(t.amount) || 0);
-      charged += amount;
-      count('transferOut', t.date, amount, t.notes);
+      charged += Math.round(Number(t.amount) || 0);
     }
   }
   // Deposits that pay its debt («تسویه بدهی اعتباری»)
   for (const i of incomes) {
     if (i.creditAccountId === account.id && i.category === CREDIT_SETTLEMENT_CATEGORY && inRange(i.incomeDate)) {
-      const amount = Math.round(incomeInToman(i, rates) || 0);
-      paid += amount;
-      count('deposit', i.incomeDate, amount, i.title);
+      paid += Math.round(incomeInToman(i, rates) || 0);
     }
   }
-  items.sort((a, b) => a.date.localeCompare(b.date));
-  return { opening, charged, paid, items };
+  return { opening, charged, paid };
 }
 
 /** This period's spending from the credit and what moved through it (from the period's first day) */
@@ -283,7 +271,7 @@ function periodOf(account, expenses, transfers, today, rates) {
 export function creditStatus(account, { expenses = [], transfers = [], incomes = [] } = {}, today, rates = {}) {
   const terms = account?.credit;
   if (!terms) return null;
-  const { opening, charged, paid, items } = movementsOf(account, expenses, transfers, incomes, today, rates);
+  const { opening, charged, paid } = movementsOf(account, expenses, transfers, incomes, today, rates);
   const balance = opening + charged - paid;
   const debt = Math.max(0, balance);
 
@@ -306,7 +294,7 @@ export function creditStatus(account, { expenses = [], transfers = [], incomes =
   return {
     limit: terms.limit,
     // How the debt adds up: the opening debt, plus what was charged since the start date, less what was paid
-    breakdown: { opening, charged, paid, items },
+    breakdown: { opening, charged, paid },
     period: periodOf(account, expenses, transfers, today, rates),
     debt,
     available: Math.max(0, terms.limit - debt),

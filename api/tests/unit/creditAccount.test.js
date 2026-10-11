@@ -126,8 +126,7 @@ describe('where a credit stands', () => {
     const a = account({ startDate: '2026-09-01', cycleDay: 15 });
     const s = creditStatus(a, { expenses: [buy('2026-10-06', 1_000_000), buy('2026-10-07', 700_000)], transfers: [pay('2026-10-07', 311_000)] }, TODAY);
     expect(s.period).toEqual({ from: '2026-10-07', spent: 700_000, paidIn: 311_000, takenOut: 0 });
-    expect(s.breakdown).toMatchObject({ opening: 0, charged: 1_700_000, paid: 311_000 });
-    expect(s.breakdown.items.map((i) => i.kind)).toEqual(['expense', 'expense', 'transferIn']);
+    expect(s.breakdown).toEqual({ opening: 0, charged: 1_700_000, paid: 311_000 });
     expect(s.debt).toBe(1_389_000);
   });
 
