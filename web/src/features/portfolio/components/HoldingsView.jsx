@@ -25,6 +25,7 @@ import UserSettingsModal from '../../../components/UserSettingsModal.jsx';
 
 import HoldingsTable from './HoldingsTable.jsx';
 import PortfolioOverviewCards from './PortfolioOverviewCards.jsx';
+import PortfolioHistoryChart from './PortfolioHistoryChart.jsx';
 import AddHoldingForm from './AddHoldingForm.jsx';
 import CsvExportButton from './CsvExportButton.jsx';
 import CsvImportButton from './CsvImportButton.jsx';
@@ -410,6 +411,9 @@ const HoldingsView = forwardRef(function HoldingsView(
         }
       >
           {/* The asset groups are cards of their own: no card around them */}
+          {!isVaultLocked && portfolioMetrics.items.length > 0 && (
+            <PortfolioHistoryChart assets={ledger.assets} hideValues={hideValues} />
+          )}
           <div className="portfolio-table-card is-plain">
             {/* No list header: the portfolio is named in the switcher above, and its toolbar
                 (search, export / import, settings) sits in the sub-tab row */}
