@@ -19,6 +19,7 @@ import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { useVault } from '../../shared/vault/useVault.js';
 import { resolveBank, BankLogo } from '../../shared/banks/index.js';
 import { BANK_SMS_TEMPLATES } from '../../utils/bankSmsTemplates.js';
+import { smsEnabled } from '../../shared/native/nativeApp.js';
 import { useSmsInbox } from '../../shared/native/useSmsInbox.js';
 import { setSmsSettings, setSmsBankEnabled, smsPermission, enableSmsReading, QUICK_RECORD_MAX } from '../../shared/native/smsInbox.js';
 import {
@@ -378,43 +379,45 @@ export default function AppSettingsView({ onOpenSms }) {
     <div className="app-settings-page">
       <FeaturePageHeader icon={<Smartphone size={24} />} title="تنظیمات اپ" subtitle="پیامک‌های بانکی، اثر انگشت و نسخه‌ی اپ" />
 
-      <Card
-        className="app-settings-card"
-        padding="lg"
-        icon={<MessageSquareText size={18} />}
-        title="پیامک‌های بانکی"
-        subtitle="برداشت‌ها و واریزها از پیامک بانک خوانده می‌شوند تا فقط دسته‌شان را انتخاب کنید. متن پیامک‌ها روی گوشی می‌ماند."
-      >
-        <div className="app-setting-row">
-          <div>
-            <strong>خواندن خودکار و اعلان</strong>
-            <p>فقط با رسیدن پیامک برداشت یا واریز اعلانی می‌آید (پیامک‌های دیگر خوانده نمی‌شوند)؛ با ضربه روی آن، مبلغ و تاریخ آماده‌ی ثبت است.</p>
+      {smsEnabled() && (
+        <Card
+          className="app-settings-card"
+          padding="lg"
+          icon={<MessageSquareText size={18} />}
+          title="پیامک‌های بانکی"
+          subtitle="برداشت‌ها و واریزها از پیامک بانک خوانده می‌شوند تا فقط دسته‌شان را انتخاب کنید. متن پیامک‌ها روی گوشی می‌ماند."
+        >
+          <div className="app-setting-row">
+            <div>
+              <strong>خواندن خودکار و اعلان</strong>
+              <p>فقط با رسیدن پیامک برداشت یا واریز اعلانی می‌آید (پیامک‌های دیگر خوانده نمی‌شوند)؛ با ضربه روی آن، مبلغ و تاریخ آماده‌ی ثبت است.</p>
+            </div>
+            <Switch checked={settings.auto && permission === 'granted'} onChange={handleAuto} label="خواندن خودکار پیامک" />
           </div>
-          <Switch checked={settings.auto && permission === 'granted'} onChange={handleAuto} label="خواندن خودکار پیامک" />
-        </div>
 
-        <SmsBankSettings settings={settings} />
+          <SmsBankSettings settings={settings} />
 
-        <SmsRecordSettings key={settings.autoRecordMax} settings={settings} />
+          <SmsRecordSettings key={settings.autoRecordMax} settings={settings} />
 
-        {permission === 'denied' && (
-          <AlertBanner type="warning" message="اجازه‌ی خواندن پیامک داده نشده است. از تنظیمات گوشی (برنامه‌ها ← RealRate ← مجوزها ← پیامک) آن را بدهید." />
-        )}
+          {permission === 'denied' && (
+            <AlertBanner type="warning" message="اجازه‌ی خواندن پیامک داده نشده است. از تنظیمات گوشی (برنامه‌ها ← RealRate ← مجوزها ← پیامک) آن را بدهید." />
+          )}
 
-        <dl className="app-setting-facts">
-          <dt>آخرین خواندن</dt>
-          <dd>{formatTime(settings.lastRead)}</dd>
-          <dt>منتظر ثبت</dt>
-          <dd>
-            {pending.length.toLocaleString('fa-IR')} پیامک
-            {onOpenSms && (
-              <Button size="sm" variant="secondary" iconRight={<ArrowLeft size={14} />} onClick={onOpenSms}>
-                پیامک‌های بانکی
-              </Button>
-            )}
-          </dd>
-        </dl>
-      </Card>
+          <dl className="app-setting-facts">
+            <dt>آخرین خواندن</dt>
+            <dd>{formatTime(settings.lastRead)}</dd>
+            <dt>منتظر ثبت</dt>
+            <dd>
+              {pending.length.toLocaleString('fa-IR')} پیامک
+              {onOpenSms && (
+                <Button size="sm" variant="secondary" iconRight={<ArrowLeft size={14} />} onClick={onOpenSms}>
+                  پیامک‌های بانکی
+                </Button>
+              )}
+            </dd>
+          </dl>
+        </Card>
+      )}
 
       <DueNotificationSettings />
 

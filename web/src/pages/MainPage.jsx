@@ -22,7 +22,7 @@ import { useTabNavigation } from '../shared/hooks/useTabNavigation.js';
 import { useFeature } from '../shared/features/useFeature.js';
 import FeatureOffer from '../shared/features/FeatureOffer.jsx';
 import { useAppLayout } from '../shared/app/appLayout.js';
-import { isNativeApp } from '../shared/native/nativeApp.js';
+import { isNativeApp, smsEnabled } from '../shared/native/nativeApp.js';
 import { startSmsAutoRead } from '../shared/native/smsInbox.js';
 import { initDueNotificationClicks } from '../shared/native/dueNotifications.js';
 import { startNewsAlerts } from '../features/news/newsAlerts.js';
@@ -90,7 +90,7 @@ export default function MainPage() {
   // Android app: a notification for important news while the app runs (when turned on)
   useEffect(() => startNewsAlerts(), []);
   // Small withdrawals recorded by themselves, when turned on in the app settings
-  useSmsAutoRecord(isNativeApp() && hasExpenses && !isDemo);
+  useSmsAutoRecord(smsEnabled() && hasExpenses && !isDemo);
 
   // Determine active tab from the path below /app (or the ?tab= query param)
   const subPath = getAppSubPath(location.pathname);
@@ -110,7 +110,7 @@ export default function MainPage() {
 
   // Bank SMS read by the Android app: only inside the app
   const isSms =
-    isNativeApp() && !isSettings && !isAppSettings && (
+    smsEnabled() && !isSettings && !isAppSettings && (
       subPath.startsWith('/sms') ||
       searchParams.get('tab') === 'sms'
     );
@@ -327,7 +327,7 @@ export default function MainPage() {
       ...(hasExpenses ? [{ value: 'projects', label: 'پروژه‌ها', icon: <FolderKanban size={16} strokeWidth={2} /> }] : []),
       ...(hasAccounts ? [{ value: 'accounts', label: 'حساب‌ها', icon: <WalletCards size={16} strokeWidth={2} /> }] : []),
       // Android app: the bank messages it read, next to the expenses and incomes they become
-      ...(isNativeApp() && hasExpenses ? [{ value: 'sms', label: 'پیامک‌ها', icon: <MessageSquareText size={16} strokeWidth={2} /> }] : []),
+      ...(smsEnabled() && hasExpenses ? [{ value: 'sms', label: 'پیامک‌ها', icon: <MessageSquareText size={16} strokeWidth={2} /> }] : []),
       { value: 'portfolio', label: 'پورتفو', icon: <Briefcase size={16} strokeWidth={2} /> },
       { value: 'loans', label: 'وام و اقساط', icon: <Landmark size={16} strokeWidth={2} /> },
       { value: 'cheques', label: 'چک‌ها', icon: <ReceiptText size={16} strokeWidth={2} /> },

@@ -1,6 +1,7 @@
 # Android app: builds the signed release APK from the web app (web/) and its Android shell (web/android).
 # Push to main publishes a signed release APK when the signing secrets are set (see docs/ANDROID.md).
-# The APK is published as a GitHub release (v1.0.<run>), always downloadable as releases/latest/download/realrate.apk.
+# Two APKs are published as one GitHub release (v1.0.<run>): realrate.apk (reads bank SMS) and realrate-nosms.apk
+# (no SMS permission, for stores that refuse it). Latest: releases/latest/download/realrate.apk.
 name: Android
 
 on:
@@ -51,7 +52,7 @@ jobs:
           npm run build:app
           npx cap sync android
 
-      - name: Release APK (signed)
+      - name: Release APKs (signed)
         if: env.HAS_SIGNING == 'true'
         working-directory: web/android
         env:
@@ -62,14 +63,21 @@ jobs:
         run: |
           export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/release.jks"
           echo "$KEYSTORE_BASE64" | base64 -d > "$ANDROID_KEYSTORE_PATH"
-          ./gradlew --no-daemon assembleRelease -PversionCode=$VERSION_CODE -PversionName=$VERSION_NAME
+          ./gradlew --no-daemon assembleFullRelease -PversionCode=$VERSION_CODE -PversionName=$VERSION_NAME
+          # The no-SMS build: its own web bundle (SMS screens hidden) and manifest (no SMS permission)
+          (cd .. && VITE_NO_SMS=1 npm run build:app && npx cap sync android)
+          ./gradlew --no-daemon assembleNosmsRelease -PversionCode=$VERSION_CODE -PversionName=$VERSION_NAME
           rm -f "$ANDROID_KEYSTORE_PATH"
+          cp app/build/outputs/apk/full/release/*.apk "$RUNNER_TEMP/realrate.apk"
+          cp app/build/outputs/apk/nosms/release/*.apk "$RUNNER_TEMP/realrate-nosms.apk"
 
       - uses: actions/upload-artifact@v4
         if: env.HAS_SIGNING == 'true'
         with:
           name: realrate-release-${{ env.VERSION_NAME }}
-          path: web/android/app/build/outputs/apk/release/*.apk
+          path: |
+            ${{ runner.temp }}/realrate.apk
+            ${{ runner.temp }}/realrate-nosms.apk
           if-no-files-found: ignore
           retention-days: 90
 
@@ -77,14 +85,12 @@ jobs:
         if: env.HAS_SIGNING == 'true'
         run: node .github/scripts/release-notes.mjs "$VERSION_NAME" "$RUNNER_TEMP/release_notes.md"
 
-      - name: Publish the signed APK as a release
+      - name: Publish the signed APKs as a release
         if: env.HAS_SIGNING == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="v$VERSION_NAME"
-          apk=$(ls web/android/app/build/outputs/apk/release/*.apk | head -n1)
-          cp "$apk" "$RUNNER_TEMP/realrate.apk"
           # The tag first: creating it while publishing the release has failed with HTTP 500
           if ! git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
             git tag "$tag" "$GITHUB_SHA"
@@ -92,12 +98,12 @@ jobs:
           fi
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             # A re-run (or a publish that failed half way): replace the file, make sure it is out
-            gh release upload "$tag" "$RUNNER_TEMP/realrate.apk" --repo "$GITHUB_REPOSITORY" --clobber
+            gh release upload "$tag" "$RUNNER_TEMP/realrate.apk" "$RUNNER_TEMP/realrate-nosms.apk" --repo "$GITHUB_REPOSITORY" --clobber
             gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest \
               --title "RealRate $VERSION_NAME" \
               --notes-file "$RUNNER_TEMP/release_notes.md"
           else
-            gh release create "$tag" "$RUNNER_TEMP/realrate.apk" --repo "$GITHUB_REPOSITORY" --verify-tag --latest \
+            gh release create "$tag" "$RUNNER_TEMP/realrate.apk" "$RUNNER_TEMP/realrate-nosms.apk" --repo "$GITHUB_REPOSITORY" --verify-tag --latest \
               --title "RealRate $VERSION_NAME" \
               --notes-file "$RUNNER_TEMP/release_notes.md"
           fi

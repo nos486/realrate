@@ -18,7 +18,7 @@
 import { Capacitor } from '@capacitor/core';
 import { httpClient } from '../api/httpClient.js';
 import { compareVersions } from '../../utils/clientInfo.js';
-import { isNativeApp } from './nativeApp.js';
+import { isNativeApp, smsEnabled } from './nativeApp.js';
 import { AppUpdate } from './nativePlugins.js';
 
 const SETTINGS_KEY = 'realrate_app_update';
@@ -62,6 +62,11 @@ export function isNewer(release, installedVersion) {
   return Boolean(release?.version && installedVersion) && compareVersions(release.version, installedVersion) > 0;
 }
 
+
+/** The APK of this build: the no-SMS build updates to its own file, published beside the full one */
+export function apkUrlForBuild(url, withSms = smsEnabled()) {
+  return withSms ? url : String(url).replace(/realrate\.apk$/, 'realrate-nosms.apk');
+}
 
 /** The release notes as plain lines (the CHANGELOG's markdown, without the download footer) */
 export function releaseNotesText(notes) {
@@ -185,7 +190,7 @@ export async function downloadAndInstall() {
       if (size > 0) setState({ progress: Math.min(1, Number(downloaded) / size) });
     });
     try {
-      await AppUpdate.download({ url: release.url, version: release.version });
+      await AppUpdate.download({ url: apkUrlForBuild(release.url), version: release.version });
     } finally {
       listener?.remove?.();
     }

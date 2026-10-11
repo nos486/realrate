@@ -17,6 +17,14 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // "full" reads bank SMS; "nosms" has no SMS permission or receiver (src/nosms/AndroidManifest.xml)
+    // and is built from a web bundle with VITE_NO_SMS=1 (SMS screens hidden). Same application id and
+    // signing key: either installs over the other.
+    flavorDimensions 'sms'
+    productFlavors {
+        full { dimension 'sms' }
+        nosms { dimension 'sms' }
+    }
     // Release signing from the environment (GitHub Actions secrets, see docs/ANDROID.md); without
     // it a release build is left unsigned
     def keystorePath = System.getenv('ANDROID_KEYSTORE_PATH')
