@@ -393,37 +393,46 @@ export async function readBubbleRatioSums(env, series, through) {
 
 /**
  * ?1: the bubble's key, ?2: its coin's key, ?3: the ounce's dollar key, ?4: the dollar's key,
- * ?5: the coin's grams of pure gold, ?6: grams in a troy ounce, ?7: now (ms) → the bubble's days
- * computed as the price book computes it: the coin's close less its gold value at that day's ounce
- * and dollar (priceBook.js intrinsicOf). Days missing one of the three, or with no bubble above
- * zero, get none. A flat candle at the value.
+ * ?5: the coin's grams of pure gold, ?6: grams in a troy ounce, ?7: now (ms), ?8: the first day not
+ * computed → the bubble's days before ?8, computed as the price book computes it: the coin less its
+ * gold value at that day's ounce and dollar (priceBook.js intrinsicOf) — the close from the three
+ * closes, the open from the three opens. Its high and low are the higher and lower of the two: the
+ * day's real extremes are only known where the bubble itself was recorded through the day (the
+ * live sync), and the inputs' own highs and lows don't come at the same moment — a bubble is a
+ * small difference of large prices, so bounds from them would be far wider than the day was.
+ * Days missing one of the three, or with no bubble above zero at the close, get none.
  */
 export const BUBBLE_DAYS_SQL = `
 INSERT INTO price_daily (item_key, day, value, updated_at, open, high, low)
-SELECT ?1, day, v, ?7, v, v, v FROM (
-  SELECT c.day AS day, ROUND(c.value - ROUND(?5 * o.value / ?6 * u.value)) AS v
-  FROM price_daily c
-  JOIN price_daily o ON o.item_key = ?3 AND o.day = c.day
-  JOIN price_daily u ON u.item_key = ?4 AND u.day = c.day
-  WHERE c.item_key = ?2
+SELECT ?1, day, v, ?7, o, MAX(o, v), MIN(o, v) FROM (
+  SELECT day, v, CASE WHEN vo > 0 THEN vo ELSE v END AS o FROM (
+    SELECT c.day AS day,
+      ROUND(c.value - ROUND(?5 * o.value / ?6 * u.value)) AS v,
+      ROUND(COALESCE(c.open, c.value) - ROUND(?5 * COALESCE(o.open, o.value) / ?6 * COALESCE(u.open, u.value))) AS vo
+    FROM price_daily c
+    JOIN price_daily o ON o.item_key = ?3 AND o.day = c.day
+    JOIN price_daily u ON u.item_key = ?4 AND u.day = c.day
+    WHERE c.item_key = ?2 AND c.day < ?8
+  )
 )
 WHERE v > 0
 `;
 
 /**
- * Compute coin bubbles' whole history again from their coins' and the ounce's and dollar's own
- * (dropping what each had), one transaction
+ * Compute coin bubbles' history before a day again from their coins' and the ounce's and dollar's
+ * own (dropping what each had before it; the days from it on are kept), one transaction
  * @param {object} env
  * @param {Array<{ bubbleId: string, coinId: string, gold24kWeight: number }>} bubbles
- * @param {{ ounceKey: string, usdKey: string, troyOunceGrams: number, now?: number }} keys
+ * @param {{ ounceKey: string, usdKey: string, troyOunceGrams: number, before: string, now?: number }} keys
+ *   before: the first day not computed (the live sync's days are kept as it recorded them)
  * @returns {Promise<number|null>} rows written; null when the history is unavailable
  */
-export async function rebuildBubbleHistory(env, bubbles, { ounceKey, usdKey, troyOunceGrams, now = Date.now() }) {
-  if (!env?.DB?.prepare || !bubbles?.length) return null;
+export async function rebuildBubbleHistory(env, bubbles, { ounceKey, usdKey, troyOunceGrams, before, now = Date.now() }) {
+  if (!env?.DB?.prepare || !bubbles?.length || !before) return null;
   await ensureSchema(env);
   const statements = bubbles.flatMap(({ bubbleId, coinId, gold24kWeight }) => [
-    env.DB.prepare("DELETE FROM price_daily WHERE item_key = ?").bind(bubbleId),
-    env.DB.prepare(BUBBLE_DAYS_SQL).bind(bubbleId, coinId, ounceKey, usdKey, gold24kWeight, troyOunceGrams, now),
+    env.DB.prepare("DELETE FROM price_daily WHERE item_key = ? AND day < ?").bind(bubbleId, before),
+    env.DB.prepare(BUBBLE_DAYS_SQL).bind(bubbleId, coinId, ounceKey, usdKey, gold24kWeight, troyOunceGrams, now, before),
   ]);
   const results = await env.DB.batch(statements);
   return results.filter((_, i) => i % 2 === 1).reduce((sum, r) => sum + (Number(r?.meta?.changes) || 0), 0);

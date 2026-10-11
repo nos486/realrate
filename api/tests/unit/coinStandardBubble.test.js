@@ -195,12 +195,13 @@ describe('a backfill of what a bubble is computed from', () => {
     db = sqliteD1();
     const env = { DB: db };
     await ensureBubbleHistory(env, Date.parse('2026-05-20T12:00:00Z'));
-    const stored = () => db.prepare("SELECT key FROM app_state WHERE key = 'bubble_history_version'").first();
-    expect(await stored()).toBeTruthy();
+    const stored = async () => JSON.parse((await db.prepare("SELECT value FROM app_state WHERE key = 'bubble_history_version'").first()).value);
+    expect((await stored()).v).toBe(2);
     await invalidateBubbleHistory(env, ['eur']);
-    expect(await stored()).toBeTruthy();
+    expect((await stored()).v).toBe(2);
     await invalidateBubbleHistory(env, ['ons_gold@usd']);
-    expect(await stored()).toBeNull();
+    // Not done any more; which days the live sync recorded is kept
+    expect(await stored()).toMatchObject({ v: 0, liveSince: '2026-05-20' });
   });
 });
 
@@ -244,5 +245,44 @@ describe('«محاسبه‌ی دوباره» (an admin, now)', () => {
     expect(saved.items.usd.params.avg['30d'].days).toBe(30);
     // The hourly job has nothing left to do
     expect(await ensureBubbleHistory(env, now)).toBeNull();
+  });
+});
+
+describe('a bubble\'s candle', () => {
+  let db;
+  beforeEach(() => resetD1SchemaCache());
+  afterEach(() => {
+    db?.close();
+    db = null;
+  });
+
+  it('opens and closes as its inputs did; the days the live sync recorded are kept as recorded', async () => {
+    db = sqliteD1();
+    const env = { DB: db };
+    const weight = COIN_SPECS.full_coin.gold24kWeight;
+    const gold = (ounce, dollar) => Math.round(weight * (ounce / TROY_OUNCE_GRAMS) * dollar);
+    const candle = (day, open, closeValue) => ({ day, open, high: Math.max(open, closeValue), low: Math.min(open, closeValue), close: closeValue });
+    const first = Date.parse('2026-05-10T12:00:00+03:30');
+    // A past day: the coin, the ounce and the dollar opened and closed apart
+    await importDailyCandles(env, 'full_coin', [candle('2026-05-09', 110_000_000, 114_000_000)], { now: first });
+    await importDailyCandles(env, 'ons_gold@usd', [candle('2026-05-09', 4000, 4050)], { now: first });
+    await importDailyCandles(env, 'usd', [candle('2026-05-09', 100_000, 101_000)], { now: first });
+
+    await ensureBubbleHistory(env, first);
+    const row = await db.prepare("SELECT open, high, low, value FROM price_daily WHERE item_key = 'bubble_full_coin' AND day = '2026-05-09'").first();
+    const open = 110_000_000 - gold(4000, 100_000);
+    const closeValue = 114_000_000 - gold(4050, 101_000);
+    expect(row).toEqual({ open, value: closeValue, high: Math.max(open, closeValue), low: Math.min(open, closeValue) });
+
+    // The live sync records a later day through the day (its real high and low)
+    await db.prepare("INSERT INTO price_daily (item_key, day, value, updated_at, open, high, low) VALUES ('bubble_full_coin', '2026-05-12', 6000000, 1, 5000000, 7000000, 4500000)").run();
+    await importDailyCandles(env, 'full_coin', [candle('2026-05-12', 1, 1)], { now: first });
+    await importDailyCandles(env, 'ons_gold@usd', [candle('2026-05-12', 1, 1)], { now: first });
+    await importDailyCandles(env, 'usd', [candle('2026-05-12', 1, 1)], { now: first });
+    // Computed again later (an admin): only the days before the live sync's
+    await recomputeDerivedHistory(env, { now: Date.parse('2026-05-15T12:00:00+03:30'), getBook: async () => null, setBook: async () => {} });
+    expect(await db.prepare("SELECT open, high, low, value FROM price_daily WHERE item_key = 'bubble_full_coin' AND day = '2026-05-12'").first())
+      .toEqual({ open: 5000000, high: 7000000, low: 4500000, value: 6000000 });
+    expect((await db.prepare("SELECT value FROM price_daily WHERE item_key = 'bubble_full_coin' AND day = '2026-05-09'").first()).value).toBe(closeValue);
   });
 });

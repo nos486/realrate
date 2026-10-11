@@ -4,9 +4,12 @@
  * A coin's bubble is the price book's own (its market price less its gold value, priceBook.js);
  * it once came from tgju, whose gold value differs from ours. So that a bubble's chart, its
  * averages and the coin's standard price (priceAverages.js) are of one bubble, every bubble's past
- * days are computed again from the coin's closes and the world ounce's and dollar's
- * (rebuildBubbleHistory) — once per BUBBLE_HISTORY_VERSION, from the hourly cron. From then on the
- * live sync records each day as it records any item. Its charts' snapshots and the averages'
+ * days are computed again from the coin's candles and the world ounce's and dollar's
+ * (rebuildBubbleHistory: the close and the open; the high and low the higher and lower of the two)
+ * — once per BUBBLE_HISTORY_VERSION, from the hourly cron. From then on the live sync records each
+ * day as it records any item, its real high and low included: the day the bubbles were first
+ * computed is kept in the state (`liveSince`), and a later computation only redoes the days before
+ * it, never a day the live sync recorded. Its charts' snapshots and the averages'
  * running sums are dropped, so both are read again. When the past days of what a bubble is computed
  * from change (a history backfill of a coin, the ounce or the dollar), the next hour computes them
  * again (invalidateBubbleHistory). An admin can also compute everything derived again at once, with
@@ -25,8 +28,9 @@ import { applyAverages, averagesOf, shiftDay } from "../../domain/priceAverages.
 import { BUBBLE_SPECS } from "../../domain/specs/bubble.spec.js";
 import { TROY_OUNCE_GRAMS } from "../../domain/specs/gold.spec.js";
 
-/** Bumped when the way past bubbles are computed changes: the next hour computes them again */
-export const BUBBLE_HISTORY_VERSION = 1;
+/** Bumped when the way past bubbles are computed changes: the next hour computes them again
+ *  (2: a past day's candle has its open, not a flat line) */
+export const BUBBLE_HISTORY_VERSION = 2;
 export const BUBBLE_HISTORY_STATE_KEY = "bubble_history_version";
 
 /** Each coin bubble with its coin and the coin's grams of pure gold */
@@ -38,6 +42,40 @@ export const bubbleSeriesOf = () => Object.values(BUBBLE_SPECS)
   .filter((b) => b.coinId && b.gold24kWeight > 0);
 
 /**
+ * The first day the live sync recorded the bubbles from: the stored one (or the day they were first
+ * computed, an older state), else — the first time — tomorrow (today is computed too, and the live
+ * sync carries it on from there)
+ */
+function liveDayOf(state) {
+  if (state?.liveSince) return state.liveSince;
+  const at = Date.parse(state?.at || "");
+  return Number.isFinite(at) ? tehranDay(at) : null;
+}
+
+/**
+ * Compute the bubbles' days before the live sync's again and note it (the state), dropping their
+ * charts' snapshots
+ * @returns {Promise<{ written: number, liveSince: string, bubbles: object[] }|null>}
+ */
+async function computeBubbles(env, store, state, now) {
+  const today = tehranDay(now);
+  const liveSince = liveDayOf(state) || today;
+  const bubbles = bubbleSeriesOf();
+  const written = await rebuildBubbleHistory(env, bubbles, {
+    ounceKey: usdSeriesKey(BASE_PRICE_IDS.goldOunce),
+    usdKey: BASE_PRICE_IDS.usd,
+    troyOunceGrams: TROY_OUNCE_GRAMS,
+    // The first time today too; after that only the days before the live sync's
+    before: liveDayOf(state) || shiftDay(today, 1),
+    now,
+  });
+  if (written === null) return null;
+  await store?.put(BUBBLE_HISTORY_STATE_KEY, JSON.stringify({ v: BUBBLE_HISTORY_VERSION, at: new Date(now).toISOString(), written, liveSince }));
+  await dropHistorySnapshots(env, bubbles.map((b) => b.bubbleId));
+  return { written, liveSince, bubbles };
+}
+
+/**
  * Compute the bubbles' past days once per version
  * @param {object} env
  * @param {number} [now]
@@ -46,21 +84,13 @@ export const bubbleSeriesOf = () => Object.values(BUBBLE_SPECS)
 export async function ensureBubbleHistory(env, now = Date.now()) {
   const store = getStateStore(env);
   if (!store || !env?.DB?.batch) return null;
-  const done = await store.get(BUBBLE_HISTORY_STATE_KEY, "json").catch(() => null);
-  if (done?.v === BUBBLE_HISTORY_VERSION) return null;
-  const bubbles = bubbleSeriesOf();
-  const written = await rebuildBubbleHistory(env, bubbles, {
-    ounceKey: usdSeriesKey(BASE_PRICE_IDS.goldOunce),
-    usdKey: BASE_PRICE_IDS.usd,
-    troyOunceGrams: TROY_OUNCE_GRAMS,
-    now,
-  });
-  if (written === null) return null;
-  await dropHistorySnapshots(env, bubbles.map((b) => b.bubbleId));
+  const state = await store.get(BUBBLE_HISTORY_STATE_KEY, "json").catch(() => null);
+  if (state?.v === BUBBLE_HISTORY_VERSION) return null;
+  const done = await computeBubbles(env, store, state, now);
+  if (!done) return null;
   await resetPriceAverages(env);
-  await store.put(BUBBLE_HISTORY_STATE_KEY, JSON.stringify({ v: BUBBLE_HISTORY_VERSION, at: new Date(now).toISOString(), written }));
-  logger.info("[BubbleHistory] Computed again:", { written });
-  return { written };
+  logger.info("[BubbleHistory] Computed again:", { written: done.written, liveSince: done.liveSince });
+  return { written: done.written };
 }
 
 /** The history keys bubbles are computed from: the coins, the ounce in dollars and the dollar */
@@ -77,7 +107,10 @@ export const bubbleInputKeys = () => [
 export async function invalidateBubbleHistory(env, keys) {
   const inputs = new Set(bubbleInputKeys());
   if (!(keys || []).some((k) => inputs.has(normalizePriceId(k)))) return;
-  await getStateStore(env)?.delete(BUBBLE_HISTORY_STATE_KEY).catch(() => {});
+  // Not done any more — but which days the live sync recorded is kept
+  const store = getStateStore(env);
+  const state = await store?.get(BUBBLE_HISTORY_STATE_KEY, "json").catch(() => null);
+  if (state) await store.put(BUBBLE_HISTORY_STATE_KEY, JSON.stringify({ ...state, v: 0 })).catch(() => {});
 }
 
 /**
@@ -91,12 +124,13 @@ export async function invalidateBubbleHistory(env, keys) {
  */
 export async function recomputeDerivedHistory(env, { now = Date.now(), getBook = getPriceBookCache, setBook = setPriceBookCache } = {}) {
   if (!env?.DB?.batch) throw new AppError("پایگاه‌داده در دسترس نیست", 503, "NO_DATABASE");
-  const bubbles = bubbleSeriesOf();
+  const store = getStateStore(env);
+  const stored = await store?.get(BUBBLE_HISTORY_STATE_KEY, "json").catch(() => null);
+  const done = await computeBubbles(env, store, stored, now);
+  const bubbles = done?.bubbles || bubbleSeriesOf();
+  const written = done?.written ?? 0;
   const ounceKey = usdSeriesKey(BASE_PRICE_IDS.goldOunce);
   const usdKey = BASE_PRICE_IDS.usd;
-  const written = await rebuildBubbleHistory(env, bubbles, { ounceKey, usdKey, troyOunceGrams: TROY_OUNCE_GRAMS, now }) ?? 0;
-  await getStateStore(env)?.put(BUBBLE_HISTORY_STATE_KEY, JSON.stringify({ v: BUBBLE_HISTORY_VERSION, at: new Date(now).toISOString(), written }));
-  await dropHistorySnapshots(env, bubbles.map((b) => b.bubbleId));
 
   // The averages summed again from the whole windows, and put on the book now (not on the next hour)
   await resetPriceAverages(env);
@@ -115,6 +149,7 @@ export async function recomputeDerivedHistory(env, { now = Date.now(), getBook =
   const report = {
     at: new Date(now).toISOString(),
     written,
+    liveSince: done?.liveSince || null,
     averagesThrough: state ? through : null,
     inputs: { ounce: { key: ounceKey, ...stat(ounceKey) }, usd: { key: usdKey, ...stat(usdKey) } },
     bubbles: bubbles.map(({ bubbleId, coinId }) => ({
