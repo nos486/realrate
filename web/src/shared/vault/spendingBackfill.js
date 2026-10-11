@@ -142,7 +142,7 @@ export async function runChequeCategoryMigration({ userId, expenses }) {
     const { incomes = [] } = await api.getIncomes();
     for (const income of incomes.filter((i) => i.category === RETIRED_CHEQUE_CATEGORY)) {
       const { id, createdAt: _c, updatedAt: _u, ...fields } = income;
-      await api.updateIncome(id, { ...fields, category: categoryOf(income.chequeId) });
+      await api.updateIncome(id, { ...fields, category: categoryOf(income.chequeId) }, { asOwner: true });
     }
   });
   if (expenses) {
@@ -150,7 +150,7 @@ export async function runChequeCategoryMigration({ userId, expenses }) {
       const store = await import('./vaultExpenses.js');
       const { expenses: all = [] } = await store.getExpenses();
       for (const expense of all.filter((e) => e.category === RETIRED_CHEQUE_CATEGORY)) {
-        await store.saveExpense({ category: categoryOf(expense.chequeId) }, expense, { syncLinks: false });
+        await store.saveExpense({ category: categoryOf(expense.chequeId) }, expense, { syncLinks: false, asOwner: true });
       }
     }) && ok;
   }

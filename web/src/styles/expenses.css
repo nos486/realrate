@@ -1373,3 +1373,14 @@ tr.is-excluded td,
   color: var(--text-muted);
   font-size: 11px;
 }
+
+/* A record another feature recorded: its page in place of edit and delete (OwnedRecordLink) */
+.btn-table-action.owned-record-link {
+  width: auto;
+  gap: 4px;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-decoration: none;
+}

@@ -17,6 +17,7 @@
 import { isCategoryValue } from './categoryDocument.js';
 import { categoryLinkFields, paymentLinkFields } from './categoryLinks.js';
 import { validatePortfolioLink } from './portfolioLink.js';
+import { isRecordOwner } from './recordOwners.js';
 import { dollarValueOf } from './dollarValue.js';
 import { BASE_CURRENCY, normalizeCurrency, currencyRateOn, currencyRateToday } from './currencies.js';
 
@@ -63,6 +64,8 @@ export function validateIncome(body = {}) {
       // Always returned, so an edit to another category (or currency) drops them
       creditAccountId: links.creditAccountId || '',
       chequeId: links.chequeId || '',
+      // Recorded by another feature (a cleared cheque): changed only from its page (recordOwners.js)
+      ...(isRecordOwner(body.recordedBy) ? { recordedBy: body.recordedBy } : {}),
     },
   };
 }

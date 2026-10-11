@@ -25,6 +25,7 @@ import {
 } from '../../utils/expenseDocument.js';
 import { sameLink } from '../../utils/portfolioLink.js';
 import { recordLinksOf } from '../../utils/categoryLinks.js';
+import { recordOwnerOf, ownedRecordMessage } from '../../utils/recordOwners.js';
 import { syncRecordLinks, releaseRecordLinks } from './recordLinks.js';
 import { tomanRateOn } from './recordRates.js';
 import { listVaultRecords, deleteVaultRecord, putVaultRecords, VAULT_BATCH_MAX } from './vaultApi.js';
@@ -42,6 +43,14 @@ class ExpenseValidationError extends Error {
     super(message);
     this.status = status;
   }
+}
+
+/**
+ * An expense another feature recorded is changed only by that feature (recordOwners.js): its page,
+ * through spendingRecords.js / recordLinks.js, which pass `asOwner`
+ */
+function assertNotOwned(expense, asOwner) {
+  if (expense && !asOwner && recordOwnerOf(expense)) throw new ExpenseValidationError(ownedRecordMessage(expense, 'expense'));
 }
 
 function checked({ value, error }) {
@@ -87,7 +96,8 @@ export async function deleteExpenseGroup(groupId) {
   const res = await listVaultRecords(EXPENSE_KIND, undefined, { parent: groupId });
   for (const record of res?.records || []) {
     const plain = await decryptVaultRecord(record.payload).catch(() => null);
-    await deleteExpense(record.id, plain);
+    // The whole section goes, whoever recorded what is in it
+    await deleteExpense(record.id, plain, { asOwner: true });
   }
   await deleteVaultRecord(GROUP_KIND, groupId);
   return { success: true };
@@ -126,11 +136,13 @@ export async function getExpenses(filters = {}) {
  * Create an expense, or update it when `existing` (its stored copy) is given
  * @param {object} input
  * @param {object|null} [existing]
- * @param {{ id?: string, syncLinks?: boolean }} [options] `id`: a new expense's own id (one
- *   recorded for another feature's spending, spendingRecords.js: the same id each time, so it is
- *   never recorded twice); `syncLinks: false` when the record it links to was already changed
+ * @param {{ id?: string, syncLinks?: boolean, asOwner?: boolean }} [options] `id`: a new expense's
+ *   own id (one recorded for another feature's spending, spendingRecords.js: the same id each time,
+ *   so it is never recorded twice); `syncLinks: false` when the record it links to was already
+ *   changed; `asOwner`: the feature that recorded it (recordOwners.js) is changing it
  */
-export async function saveExpense(input, existing = null, { id = '', syncLinks = true } = {}) {
+export async function saveExpense(input, existing = null, { id = '', syncLinks = true, asOwner = false } = {}) {
+  assertNotOwned(existing, asOwner);
   const now = new Date().toISOString();
   // No section ('' or none on a new one): the everyday expenses
   if (!('groupId' in input ? input.groupId : existing?.groupId)) {
@@ -204,6 +216,7 @@ async function putExpenses(expenses) {
  * @returns {Promise<object[]>} the moved expenses
  */
 export async function moveExpenses(expenses, groupId) {
+  for (const e of expenses) assertNotOwned(e, false);
   const now = new Date().toISOString();
   const moved = expenses
     .filter((e) => e.groupId !== groupId)
@@ -240,8 +253,12 @@ export function newReimbursement(input) {
   return { id: newId('rmb'), ...input };
 }
 
-/** Delete an expense (and its portfolio entries: paid from a portfolio, put into an asset) */
-export async function deleteExpense(expenseId, expense = null, { syncLinks = true } = {}) {
+/**
+ * Delete an expense (and its portfolio entries: paid from a portfolio, put into an asset). One
+ * another feature recorded only by that feature (`asOwner`, recordOwners.js).
+ */
+export async function deleteExpense(expenseId, expense = null, { syncLinks = true, asOwner = false } = {}) {
+  assertNotOwned(expense || { id: expenseId }, asOwner);
   await deleteVaultRecord(EXPENSE_KIND, expenseId);
   for (const { field } of LINKS) {
     if (expense?.[field]) await (await funds()).deleteLinkedTransaction(expense[field]).catch(() => {});

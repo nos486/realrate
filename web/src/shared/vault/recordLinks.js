@@ -167,13 +167,13 @@ export async function settleCheque(cheque, { date, expenses = true }) {
   // Already recorded by hand that day (same amount)? That one is linked instead (spendingRecords.js)
   const spending = await import('./spendingRecords.js');
   if (cheque.direction === 'received') {
-    await spending.recordIncome({ title, amount: cheque.amount, incomeDate: date, category: cheque.category || 'other', chequeId: cheque.id });
+    await spending.recordIncome({ title, amount: cheque.amount, incomeDate: date, category: cheque.category || 'other', chequeId: cheque.id }, { owner: 'cheque' });
     return 'income';
   }
   if (!expenses) return null;
   await spending.recordSpending(`cheque:${cheque.id}`, {
     title, amount: cheque.amount, currency: 'IRT', date, category: cheque.category || 'other', chequeId: cheque.id, accountId: cheque.accountId || '',
-  }, { syncLinks: true });
+  }, { owner: 'cheque', syncLinks: true });
   return 'expense';
 }
 
@@ -187,9 +187,9 @@ export async function unsettleCheque(cheque) {
   if (!link) return;
   if (link.side === 'income') {
     const { deleteIncome } = await import('../../features/incomes/api/incomeApi.js');
-    await deleteIncome(link.id);
+    await deleteIncome(link.id, { asOwner: true });
   } else {
     const store = await import('./vaultExpenses.js');
-    await store.deleteExpense(link.id, { id: link.id, chequeId: cheque.id });
+    await store.deleteExpense(link.id, { id: link.id, chequeId: cheque.id }, { asOwner: true });
   }
 }
