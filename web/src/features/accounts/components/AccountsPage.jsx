@@ -107,16 +107,29 @@ export default function AccountsPage() {
   const usdToman = Number(usePricing()?.getAssetPrice?.('usd')) || 0;
   const usdAt = useUsdAt(monthExpenses.some((e) => e.currency === 'USD'));
   const fx = useFxRates(monthExpenses);
-  const spentBy = useMemo(
-    () => new Map(summarizeByAccount(monthExpenses, { usdToman, usdAt, ...fx }).map((s) => [s.accountId, s])),
-    [monthExpenses, usdToman, usdAt, fx]
+  // A credit counts from its «محاسبه از تاریخ» (its debt does), so its month figures start there too
+  const creditSince = useMemo(
+    () => new Map(accounts.filter(isCreditAccount).map((a) => [a.id, a.credit.startDate || ''])),
+    [accounts]
   );
+  const spentBy = useMemo(() => {
+    const counted = monthExpenses.filter((e) => !(e.date < (creditSince.get(e.accountId) || '')));
+    return new Map(summarizeByAccount(counted, { usdToman, usdAt, ...fx }).map((s) => [s.accountId, s]));
+  }, [monthExpenses, creditSince, usdToman, usdAt, fx]);
 
   // Transfers of the month shown (this month to start with)
   const [transferMonth, setTransferMonth] = useState(thisMonth);
   const transferRange = useMemo(() => shamsiMonthRange(transferMonth.jy, transferMonth.jm), [transferMonth]);
   const { transfers, saveTransfer, deleteTransfer, submitting: savingTransfer } = useTransfers({ from: transferRange.from, to: transferRange.to });
-  const movedBy = useMemo(() => summarizeTransfersByAccount(transfers), [transfers]);
+  const movedBy = useMemo(() => {
+    const byAccount = summarizeTransfersByAccount(transfers);
+    for (const [id, since] of creditSince) {
+      const own = summarizeTransfersByAccount(transfers.filter((t) => (t.fromAccountId === id || t.toAccountId === id) && t.date >= since)).get(id);
+      if (own) byAccount.set(id, own);
+      else byAccount.delete(id);
+    }
+    return byAccount;
+  }, [transfers, creditSince]);
   const isThisMonth = transferMonth.jy === thisMonth.jy && transferMonth.jm === thisMonth.jm;
   const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
   const money = (v) => (hideValues ? '****' : formatAmount(v));

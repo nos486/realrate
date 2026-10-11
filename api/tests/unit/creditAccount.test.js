@@ -117,6 +117,13 @@ describe('where a credit stands', () => {
     expect(moved.get('c1').in).toBe(10_000_000);
   });
 
+  it('a foreign expense is owed at its day\'s rate; without any rate it cannot be counted', () => {
+    const usd = { ...buy('2026-09-05', 10), currency: 'USD' };
+    const rates = { usdToman: 1_000_000, usdAt: () => 900_000 };
+    expect(creditStatus(account(), { expenses: [usd] }, TODAY, rates).debt).toBe(9_000_000);
+    expect(creditStatus(account(), { expenses: [usd] }, TODAY).debt).toBe(0);
+  });
+
   it('cash taken out of the credit is owed in full; an overpayment is prepaid', () => {
     const cash = { id: 't', fromAccountId: 'c1', toAccountId: 'bank', date: '2026-09-07', amount: 2_020_000, fee: 20_000 };
     expect(creditStatus(account(), { transfers: [cash] }, TODAY).debt).toBe(2_020_000);

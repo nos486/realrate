@@ -15,6 +15,9 @@ import { getExpenses } from '../../../shared/vault/vaultExpenses.js';
 import { getTransfers } from '../../../shared/vault/vaultTransfers.js';
 import { getIncomes } from '../../../shared/vault/vaultIncomes.js';
 import { isCreditAccount } from '../../../utils/accountDocument.js';
+import { usePricing } from '../../market/context/PricingContext.jsx';
+import { useFxRates } from '../../market/useFxRates.js';
+import { useUsdAt } from '../../market/dailyHistory.js';
 import { creditStatus, creditCostsPaid } from '../../../utils/creditAccount.js';
 
 /**
@@ -30,6 +33,13 @@ export function useCreditStatus(accounts) {
   );
   const [records, setRecords] = useState({ expenses: [], transfers: [], incomes: [] });
   const [loading, setLoading] = useState(false);
+
+  // Foreign expenses and deposits count at their day's rate (utils/currencies.js rates bag)
+  const pricing = usePricing();
+  const usdToman = Number(pricing?.getAssetPrice?.('usd')) || 0;
+  const usdAt = useUsdAt(credits.length > 0);
+  const fx = useFxRates([...records.expenses, ...records.incomes], credits.length > 0);
+  const rates = useMemo(() => ({ usdToman, usdAt, ...fx }), [usdToman, usdAt, fx]);
 
   const reload = useCallback(async () => {
     if (!credits.length || vaultStatus === 'locked') return;
@@ -55,11 +65,11 @@ export function useCreditStatus(accounts) {
 
   const statusById = useMemo(() => {
     const today = todayIso();
-    return new Map(credits.map((a) => [a.id, creditStatus(a, records, today)]));
-  }, [credits, records]);
+    return new Map(credits.map((a) => [a.id, creditStatus(a, records, today, rates)]));
+  }, [credits, records, rates]);
   const costsById = useMemo(
-    () => new Map(credits.map((a) => [a.id, creditCostsPaid(a.id, records.expenses)])),
-    [credits, records]
+    () => new Map(credits.map((a) => [a.id, creditCostsPaid(a.id, records.expenses, rates)])),
+    [credits, records, rates]
   );
 
   return { statusById, costsById, loading, reload };

@@ -27,6 +27,7 @@
 
 import { gregorianToJalali, jalaliToGregorian, getJalaliMonthLength } from './loanCalculator.js';
 import { expensePaidInToman } from './expenseDocument.js';
+import { incomeInToman } from './incomeDocument.js';
 
 /** The expense category of a credit's fees (categoryDocument.js) */
 export const CREDIT_COST_CATEGORY = 'credit_fees';
@@ -170,13 +171,13 @@ export function validateCreditTerms(body = {}, today = '') {
 }
 
 /** What was charged to the credit and paid into it, from its expenses, transfers and incomes */
-function movementsOf(account, expenses, transfers, incomes, today) {
+function movementsOf(account, expenses, transfers, incomes, today, rates) {
   const since = account.credit.startDate || '';
   const inRange = (date) => DATE_RE.test(date || '') && date >= since && date <= today;
   let charged = account.credit.openingDebt || 0;
   let paid = 0;
   for (const e of expenses) {
-    if (e.accountId === account.id && inRange(e.date)) charged += Math.round(expensePaidInToman(e) || 0);
+    if (e.accountId === account.id && inRange(e.date)) charged += Math.round(expensePaidInToman(e, rates) || 0);
   }
   for (const t of transfers) {
     if (!inRange(t.date)) continue;
@@ -189,7 +190,7 @@ function movementsOf(account, expenses, transfers, incomes, today) {
   // Deposits that pay its debt («تسویه بدهی اعتباری»)
   for (const i of incomes) {
     if (i.creditAccountId === account.id && i.category === CREDIT_SETTLEMENT_CATEGORY && inRange(i.incomeDate)) {
-      paid += Math.round(Number(i.amount) || 0);
+      paid += Math.round(incomeInToman(i, rates) || 0);
     }
   }
   return { charged, paid };
@@ -201,6 +202,8 @@ function movementsOf(account, expenses, transfers, incomes, today) {
  * @param {{ expenses?: object[], transfers?: object[], incomes?: object[] }} records - its expenses,
  *   transfers and settlement deposits (any others are ignored), from its start date
  * @param {string} today - YYYY-MM-DD
+ * @param {object} [rates] - the rates bag (currencies.js): a foreign expense or deposit counts at
+ *   its day's rate, else today's — without rates it would count as nothing
  * @returns {{
  *   limit: number, debt: number, available: number, prepaid: number,
  *   installmentDebt: number, freeDebt: number,
@@ -211,10 +214,10 @@ function movementsOf(account, expenses, transfers, incomes, today) {
  *   overdue: { count: number, amount: number },
  * }|null}
  */
-export function creditStatus(account, { expenses = [], transfers = [], incomes = [] } = {}, today) {
+export function creditStatus(account, { expenses = [], transfers = [], incomes = [] } = {}, today, rates = {}) {
   const terms = account?.credit;
   if (!terms) return null;
-  const { charged, paid } = movementsOf(account, expenses, transfers, incomes, today);
+  const { charged, paid } = movementsOf(account, expenses, transfers, incomes, today, rates);
   const balance = charged - paid;
   const debt = Math.max(0, balance);
 
@@ -249,8 +252,8 @@ export function creditStatus(account, { expenses = [], transfers = [], incomes =
 }
 
 /** The fees already paid for a credit (expenses marked with its id) */
-export function creditCostsPaid(accountId, expenses = []) {
+export function creditCostsPaid(accountId, expenses = [], rates = {}) {
   return expenses
     .filter((e) => e.creditAccountId === accountId)
-    .reduce((sum, e) => sum + (Math.round(expensePaidInToman(e) || 0)), 0);
+    .reduce((sum, e) => sum + (Math.round(expensePaidInToman(e, rates) || 0)), 0);
 }
