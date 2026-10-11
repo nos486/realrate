@@ -174,7 +174,8 @@ export function validateCreditTerms(body = {}, today = '') {
 function movementsOf(account, expenses, transfers, incomes, today, rates) {
   const since = account.credit.startDate || '';
   const inRange = (date) => DATE_RE.test(date || '') && date >= since && date <= today;
-  let charged = account.credit.openingDebt || 0;
+  const opening = account.credit.openingDebt || 0;
+  let charged = 0;
   let paid = 0;
   for (const e of expenses) {
     if (e.accountId === account.id && inRange(e.date)) charged += Math.round(expensePaidInToman(e, rates) || 0);
@@ -193,7 +194,7 @@ function movementsOf(account, expenses, transfers, incomes, today, rates) {
       paid += Math.round(incomeInToman(i, rates) || 0);
     }
   }
-  return { charged, paid };
+  return { opening, charged, paid };
 }
 
 /**
@@ -217,8 +218,8 @@ function movementsOf(account, expenses, transfers, incomes, today, rates) {
 export function creditStatus(account, { expenses = [], transfers = [], incomes = [] } = {}, today, rates = {}) {
   const terms = account?.credit;
   if (!terms) return null;
-  const { charged, paid } = movementsOf(account, expenses, transfers, incomes, today, rates);
-  const balance = charged - paid;
+  const { opening, charged, paid } = movementsOf(account, expenses, transfers, incomes, today, rates);
+  const balance = opening + charged - paid;
   const debt = Math.max(0, balance);
 
   const statusOf = (i) => (i.paidOn ? 'paid' : i.dueDate < today ? 'overdue' : i.dueDate === today ? 'due' : 'upcoming');
@@ -239,6 +240,8 @@ export function creditStatus(account, { expenses = [], transfers = [], incomes =
 
   return {
     limit: terms.limit,
+    // How the debt adds up: the opening debt, plus what was charged since the start date, less what was paid
+    breakdown: { opening, charged, paid },
     debt,
     available: Math.max(0, terms.limit - debt),
     prepaid: Math.max(0, -balance),

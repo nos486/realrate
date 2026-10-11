@@ -41,6 +41,11 @@ export default function CreditSummary({
         <div className="credit-usage-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={usedPct} aria-label="مصرف سقف اعتبار">
           <span style={{ width: `${usedPct}%` }} />
         </div>
+        {status.breakdown && (
+          <div className="credit-usage-foot">
+            <span>بدهی اولیه {money(status.breakdown.opening)} + هزینه و برداشت {money(status.breakdown.charged)} − پرداخت‌ها {money(status.breakdown.paid)}</span>
+          </div>
+        )}
         <div className="credit-usage-foot">
           <span>آزاد: {money(status.available)}</span>
           <span>سقف: {money(status.limit)}</span>
