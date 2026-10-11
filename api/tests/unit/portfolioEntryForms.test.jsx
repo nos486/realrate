@@ -7,7 +7,7 @@
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, screen, fireEvent, waitFor } from '@testing-library/react';
-import { openDetails, pickRow, rowValue } from '../helpers/entryForm.js';
+import { openDetails, pickRow, rowValue, setDay } from '../helpers/entryForm.js';
 
 let loans = [];
 vi.mock('../../../web/src/features/market/index.js', () => ({
@@ -108,5 +108,81 @@ describe('AddHoldingForm as an entry form', () => {
     expect(document.querySelector('.more-details-toggle').getAttribute('aria-expanded')).toBe('true');
     expect(rowValue('تأمین از')).toBe('وام مسکن');
     expect(document.getElementById('holding-notes').value).toBe('قدیمی');
+  });
+});
+
+const { default: TransactionForm } = await import('../../../web/src/features/transactions/components/TransactionForm.jsx');
+
+const SELL_USD = { ...USD, transactionType: 'sell', unitPrice: 100_000 };
+
+describe('TransactionForm as an entry form', () => {
+  it('lays out the side, the asset, the quantity and the unit price large, the day, then the details', () => {
+    render(<TransactionForm isOpen onClose={() => {}} onSubmit={() => {}} preset={SELL_USD} onSwitchToBuy={() => {}} />);
+    const body = document.querySelector('.entry-form-body');
+    const side = body.querySelector('.ui-filter-pills.variant-segmented');
+    expect(side.querySelector('[aria-selected="true"]').textContent).toBe('فروش (خروج دارایی)');
+    const amounts = [...body.querySelectorAll('.amount-field')];
+    expect(amounts.map((a) => a.querySelector('input').id)).toEqual(['tx-quantity', 'tx-unit-price']);
+    expect(screen.getByText('قیمت هر دلار (تومان) *')).toBeTruthy();
+    // The unit price in words
+    expect(amounts[1].querySelector('.amount-field-words').textContent).toContain('صد هزار');
+    expect(body.querySelector('.date-field [aria-selected="true"]').textContent).toBe('امروز');
+    expect(body.querySelector('.more-details-toggle').getAttribute('aria-expanded')).toBe('false');
+    expect(screen.getByText('ثبت و بعدی')).toBeTruthy();
+  });
+
+  it('submits the same transaction as before', () => {
+    const onSubmit = vi.fn();
+    render(<TransactionForm isOpen onClose={() => {}} onSubmit={onSubmit} preset={SELL_USD} currentHoldingsMap={{ usd: { amount: 1 } }} />);
+    type('tx-quantity', '2');
+    expect(screen.getByText(/بیشتر از موجودی/)).toBeTruthy();
+    openDetails();
+    type('tx-notes', 'صرافی');
+    submit();
+    expect(onSubmit).toHaveBeenCalledWith({
+      id: undefined,
+      assetId: 'usd',
+      transactionType: 'sell',
+      quantity: 2,
+      unitPrice: 100_000,
+      transactionDate: expect.stringMatching(/^\d{4}\/\d{2}\/\d{2}$/),
+      notes: 'صرافی',
+      createdAt: undefined,
+      referenceAssetId: '',
+      referenceQuantity: 0,
+    });
+  });
+
+  it('switches between buy and sell; a new entry\'s «خرید» goes to the buy form', () => {
+    const onSwitchToBuy = vi.fn();
+    const { unmount } = render(<TransactionForm isOpen onClose={() => {}} onSubmit={() => {}} preset={SELL_USD} onSwitchToBuy={onSwitchToBuy} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'خرید / موجودی' }));
+    expect(onSwitchToBuy).toHaveBeenCalledWith(USD);
+    unmount();
+    // Editing: the side is the record's own choice
+    const onSubmit = vi.fn();
+    render(<TransactionForm isOpen onClose={() => {}} onSubmit={onSubmit} onSwitchToBuy={onSwitchToBuy}
+      editingTransaction={{ id: 't1', assetId: 'usd', assetName: 'دلار', unit: 'دلار', transactionType: 'sell', quantity: 1, unitPrice: 90000, transactionDate: '1404/01/10' }} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'خرید (ورود دارایی)' }));
+    expect(onSwitchToBuy).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('انصراف')).toBeTruthy();
+    expect(screen.queryByText('ثبت و بعدی')).toBeNull();
+    // A past day: «روز دیگر» with the picker open
+    expect(document.querySelector('.date-field .date-text-input').value).toBe('1404/01/10');
+    submit();
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ id: 't1', transactionType: 'buy', transactionDate: '1404/01/10' }));
+  });
+
+  it('«ثبت و بعدی» saves and keeps the asset, side, price and day for the next one', async () => {
+    const onSubmit = vi.fn().mockResolvedValue(true);
+    render(<TransactionForm isOpen onClose={() => {}} onSubmit={onSubmit} preset={SELL_USD} />);
+    setDay('1404/02/01');
+    type('tx-quantity', '4');
+    fireEvent.click(screen.getByText('ثبت و بعدی'));
+    await waitFor(() => expect(screen.getByRole('status').textContent).toContain('«دلار» ثبت شد'));
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ quantity: 4, transactionDate: '1404/02/01' }), { next: true });
+    expect(document.getElementById('tx-quantity').value).toBe('');
+    expect(document.getElementById('tx-unit-price').value).toBe('100,000');
+    expect(document.querySelector('.date-field .date-text-input').value).toBe('1404/02/01');
   });
 });
