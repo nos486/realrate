@@ -10,6 +10,7 @@ realrate/
 ├── package.json                  # Shared scripts (dev, test, deploy)
 ├── README.md / README.en.md      # Introduction (Persian / English)
 ├── CHANGELOG.md                  # Release notes for GitHub Releases
+├── .github/workflows/ci.yml      # Full tests, lint and build on every PR to main
 ├── .github/workflows/android.yml # Build and publish signed release APK (main → Releases)
 │
 ├── api/                          # Backend: Cloudflare Worker (D1 and KV)
