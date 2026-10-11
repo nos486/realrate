@@ -67,12 +67,27 @@ export function toAsset(item) {
 }
 
 /**
+ * An item's asset, built once per item object: the catalog (thousands of exchange symbols and funds)
+ * is kept between refreshes, so each refresh rebuilds only the core items that were just downloaded.
+ * The same object also keeps its search index (pricingEngine.js) and keeps screens' memoized rows valid.
+ */
+const assetOfItem = new WeakMap();
+function cachedAsset(item) {
+  let asset = assetOfItem.get(item);
+  if (!asset) {
+    asset = toAsset(item);
+    assetOfItem.set(item, asset);
+  }
+  return asset;
+}
+
+/**
  * The whole book as assets
  * @param {{ items?: Record<string, object> }|null} book
  * @returns {{ assets: object[], priceMap: Record<string, number>, itemMap: Record<string, object> }}
  */
 export function bookToAssets(book) {
-  const assets = Object.values(book?.items || {}).map(toAsset);
+  const assets = Object.values(book?.items || {}).map(cachedAsset);
   const priceMap = {};
   const itemMap = {};
   for (const asset of assets) {
