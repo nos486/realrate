@@ -1,18 +1,22 @@
 /**
  * TransactionForm.jsx — Modal form to create or edit a buy/sell transaction
+ *
+ * Laid out as an entry form (shared/form/, docs/en/DESIGN.md «Entry forms»): «خرید / فروش» as a
+ * segmented switch (on a new entry «خرید / موجودی» goes to the buy form, `onSwitchToBuy`), the
+ * asset, the quantity large in the asset's own unit (AmountField with the asset's unit), the price of one unit in
+ * tomans (AmountField; or paid / settled with another asset), the trade's total and the oversell
+ * warning, the day («امروز»/«دیروز»/«روز دیگر»), and the note folded under «جزئیات بیشتر». A new
+ * transaction can be saved with «ثبت و بعدی»: the form stays open, keeping the asset, side, price
+ * and day (the caller is asked not to close it: `onSubmit(tx, { next })` resolves truthy once
+ * saved).
  */
 
 import React, { useState, useEffect } from 'react';
-import {
-  ArrowDownLeft,
-  ArrowUpRight,
-  Receipt,
-  AlertTriangle,
-} from 'lucide-react';
-import Modal from '../../../shared/ui/Modal.jsx';
-import NumericInput from '../../../shared/ui/NumericInput.jsx';
+import { Receipt, AlertTriangle } from 'lucide-react';
+import { FilterPills, Input, Modal } from '../../../shared/ui/index.js';
+import { AmountField, DateField, EntryFormActions, MoreDetails } from '../../../shared/form/index.js';
 import UniversalAssetSearch from '../../../components/UniversalAssetSearch.jsx';
-import ShamsiDatePicker, { getTodayShamsi } from '../../portfolio/components/ShamsiDatePicker.jsx';
+import { getTodayShamsi } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import ReferenceAssetInputs from '../../portfolio/components/ReferenceAssetInputs.jsx';
 import { parseInputNumber } from '../../portfolio/utils/holdingHelpers.js';
 import { toPriceId, isCustomAssetId } from '../../../utils/priceIds.js';
@@ -21,7 +25,7 @@ import {
   resolveAssetUnit,
 } from '../../../config/sourceRegistry.js';
 import { getItemCategory } from '../../../config/displayEngine.js';
-import TextField from '../../../shared/ui/TextField.jsx';
+import { BASE_CURRENCY } from '../../../utils/currencies.js';
 
 export default function TransactionForm({
   isOpen,
@@ -47,10 +51,17 @@ export default function TransactionForm({
   const [referenceAsset, setReferenceAsset] = useState(null);
   const [referenceQuantity, setReferenceQuantity] = useState('');
   const [referencePriceToman, setReferencePriceToman] = useState('');
+  // «ثبت و بعدی»: what was just saved (the status line), and a new round for the next one
+  const [saved, setSaved] = useState('');
+  const [round, setRound] = useState(0);
+  // Counts each opening: the day and «جزئیات بیشتر» start from the opened record
+  const [opened, setOpened] = useState(0);
 
   // Reset or populate on open/edit
   useEffect(() => {
     if (!isOpen) return;
+    setSaved('');
+    setOpened((n) => n + 1);
 
     if (editingTransaction) {
       setAssetId(editingTransaction.assetId || 'gold_18k');
@@ -126,7 +137,7 @@ export default function TransactionForm({
   const isDateValid = Boolean(transactionDate && transactionDate.trim().length >= 8);
   const isQuantityValid = quantityNum !== null && quantityNum > 0;
   const isUnitPriceValid = finalUnitPriceNum !== null && finalUnitPriceNum > 0;
-  const isFormValid = isDateValid && isQuantityValid && isUnitPriceValid && !submitting;
+  const isValid = isDateValid && isQuantityValid && isUnitPriceValid;
 
   // Total calculated value
   const totalValue = isQuantityValid && isUnitPriceValid ? quantityNum * finalUnitPriceNum : 0;
@@ -135,11 +146,22 @@ export default function TransactionForm({
   const availableBalance = currentHoldingsMap[assetId]?.amount || 0;
   const isSellingOverBalance = transactionType === 'sell' && isQuantityValid && quantityNum > availableBalance;
 
-  const handleSubmit = (e) => {
-    if (e && e.preventDefault) e.preventDefault();
-    if (!isFormValid) return;
+  // «ثبت و بعدی»: the next one keeps the asset, side, price and day
+  const startNext = () => {
+    setQuantity('');
+    setNotes('');
+    setReferenceQuantity('');
+    setSaved(assetName);
+    // The quantity field again, focused
+    setRound((r) => r + 1);
+  };
 
-    onSubmit({
+  const handleSubmit = async (e, next = false) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!isValid || submitting) return;
+    setSaved('');
+
+    const tx = {
       id: editingTransaction?.id,
       assetId,
       transactionType,
@@ -150,7 +172,24 @@ export default function TransactionForm({
       createdAt: editingTransaction?.createdAt,
       referenceAssetId: hasReference ? referenceAsset.id : '',
       referenceQuantity: hasReference ? parsedReferenceQuantity : 0,
-    });
+    };
+    if (!next) {
+      onSubmit(tx);
+      return;
+    }
+    // The caller keeps the form open and answers whether it was saved
+    if (await onSubmit(tx, { next: true })) startNext();
+  };
+
+  // On a new entry «خرید» is the buy form's (AddHoldingForm), for the asset chosen here
+  const switchesToBuy = Boolean(onSwitchToBuy && !editingTransaction);
+  const sideOptions = [
+    { value: 'buy', label: switchesToBuy ? 'خرید / موجودی' : 'خرید (ورود دارایی)' },
+    { value: 'sell', label: 'فروش (خروج دارایی)' },
+  ];
+  const changeSide = (side) => {
+    if (side === 'buy' && switchesToBuy) onSwitchToBuy({ assetId, assetName, unit });
+    else setTransactionType(side);
   };
 
   return (
@@ -162,151 +201,98 @@ export default function TransactionForm({
       maxWidth="540px"
       onSubmit={handleSubmit}
       footer={
-        <div className="modal-actions">
-          <button
-            type="button"
-            className="btn-cancel"
-            disabled={submitting}
-            onClick={onClose}
-          >
-            انصراف
-          </button>
-          <button
-            type="submit"
-            className="btn-primary"
-            disabled={!isFormValid}
-          >
-            {submitting ? 'در حال ثبت...' : editingTransaction ? 'به‌روزرسانی تراکنش' : 'ثبت تراکنش'}
-          </button>
-        </div>
+        <EntryFormActions
+          submitLabel={editingTransaction ? 'به‌روزرسانی تراکنش' : 'ثبت تراکنش'}
+          valid={isValid}
+          submitting={submitting}
+          onCancel={onClose}
+          onNext={editingTransaction ? null : () => handleSubmit(null, true)}
+        />
       }
     >
-      {/* 1. Transaction Type Toggle */}
-      <div className="form-item">
-        <label>نوع تراکنش <span className="field-required">*</span></label>
-        <div className="tx-type-toggle-bar">
-          <button
-            type="button"
-            className={`tx-type-btn buy ${transactionType === 'buy' ? 'active' : ''}`}
-            onClick={() => (onSwitchToBuy && !editingTransaction
-              ? onSwitchToBuy({ assetId, assetName, unit })
-              : setTransactionType('buy'))}
-          >
-            <ArrowDownLeft size={16} style={{ verticalAlign: 'middle', marginLeft: '6px' }} />
-            {onSwitchToBuy && !editingTransaction ? 'خرید / موجودی' : 'خرید (ورود دارایی)'}
-          </button>
-          <button
-            type="button"
-            className={`tx-type-btn sell ${transactionType === 'sell' ? 'active' : ''}`}
-            onClick={() => setTransactionType('sell')}
-          >
-            <ArrowUpRight size={16} style={{ verticalAlign: 'middle', marginLeft: '6px' }} />
-            فروش (خروج دارایی)
-          </button>
-        </div>
-      </div>
+      <div className="entry-form-body portfolio-entry-form">
+        {saved && <p className="entry-form-saved" role="status">«{saved}» ثبت شد؛ تراکنش بعدی را وارد کنید.</p>}
 
-      {/* 2. Asset Selector */}
-      <div className="form-item">
-        <label>دارایی انتخابی <span className="field-required">*</span></label>
-        <UniversalAssetSearch
-          mode="picker"
-          selectedAssetId={assetId}
-          onSelect={handleAssetSelect}
-          placeholder="جستجو و انتخاب دارایی..."
-        />
-        <div className="asset-selected-preview-pill">
-          <span>نام انتخابی: <strong>{assetName}</strong></span>
-          <span className="unit-badge-pill">واحد: {unit}</span>
-        </div>
-      </div>
+        <FilterPills variant="segmented" options={sideOptions} activeValue={transactionType} onChange={changeSide} />
 
-      {/* 3. Quantity & Unit Price (2-column layout) */}
-      <div className="form-row-2col">
-        <div className="form-item">
-          <label>
-            مقدار ({unit}) <span className="field-required">*</span>
-          </label>
-          <NumericInput
-            value={quantity}
-            onValueChange={setQuantity}
-            allowDecimals={true}
-            placeholder="مثلاً ۱.۵ یا ۱۰۰"
-            required
-            autoFocus={!editingTransaction}
-            className="form-input"
+        <div className="ui-input-group portfolio-entry-asset">
+          <div className="portfolio-entry-asset-head">
+            <span className="ui-input-label">دارایی *</span>
+            <span className="portfolio-entry-asset-chosen">
+              {assetName} <span className="portfolio-entry-asset-unit">({unit})</span>
+            </span>
+          </div>
+          <UniversalAssetSearch
+            mode="picker"
+            selectedAssetId={assetId}
+            onSelect={handleAssetSelect}
+            placeholder="جستجو و انتخاب دارایی..."
           />
         </div>
 
+        <AmountField
+          key={`quantity-${round}`}
+          id="tx-quantity"
+          label="مقدار"
+          unit={unit}
+          value={quantity}
+          onValueChange={setQuantity}
+          placeholder="مثلاً ۱.۵ یا ۱۰۰"
+          autoFocus={!editingTransaction}
+        />
+
         {!hasReference && (
-          <div className="form-item">
-            <label>
-              قیمت واحد معامله (تومان) <span className="field-required">*</span>
-            </label>
-            <NumericInput
-              value={unitPrice}
-              onValueChange={setUnitPrice}
-              allowDecimals={false}
-              placeholder="قیمت هر واحد در لحظه معامله"
-              required
-              className="form-input"
-            />
+          <AmountField
+            id="tx-unit-price"
+            label={`قیمت هر ${unit}`}
+            value={unitPrice}
+            onValueChange={setUnitPrice}
+            currency={BASE_CURRENCY}
+            placeholder="قیمت هر واحد در لحظه معامله"
+          />
+        )}
+
+        {/* Paid / settled with another asset (a currency, gold, a stock, ...) instead of Toman */}
+        <ReferenceAssetInputs
+          referenceAsset={referenceAsset}
+          onReferenceAssetChange={setReferenceAsset}
+          referenceQuantity={referenceQuantity}
+          onReferenceQuantityChange={setReferenceQuantity}
+          referencePriceToman={referencePriceToman}
+          onReferencePriceChange={setReferencePriceToman}
+          newAssetAmount={quantityNum || 0}
+          newAssetUnitLabel={unit}
+          autoFillPrice={!editingTransaction}
+          tradeDate={transactionDate}
+        />
+
+        {totalValue > 0 && (
+          <div className="tx-summary-preview-box">
+            <span className="tx-summary-label">ارزش کل معامله:</span>
+            <strong className="tx-summary-value">{Math.round(totalValue).toLocaleString('fa-IR')} تومان</strong>
           </div>
         )}
-      </div>
 
-      {/* Paid / settled with another asset (a currency, gold, a stock, ...) instead of Toman */}
-      <ReferenceAssetInputs
-        referenceAsset={referenceAsset}
-        onReferenceAssetChange={setReferenceAsset}
-        referenceQuantity={referenceQuantity}
-        onReferenceQuantityChange={setReferenceQuantity}
-        referencePriceToman={referencePriceToman}
-        onReferencePriceChange={setReferencePriceToman}
-        newAssetAmount={quantityNum || 0}
-        newAssetUnitLabel={unit}
-        autoFillPrice={!editingTransaction}
-        tradeDate={transactionDate}
-      />
+        {isSellingOverBalance && (
+          <div className="tx-warning-banner">
+            <AlertTriangle size={15} style={{ verticalAlign: 'middle', marginLeft: '6px', flexShrink: 0 }} />
+            <span>
+              توجه: مقدار فروش ({Number(quantityNum).toLocaleString('fa-IR')} {unit}) بیشتر از موجودی محاسبه‌شده فعلی این دارایی ({Number(availableBalance).toLocaleString('fa-IR')} {unit}) است. (غیرمسدودکننده)
+            </span>
+          </div>
+        )}
 
-      {/* Total Turnover Summary Pill */}
-      {totalValue > 0 && (
-        <div className="tx-summary-preview-box">
-          <span className="tx-summary-label">ارزش کل معامله:</span>
-          <strong className="tx-summary-value">{Math.round(totalValue).toLocaleString('fa-IR')} تومان</strong>
-        </div>
-      )}
+        <DateField key={`day-${opened}`} label="تاریخ معامله *" value={transactionDate} onChange={setTransactionDate} />
 
-      {/* Warning for overselling */}
-      {isSellingOverBalance && (
-        <div className="tx-warning-banner">
-          <AlertTriangle size={15} style={{ verticalAlign: 'middle', marginLeft: '6px', flexShrink: 0 }} />
-          <span>
-            توجه: مقدار فروش ({Number(quantityNum).toLocaleString('fa-IR')} {unit}) بیشتر از موجودی محاسبه‌شده فعلی این دارایی ({Number(availableBalance).toLocaleString('fa-IR')} {unit}) است. (غیرمسدودکننده)
-          </span>
-        </div>
-      )}
-
-      {/* 4. Transaction Date */}
-      <div className="form-item">
-        <label>تاریخ معامله <span className="field-required">*</span></label>
-        <ShamsiDatePicker
-          value={transactionDate}
-          onChange={setTransactionDate}
-        />
-        <span className="field-sub-note">تاریخ دقیق معامله برای ترتیب زمانی و گزارش‌گیری.</span>
-      </div>
-
-      {/* 5. Notes */}
-      <div className="form-item">
-        <label>یادداشت (اختیاری)</label>
-        <TextField
-          type="text"
-          placeholder="مثلاً: خرید پله‌ای، صرافی فلان، کارمزد و..."
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          className="form-input"
-        />
+        <MoreDetails key={`details-${opened}`} filled={notes.trim() ? ['یادداشت'] : []}>
+          <Input
+            id="tx-notes"
+            label="یادداشت"
+            placeholder="مثلاً: خرید پله‌ای، صرافی فلان، کارمزد و..."
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+          />
+        </MoreDetails>
       </div>
     </Modal>
   );

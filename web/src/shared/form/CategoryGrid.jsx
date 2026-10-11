@@ -4,7 +4,8 @@
  *
  * The order is fixed when the form opens (a tile never moves under the finger); the chosen one is
  * always in view. What was used last is remembered per kind on this device only
- * (recentCategories.js, a convenience — never a record).
+ * (recentCategories.js, a convenience — never a record). `kind` names the list (expense, income,
+ * subscription …): the recent ones' key and the label's id.
  */
 
 import React, { useState } from 'react';
@@ -25,7 +26,7 @@ function ordered(options, kind) {
 }
 
 /**
- * @param {{ kind: 'expense'|'income', options: { value: string, label: string, Icon?: Function,
+ * @param {{ kind: string, options: { value: string, label: string, Icon?: Function,
  *   color?: string }[], value: string, onChange: (v: string) => void, onManage?: () => void,
  *   label?: string }} props
  */

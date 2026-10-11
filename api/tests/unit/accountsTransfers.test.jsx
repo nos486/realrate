@@ -32,6 +32,7 @@ vi.mock('../../../web/src/features/demo/index.js', () => ({ useDemo: () => ({ re
 vi.mock('../../../web/src/shared/ui/FeedbackProvider.jsx', () => ({ useFeedback: () => ({ confirm: vi.fn(async () => true), toast: { success: vi.fn(), error: vi.fn() } }) }));
 vi.mock('../../../web/src/shared/banks/index.js', () => ({ BankLogo: () => null, resolveBank: () => null, useCustomBanks: () => ({ customBanks: [] }) }));
 
+import { pickRow } from '../helpers/entryForm.js';
 import AccountsPage from '../../../web/src/features/accounts/components/AccountsPage.jsx';
 
 afterEach(cleanup);
@@ -48,9 +49,8 @@ describe('accounts page: transfers', () => {
   it('records a new transfer from the form', async () => {
     render(<MemoryRouter><AccountsPage /></MemoryRouter>);
     fireEvent.click(screen.getAllByText('انتقال بین حساب‌ها').map((el) => el.closest('button')).find(Boolean));
-    const group = (label) => screen.getByText(label).closest('.ui-input-group');
-    fireEvent.click([...group('از حساب *').querySelectorAll('button')].find((b) => b.textContent.includes('کیف پول')));
-    fireEvent.click([...group('به حساب *').querySelectorAll('button')].find((b) => b.textContent.includes('بلو')));
+    pickRow('از حساب', 'کیف پول');
+    pickRow('به حساب', 'بلو');
     fireEvent.change(document.getElementById('transfer-amount'), { target: { value: '500000' } });
     fireEvent.submit(screen.getByText('ثبت انتقال').closest('form'));
     await waitFor(() => expect(store.saveTransfer).toHaveBeenCalled());

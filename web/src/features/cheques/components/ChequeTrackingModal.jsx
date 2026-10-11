@@ -3,16 +3,19 @@
  *
  * Choosing a status (with the date it happened and an optional note) logs it in the cheque's
  * history; choosing the current status just adds a follow-up note (e.g. "called the drawer").
+ * The day it happened is past or today, so it is picked like an entry form's day (DateField:
+ * «امروز / دیروز / روز دیگر»).
  */
 
 import React, { useState } from 'react';
 import { ClipboardList, Pencil } from 'lucide-react';
 import { AlertBanner, Button, FilterPills, Input, Modal } from '../../../shared/ui/index.js';
-import ShamsiDatePicker, {
+import {
   getTodayShamsi,
   formatShamsiDisplay,
   shamsiToGregorian,
 } from '../../portfolio/components/ShamsiDatePicker.jsx';
+import { DateField } from '../../../shared/form/index.js';
 import { BankLogo, resolveBank, useCustomBanks } from '../../../shared/banks/index.js';
 import { formatNum } from '../../portfolio/utils/holdingHelpers.js';
 import { CHEQUE_LIMITS, statusesFor, daysUntilDue, isChequeOpen } from '../../../utils/chequeDocument.js';
@@ -152,10 +155,10 @@ export default function ChequeTrackingModal({ cheque, onClose, onChangeStatus, o
         {!readOnly && (
           <section className="cheque-update-section" aria-label="ثبت پیگیری">
             <h4>چه اتفاقی افتاد؟</h4>
-            {submitError && <AlertBanner type="error" message={submitError} />}
-            <FilterPills options={statusOptions} activeValue={status} onChange={setStatus} size="sm" />
-            <div className="cheque-form-row">
-              <ShamsiDatePicker label="تاریخ" value={dateShamsi} onChange={setDateShamsi} />
+            <div className="entry-form-body">
+              {submitError && <AlertBanner type="error" message={submitError} />}
+              <FilterPills options={statusOptions} activeValue={status} onChange={setStatus} size="sm" />
+              <DateField label="تاریخ" value={dateShamsi} onChange={setDateShamsi} />
               <Input
                 id="cheque-track-note"
                 label={sameStatus ? 'یادداشت پیگیری *' : 'یادداشت (اختیاری)'}

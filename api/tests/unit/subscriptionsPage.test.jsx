@@ -10,6 +10,7 @@ import React from 'react';
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render as rtlRender, cleanup, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { pickCurrency } from '../helpers/entryForm.js';
 
 const store = vi.hoisted(() => ({ subscriptions: [], saveSubscription: null, saveExpense: null }));
 store.saveSubscription = vi.fn(async (input, existing) => ({ ...existing, ...input }));
@@ -137,7 +138,7 @@ describe('the subscriptions page', () => {
     fireEvent.click(screen.getAllByText('اشتراک جدید')[0]);
     fireEvent.change(document.querySelector('#sub-name'), { target: { value: 'Spotify' } });
     fireEvent.change(document.querySelector('#sub-amount'), { target: { value: '6' } });
-    fireEvent.click(screen.getByText('دلار'));
+    pickCurrency('دلار');
     fireEvent.click(screen.getByText('سالانه'));
     fireEvent.submit(document.querySelector('#sub-name').closest('form'));
     await waitFor(() => expect(store.saveSubscription).toHaveBeenCalled());

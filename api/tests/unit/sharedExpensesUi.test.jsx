@@ -6,7 +6,7 @@
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, screen, fireEvent, waitFor } from '@testing-library/react';
-import { openDetails } from '../helpers/entryForm.js';
+import { openDetails, pickRow } from '../helpers/entryForm.js';
 
 vi.mock('../../../web/src/features/loans/context/LoansContext.jsx', () => ({ useOptionalLoans: () => [] }));
 
@@ -56,7 +56,7 @@ describe('ReimbursementsModal', () => {
     render(<ReimbursementsModal expense={expense} accounts={accounts} onSave={onSave} onClose={() => {}} />);
     expect(document.getElementById('reimbursement-amount').value.replace(/[^\d۰-۹]/g, '')).toBeTruthy();
     setValue(document.getElementById('reimbursement-amount'), '4000000');
-    fireEvent.click(screen.getByText('نقد'));
+    pickRow('واریز به', 'نقد');
     fireEvent.submit(screen.getByText('ثبت دریافت').closest('form'));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const [input] = onSave.mock.calls[0];

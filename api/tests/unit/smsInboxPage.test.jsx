@@ -52,6 +52,7 @@ vi.mock('../../../web/src/features/loans/context/LoansContext.jsx', () => ({ use
 const navigate = vi.hoisted(() => vi.fn());
 vi.mock('react-router-dom', async (importOriginal) => ({ ...(await importOriginal()), useNavigate: () => navigate }));
 
+import { pickRow } from '../helpers/entryForm.js';
 import SmsInboxPage from '../../../web/src/features/sms-inbox/SmsInboxPage.jsx';
 import { addSmsMessages, getPendingSms } from '../../../web/src/shared/native/smsInbox.js';
 
@@ -206,8 +207,7 @@ describe('«انتقال بین حساب‌های خودم»: neither expense no
     fireEvent.click(screen.getAllByLabelText('گزینه‌های این پیامک')[0]);
     fireEvent.click(screen.getByText('انتقال بین حساب‌های خودم').closest('button'));
     // To: the cash account (from is the withdrawal's account)
-    const toPicker = screen.getByText('به حساب *').closest('.ui-input-group');
-    fireEvent.click([...toPicker.querySelectorAll('button')].find((b) => b.textContent.includes('نقد')));
+    pickRow('به حساب', 'نقد');
     fireEvent.submit(screen.getByText('ثبت انتقال').closest('form'));
     await waitFor(() => expect(transfers.saveTransfer).toHaveBeenCalled());
     expect(transfers.saveTransfer.mock.calls[0][0]).toMatchObject({

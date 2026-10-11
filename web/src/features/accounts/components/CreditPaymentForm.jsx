@@ -9,12 +9,17 @@
  *    the same account.
  *  - an installment (`installment`): its amount, paid into the credit; the page then marks it paid.
  * (utils/creditAccount.js)
+ *
+ * Laid out as an entry form (shared/form/): the amount first (the debt settled, or the
+ * installment), what was actually paid under it for a settlement, «پرداخت از» as a picker row and
+ * the day («امروز»/«دیروز»/«روز دیگر»).
  */
 
 import React, { useState } from 'react';
 import { CreditCard } from 'lucide-react';
-import { AlertBanner, Button, FilterPills, Modal, NumericInput } from '../../../shared/ui/index.js';
-import ShamsiDatePicker, { getTodayShamsi, shamsiToGregorian, formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
+import { AlertBanner, Modal, NumericInput } from '../../../shared/ui/index.js';
+import { AmountField, DateField, EntryFormActions, PickerRow } from '../../../shared/form/index.js';
+import { getTodayShamsi, shamsiToGregorian, formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { CREDIT_COST_CATEGORY, settlementOf } from '../../../utils/creditAccount.js';
 import { getExpenseGroups, ensureDailyGroup, saveExpense } from '../../../shared/vault/vaultExpenses.js';
 import { formatAmount } from '../../expenses/utils/format.js';
@@ -93,36 +98,18 @@ export default function CreditPaymentForm({ account, debt = 0, installment = nul
       icon={<CreditCard size={18} />}
       maxWidth="520px"
       onSubmit={handleSubmit}
-      footer={(
-        <div className="modal-actions">
-          <Button variant="secondary" block disabled={submitting} onClick={onClose}>انصراف</Button>
-          <Button type="submit" block loading={submitting} disabled={!isValid}>ثبت پرداخت</Button>
-        </div>
-      )}
+      footer={<EntryFormActions submitLabel="ثبت پرداخت" valid={isValid} submitting={submitting} onCancel={onClose} />}
     >
-      <div className="income-form-body">
+      <div className="entry-form-body">
         {error && <AlertBanner type="error" message={error} />}
-        {payers.length === 0 ? (
-          <AlertBanner type="info" message="برای پرداخت، حسابی که از آن پرداخت می‌کنید را در صفحه‌ی «حساب‌ها» اضافه کنید." />
-        ) : (
-          <div className="ui-input-group">
-            <span className="ui-input-label">پرداخت از *</span>
-            <FilterPills
-              options={payers.map((a) => ({ value: a.id, label: accountLabel(a) }))}
-              activeValue={fromAccountId}
-              onChange={setFrom}
-              size="sm"
-              className="income-category-picker"
-            />
-          </div>
-        )}
 
-        <div className="ui-input-group">
-          <label htmlFor="credit-pay-settled" className="ui-input-label">{installment ? 'مبلغ قسط (تومان) *' : 'بدهی تسویه‌شده (تومان) *'}</label>
-          <div className="ui-input-wrapper">
-            <NumericInput id="credit-pay-settled" value={settled} onValueChange={setSettled} className="ui-input-control" required />
-          </div>
-        </div>
+        <AmountField
+          id="credit-pay-settled"
+          label={installment ? 'مبلغ قسط' : 'بدهی تسویه‌شده'}
+          value={settled}
+          onValueChange={setSettled}
+          currency="IRT"
+        />
 
         {!installment && (
           <div className="ui-input-group">
@@ -138,7 +125,18 @@ export default function CreditPaymentForm({ account, debt = 0, installment = nul
           </div>
         )}
 
-        <ShamsiDatePicker label="تاریخ پرداخت *" value={dateShamsi} onChange={setDateShamsi} />
+        {payers.length === 0 ? (
+          <AlertBanner type="info" message="برای پرداخت، حسابی که از آن پرداخت می‌کنید را در صفحه‌ی «حساب‌ها» اضافه کنید." />
+        ) : (
+          <PickerRow
+            label="پرداخت از"
+            value={fromAccountId}
+            options={payers.map((a) => ({ value: a.id, label: accountLabel(a) }))}
+            onChange={setFrom}
+          />
+        )}
+
+        <DateField label="تاریخ پرداخت *" value={dateShamsi} onChange={setDateShamsi} />
       </div>
     </Modal>
   );
