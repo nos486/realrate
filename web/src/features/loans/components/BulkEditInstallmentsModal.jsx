@@ -9,12 +9,14 @@
  * edit installment amounts (no single-installment edit exists). Saving switches the loan into
  * "distributed" schedule mode (dbBulkDistributeInstallments), after which the extra-payment flow
  * is disabled in favor of reopening this panel.
+ *
+ * Its error banner and footer are the entry forms' own (AlertBanner, EntryFormActions).
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { AlertCircle, ListChecks } from 'lucide-react';
-import Modal from '../../../shared/ui/Modal.jsx';
-import NumericInput from '../../../shared/ui/NumericInput.jsx';
+import { ListChecks } from 'lucide-react';
+import { AlertBanner, Modal, NumericInput } from '../../../shared/ui/index.js';
+import { EntryFormActions } from '../../../shared/form/index.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { distributeInstallmentAmounts } from '../../../utils/loanCalculator.js';
 
@@ -133,86 +135,54 @@ export default function BulkEditInstallmentsModal({
 
   if (!loan) return null;
 
-  const footerActions = (
-    <div className="modal-actions">
-      <button type="button" className="btn-cancel" onClick={onClose} disabled={submitting}>
-        انصراف
-      </button>
-      <button
-        type="submit"
-        className="btn-primary"
-        disabled={submitting || Boolean(result.error) || pendingRows.length === 0}
-        style={{ minWidth: '130px' }}
-      >
-        {submitting ? 'در حال ذخیره...' : 'ذخیره‌ی برنامه‌ی جدید اقساط'}
-      </button>
-    </div>
-  );
-
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
       title="ویرایش گروهی اقساط"
       subtitle="مبلغ هر قسطی که می‌خواهید را تغییر دهید — بقیه‌ی اقساط دست‌نخورده (چه قبل چه بعد) به‌طور خودکار و مساوی از باقیمانده سهم می‌گیرند"
-      icon={<ListChecks size={20} className="text-amber-500" />}
-      footer={footerActions}
+      icon={<ListChecks size={20} />}
+      footer={
+        <EntryFormActions
+          submitLabel="ذخیره‌ی برنامه‌ی جدید اقساط"
+          valid={!result.error && pendingRows.length > 0}
+          submitting={submitting}
+          onCancel={onClose}
+          onNext={null}
+        />
+      }
       onSubmit={handleSubmit}
       maxWidth="720px"
     >
-      <div style={{ padding: '4px 0' }}>
-        {formError && (
-          <div className="form-error-banner" style={{
-            background: 'rgba(239, 68, 68, 0.12)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            borderRadius: '10px',
-            padding: '10px 14px',
-            color: 'var(--color-negative-text)',
-            fontSize: '0.85rem',
-            marginBottom: '14px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}>
-            <AlertCircle size={16} />
-            <span>{formError}</span>
-          </div>
-        )}
+      <div className="entry-form-body">
+        {formError && <AlertBanner type="error" message={formError} />}
 
-        <div style={{
-          maxHeight: '420px',
-          overflowY: 'auto',
-          border: '1px solid rgba(255, 255, 255, 0.06)',
-          borderRadius: '8px',
-        }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+        <div className="loan-bulk-table-wrap">
+          <table className="loan-bulk-table">
             <thead>
-              <tr style={{ position: 'sticky', top: 0, background: 'rgba(15, 23, 42, 0.95)' }}>
-                <th style={{ padding: '6px 8px', textAlign: 'right', color: 'var(--text-secondary)', fontWeight: 600 }}>قسط</th>
-                <th style={{ padding: '6px 8px', textAlign: 'right', color: 'var(--text-secondary)', fontWeight: 600 }}>سررسید</th>
-                <th style={{ padding: '6px 8px', textAlign: 'right', color: 'var(--text-secondary)', fontWeight: 600 }}>مبلغ (تومان)</th>
+              <tr>
+                <th>قسط</th>
+                <th>سررسید</th>
+                <th>مبلغ (تومان)</th>
               </tr>
             </thead>
             <tbody>
               {paidInstallments.map((inst) => (
-                <tr key={inst.id} style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)', opacity: 0.55 }}>
-                  <td style={{ padding: '5px 8px', color: 'var(--text-primary)' }}>{formatNum(inst.installmentNumber)}</td>
-                  <td style={{ padding: '5px 8px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                    {formatShamsiDisplay(inst.dueDate)}
-                  </td>
-                  <td style={{ padding: '5px 8px', color: 'var(--text-secondary)' }}>
-                    {formatNum(inst.totalAmount)} <span style={{ fontSize: '0.72rem' }}>(پرداخت‌شده)</span>
+                <tr key={inst.id} className="is-paid">
+                  <td>{formatNum(inst.installmentNumber)}</td>
+                  <td className="is-date">{formatShamsiDisplay(inst.dueDate)}</td>
+                  <td className="is-muted">
+                    {formatNum(inst.totalAmount)} <small>(پرداخت‌شده)</small>
                   </td>
                 </tr>
               ))}
               {displayRows.map((inst) => (
-                <tr key={inst.installmentNumber} style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                  <td style={{ padding: '5px 8px', color: 'var(--text-primary)' }}>{formatNum(inst.installmentNumber)}</td>
-                  <td style={{ padding: '5px 8px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                    {formatShamsiDisplay(inst.dueDate)}
-                  </td>
-                  <td style={{ padding: '4px 8px' }}>
+                <tr key={inst.installmentNumber}>
+                  <td>{formatNum(inst.installmentNumber)}</td>
+                  <td className="is-date">{formatShamsiDisplay(inst.dueDate)}</td>
+                  <td className="is-input">
                     <NumericInput
+                      aria-label={`مبلغ قسط ${formatNum(inst.installmentNumber)}`}
                       value={customAmounts[inst.installmentNumber] ?? String(inst.totalAmount)}
                       onValueChange={(val) =>
                         setCustomAmounts((prev) => {
@@ -232,9 +202,7 @@ export default function BulkEditInstallmentsModal({
         </div>
 
         {pendingRows.length === 0 && !result.error && (
-          <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '10px' }}>
-            هیچ قسط در‌انتظاری برای ویرایش وجود ندارد.
-          </span>
+          <p className="expense-form-hint">هیچ قسط در‌انتظاری برای ویرایش وجود ندارد.</p>
         )}
       </div>
     </Modal>
