@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Plus, Briefcase, FolderPlus } from 'lucide-react';
 import Modal from '../../../shared/ui/Modal.jsx';
 
@@ -24,6 +25,27 @@ export default function PortfolioTracker({
     fetchPortfolios,
     loadingPortfolios,
   } = usePortfolio(initialPortfolioId);
+
+  // The address names the open portfolio (/portfolio/:id), so a link or reload lands on it and
+  // back / forward move between portfolios; the query (?add=, ?app=) is kept
+  const navigate = useNavigate();
+  const location = useLocation();
+  const activeId = activePortfolio?.id || null;
+  const onPortfolioPath = location.pathname.startsWith('/portfolio');
+  const goToPortfolio = useCallback((id, replace = false) => {
+    navigate({ pathname: `/portfolio/${id}`, search: location.search }, { replace });
+  }, [navigate, location.search]);
+  const handleSelect = (id) => {
+    switchPortfolio(id);
+    if (onPortfolioPath && id !== activeId) goToPortfolio(id);
+  };
+  // The address follows the open portfolio when it names none (/portfolio) or an unknown one; one
+  // that exists is adopted by usePortfolio instead (back / forward, a shared link)
+  const urlId = location.pathname.match(/^\/portfolio\/([^/]+)/)?.[1] || null;
+  const urlKnown = Boolean(urlId) && portfolios.some((p) => p.id === urlId);
+  useEffect(() => {
+    if (activeId && onPortfolioPath && !urlKnown) goToPortfolio(activeId, true);
+  }, [activeId, onPortfolioPath, urlKnown, goToPortfolio]);
 
   const { readOnly } = useDemo();
   const holdingsRef = useRef(null);
@@ -85,7 +107,7 @@ export default function PortfolioTracker({
       <PortfolioSwitcher
         portfolios={portfolios}
         activePortfolioId={activePortfolio?.id}
-        onSelect={switchPortfolio}
+        onSelect={handleSelect}
         onNewPortfolio={readOnly ? undefined : () => setNewPortfolioModalOpen(true)}
       />
 
@@ -95,6 +117,7 @@ export default function PortfolioTracker({
       </div>
 
       <HoldingsView
+        key={activeId || 'none'}
         loadingPortfolios={loadingPortfolios}
         ref={holdingsRef}
         activePortfolio={activePortfolio}
