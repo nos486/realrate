@@ -19,6 +19,7 @@ vi.mock('../../../web/src/shared/vault/vaultExpenses.js', () => ({
 }));
 
 import TransferForm from '../../../web/src/features/accounts/components/TransferForm.jsx';
+import CreditConversionForm from '../../../web/src/features/accounts/components/CreditConversionForm.jsx';
 import CreditPaymentForm from '../../../web/src/features/accounts/components/CreditPaymentForm.jsx';
 
 afterEach(() => {
@@ -110,5 +111,25 @@ describe('CreditPaymentForm', () => {
     expect(rowValue('پرداخت از')).toBe('ملت');
     setValue(document.getElementById('credit-pay-paid'), '10200000');
     expect(screen.getByText(/کارمزد تسویه: ۲۰۰٬۰۰۰ تومان \(۲٪\)/)).toBeTruthy();
+  });
+});
+
+describe('CreditConversionForm', () => {
+  it('leads with the amount, then the day (today/yesterday/other), then the rows', async () => {
+    const onSave = vi.fn(async () => {});
+    render(<CreditConversionForm account={{ id: 'cr_1', name: 'اوانو' }} debt={6_000_000} onSave={onSave} onClose={vi.fn()} />);
+    expect(order().slice(0, 2)).toEqual(['ui-input-group', 'ui-input-group']);
+    expect(document.querySelector('.entry-form-body > .amount-field #conversion-principal')).toBeTruthy();
+    expect(screen.getByText(/بدهی خارج از اقساط: ۶٬۰۰۰٬۰۰۰ تومان/)).toBeTruthy();
+    expect(document.querySelector('.entry-form-body > .date-field')).toBeTruthy();
+    expect(screen.getByText('تبدیل به قسط', { selector: 'button *, button' }).closest('button').disabled).toBe(true);
+    setDay('1405/07/01');
+    fireEvent.click(screen.getByText('افزودن قسط'));
+    const row = document.querySelector('.credit-row');
+    fireEvent.change(row.querySelector('input.date-text-input'), { target: { value: '1405/08/01' } });
+    setValue(row.querySelector('input[id^="conversion-row-"]'), '6000000');
+    fireEvent.submit(document.querySelector('form'));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave.mock.calls[0][0]).toMatchObject({ date: '2026-09-23', principal: 6_000_000, installments: [{ amount: 6_000_000 }] });
   });
 });
