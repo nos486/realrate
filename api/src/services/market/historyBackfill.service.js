@@ -16,6 +16,7 @@
 import { importDailyCandles, tehranDay, addDays } from "../../repositories/priceHistory.repository.js";
 import { dropHistorySnapshots } from "../../repositories/priceHistoryStore.repository.js";
 import { resetPriceAverages } from "./priceAverages.service.js";
+import { invalidateBubbleHistory } from "./bubbleHistory.service.js";
 import { fetchTgjuSeries } from "./tgju.client.js";
 import { normalizePriceId, currencyOf, usdSeriesKey, historyKeysOf, USD_SERIES_SUFFIX } from "../../domain/priceBook.js";
 import { AppError } from "../../lib/AppError.js";
@@ -32,6 +33,8 @@ import { TGJU_UNITS, normalizeTgjuSlug } from "../../config/tgjuCatalog.js";
 async function pastDaysChanged(env, keys) {
   await dropHistorySnapshots(env, keys);
   await resetPriceAverages(env);
+  // A coin's, the ounce's or the dollar's past: the bubbles computed from them follow
+  await invalidateBubbleHistory(env, keys);
 }
 
 export const MAX_BACKFILL_DAYS = 3650;
@@ -136,6 +139,10 @@ export async function backfillPriceHistory(env, {
   if (!env?.DB?.prepare) throw new AppError("پایگاه‌داده در دسترس نیست", 503, "NO_DATABASE");
   // Only a live price book item can receive history, so nothing lands under an id no card reads
   const { id, item } = await liveItem(env, target, getBook);
+  // A coin's bubble is computed from our own history (bubbleHistory.service.js), never filled from a feed
+  if (item?.params?.derived === "bubble") {
+    throw AppError.badRequest(`«${item.name || id}» را خود برنامه از تاریخچه‌ی سکه، انس و دلار حساب می‌کند؛ تاریخچه‌اش از tgju پر نمی‌شود`);
+  }
   await ensureSchema(env);
   const span = Math.min(Math.max(Number(days) || 730, 1), MAX_BACKFILL_DAYS);
   const fromDay = addDays(tehranDay(now), -span);

@@ -35,15 +35,14 @@ export const PRICE_SOURCES_CONFIG = [
     referenceOrder: 1,
     displayConfig: { showOnHomePage: true },
   },
-  // ── Gold, coins and coin bubbles (tgju.org): one multi-output source ──
+  // ── Gold and coins (tgju.org): one multi-output source ──
   // Each series is a tgju indicator (tgju.org/profile/<slug>), in rials, read from its daily table
   // (its newest row is today's: the close is the latest price). The item's name, category and unit
-  // come from its spec; a coin's target bubble from coin.spec.js. A bubble (category `bubble`, not
-  // holdable) is the difference of two prices: it moves far more than a price, so it has its own
-  // jump limit; the price book adds its percent of the coin's gold value (bubble.spec.js `bubbleOf`).
+  // come from its spec. A coin's bubble is not read from tgju: the price book computes it (the
+  // coin's price less its gold value, bubble.spec.js), so every bubble in the app is one bubble.
   {
     id: "src_def_tgju",
-    name: "طلا، سکه و حباب (tgju)",
+    name: "طلا و سکه (tgju)",
     brand: "tgju",
     priceType: "tgju",
     quote: "rial",
@@ -56,12 +55,8 @@ export const PRICE_SOURCES_CONFIG = [
       { slug: "nim", id: "half_coin", name: "نیم سکه" },
       { slug: "rob", id: "quarter_coin", name: "ربع سکه" },
       { slug: "gerami", id: "gerami_coin", name: "سکه گرمی" },
-      { slug: "coin_blubber", id: "bubble_full_coin", name: "حباب سکه امامی", maxJumpPct: 100 },
-      { slug: "nim_blubber", id: "bubble_half_coin", name: "حباب نیم سکه", maxJumpPct: 100 },
-      { slug: "rob_blubber", id: "bubble_quarter_coin", name: "حباب ربع سکه", maxJumpPct: 100 },
-      { slug: "gerami_blubber", id: "bubble_gerami_coin", name: "حباب سکه گرمی", maxJumpPct: 100 },
     ],
-    fetchIntervalSec: 600, // every 10 minutes: ten requests a run, kept light on tgju
+    fetchIntervalSec: 600, // every 10 minutes: six requests a run, kept light on tgju
     isActive: true,
     isPrimary: true,
     displayConfig: { showOnHomePage: true },

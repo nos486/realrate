@@ -19,9 +19,10 @@
  * last day the averages include. Pure: no I/O; shared with the web app.
  *
  * A coin's bubble percent is averaged the same way, from the history it already has — no series
- * of its own is stored. Each day both the coin and its bubble (tgju's «حباب», a spec with
- * `bubbleOf`, bubble.spec.js) closed, the coin traded at coin ÷ (coin − bubble) times its gold
- * value: that day's value of the derived key `${bubbleId}@ratio` (BUBBLE_RATIO_SERIES). Its running
+ * of its own is stored. Each day both the coin and its bubble (a spec with `bubbleOf`,
+ * bubble.spec.js: the price book's own, the coin's price less its gold value — past days computed
+ * the same way, bubbleHistory.service.js) closed, the coin traded at coin ÷ (coin − bubble) = coin
+ * ÷ its gold value: that day's value of the derived key `${bubbleId}@ratio` (BUBBLE_RATIO_SERIES). Its running
  * sums sit beside the closes' in the same state: a full sum joins the two series' rows in the
  * window (readBubbleRatioSums), a day's move takes the ratio of the days it already reads
  * (withBubbleRatioRows). The mean ratio less one is the mean bubble percent, put on the bubble as

@@ -23,7 +23,7 @@ const coin = {
   params: { intrinsic: 80_000_000, targetBubblePct: 10, bubblePct: 25, changePercent: 1.2, avg: { '30d': { value: 95_000_000, days: 30 } } },
 };
 const bubble = {
-  id: 'bubble_full_coin', price: 20_000_000, sourceId: 'src_def_tgju_bubbles',
+  id: 'bubble_full_coin', price: 20_000_000, sourceId: null,
   params: { bubblePct: 25, bubbleOf: 'full_coin', avg: { '30d': { value: 18_000_000, days: 30 }, '1y': { value: 15_000_000, days: 300 } } },
 };
 const ounce = {
@@ -74,7 +74,10 @@ describe('metric values', () => {
   it('a card offers its own metrics and its linked items\', only those with a value', () => {
     const keys = slotOptionsOf('full_coin', itemOf).map((o) => o.key);
     expect(keys).toEqual(expect.arrayContaining(['avg:30d', 'change', 'intrinsic', 'standard', 'deviation', 'bubblePct',
-      'bubble/price', 'bubble/avg:30d', 'bubble/avg:1y', 'bubble/bubblePct']));
+      'bubble/price', 'bubble/avg:30d', 'bubble/avg:1y']));
+    // The bubble's percent is the coin's own: offered once, as the coin's
+    expect(keys).not.toContain('bubble/bubblePct');
+    expect(slotOptionsOf('bubble_full_coin', itemOf).map((o) => o.key)).toContain('bubblePct');
     expect(keys).not.toContain('price');
     expect(keys).not.toContain('avg:1y');
     expect(slotOptionsOf('full_coin', itemOf).find((o) => o.key === 'bubble/price').linkedId).toBe('bubble_full_coin');

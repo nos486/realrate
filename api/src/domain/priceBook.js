@@ -27,9 +27,10 @@
  *   no market source (from the ounce and USD), and cash (1 toman). Items that also have a market
  *   price carry their intrinsic value and bubble in `params`; a coin with a bubble series also its
  *   year's mean bubble (`params.targetBubblePct`, from the history: priceAverages.js).
- * - Market indicators are items too (a coin's bubble from tgju, category `bubble`): a value in
- *   tomans like any price, not holdable (categories.config.js). One that measures another item
- *   (`bubbleOf` in its spec) also carries its percent of it (`params.bubblePct`).
+ * - Market indicators are items too (a coin's bubble, category `bubble`): a value in tomans like
+ *   any price, not holdable (categories.config.js). A coin's bubble is computed here — the coin's
+ *   market price less its gold value — never taken from a feed, and carries the coin's percent
+ *   (`params.bubblePct`, `params.bubbleOf`).
  *
  * The same ids are used for stored user data, the home page, charts and the price history.
  * Pure: no I/O. Shared with the web app (it recomputes bubbles for the calculator with it).
@@ -404,12 +405,30 @@ export function buildPriceBook(sources, { now = new Date().toISOString(), source
     }
   }
 
-  // 4. Indicators of another item (a coin's bubble, `bubbleOf` in its spec): their percent of
-  //    that item's value without them (the coin's gold), at the book's own price
-  for (const item of Object.values(items)) {
-    const of = SPEC_BY_ID.get(item.id)?.bubbleOf;
-    const base = of ? positive(items[normalizePriceId(of)]?.price) - item.price : 0;
-    if (base > 0) item.params = { ...item.params, bubblePct: Math.round((item.price / base) * 10000) / 100, bubbleOf: normalizePriceId(of) };
+  // 4. A coin's bubble (a spec with `bubbleOf`): computed here, never taken from a feed — the coin's
+  //    market price less its gold value (step 3), in tomans per coin, with the coin's own percent,
+  //    so a coin and its bubble always tell the same bubble. A bubble not above zero has no item
+  //    (a price is positive; the coin's percent still shows it).
+  for (const spec of Object.values(BUBBLE_SPECS)) {
+    const id = normalizePriceId(spec.id);
+    const coinId = normalizePriceId(spec.bubbleOf);
+    const coin = items[coinId];
+    const intrinsic = coin?.sourceId ? positive(coin.params?.intrinsic) : 0;
+    const amount = intrinsic ? Math.round(coin.price - intrinsic) : 0;
+    if (amount > 0) {
+      items[id] = {
+        id,
+        price: amount,
+        name: spec.name,
+        category: spec.category,
+        unit: spec.unit || "",
+        sourceId: null,
+        updatedAt: coin.updatedAt || now,
+        params: { derived: "bubble", bubbleOf: coinId, bubblePct: coin.params.bubblePct },
+      };
+    } else {
+      delete items[id];
+    }
   }
 
   // 5. Fixed prices (cash)
