@@ -630,6 +630,11 @@
   }
 }
 
+/* The account form's type: its five tiles in one row (CategoryGrid's four columns otherwise) */
+.account-type-field .category-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
 /* The credit's terms in its form */
 .credit-terms-fields {
   display: flex;

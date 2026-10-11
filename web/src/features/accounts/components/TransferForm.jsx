@@ -4,18 +4,25 @@
  * Not an expense or an income (utils/transferDocument.js): from, to, amount, an optional bank
  * fee, the day and a note. Opened from the accounts page, or from a bank SMS (`draft`: amount,
  * day, the matched account on its side, and the message keys it covers).
+ *
+ * Laid out as an entry form (shared/form/, docs/en/DESIGN.md «Entry forms»): the amount first
+ * (in tomans, in words under it), «از حساب» and «به حساب» as picker rows, the day
+ * («امروز»/«دیروز»/«روز دیگر»), and the fee and note under «جزئیات بیشتر». A new transfer can be
+ * saved with «ثبت و بعدی»: the form stays open for the next one, keeping its accounts and day.
  */
 
 import React, { useState } from 'react';
 import { ArrowLeftRight } from 'lucide-react';
-import { AlertBanner, Button, FilterPills, Input, Modal, NumericInput } from '../../../shared/ui/index.js';
-import ShamsiDatePicker, {
+import { AlertBanner, Input, Modal, NumericInput } from '../../../shared/ui/index.js';
+import { AmountField, DateField, EntryFormActions, MoreDetails, PickerRow } from '../../../shared/form/index.js';
+import {
   getTodayShamsi,
   gregorianToShamsi,
   shamsiToGregorian,
 } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { TRANSFER_LIMITS } from '../../../utils/transferDocument.js';
 import { accountHolds } from '../../../utils/accountDocument.js';
+import { formatAmount } from '../../expenses/utils/format.js';
 import { accountLabel } from '../constants/accountDisplay.js';
 
 const digitsOnly = (v) => Number(String(v || '').replace(/[^\d]/g, '')) || 0;
@@ -29,6 +36,9 @@ export default function TransferForm({ transfer = null, draft = null, accounts =
   const [dateShamsi, setDateShamsi] = useState(() => (start.date ? gregorianToShamsi(`${start.date}T00:00:00`) : getTodayShamsi()));
   const [notes, setNotes] = useState(start.notes || '');
   const [error, setError] = useState('');
+  // «ثبت و بعدی»: what was saved last, and a new round for the amount field (focused again)
+  const [saved, setSaved] = useState('');
+  const [round, setRound] = useState(0);
 
   const amountNum = digitsOnly(amount);
   const feeNum = digitsOnly(fee);
@@ -36,12 +46,22 @@ export default function TransferForm({ transfer = null, draft = null, accounts =
   // A transfer is in tomans: the accounts that hold them (and the two it already names)
   const usable = accounts.filter((a) => accountHolds(a, 'IRT') || a.id === start.fromAccountId || a.id === start.toAccountId);
   const options = usable.map((a) => ({ value: a.id, label: accountLabel(a) }));
-  const isValid = fromAccountId && toAccountId && fromAccountId !== toAccountId && amountNum > 0 && feeNum <= amountNum && Boolean(dateIso);
+  const isValid = Boolean(fromAccountId && toAccountId && fromAccountId !== toAccountId && amountNum > 0 && feeNum <= amountNum && dateIso);
 
-  const handleSubmit = async (e) => {
+  // The next transfer keeps its accounts and day
+  const startNext = () => {
+    setSaved(formatAmount(amountNum));
+    setAmount('');
+    setFee('');
+    setNotes('');
+    setRound((r) => r + 1);
+  };
+
+  const handleSubmit = async (e, next = false) => {
     e?.preventDefault?.();
     if (!isValid) return;
     setError('');
+    setSaved('');
     try {
       await onSubmit({
         fromAccountId,
@@ -52,11 +72,17 @@ export default function TransferForm({ transfer = null, draft = null, accounts =
         notes: notes.trim(),
         smsKeys: start.smsKeys || [],
       });
-      onClose();
+      if (next) startNext();
+      else onClose();
     } catch (err) {
       setError(err.message || 'ذخیره‌ی انتقال ممکن نشد.');
     }
   };
+
+  const detailsFilled = [
+    ...(feeNum > 0 ? ['کارمزد'] : []),
+    ...(notes.trim() ? ['یادداشت'] : []),
+  ];
 
   return (
     <Modal
@@ -68,73 +94,73 @@ export default function TransferForm({ transfer = null, draft = null, accounts =
       maxWidth="520px"
       onSubmit={handleSubmit}
       footer={(
-        <div className="modal-actions">
-          <Button variant="secondary" block disabled={submitting} onClick={onClose}>انصراف</Button>
-          <Button type="submit" block loading={submitting} disabled={!isValid}>
-            {transfer ? 'ذخیره تغییرات' : 'ثبت انتقال'}
-          </Button>
-        </div>
+        <EntryFormActions
+          submitLabel={transfer ? 'ذخیره تغییرات' : 'ثبت انتقال'}
+          valid={isValid}
+          submitting={submitting}
+          onCancel={onClose}
+          onNext={transfer || draft ? null : () => handleSubmit(null, true)}
+        />
       )}
     >
-      <div className="income-form-body">
+      <div className="entry-form-body">
         {error && <AlertBanner type="error" message={error} />}
+        {saved && <p className="entry-form-saved" role="status">انتقال {saved} تومان ثبت شد؛ انتقال بعدی را وارد کنید.</p>}
         {note}
+
+        <AmountField
+          key={round}
+          id="transfer-amount"
+          value={amount}
+          onValueChange={setAmount}
+          currency="IRT"
+          placeholder="مثلاً ۲۰,۰۰۰,۰۰۰"
+          autoFocus={!transfer && !draft}
+        />
+
         {usable.length < 2 ? (
           <AlertBanner type="info" message="برای ثبت انتقال (به تومان)، دست‌کم دو حساب تومانی در صفحه‌ی «حساب‌ها» لازم است." />
         ) : (
-          <>
-            <div className="ui-input-group">
-              <span className="ui-input-label">از حساب *</span>
-              <FilterPills
-                options={options}
-                activeValue={fromAccountId}
-                onChange={(id) => {
-                  setFrom(id);
-                  if (id === toAccountId) setTo('');
-                }}
-                size="sm"
-                className="income-category-picker"
-              />
-            </div>
-            <div className="ui-input-group">
-              <span className="ui-input-label">به حساب *</span>
-              <FilterPills
-                options={options.filter((o) => o.value !== fromAccountId)}
-                activeValue={toAccountId}
-                onChange={setTo}
-                size="sm"
-                className="income-category-picker"
-              />
-            </div>
-          </>
+          <div className="entry-form-section">
+            <PickerRow
+              label="از حساب"
+              value={fromAccountId}
+              options={options}
+              onChange={(id) => {
+                setFrom(id);
+                if (id === toAccountId) setTo('');
+              }}
+            />
+            <PickerRow
+              label="به حساب"
+              value={toAccountId}
+              options={options.filter((o) => o.value !== fromAccountId)}
+              onChange={setTo}
+            />
+          </div>
         )}
 
-        <div className="ui-input-group">
-          <label htmlFor="transfer-amount" className="ui-input-label">مبلغ (تومان) *</label>
-          <div className="ui-input-wrapper">
-            <NumericInput id="transfer-amount" value={amount} onValueChange={setAmount} placeholder="مثلاً ۲۰,۰۰۰,۰۰۰" className="ui-input-control" required />
+        <DateField label="تاریخ انتقال *" value={dateShamsi} onChange={setDateShamsi} />
+
+        <MoreDetails filled={detailsFilled}>
+          <div className="ui-input-group">
+            <label htmlFor="transfer-fee" className="ui-input-label">کارمزد بانک (تومان، اختیاری)</label>
+            <div className="ui-input-wrapper">
+              <NumericInput id="transfer-fee" value={fee} onValueChange={setFee} placeholder="۰" className="ui-input-control" />
+            </div>
+            {feeNum > amountNum && amountNum > 0 && <p className="expense-form-hint">کارمزد از مبلغ بیشتر است.</p>}
           </div>
-        </div>
 
-        <div className="ui-input-group">
-          <label htmlFor="transfer-fee" className="ui-input-label">کارمزد بانک (تومان، اختیاری)</label>
-          <div className="ui-input-wrapper">
-            <NumericInput id="transfer-fee" value={fee} onValueChange={setFee} placeholder="۰" className="ui-input-control" />
-          </div>
-          {feeNum > amountNum && amountNum > 0 && <p className="expense-form-hint">کارمزد از مبلغ بیشتر است.</p>}
-        </div>
-
-        <ShamsiDatePicker label="تاریخ انتقال *" value={dateShamsi} onChange={setDateShamsi} />
-
-        <Input
-          id="transfer-notes"
-          as="textarea"
-          label="یادداشت (اختیاری)"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          maxLength={TRANSFER_LIMITS.notesLength}
-          rows={2}
-        />
+          <Input
+            id="transfer-notes"
+            as="textarea"
+            label="یادداشت (اختیاری)"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            maxLength={TRANSFER_LIMITS.notesLength}
+            rows={2}
+          />
+        </MoreDetails>
       </div>
     </Modal>
   );

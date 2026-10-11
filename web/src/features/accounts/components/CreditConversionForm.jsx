@@ -7,11 +7,16 @@
  * Shamsi day), which can then be changed one by one, added to or removed. What the installments
  * add up to beyond the amount is the installments' fee, shown as it is typed (amount and percent)
  * and recorded with the plan (utils/creditAccount.js).
+ *
+ * Laid out as an entry form (shared/form/): the amount first and large, the day it was turned
+ * into installments («امروز»/«دیروز»/«روز دیگر»), then the quick fill and the rows (their days
+ * are in the future: the full Shamsi picker).
  */
 
 import React, { useState } from 'react';
 import { CalendarClock, Plus, X } from 'lucide-react';
 import { AlertBanner, Button, Modal, NumericInput } from '../../../shared/ui/index.js';
+import { AmountField, DateField, EntryFormActions } from '../../../shared/form/index.js';
 import ShamsiDatePicker, { gregorianToShamsi, shamsiToGregorian } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { conversionCost, monthlyDates, validateConversion } from '../../../utils/creditAccount.js';
 import { todayIso } from '../../../shared/utils/dates.js';
@@ -78,25 +83,16 @@ export default function CreditConversionForm({ account, debt, onSave, onClose })
       icon={<CalendarClock size={18} />}
       maxWidth="560px"
       onSubmit={handleSubmit}
-      footer={(
-        <div className="modal-actions">
-          <Button variant="secondary" block disabled={submitting} onClick={onClose}>انصراف</Button>
-          <Button type="submit" block loading={submitting} disabled={Boolean(checked.error)}>تبدیل به قسط</Button>
-        </div>
-      )}
+      footer={<EntryFormActions submitLabel="تبدیل به قسط" valid={!checked.error} submitting={submitting} onCancel={onClose} />}
     >
-      <div className="income-form-body">
+      <div className="entry-form-body">
         {error && <AlertBanner type="error" message={error} />}
 
-        <div className="ui-input-group">
-          <label htmlFor="conversion-principal" className="ui-input-label">مبلغی که قسط‌بندی می‌شود (تومان) *</label>
-          <div className="ui-input-wrapper">
-            <NumericInput id="conversion-principal" value={principal} onValueChange={setPrincipal} className="ui-input-control" required />
-          </div>
+        <AmountField id="conversion-principal" label="مبلغی که قسط‌بندی می‌شود" value={principal} onValueChange={setPrincipal} currency="IRT">
           <p className="expense-form-hint">بدهی خارج از اقساط: {formatAmount(debt)} تومان</p>
-        </div>
+        </AmountField>
 
-        <ShamsiDatePicker label="تاریخ قسط‌بندی *" value={dateShamsi} onChange={setDateShamsi} />
+        <DateField label="تاریخ قسط‌بندی *" value={dateShamsi} onChange={setDateShamsi} />
 
         <fieldset className="credit-fill">
           <legend>ساخت سریع ردیف‌ها (اختیاری)</legend>
