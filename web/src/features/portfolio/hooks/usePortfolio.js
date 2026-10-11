@@ -18,6 +18,12 @@ export function usePortfolio(initialPortfolioId = null) {
   const [activePortfolioId, setActivePortfolioId] = useState(null);
   const [loadingPortfolios, setLoadingPortfolios] = useState(true);
 
+  // The portfolio the address names (/portfolio/:id): read when the list loads, and followed when it changes
+  const initialIdRef = useRef(initialPortfolioId);
+  useEffect(() => {
+    initialIdRef.current = initialPortfolioId;
+  }, [initialPortfolioId]);
+
   const activePortfolioIdRef = useRef(activePortfolioId);
   useEffect(() => {
     activePortfolioIdRef.current = activePortfolioId;
@@ -49,8 +55,8 @@ export function usePortfolio(initialPortfolioId = null) {
         let resolvedId = null;
         if (targetPortfolioId && res.portfolios.some((p) => p.id === targetPortfolioId)) {
           resolvedId = targetPortfolioId;
-        } else if (initialPortfolioId && res.portfolios.some((p) => p.id === initialPortfolioId)) {
-          resolvedId = initialPortfolioId;
+        } else if (initialIdRef.current && res.portfolios.some((p) => p.id === initialIdRef.current)) {
+          resolvedId = initialIdRef.current;
         } else if (savedId && res.portfolios.some((p) => p.id === savedId)) {
           resolvedId = savedId;
         } else {
@@ -74,7 +80,7 @@ export function usePortfolio(initialPortfolioId = null) {
     } finally {
       setLoadingPortfolios(false);
     }
-  }, [user, initialPortfolioId]);
+  }, [user]);
 
   useEffect(() => {
     fetchPortfolios();
@@ -82,6 +88,16 @@ export function usePortfolio(initialPortfolioId = null) {
   // The open tab's refresh (header button, window focus) reads them again; the active portfolio
   // then is a new object, so its holdings and transactions are read again with it
   useRefreshHandler('portfolio', fetchPortfolios);
+
+  // Going to another portfolio's address (the switcher, back / forward) switches to it
+  useEffect(() => {
+    if (!initialPortfolioId || initialPortfolioId === activePortfolioIdRef.current) return;
+    if (!portfolios.some((p) => p.id === initialPortfolioId)) return;
+    setActivePortfolioId(initialPortfolioId);
+    try {
+      localStorage.setItem('realrate_last_portfolio_id', initialPortfolioId);
+    } catch {}
+  }, [initialPortfolioId, portfolios]);
 
   const switchPortfolio = useCallback((portfolioId) => {
     setActivePortfolioId(portfolioId);
