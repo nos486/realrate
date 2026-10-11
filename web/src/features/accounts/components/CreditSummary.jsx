@@ -16,6 +16,7 @@ import { formatAmount } from '../../expenses/utils/format.js';
 const fa = (n) => Number(n).toLocaleString('fa-IR', { maximumFractionDigits: 2 });
 const day = (iso) => formatShamsiDisplay(`${iso}T00:00:00`);
 
+const KIND_LABELS = { expense: 'هزینه', transferOut: 'برداشت', transferIn: 'انتقال به اعتبار', deposit: 'تسویه (درآمد)' };
 const STATUS_LABELS = { paid: 'پرداخت‌شده', overdue: 'معوق', due: 'سررسید امروز', upcoming: '' };
 
 /**
@@ -42,9 +43,19 @@ export default function CreditSummary({
           <span style={{ width: `${usedPct}%` }} />
         </div>
         {status.breakdown && (
-          <div className="credit-usage-foot">
-            <span>بدهی اولیه {money(status.breakdown.opening)} + هزینه و برداشت {money(status.breakdown.charged)} − پرداخت‌ها {money(status.breakdown.paid)}</span>
-          </div>
+          <details className="credit-plan">
+            <summary>
+              بدهی اولیه {money(status.breakdown.opening)} + هزینه و برداشت {money(status.breakdown.charged)} − پرداخت‌ها {money(status.breakdown.paid)}
+            </summary>
+            <ul>
+              {status.breakdown.items.map((it, k) => (
+                <li key={`${it.kind}-${it.date}-${k}`}>
+                  <span>{KIND_LABELS[it.kind]} · {day(it.date)}{it.title ? ` · ${it.title}` : ''}</span>
+                  <span>{it.kind === 'transferIn' || it.kind === 'deposit' ? '−' : '+'}{money(it.amount)}</span>
+                </li>
+              ))}
+            </ul>
+          </details>
         )}
         <div className="credit-usage-foot">
           <span>آزاد: {money(status.available)}</span>
