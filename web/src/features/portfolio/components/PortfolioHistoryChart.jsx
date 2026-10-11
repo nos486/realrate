@@ -10,7 +10,6 @@
 
 import React, { useMemo, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
-import FilterPills from '../../../shared/ui/FilterPills.jsx';
 import { CHART_COLORS } from '../../../shared/ui/chartColors.js';
 import { useDailyHistory, useUsdAt } from '../../market/dailyHistory.js';
 import { todayIso } from '../../../shared/utils/dates.js';
@@ -43,6 +42,26 @@ const dayLabel = (iso) => dayFormat.format(new Date(`${iso}T12:00:00+03:30`));
 const compact = new Intl.NumberFormat('fa-IR', { notation: 'compact', maximumFractionDigits: 1 });
 const fmt = (v, unit) => (Number.isFinite(v) ? Math.round(v).toLocaleString('fa-IR') : '-') + (unit === 'usd' ? ' $' : ' تومان');
 const signed = (pct) => `${pct >= 0 ? '+' : '−'}${formatPct(Math.abs(pct))}٪`;
+
+/** A compact segmented control: one pill per option, the active one filled */
+function Segmented({ options, value, onChange, label }) {
+  return (
+    <div className="portfolio-history-seg" role="tablist" aria-label={label}>
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          role="tab"
+          aria-selected={o.value === value}
+          className={o.value === value ? 'active' : ''}
+          onClick={() => onChange(o.value)}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /** One change chip: «۷ روز +۲٫۱٪», green or red */
 function ChangeChip({ label, change, unit, hideValues }) {
@@ -127,8 +146,8 @@ export default function PortfolioHistoryChart({ assets, hideValues = false }) {
       {open && (
         <div className="portfolio-history-body">
           <div className="portfolio-history-controls">
-            <FilterPills options={UNITS} activeValue={unit} onChange={setUnit} variant="segmented" size="sm" />
-            <FilterPills options={RANGES} activeValue={range} onChange={setRange} variant="segmented" size="sm" />
+            <Segmented options={RANGES} value={range} onChange={setRange} label="بازه" />
+            <Segmented options={UNITS} value={unit} onChange={setUnit} label="واحد" />
           </div>
 
           {hideValues ? (

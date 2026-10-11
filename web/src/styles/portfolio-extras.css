@@ -1461,10 +1461,42 @@
 
 .portfolio-history-controls {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
   padding-top: 10px;
+}
+
+.portfolio-history-seg {
+  display: inline-flex;
+  min-width: 0;
+  padding: 2px;
+  border-radius: 999px;
+  background: var(--bg-surface-elevated);
+  box-shadow: inset 0 0 0 1px var(--border-medium);
+}
+
+.portfolio-history-seg button {
+  padding: 3px 9px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.portfolio-history-seg button:hover {
+  color: var(--text-secondary);
+}
+
+.portfolio-history-seg button.active {
+  background: var(--color-primary);
+  color: var(--primary-text);
 }
 
 .portfolio-history-chart {
