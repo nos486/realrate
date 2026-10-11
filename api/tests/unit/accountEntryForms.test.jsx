@@ -9,8 +9,12 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, screen, fireEvent, waitFor } from '@testing-library/react';
 import { openDetails, pickRow, rowValue, setDay } from '../helpers/entryForm.js';
 
-vi.mock('../../../web/src/shared/ui/FeedbackProvider.jsx', () => ({ useFeedback: () => ({ confirm: vi.fn(async () => true), toast: { success: vi.fn(), error: vi.fn() } }) }));
+vi.mock('../../../web/src/shared/ui/FeedbackProvider.jsx', () => ({ useFeedback: () => ({ confirm: confirmMock, toast: { success: vi.fn(), error: vi.fn() } }) }));
 
+const confirmMock = vi.hoisted(() => vi.fn(async () => false));
+vi.mock('../../../web/src/shared/vault/vaultIncomes.js', () => ({
+  getIncomes: vi.fn(async () => ({ incomes: [{ id: 'i1', creditAccountId: 'acc_cr', category: 'credit_settlement', incomeDate: '2026-10-07', amount: 311000 }] })),
+}));
 vi.mock('../../../web/src/shared/banks/bankApi.js', () => ({ listCustomBanks: vi.fn(async () => ({ banks: [] })), createCustomBank: vi.fn(), deleteCustomBank: vi.fn() }));
 vi.mock('../../../web/src/shared/vault/vaultExpenses.js', () => ({
   getExpenseGroups: vi.fn(async () => ({ groups: [] })),
@@ -39,6 +43,15 @@ const setValue = (el, value) => fireEvent.change(el, { target: { value } });
 const order = () => [...document.querySelector('.entry-form-body').children].map((el) => el.className.split(' ')[0]);
 
 describe('TransferForm', () => {
+  it('asks before saving a transfer into a credit when a settlement deposit of the same amount and day exists', async () => {
+    const onSubmit = vi.fn(async () => {});
+    const accounts = [...ACCOUNTS, { id: 'acc_cr', name: 'اعتبار', type: 'credit', credit: { limit: 1_000_000 } }];
+    render(<TransferForm accounts={accounts} draft={{ fromAccountId: 'acc_1', toAccountId: 'acc_cr', amount: 311000, date: '2026-10-07' }} onSubmit={onSubmit} onClose={vi.fn()} />);
+    fireEvent.submit(screen.getByText('ثبت انتقال').closest('form'));
+    await waitFor(() => expect(confirmMock).toHaveBeenCalled());
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
   it('leads with the amount, picks the accounts in rows and folds the fee and note', () => {
     render(<TransferForm accounts={ACCOUNTS} onSubmit={vi.fn()} onClose={vi.fn()} />);
     expect(order()).toEqual(['ui-input-group', 'entry-form-section', 'ui-input-group', 'more-details']);

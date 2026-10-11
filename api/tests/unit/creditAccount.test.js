@@ -13,6 +13,7 @@ import {
   monthlyDates,
   creditStatus,
   cycleStartOf,
+  findDuplicatePayment,
   creditCostsPaid,
 } from '../../src/domain/creditAccount.js';
 import { validateAccount, isCreditAccount } from '../../src/domain/accountDocument.js';
@@ -128,6 +129,20 @@ describe('where a credit stands', () => {
     expect(s.breakdown).toMatchObject({ opening: 0, charged: 1_700_000, paid: 311_000 });
     expect(s.breakdown.items.map((i) => i.kind)).toEqual(['expense', 'expense', 'transferIn']);
     expect(s.debt).toBe(1_389_000);
+  });
+
+  it('a transfer into the credit and a settlement deposit of the same amount and day are one payment twice', () => {
+    const transfer = pay('2026-10-07', 311_000);
+    const deposit = { id: 'i1', creditAccountId: 'c1', category: 'credit_settlement', incomeDate: '2026-10-07', amount: 311_000 };
+    const payment = { creditId: 'c1', amount: 311_000, date: '2026-10-07' };
+    expect(findDuplicatePayment(payment, { transfers: [transfer] })?.kind).toBe('transfer');
+    expect(findDuplicatePayment(payment, { incomes: [deposit] })?.kind).toBe('deposit');
+    // What reached the credit is the amount less the fee
+    expect(findDuplicatePayment(payment, { transfers: [pay('2026-10-07', 321_000, 10_000)] })?.kind).toBe('transfer');
+    // Another day, amount or credit is not the same payment
+    expect(findDuplicatePayment({ ...payment, date: '2026-10-08' }, { transfers: [transfer], incomes: [deposit] })).toBeNull();
+    expect(findDuplicatePayment({ ...payment, amount: 1 }, { transfers: [transfer], incomes: [deposit] })).toBeNull();
+    expect(findDuplicatePayment({ ...payment, creditId: 'c2' }, { transfers: [transfer], incomes: [deposit] })).toBeNull();
   });
 
   it('a foreign expense is owed at its day\'s rate; without any rate it cannot be counted', () => {

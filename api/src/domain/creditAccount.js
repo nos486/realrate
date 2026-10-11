@@ -320,6 +320,22 @@ export function creditStatus(account, { expenses = [], transfers = [], incomes =
   };
 }
 
+/**
+ * A payment into a credit that is already recorded the other way — a transfer into it and a
+ * «تسویه بدهی اعتباری» deposit for the same amount on the same day are most likely one payment
+ * recorded twice, and the debt would drop by both
+ * @param {{ creditId: string, amount: number, date: string }} payment - what is about to be saved
+ * @param {{ transfers?: object[], incomes?: object[] }} existing - records on that day
+ * @returns {{ kind: 'transfer'|'deposit', record: object }|null}
+ */
+export function findDuplicatePayment({ creditId, amount, date }, { transfers = [], incomes = [] } = {}) {
+  const same = (a) => Math.round(Number(a) || 0) === Math.round(Number(amount) || 0);
+  const transfer = transfers.find((t) => t.toAccountId === creditId && t.date === date && same((Number(t.amount) || 0) - (Number(t.fee) || 0)));
+  if (transfer) return { kind: 'transfer', record: transfer };
+  const deposit = incomes.find((i) => i.creditAccountId === creditId && i.category === CREDIT_SETTLEMENT_CATEGORY && i.incomeDate === date && same(i.amount));
+  return deposit ? { kind: 'deposit', record: deposit } : null;
+}
+
 /** The fees already paid for a credit (expenses marked with its id) */
 export function creditCostsPaid(accountId, expenses = [], rates = {}) {
   return expenses

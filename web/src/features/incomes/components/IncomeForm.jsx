@@ -26,6 +26,9 @@
 
 import React, { useState } from 'react';
 import { Wallet } from 'lucide-react';
+import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
+import { getTransfers } from '../../../shared/vault/vaultTransfers.js';
+import { findDuplicatePayment } from '../../../utils/creditAccount.js';
 import { AlertBanner, FilterPills, Input, Modal } from '../../../shared/ui/index.js';
 import { AmountField, CategoryGrid, DateField, EntryFormActions, MoreDetails, rememberCategory, recentCategories } from '../../../shared/form/index.js';
 import {
@@ -135,6 +138,7 @@ export default function IncomeForm({
     setRound((r) => r + 1);
   };
 
+  const { confirm } = useFeedback();
   const handleSubmit = async (e, next = false) => {
     e?.preventDefault?.();
     if (!isFormValid) return;
@@ -142,6 +146,18 @@ export default function IncomeForm({
     setSubmitError('');
     setSaved('');
     try {
+      // A transfer into this credit of the same amount that day: probably the same payment
+      if (settling && !editingIncome) {
+        const { transfers } = await getTransfers({ from: dateIso, to: dateIso }).catch(() => ({ transfers: [] }));
+        if (findDuplicatePayment({ creditId: linkValue, amount: amountNum, date: dateIso }, { transfers })) {
+          const proceed = await confirm({
+            title: 'پرداخت تکراری؟',
+            message: 'برای همین اعتبار در همین روز انتقالی با همین مبلغ ثبت شده است. اگر این همان پرداخت است، ثبت دوباره بدهی را دو بار کم می‌کند. باز هم ثبت شود؟',
+            confirmLabel: 'ثبت شود',
+          });
+          if (!proceed) return;
+        }
+      }
       await onSubmit({
         title: title.trim(),
         category,

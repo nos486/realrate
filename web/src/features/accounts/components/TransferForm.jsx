@@ -21,7 +21,10 @@ import {
   shamsiToGregorian,
 } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { TRANSFER_LIMITS } from '../../../utils/transferDocument.js';
-import { accountHolds } from '../../../utils/accountDocument.js';
+import { accountHolds, isCreditAccount } from '../../../utils/accountDocument.js';
+import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
+import { getIncomes } from '../../../shared/vault/vaultIncomes.js';
+import { findDuplicatePayment } from '../../../utils/creditAccount.js';
 import { formatAmount } from '../../expenses/utils/format.js';
 import { accountLabel } from '../constants/accountDisplay.js';
 
@@ -57,12 +60,25 @@ export default function TransferForm({ transfer = null, draft = null, accounts =
     setRound((r) => r + 1);
   };
 
+  const { confirm } = useFeedback();
   const handleSubmit = async (e, next = false) => {
     e?.preventDefault?.();
     if (!isValid) return;
     setError('');
     setSaved('');
     try {
+      // A «تسویه بدهی اعتباری» deposit of the same amount that day: probably the same payment
+      if (!transfer && isCreditAccount(accounts.find((a) => a.id === toAccountId))) {
+        const { incomes } = await getIncomes({ from: dateIso, to: dateIso }).catch(() => ({ incomes: [] }));
+        if (findDuplicatePayment({ creditId: toAccountId, amount: amountNum - feeNum, date: dateIso }, { incomes })) {
+          const proceed = await confirm({
+            title: 'پرداخت تکراری؟',
+            message: 'برای همین اعتبار در همین روز درآمدی با دسته‌ی «تسویه بدهی اعتباری» و همین مبلغ ثبت شده است. اگر این همان پرداخت است، ثبت دوباره بدهی را دو بار کم می‌کند. باز هم ثبت شود؟',
+            confirmLabel: 'ثبت شود',
+          });
+          if (!proceed) return;
+        }
+      }
       await onSubmit({
         fromAccountId,
         toAccountId,
