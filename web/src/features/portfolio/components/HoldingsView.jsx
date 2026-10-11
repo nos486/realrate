@@ -252,19 +252,17 @@ const HoldingsView = forwardRef(function HoldingsView(
     unitPrice: asset.unitRealPrice,
   });
 
-  const handleSubmitTransaction = async (formData) => {
+  // A form saved with «ثبت و بعدی» (`next`) stays open for the next entry; each answers whether it saved
+  const handleSubmitTransaction = async (formData, { next = false } = {}) => {
     const res = formData.id ? await updateTransaction(formData.id, formData) : await addTransaction(formData);
-    if (res) setTxForm(null);
+    if (res && !next) setTxForm(null);
+    return Boolean(res);
   };
 
-  const handleSubmitHolding = async (holdingData) => {
-    if (holdingData.id) {
-      const ok = await updateHolding(holdingData);
-      if (ok) setModalOpen(false);
-    } else {
-      const ok = await addHolding(holdingData);
-      if (ok) setModalOpen(false);
-    }
+  const handleSubmitHolding = async (holdingData, { next = false } = {}) => {
+    const ok = holdingData.id ? await updateHolding(holdingData) : await addHolding(holdingData);
+    if (ok && !next) setModalOpen(false);
+    return Boolean(ok);
   };
 
   const { confirm, toast } = useFeedback();

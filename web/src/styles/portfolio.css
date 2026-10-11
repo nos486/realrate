@@ -2708,3 +2708,40 @@ tr.is-expandable:focus-visible,
   width: 100%;
   min-width: 0;
 }
+
+/* ── The portfolio's entry forms (AddHoldingForm, TransactionForm) ──
+   Laid out as entry forms (styles/entry-form.css): the body's gap spaces the parts, so the
+   parts' own outer margins are dropped here. */
+.portfolio-entry-form .selected-bourse-preview-card,
+.portfolio-entry-form .reference-asset-card,
+.portfolio-entry-form .tx-summary-preview-box,
+.portfolio-entry-form .tx-warning-banner {
+  margin: 0;
+}
+
+/* The asset: its label and the one chosen, above the search */
+.portfolio-entry-asset-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.portfolio-entry-asset-chosen {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-primary-text);
+  background: var(--color-primary-soft);
+}
+
+.portfolio-entry-asset-unit {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
