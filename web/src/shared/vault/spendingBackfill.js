@@ -19,14 +19,14 @@
 
 import { CHEQUE_CLEARED } from '../../utils/chequeDocument.js';
 import { todayIso } from '../utils/dates.js';
-import { recordInstallmentPayments, recordExtraPayment, recordSubscriptionPayments, installmentNumberOf, spendingExpenseId, installmentSpendingKey } from './spendingRecords.js';
+import { recordInstallmentPayments, recordExtraPayment, recordSubscriptionPayments, spendingExpenseId, installmentSpendingKey } from './spendingRecords.js';
 import { recordOwnerOf } from '../../utils/recordOwners.js';
 import { settleCheque } from './recordLinks.js';
 
 const DONE_KEY = 'realrate_spending_backfill_v1';
 const CHEQUE_CATEGORY_KEY = 'realrate_cheque_category_v1';
 const STORED_RATES_KEY = 'realrate_stored_rates_v1';
-const LOAN_DUPLICATES_KEY = 'realrate_loan_duplicates_v1';
+const LOAN_DUPLICATES_KEY = 'realrate_loan_duplicates_v2';
 /** The categories a cheque's record had before cheques became a way of paying */
 const RETIRED_CHEQUE_CATEGORY = 'cheques';
 
@@ -178,11 +178,12 @@ export async function runStoredRateCleanup({ userId, expenses }) {
 }
 
 /**
- * Of the expenses a loan's installments recorded, those that are plainly a second copy of one:
- * recorded by the loan, naming the same installment (by its number — its id changed between
- * payments), with the same amount and currency. One is kept per installment: the one on the day
- * the installment is paid now. Nothing is picked when the installment is unpaid now, none of the
- * copies is on its paid day, or the loan can't be read — those are left as they are.
+ * Of the expenses a loan's installments recorded, those that are surely extra copies: each
+ * installment that is paid now accounts for one expense (its amount), so the loan's expenses
+ * beyond that count for an amount are copies — whatever id their link names (an installment's id
+ * changes when it is unpaid and paid again, and the old one no longer resolves). Only expenses
+ * recorded by the loan itself count; the ones kept are on the paid days, then the canonical one.
+ * Nothing is removed for an amount no installment is paid at now, or when the loan can't be read.
  * @param {object[]} expenses all the expenses
  * @param {Map<string, object>} loans loan id → loan (with its installments)
  * @returns {object[]} the expenses to delete
@@ -191,27 +192,30 @@ export function findDuplicateInstallmentExpenses(expenses, loans) {
   const groups = new Map();
   for (const e of expenses) {
     const link = e.loanInstallment;
-    if (!link || recordOwnerOf(e) !== 'loan') continue;
-    const loan = loans.get(link.loanId);
-    const inst = loan?.installments?.find((i) => String(i.id) === String(link.installmentId))
-      || { id: link.installmentId };
-    const number = installmentNumberOf(inst);
-    if (!number) continue;
-    const key = [link.loanId, number, Math.round(Number(e.amount) * 100), e.currency || ''].join('|');
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push({ expense: e, loanId: link.loanId, number });
+    if (!link || recordOwnerOf(e) !== 'loan' || !loans.has(link.loanId)) continue;
+    const key = `${link.loanId}|${Math.round(Number(e.amount) * 100)}|${e.currency || ''}`;
+    if (!groups.has(key)) groups.set(key, { loanId: link.loanId, amount: Number(e.amount), copies: [] });
+    groups.get(key).copies.push(e);
   }
   const doomed = [];
-  for (const copies of groups.values()) {
-    if (copies.length < 2) continue;
-    const { loanId, number } = copies[0];
-    const paid = loans.get(loanId)?.installments?.find((i) => installmentNumberOf(i) === number && i.isPaid && i.paidDate);
-    if (!paid) continue;
-    const canonical = spendingExpenseId(installmentSpendingKey(loanId, paid));
-    const onPaidDay = copies.filter((c) => c.expense.date === paid.paidDate);
-    if (onPaidDay.length === 0) continue;
-    const keep = onPaidDay.find((c) => c.expense.id === canonical) || onPaidDay[0];
-    for (const c of copies) if (c !== keep) doomed.push(c.expense);
+  for (const { loanId, amount, copies } of groups.values()) {
+    const paid = (loans.get(loanId).installments || [])
+      .filter((i) => i.isPaid && i.paidDate && Math.abs((Number(i.paidAmount) || 0) - amount) < 0.5);
+    if (paid.length === 0 || copies.length <= paid.length) continue;
+    const left = [...copies];
+    const take = (match) => {
+      const at = left.findIndex(match);
+      return at === -1 ? null : left.splice(at, 1)[0];
+    };
+    const kept = new Set();
+    for (const inst of paid) {
+      const canonical = spendingExpenseId(installmentSpendingKey(loanId, inst));
+      const one = take((e) => e.id === canonical) || take((e) => e.date === inst.paidDate);
+      if (one) kept.add(one);
+    }
+    // An installment whose own day has no copy still keeps one
+    for (const e of left.slice(0, Math.max(0, paid.length - kept.size))) kept.add(e);
+    for (const e of copies) if (!kept.has(e)) doomed.push(e);
   }
   return doomed;
 }

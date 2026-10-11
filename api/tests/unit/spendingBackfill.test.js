@@ -124,30 +124,27 @@ describe('the retired cheque categories (v2)', () => {
 });
 
 describe('duplicate installment expenses', () => {
-  const loans = new Map([['l1', { id: 'l1', installments: [
-    { id: 'inst_l1_1', installmentNumber: 1, isPaid: true, paidDate: '2026-02-05', totalAmount: 100 },
-    { id: 'inst_l1_2', installmentNumber: 2, isPaid: true, paidDate: '2026-02-05', totalAmount: 100 },
-    { id: 'inst_l1_3', installmentNumber: 3, isPaid: false, totalAmount: 100 },
-  ] }]]);
+  const inst = (n, extra = {}) => ({ id: `inst_l1_${n}`, installmentNumber: n, isPaid: true, paidDate: '2026-02-05', paidAmount: 100, ...extra });
+  const loans = (installments) => new Map([['l1', { id: 'l1', installments }]]);
   const exp = (id, installmentId, extra = {}) => ({ id, recordedBy: 'loan', amount: 100, currency: 'IRT', date: '2026-02-05', loanInstallment: { loanId: 'l1', installmentId }, ...extra });
 
-  it('keeps one copy of an installment recorded under different ids, on its paid day', () => {
-    const out = findDuplicateInstallmentExpenses([exp('a', 'inst_l1_1'), exp('b', 'inst_x'), exp('c', '1')], new Map([['l1', { ...loans.get('l1'), installments: [{ id: 'inst_x', installmentNumber: 1, isPaid: true, paidDate: '2026-02-05' }] }]]));
-    expect(out).toHaveLength(2);
+  it('keeps one expense per paid installment, even when the copies name ids that no longer exist', () => {
+    const list = [exp('a', 'inst_l1_1'), exp('b', 'inst_gone1'), exp('c', 'inst_gone2'), exp('d', '1')];
+    const out = findDuplicateInstallmentExpenses(list, loans([inst(1), inst(2, { isPaid: false, paidDate: '', paidAmount: 0 })]));
+    expect(out).toHaveLength(3);
   });
 
-  it('leaves distinct installments, other amounts, user-made and unpaid ones alone', () => {
-    const list = [
-      exp('a', 'inst_l1_1'), exp('b', 'inst_l1_2'), // two installments, same day and amount
-      exp('c', 'inst_l1_1', { amount: 200 }), // other amount
-      exp('d', 'inst_l1_1', { recordedBy: undefined, id: 'exp_user' }), // the user's own
-      exp('e', 'inst_l1_3'), exp('f', 'inst_l1_3'), // unpaid now
-    ];
-    expect(findDuplicateInstallmentExpenses(list, loans)).toEqual([]);
+  it('keeps the copy on the paid day, and one per installment paid the same day at the same amount', () => {
+    const list = [exp('a', 'x', { date: '2026-01-01' }), exp('b', 'y'), exp('c', 'z'), exp('d', 'w')];
+    const out = findDuplicateInstallmentExpenses(list, loans([inst(1), inst(2)]));
+    expect(out.map((e) => e.id).sort()).toEqual(['a', 'd']);
   });
 
-  it('leaves them when none is on the day the installment was paid', () => {
-    const list = [exp('a', 'inst_l1_1', { date: '2026-01-01' }), exp('b', 'inst_l1_1', { date: '2026-01-02' })];
-    expect(findDuplicateInstallmentExpenses(list, loans)).toEqual([]);
+  it('leaves alone: fewer expenses than paid installments, user-made ones, other amounts, unpaid amounts', () => {
+    const l = loans([inst(1), inst(2)]);
+    expect(findDuplicateInstallmentExpenses([exp('a', 'x'), exp('b', 'y')], l)).toEqual([]);
+    expect(findDuplicateInstallmentExpenses([exp('a', 'x'), exp('b', 'y'), exp('c', 'z', { recordedBy: undefined, id: 'exp_user' })], l)).toEqual([]);
+    expect(findDuplicateInstallmentExpenses([exp('a', 'x', { amount: 200 }), exp('b', 'y', { amount: 200 }), exp('c', 'z', { amount: 200 })], l)).toEqual([]);
+    expect(findDuplicateInstallmentExpenses([exp('a', 'x'), exp('b', 'y')], loans([inst(1, { isPaid: false, paidDate: '', paidAmount: 0 })]))).toEqual([]);
   });
 });
