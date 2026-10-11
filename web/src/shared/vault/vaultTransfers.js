@@ -6,7 +6,7 @@
 import { validateTransfer, compareTransfers } from '../../utils/transferDocument.js';
 import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
 import { putRecord } from './vaultRecordMeta.js';
-import { encryptVaultRecord, decryptVaultRecord } from './vaultStore.js';
+import { encryptVaultRecord, decryptVaultRecords } from './vaultStore.js';
 
 const KIND = 'transfer';
 
@@ -24,7 +24,7 @@ class TransferValidationError extends Error {
 export async function getTransfers(filters = {}) {
   const res = await listVaultRecords(KIND, undefined, filters);
   const records = res?.records || [];
-  const plains = await Promise.all(records.map((r) => decryptVaultRecord(r.payload)));
+  const plains = await decryptVaultRecords(records.map((r) => r.payload));
   const transfers = plains.filter((t, i) => {
     if (t?.id) return true;
     console.warn('Skipped a transfer that could not be decrypted:', records[i].id);

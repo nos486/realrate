@@ -9,17 +9,32 @@
 const E2EE_PREFIX = "enc:e2ee:v1:";
 const VERIFIER_SIGNATURE = "REALRATE_E2EE_VAULT_OK";
 
+/** Bytes → base64 (the native encoder when the browser has one, else in slices: no per-byte string) */
+function bytesToBase64(bytes) {
+  if (typeof bytes.toBase64 === "function") return bytes.toBase64();
+  let binary = "";
+  for (let i = 0; i < bytes.byteLength; i += 0x8000) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(binary);
+}
+
+/** base64 → bytes (the native decoder when the browser has one, else atob + a byte copy) */
+function base64ToBytes(b64) {
+  if (typeof Uint8Array.fromBase64 === "function") return Uint8Array.fromBase64(b64);
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
 /**
  * Generate a cryptographically secure 16-byte random salt (base64)
  * @returns {string}
  */
 export function generateE2eeSalt() {
   const salt = globalThis.crypto.getRandomValues(new Uint8Array(16));
-  let binary = "";
-  for (let i = 0; i < salt.byteLength; i++) {
-    binary += String.fromCharCode(salt[i]);
-  }
-  return btoa(binary);
+  return bytesToBase64(salt);
 }
 
 /**
@@ -32,11 +47,7 @@ export async function deriveE2eeKey(passphrase, saltBase64, { extractable = fals
   if (!passphrase) throw new Error("رمز عبور گاوصندوق نمی‌تواند خالی باشد.");
 
   // Decode salt
-  const saltBinary = atob(saltBase64 || "");
-  const saltBytes = new Uint8Array(saltBinary.length);
-  for (let i = 0; i < saltBinary.length; i++) {
-    saltBytes[i] = saltBinary.charCodeAt(i);
-  }
+  const saltBytes = base64ToBytes(saltBase64 || "");
 
   const enc = new TextEncoder();
   const baseKey = await globalThis.crypto.subtle.importKey(
@@ -85,12 +96,36 @@ export async function e2eeEncrypt(key, data) {
   combined.set(iv, 0);
   combined.set(cipherBytes, iv.length);
 
-  let binary = "";
-  for (let i = 0; i < combined.byteLength; i++) {
-    binary += String.fromCharCode(combined[i]);
-  }
+  return `${E2EE_PREFIX}${bytesToBase64(combined)}`;
+}
 
-  return `${E2EE_PREFIX}${btoa(binary)}`;
+/**
+ * Plaintext of ciphertexts already opened, per key. Every encryption has its own random IV, so a
+ * ciphertext never changes meaning: the same string under the same key is the same text. A record
+ * re-read after a sync, a tab reopened or a list refreshed is then not decrypted again (only parsed:
+ * each caller still gets an object of its own). Failures are not kept.
+ */
+const plaintextCache = new WeakMap();
+const PLAINTEXT_CACHE_MAX = 20000;
+
+function cachedPlaintext(key) {
+  let cache = plaintextCache.get(key);
+  if (!cache) {
+    cache = new Map();
+    plaintextCache.set(key, cache);
+  }
+  return cache;
+}
+
+function parsePlaintext(str) {
+  if ((str.startsWith("{") && str.endsWith("}")) || (str.startsWith("[") && str.endsWith("]"))) {
+    try {
+      return JSON.parse(str);
+    } catch {
+      return str;
+    }
+  }
+  return str;
 }
 
 /**
@@ -104,18 +139,17 @@ export async function e2eeDecrypt(key, cipherStr) {
     return cipherStr;
   }
 
+  const cache = key && typeof key === "object" ? cachedPlaintext(key) : null;
+  const known = cache?.get(cipherStr);
+  if (known !== undefined) return parsePlaintext(known);
+
   try {
-    const b64 = cipherStr.slice(E2EE_PREFIX.length);
-    const binary = atob(b64);
-    const combined = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      combined[i] = binary.charCodeAt(i);
-    }
+    const combined = base64ToBytes(cipherStr.slice(E2EE_PREFIX.length));
 
     if (combined.length <= 12) return null;
 
-    const iv = combined.slice(0, 12);
-    const data = combined.slice(12);
+    const iv = combined.subarray(0, 12);
+    const data = combined.subarray(12);
 
     const decryptedBuffer = await globalThis.crypto.subtle.decrypt(
       { name: "AES-GCM", iv },
@@ -123,21 +157,36 @@ export async function e2eeDecrypt(key, cipherStr) {
       data
     );
 
-    const dec = new TextDecoder();
-    const str = dec.decode(decryptedBuffer);
-
-    if ((str.startsWith("{") && str.endsWith("}")) || (str.startsWith("[") && str.endsWith("]"))) {
-      try {
-        return JSON.parse(str);
-      } catch {
-        return str;
-      }
+    const str = new TextDecoder().decode(decryptedBuffer);
+    if (cache) {
+      if (cache.size >= PLAINTEXT_CACHE_MAX) cache.delete(cache.keys().next().value);
+      cache.set(cipherStr, str);
     }
-    return str;
+    return parsePlaintext(str);
   } catch {
     // Decryption failed (invalid key or tampered data)
     return null;
   }
+}
+
+/** How many records are opened at once: enough to keep WebCrypto busy, few enough to stay responsive */
+const DECRYPT_BATCH = 64;
+
+/**
+ * Decrypt many ciphertexts, a batch at a time (thousands of pending operations at once would hold
+ * the screen); the results are in the order given.
+ * @param {CryptoKey} key
+ * @param {string[]} payloads
+ * @returns {Promise<any[]>}
+ */
+export async function e2eeDecryptMany(key, payloads) {
+  const out = new Array(payloads.length);
+  for (let i = 0; i < payloads.length; i += DECRYPT_BATCH) {
+    const batch = payloads.slice(i, i + DECRYPT_BATCH);
+    const done = await Promise.all(batch.map((payload) => e2eeDecrypt(key, payload)));
+    for (let j = 0; j < done.length; j++) out[i + j] = done[j];
+  }
+  return out;
 }
 
 /**
@@ -269,19 +318,6 @@ export function isHoldingE2eeEncrypted(holding) {
 // derived from the passphrase — so a passphrase change never re-encrypts any data. Every
 // portfolio also gets its own random key, wrapped with the account data key; a portfolio's key
 // can be handed out in a share link without exposing anything else.
-
-function bytesToBase64(bytes) {
-  let binary = "";
-  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-  return btoa(binary);
-}
-
-function base64ToBytes(b64) {
-  const binary = atob(b64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
 
 /** A fresh random 256-bit key, as raw bytes */
 export function generateRawKey() {
