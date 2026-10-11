@@ -4,7 +4,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { buildAssetLedgers } from '../../../web/src/features/portfolio/utils/assetLedger.js';
-import { buildPortfolioSeries, daysBetween, sliceSeries } from '../../../web/src/features/portfolio/utils/portfolioHistory.js';
+import { buildPortfolioSeries, daysBetween, sliceSeries, windowChange } from '../../../web/src/features/portfolio/utils/portfolioHistory.js';
 
 const PRICES = { usd: 100_000 };
 const ledger = (holdings, transactions = []) => buildAssetLedgers({ holdings, transactions, priceMap: PRICES }).assets;
@@ -59,8 +59,29 @@ describe('buildPortfolioSeries', () => {
 
 describe('sliceSeries', () => {
   it('keeps the last days', () => {
-    const s = { days: ['a', 'b', 'c'], toman: [1, 2, 3], usd: [4, 5, 6] };
+    const s = { days: ['a', 'b', 'c'], toman: [1, 2, 3], usd: [4, 5, 6], gain: [0, 0, 0], gainUsd: [0, 0, 0] };
     expect(sliceSeries(s, 2)).toMatchObject({ days: ['b', 'c'], toman: [2, 3], usd: [5, 6] });
     expect(sliceSeries(s, 0)).toBe(s);
+  });
+});
+
+describe('windowChange', () => {
+  it('counts what prices gained, not what was bought', () => {
+    // 10 held on the 1st; 10 more bought on the 3rd (price 120 000); prices rise 10 000 a day
+    const assets = ledger([hold(10, '2026-03-01')], [tx('buy', 10, '2026-03-03')]);
+    assets[0].unitRealPrice = priceAt('usd', '2026-03-05');
+    const s = buildPortfolioSeries({ assets, priceAt, today: '2026-03-05' });
+    // since the 3rd: 20 held on the 3rd and 4th, each day +10 000 each → 2 × 20 × 10 000
+    const c = windowChange(s, 'toman', 2);
+    expect(c.gain).toBe(2 * 20 * 10_000);
+    expect(c.pct).toBeCloseTo((c.gain / (20 * 120_000)) * 100);
+    // the day of the purchase gains nothing on the new units
+    expect(windowChange(s, 'toman', 3).gain).toBe(10 * 10_000 + 2 * 20 * 10_000);
+  });
+
+  it('is null when the portfolio is younger than the span', () => {
+    const assets = ledger([hold(10, '2026-03-01')]);
+    const s = buildPortfolioSeries({ assets, priceAt, today: '2026-03-03' });
+    expect(windowChange(s, 'toman', 7)).toBeNull();
   });
 });

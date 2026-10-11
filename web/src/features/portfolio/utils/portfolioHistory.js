@@ -40,7 +40,8 @@ function quantitySteps(asset) {
 /**
  * @param {{ assets: object[], priceAt: (id: string, day: string) => number|null,
  *   usdAt?: (day: string) => number|null, today: string }} input - assets from buildAssetLedgers
- * @returns {{ days: string[], toman: number[], usd: (number|null)[], estimated: boolean }|null}
+ * @returns {{ days: string[], toman: number[], usd: (number|null)[], gain: number[], gainUsd: number[],
+ *   estimated: boolean }|null}
  *   null when no entry has a date; `estimated`: some value is a stand-in (an asset with no price
  *   history, or a day before its history began, is valued at the nearest price known)
  */
@@ -50,7 +51,11 @@ export function buildPortfolioSeries({ assets = [], priceAt, usdAt, today }) {
   if (!dated.length || !today || dated[0] > today) return null;
 
   const days = daysBetween(dated[0], today);
+  const rates = days.map((day) => (usdAt ? Number(usdAt(day)) || 0 : 0));
   const toman = new Array(days.length).fill(0);
+  // What prices alone gained on each day for what was held the day before (buying adds no gain)
+  const gain = new Array(days.length).fill(0);
+  const gainUsd = new Array(days.length).fill(0);
   let estimated = false;
 
   for (const { asset, steps } of prepared) {
@@ -68,31 +73,55 @@ export function buildPortfolioSeries({ assets = [], priceAt, usdAt, today }) {
       firstPrice = priceAt(asset.assetId, day);
       if (firstPrice > 0) break;
     }
+    let prevQty = 0;
+    let prevPrice = 0;
     days.forEach((day, i) => {
       while (cursor < steps.length && steps[cursor].day <= day) qty = steps[cursor++].qty;
-      if (!(qty > 0)) return;
       let price;
       const known = scale > 0 ? priceAt(asset.assetId, day) : null;
       if (known > 0) price = known * scale;
       else {
         // No history for this asset or day: the nearest price known
         price = scale > 0 && firstPrice > 0 ? firstPrice * scale : todayPrice;
-        estimated = true;
+        if (qty > 0) estimated = true;
       }
-      toman[i] += qty * price;
+      if (i > 0 && prevQty > 0) {
+        gain[i] += prevQty * (price - prevPrice);
+        if (rates[i] > 0 && rates[i - 1] > 0) gainUsd[i] += prevQty * (price / rates[i] - prevPrice / rates[i - 1]);
+      }
+      if (qty > 0) toman[i] += qty * price;
+      prevQty = qty;
+      prevPrice = price;
     });
   }
 
-  const usd = usdAt ? days.map((day, i) => {
-    const rate = Number(usdAt(day)) || 0;
-    return rate > 0 ? toman[i] / rate : null;
-  }) : days.map(() => null);
-  return { days, toman, usd, estimated };
+  const usd = days.map((day, i) => (rates[i] > 0 ? toman[i] / rates[i] : null));
+  return { days, toman, usd, gain, gainUsd, estimated };
+}
+
+/**
+ * The change over the last `span` days: the value then and now, and what prices alone gained
+ * meanwhile (money put in or taken out doesn't count as gain)
+ * @param {object} series - from buildPortfolioSeries
+ * @param {'toman'|'usd'} unit
+ * @param {number} span - days back (1: since yesterday)
+ * @returns {{ gain: number, pct: number|null }|null} null when the portfolio is younger than the span
+ */
+export function windowChange(series, unit, span) {
+  const values = series?.[unit];
+  const gains = series?.[unit === 'usd' ? 'gainUsd' : 'gain'];
+  if (!values || !gains) return null;
+  const end = values.length - 1;
+  const start = end - span;
+  if (start < 0 || !Number.isFinite(values[start])) return null;
+  let gain = 0;
+  for (let i = start + 1; i <= end; i++) gain += gains[i];
+  return { gain, pct: values[start] > 0 ? (gain / values[start]) * 100 : null };
 }
 
 /** The last `count` days of a series (all of it when count is 0 or more than it has) */
 export function sliceSeries(series, count) {
   if (!series || !count || count >= series.days.length) return series;
   const from = series.days.length - count;
-  return { ...series, days: series.days.slice(from), toman: series.toman.slice(from), usd: series.usd.slice(from) };
+  return { ...series, days: series.days.slice(from), toman: series.toman.slice(from), usd: series.usd.slice(from), gain: series.gain.slice(from), gainUsd: series.gainUsd.slice(from) };
 }
