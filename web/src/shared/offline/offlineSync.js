@@ -326,13 +326,14 @@ async function pull() {
     const deleted = res.deleted || [];
     if (records.length || deleted.length) {
       // What the copy did not have yet (records re-read in the overlap window are not news)
-      for (const r of records) {
-        const local = await store.getRecord(r.kind, r.id);
-        if (!local || local.updatedAt !== r.updatedAt || local.payload !== r.payload) changedKinds.add(r.kind);
-      }
-      for (const d of deleted) {
-        if (await store.getRecord(d.kind, d.id)) changedKinds.add(d.kind);
-      }
+      // One transaction for all the lookups. A record changes its updatedAt whenever its content does
+      const [localRecords, localDeleted] = await Promise.all([store.getRecords(records), store.getRecords(deleted)]);
+      records.forEach((r, i) => {
+        if (!localRecords[i] || localRecords[i].updatedAt !== r.updatedAt) changedKinds.add(r.kind);
+      });
+      deleted.forEach((d, i) => {
+        if (localDeleted[i]) changedKinds.add(d.kind);
+      });
       await store.applyChanges({ put: records, remove: deleted });
     }
     cursor = res.cursor || cursor;

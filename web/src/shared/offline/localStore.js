@@ -8,6 +8,8 @@
  *
  * Stores:
  *   records  [kind, id] → { kind, id, payload, recordDate, parentId, createdAt, updatedAt }
+ *            indexes: kind, kindDate [kind, recordDate], kindParent [kind, parentId] — a date range or a
+ *            portfolio is read straight from the index, not by loading the whole kind
  *   outbox   seq (auto) → { op: 'put' | 'delete', kind, id, body?, queuedAt }   (in order)
  *   meta     key → { key, value }   (vault, sync cursor, epoch, synced)
  *
@@ -15,7 +17,7 @@
  */
 
 const DB_PREFIX = 'realrate-offline-';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 /** A request (or transaction) as a promise */
 function done(request) {
@@ -45,10 +47,13 @@ export async function openLocalStore(userId) {
   const request = indexedDB.open(`${DB_PREFIX}${userId}`, DB_VERSION);
   request.onupgradeneeded = () => {
     const db = request.result;
-    if (!db.objectStoreNames.contains('records')) {
-      const records = db.createObjectStore('records', { keyPath: ['kind', 'id'] });
-      records.createIndex('kind', 'kind');
-    }
+    // Version 2 added the two compound indexes (built from the records already stored)
+    const records = db.objectStoreNames.contains('records')
+      ? request.transaction.objectStore('records')
+      : db.createObjectStore('records', { keyPath: ['kind', 'id'] });
+    if (!records.indexNames.contains('kind')) records.createIndex('kind', 'kind');
+    if (!records.indexNames.contains('kindDate')) records.createIndex('kindDate', ['kind', 'recordDate']);
+    if (!records.indexNames.contains('kindParent')) records.createIndex('kindParent', ['kind', 'parentId']);
     if (!db.objectStoreNames.contains('outbox')) db.createObjectStore('outbox', { keyPath: 'seq', autoIncrement: true });
     if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta', { keyPath: 'key' });
   };
@@ -97,13 +102,39 @@ class LocalStore {
     return done(tx.objectStore('records').index('kind').getAll(kind));
   }
 
+  /**
+   * The records a query can match, read through the narrowest index: a date range by [kind,
+   * recordDate], a portfolio by [kind, parentId], else the whole kind. filterRecords still applies
+   * every filter, so the index only decides how many rows are loaded.
+   */
+  async candidates(kind, { from = '', to = '', parent = '', undated = false } = {}) {
+    const tx = this.db.transaction('records', 'readonly');
+    const records = tx.objectStore('records');
+    if (!undated && (from || to)) {
+      return done(records.index('kindDate').getAll(IDBKeyRange.bound([kind, from || ''], [kind, to || '\uffff'])));
+    }
+    if (parent) return done(records.index('kindParent').getAll(IDBKeyRange.only([kind, parent])));
+    return done(records.index('kind').getAll(kind));
+  }
+
   async queryRecords(kind, filters) {
-    return filterRecords(await this.listKind(kind), filters);
+    return filterRecords(await this.candidates(kind, filters), filters);
   }
 
   async getRecord(kind, id) {
     const tx = this.db.transaction('records', 'readonly');
     return (await done(tx.objectStore('records').get([kind, id]))) || null;
+  }
+
+  /**
+   * Several records in one transaction (the lookups run side by side)
+   * @param {Array<{ kind: string, id: string }>} keys
+   * @returns {Promise<Array<object|null>>} in the order given
+   */
+  async getRecords(keys) {
+    const tx = this.db.transaction('records', 'readonly');
+    const records = tx.objectStore('records');
+    return Promise.all(keys.map(async ({ kind, id }) => (await done(records.get([kind, id]))) || null));
   }
 
   /**
