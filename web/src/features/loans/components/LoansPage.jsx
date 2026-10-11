@@ -18,6 +18,7 @@ import {
 import { useLoansContext } from '../context/LoansContext.jsx';
 import { useLoanDetail } from '../hooks/useLoanDetail.js';
 import LoansTable from './LoansTable.jsx';
+import { isLoanCompleted } from '../utils/loanStatus.js';
 import AddLoanForm from './AddLoanForm.jsx';
 import LoanInstallmentsTable from './LoanInstallmentsTable.jsx';
 import LoanCsvExportButton from './LoanCsvExportButton.jsx';
@@ -147,6 +148,8 @@ export default function LoansPage({ initialLoanId = null }) {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Settled loans are hidden by default: the list stays short
+  const [showSettled, setShowSettled] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingLoan, setEditingLoan] = useState(null);
   // A new loan from a bank SMS deposit (the SMS page: «وام جدید»), whose message is dropped once saved
@@ -262,6 +265,14 @@ export default function LoansPage({ initialLoanId = null }) {
       }))
       .sort((a, b) => b.totalRemaining - a.totalRemaining);
   }, [loans, customBanks]);
+  // The list hides settled loans by default (the chart and totals keep counting them)
+  const visibleGroups = useMemo(
+    () => bankGroups
+      .map((group) => ({ ...group, items: showSettled ? group.items : group.items.filter((l) => !isLoanCompleted(l)) }))
+      .filter((group) => group.items.length > 0),
+    [bankGroups, showSettled],
+  );
+  const settledCount = useMemo(() => loans.filter(isLoanCompleted).length, [loans]);
 
   // Handlers
   const handleOpenAddModal = () => {
@@ -444,7 +455,21 @@ export default function LoansPage({ initialLoanId = null }) {
             />
           ) : (
             <div className="loans-bank-groups">
-              {bankGroups.map((group) => (
+              {settledCount > 0 && (
+                <div className="loan-inst-filter-group">
+                  <button
+                    type="button"
+                    className={`loan-inst-filter-btn ${showSettled ? 'active' : ''}`}
+                    onClick={() => setShowSettled((v) => !v)}
+                  >
+                    {showSettled ? 'پنهان کردن' : 'نمایش'} وام‌های تسویه‌شده ({settledCount.toLocaleString('fa-IR')})
+                  </button>
+                </div>
+              )}
+              {visibleGroups.length === 0 && (
+                <div className="stat-sub">همه‌ی وام‌ها تسویه شده‌اند.</div>
+              )}
+              {visibleGroups.map((group) => (
                 <div key={group.key} className="category-group-card">
                   <div className="category-group-header">
                     <div className="cat-header-identity">
