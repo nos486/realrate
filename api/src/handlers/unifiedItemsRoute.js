@@ -68,7 +68,8 @@ export async function handleGetUnifiedMarketItems(env, request) {
       }
 
       const sourceName = p?.label || sourceConfig?.name || null;
-      const targetBubblePct = sourceConfig?.bubblePct ?? spec.targetBubblePct ?? 0;
+      // A coin's year's mean bubble, from the history (the book's: priceAverages.js); none else
+      const targetBubblePct = book?.items?.[spec.id]?.params?.targetBubblePct ?? null;
       const category = sourceConfig ? getItemCategory(spec, sourceConfig) : spec.category;
       const badge = sourceConfig ? getItemBadge(spec, sourceConfig) : spec.badge;
       const unit = sourceConfig ? getItemUnit(spec, sourceConfig) : spec.unit;

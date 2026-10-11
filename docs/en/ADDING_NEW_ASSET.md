@@ -37,13 +37,12 @@ ons_gold: {
   unit: 'دلار',                         // quote unit (dollar or toman)
   weight: 31.1034768,                   // weight in grams
   carat: 24,
-  targetBubblePct: 0,
   formulaText: 'نرخ لحظه‌ای هر تروا انس طلا در بازارهای بین‌المللی',
   aliases: ['انس', 'اونس', 'انس طلا', 'اونس طلا', 'طلای جهانی', 'انس جهانی', 'XAU', 'xau'],
 }
 ```
 
-A coin also has `gold24kWeight` (its pure 24k gold in grams, e.g. `7.3197` for the full coin), from which its intrinsic value is computed.
+A coin also has `gold24kWeight` (its pure 24k gold in grams, e.g. `7.3197` for the full coin), from which its intrinsic value is computed. Its target bubble (the standard price's) is not in the spec: for a coin whose bubble is in `bubble.spec.js` (with `bubbleOf`), it is the mean bubble percent of the last year, from the history (`priceAverages.js`).
 
 > [!NOTE]
 > `api/src/domain/specs/registry.js` registers every spec's aliases and codes in `CANONICAL_ASSET_REGISTRY` automatically, so an alias added to a spec is found at once by the universal search and the portfolio.

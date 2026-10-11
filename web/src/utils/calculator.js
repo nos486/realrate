@@ -20,14 +20,26 @@ import {
 } from './financialSpecs.js';
 import { BASE_PRICE_IDS, SPEC_BY_ID } from './priceBook.js';
 
-/** The gold and coins the calculator analyzes, with their target bubble setting */
+/** The gold and coins the calculator analyzes */
 const ANALYZED = [
-  { id: 'gold_18k', spec: GOLD_SPECS.gold_18k, setting: null },
-  { id: 'mesghal', spec: GOLD_SPECS.mesghal, setting: null },
-  { id: 'full_coin', spec: COIN_SPECS.full_coin, setting: 'bubble_pct_full' },
-  { id: 'half_coin', spec: COIN_SPECS.half_coin, setting: 'bubble_pct_half' },
-  { id: 'quarter_coin', spec: COIN_SPECS.quarter_coin, setting: 'bubble_pct_quarter' },
+  { id: 'gold_18k', spec: GOLD_SPECS.gold_18k },
+  { id: 'mesghal', spec: GOLD_SPECS.mesghal },
+  { id: 'full_coin', spec: COIN_SPECS.full_coin },
+  { id: 'half_coin', spec: COIN_SPECS.half_coin },
+  { id: 'quarter_coin', spec: COIN_SPECS.quarter_coin },
 ];
+
+/**
+ * The bubble an item's standard price allows: a coin's mean bubble over the last year, from the
+ * price history (the book's `params.targetBubblePct`, priceAverages.js) — none until its history
+ * has one; gold none (its standard is its gold value)
+ * @returns {number|null}
+ */
+export function targetBubbleOf(item, spec) {
+  const target = Number(item?.params?.targetBubblePct);
+  if (Number.isFinite(target)) return target;
+  return spec?.category === 'coin' ? null : 0;
+}
 
 /**
  * @param {object} params
@@ -59,13 +71,11 @@ export function calculateMarketData({
   }
 
   // 1. Gold and coins: the book's market price against the intrinsic value at these rates
-  const itemsAnalysis = ANALYZED.map(({ id, spec, setting }) => {
+  const itemsAnalysis = ANALYZED.map(({ id, spec }) => {
     const item = items[id] || null;
     const intrinsic = calculateIntrinsicValue(spec, gold_usd, usd_toman);
-    const targetBubblePct = Number(
-      (setting ? globalSettings?.[setting] : null) ?? item?.params?.targetBubblePct ?? spec.targetBubblePct ?? 0,
-    );
-    const expected_price = Math.round(intrinsic * (1 + targetBubblePct / 100));
+    const targetBubblePct = targetBubbleOf(item, spec);
+    const expected_price = targetBubblePct === null ? null : Math.round(intrinsic * (1 + targetBubblePct / 100));
     // Only a price a source gave is a market price (an intrinsic-only item is not)
     const market = item?.sourceId && item.price > 0 ? item.price : null;
 
@@ -77,7 +87,7 @@ export function calculateMarketData({
       const bData = calculateBubble(market, intrinsic);
       bubble = bData.bubble;
       bubble_pct = bData.bubblePct;
-      diff_from_expected = market - expected_price;
+      diff_from_expected = expected_price === null ? null : market - expected_price;
       diff_from_expected_pct = expected_price
         ? parseFloat(((diff_from_expected / expected_price) * 100).toFixed(1))
         : null;

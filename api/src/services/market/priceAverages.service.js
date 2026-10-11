@@ -3,7 +3,8 @@
  *
  * Every sync tick carries the previous book's averages. Once a Tehran day they move one day
  * forward: the running sums (state key "price_averages", D1 app_state — it must read back exactly)
- * take in yesterday's closes and drop the closes that left each window, reading three days of rows.
+ * take in yesterday's closes and drop the closes that left each window, reading three days of rows
+ * (the coins' bubble ratios too, from the same rows: priceAverages.js).
  * A failed update is tried again after AVERAGES_RETRY_MS — never every minute.
  * The first tick of every hour also looks at the state, so averages summed again after past days
  * changed (resetPriceAverages, called by the history backfill) reach the book within the hour.
@@ -12,7 +13,7 @@
 
 import { logger } from "../../lib/logger.js";
 import { getStateStore } from "../../repositories/stateStore.repository.js";
-import { readAverageSums, readDayCloses, tehranDay } from "../../repositories/priceHistory.repository.js";
+import { readAverageSums, readBubbleRatioSums, readDayCloses, tehranDay } from "../../repositories/priceHistory.repository.js";
 import { historyKeysOf } from "../../domain/priceBook.js";
 import {
   advanceAverageState,
@@ -24,6 +25,7 @@ import {
   carryAverages,
   shiftDay,
   AVERAGE_STATE_VERSION,
+  BUBBLE_RATIO_SERIES,
 } from "../../domain/priceAverages.js";
 
 export const AVERAGES_STATE_KEY = "price_averages";
@@ -54,8 +56,12 @@ export async function averageStateThrough(env, bookKeys, through) {
     const rows = await readDayCloses(env, keys, boundaryDaysOf(through));
     if (rows) next = advanceAverageState(state, rows, through);
   } else {
-    const rows = await readAverageSums(env, bookKeys, through);
-    if (rows) next = averageStateFromSums(rows, through);
+    // The closes' sums, and the coins' bubble ratios from their coin's and bubble's closes
+    const [rows, ratios] = await Promise.all([
+      readAverageSums(env, bookKeys, through),
+      readBubbleRatioSums(env, BUBBLE_RATIO_SERIES, through),
+    ]);
+    if (rows && ratios) next = averageStateFromSums([...rows, ...ratios], through);
   }
   if (!next) return null;
   await store.put(AVERAGES_STATE_KEY, JSON.stringify(next)).catch((err) => {

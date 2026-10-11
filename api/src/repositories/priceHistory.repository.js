@@ -349,6 +349,49 @@ export async function readAverageSums(env, keys, through) {
 }
 
 /**
+ * ?1: the coins' bubble series (JSON [[key, coinKey, bubbleKey], …]), ?2: the last day, ?3: the
+ * first day, ?4…: each window's first day → each derived key's sum and count of daily ratios, in
+ * the shape of AVERAGE_SUMS_SQL's rows. A day counts where both the coin and its bubble closed
+ * (the bubble below the coin): coin ÷ (coin − bubble), the coin over its gold value.
+ */
+export const BUBBLE_RATIO_SUMS_SQL = `
+WITH series AS (
+  SELECT json_extract(s.value, '$[0]') AS k, json_extract(s.value, '$[1]') AS coin, json_extract(s.value, '$[2]') AS bubble
+  FROM json_each(?1) AS s
+)
+SELECT series.k AS item_key, ${AVERAGE_WINDOW_KEYS.map((w, i) => `SUM(CASE WHEN c.day >= ?${i + 4} THEN c.value / (c.value - b.value) END) AS sum_${w}, COUNT(CASE WHEN c.day >= ?${i + 4} THEN 1 END) AS n_${w}`).join(", ")}
+FROM series
+JOIN price_daily c ON c.item_key = series.coin AND c.day >= ?3 AND c.day <= ?2
+JOIN price_daily b ON b.item_key = series.bubble AND b.day = c.day
+WHERE b.value > 0 AND c.value > b.value
+GROUP BY series.k
+`;
+
+/**
+ * Each coin bubble ratio's sum and count per averaging window ending on `through`
+ * (BUBBLE_RATIO_SERIES, domain/priceAverages.js)
+ * @param {object} env
+ * @param {Array<{ key: string, coinId: string, bubbleId: string }>} series
+ * @param {string} through
+ * @returns {Promise<Array<object>|null>} null when the history is unavailable
+ */
+export async function readBubbleRatioSums(env, series, through) {
+  if (!env?.DB?.prepare) return null;
+  if (!series?.length) return [];
+  const starts = AVERAGE_WINDOW_KEYS.map((w) => windowStart(through, AVERAGE_WINDOWS[w].days));
+  try {
+    await ensureSchema(env);
+    const res = await env.DB.prepare(BUBBLE_RATIO_SUMS_SQL)
+      .bind(JSON.stringify(series.map((s) => [s.key, s.coinId, s.bubbleId])), through, windowStart(through, AVERAGE_MAX_DAYS), ...starts)
+      .all();
+    return res?.results || [];
+  } catch (err) {
+    logger.warn("[PriceHistory] Bubble ratio sums failed:", { error: err.message });
+    return null;
+  }
+}
+
+/**
  * The closes of a few days (the days an averages move reads)
  * @returns {Promise<Array<{ item_key: string, day: string, value: number }>|null>}
  */

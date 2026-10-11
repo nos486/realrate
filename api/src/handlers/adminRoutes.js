@@ -132,16 +132,6 @@ export async function handleAdminSaveSettings(request, env) {
     const body = await request.json();
     // Only the fields sent change, so each panel card can save its own settings
     const next = { ...(await getGlobalSettings(env, true)) };
-    const percent = (value) => {
-      const n = parseFloat(value);
-      return Number.isFinite(n) && n >= 0 && n <= 1000 ? n : null;
-    };
-    for (const key of ["bubble_pct_full", "bubble_pct_half", "bubble_pct_quarter"]) {
-      if (body[key] === undefined) continue;
-      const n = percent(body[key]);
-      if (n === null) throw AppError.badRequest("درصد حباب باید عددی بین ۰ تا ۱۰۰۰ باشد.");
-      next[key] = n;
-    }
     if (body.announcement !== undefined) next.announcement = String(body.announcement || "").trim().slice(0, 500);
     if (body.maintenance_mode !== undefined) next.maintenance_mode = body.maintenance_mode ? 1 : 0;
     if (body.maintenance_message !== undefined) next.maintenance_message = String(body.maintenance_message || "").trim().slice(0, 500);

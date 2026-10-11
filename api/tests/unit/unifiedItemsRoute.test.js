@@ -77,24 +77,18 @@ describe('Unified Market Items Route Handler', () => {
     expect(pishtaz.sourceName).toContain('Emofid');
   });
 
-  it('Phase 5 verification: bubblePct is generically read from sources.config.js for coins', async () => {
+  it('a coin\'s target bubble is its year\'s mean from the book, never a fixed percent', async () => {
     const mockEnv = {};
     const mockRequest = new Request('https://realrate.ir/api/market/items');
     const response = await handleGetUnifiedMarketItems(mockEnv, mockRequest);
     const data = await response.json();
 
-    const fullCoin = data.goldAndCoins.find(item => item.id === 'full_coin');
-    const halfCoin = data.goldAndCoins.find(item => item.id === 'half_coin');
-    const quarterCoin = data.goldAndCoins.find(item => item.id === 'quarter_coin');
-
-    expect(fullCoin).toBeDefined();
-    expect(fullCoin.targetBubblePct).toBe(15);
-
-    expect(halfCoin).toBeDefined();
-    expect(halfCoin.targetBubblePct).toBe(20);
-
-    expect(quarterCoin).toBeDefined();
-    expect(quarterCoin.targetBubblePct).toBe(25);
+    // No history behind this book: no target
+    for (const id of ['full_coin', 'half_coin', 'quarter_coin']) {
+      const coin = data.goldAndCoins.find((item) => item.id === id);
+      expect(coin).toBeDefined();
+      expect(coin.targetBubblePct).toBeNull();
+    }
   });
 
   it('Phase 5 verification: ons_gold and ons_silver get source names directly from sources.config.js', async () => {
