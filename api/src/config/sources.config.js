@@ -266,27 +266,6 @@ export const PRICE_SOURCES_CONFIG = [
     isActive: true,
     isPrimary: true,
   },
-  // ── Cars: one item per model and year, from Source Arena's car web service (sourcearena.ir, a
-  // paid token: the Worker secret SOURCEARENA_TOKEN). Its `car=all` answer lists every car with its
-  // name, price and year; the field names below accept the spellings its docs show (a|b)
-  {
-    id: "src_def_cars",
-    name: "قیمت روز خودرو (سورس آرنا)",
-    brand: "سورس آرنا",
-    priceType: "cars",
-    market: "car", // Its items are ids "car__<name>_<year>"
-    sourceType: "json_catalog",
-    endpoint: "https://sourcearena.ir/api/?token=${SOURCEARENA_TOKEN}&car=all",
-    rowsPath: "data|result|items|cars", // used when the answer is an object, not a bare array
-    catalogFields: { id: ["name|model|title", "year"], name: ["name|model|title", "year"], price: "price|price_toman|priceToman" },
-    category: "car",
-    unit: "دستگاه",
-    isCatalog: true, // A market's whole list: merged with its previous one, ids `${market}__${symbol}`
-    fetchIntervalSec: 21600, // daily-priced assets: every 6 hours
-    maxJumpPct: 30,
-    isActive: true,
-    isPrimary: true,
-  },
 ];
 
 /**
