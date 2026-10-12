@@ -72,6 +72,7 @@ export const BUILTIN_CATEGORIES = {
     { value: 'gifts', label: 'هدیه و خیریه', icon: 'Gift', color: '#e879f9' },
     { value: 'installments', label: 'پرداخت قسط', icon: 'Landmark', color: '#fb923c' },
     { value: 'credit_fees', label: 'کارمزد و سود اعتبار', icon: 'CreditCard', color: '#ef4444' },
+    { value: 'running_costs', label: 'هزینه‌های جاری', icon: 'Wallet', color: '#2dd4bf' },
     { value: 'investment', label: 'سرمایه‌گذاری', icon: 'TrendingUp', color: '#34d399', excluded: true },
     // Retired: a move between the user's own accounts is a transfer
     { value: 'cash_management', label: 'مدیریت نقدینگی', icon: 'Wallet', color: '#22d3ee', excluded: true, retired: true },
