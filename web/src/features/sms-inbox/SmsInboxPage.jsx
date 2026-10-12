@@ -23,7 +23,7 @@ import { useVault } from '../../shared/vault/useVault.js';
 import { useDemo } from '../demo/index.js';
 import { useAccounts } from '../accounts/hooks/useAccounts.js';
 import { usePricing } from '../market/index.js';
-import { markSmsHandled, restoreSms, readSmsDays, smsPermission, getSmsSettings, smsOutcome, getPendingSms, MAX_READ_DAYS } from '../../shared/native/smsInbox.js';
+import { markSmsHandled, restoreSms, readSmsDays, readSmsRange, smsPermission, getSmsSettings, smsOutcome, getPendingSms, MAX_READ_DAYS } from '../../shared/native/smsInbox.js';
 import SmsReadHistory from './SmsReadHistory.jsx';
 import { useSmsInbox } from '../../shared/native/useSmsInbox.js';
 import { createIncome } from '../incomes/api/incomeApi.js';
@@ -37,18 +37,30 @@ import TransferForm from '../accounts/components/TransferForm.jsx';
 import { saveTransfer } from '../../shared/vault/vaultTransfers.js';
 import { smsExpenseDraft, smsProjectExpenseDraft, smsIncomeDraft, smsTransferDraft, findTransferCounterpart } from './smsDrafts.js';
 import { ensureSmsAccount } from './smsAccounts.js';
-import { saveSmsExpense, recordSmsExpense, dropAlreadyRecorded } from './smsRecord.js';
+import { saveSmsExpense, recordSmsExpense, dropAlreadyRecorded, autoRecordSms } from './smsRecord.js';
 import { getExpenseCategory } from '../expenses/constants/expenseCategories.js';
 import { bumpVaultEpoch } from '../../shared/vault/vaultStore.js';
+import { DateField } from '../../shared/form/index.js';
+import { getTodayShamsi, shamsiToGregorian } from '../portfolio/components/ShamsiDatePicker.jsx';
+import { todayIso } from '../../shared/utils/dates.js';
 
 /** «دلخواه»: the number of days typed */
 const CUSTOM_DAYS = 'custom';
+/** «بازه‌ی تاریخ»: from a day to a day */
+const RANGE = 'range';
+
+/** What «ثبت خودکار موارد کوچک» of a read starts with: withdrawals to «هزینه‌های جاری», deposits to «درآمد خرد» */
+const DEFAULT_SMALL_EXPENSE = 5_000;
+const DEFAULT_SMALL_INCOME = 1_000_000;
+const SMALL_EXPENSE_CATEGORY = 'running_costs';
+const SMALL_INCOME_CATEGORY = 'small_income';
 
 const DAY_OPTIONS = [
   { value: 1, label: '۲۴ ساعت' },
   ...[7, 30, 90].map((d) => ({ value: d, label: `${d.toLocaleString('fa-IR')} روز` })),
   { value: 365, label: '۱ سال' },
   { value: CUSTOM_DAYS, label: 'دلخواه' },
+  { value: RANGE, label: 'بازه‌ی تاریخ' },
 ];
 
 export default function SmsInboxPage() {
@@ -70,7 +82,18 @@ export default function SmsInboxPage() {
   const [customDays, setCustomDays] = useState('');
   const typedDays = Number(String(customDays).replace(/,/g, ''));
   const customValid = Number.isInteger(typedDays) && typedDays >= 1 && typedDays <= MAX_READ_DAYS;
-  const readDays = days === CUSTOM_DAYS ? (customValid ? typedDays : null) : days;
+  const readDays = days === RANGE ? null : days === CUSTOM_DAYS ? (customValid ? typedDays : null) : days;
+  // «بازه‌ی تاریخ»: from a day to a day (Shamsi in the fields, Gregorian to read)
+  const [fromShamsi, setFromShamsi] = useState(getTodayShamsi());
+  const [toShamsi, setToShamsi] = useState(getTodayShamsi());
+  const fromIso = shamsiToGregorian(fromShamsi);
+  const toIso = shamsiToGregorian(toShamsi);
+  const rangeValid = Boolean(fromIso && toIso && fromIso <= toIso);
+  const readReady = days === RANGE ? rangeValid : Boolean(readDays);
+  // «ثبت خودکار موارد کوچک»: what this read records by itself, up to these amounts
+  const [autoSmall, setAutoSmall] = useState(false);
+  const [smallExpense, setSmallExpense] = useState(String(DEFAULT_SMALL_EXPENSE));
+  const [smallIncome, setSmallIncome] = useState(String(DEFAULT_SMALL_INCOME));
   const [reading, setReading] = useState(false);
   // How far the read has come: { stage: 'reading'|'parsing', done, total, messages? }
   const [progress, setProgress] = useState(null);
@@ -178,7 +201,7 @@ export default function SmsInboxPage() {
   };
 
   const handleReadPast = async () => {
-    if (!readDays) return;
+    if (!readReady) return;
     setReading(true);
     try {
       if ((await smsPermission()) !== 'granted' && (await smsPermission({ request: true })) !== 'granted') {
@@ -188,16 +211,34 @@ export default function SmsInboxPage() {
       // With the vault open, recorded ones are read again and checked against it: a message whose
       // expense or income was deleted comes back
       const unlocked = vaultStatus === 'unlocked';
-      const { read, added, transactions = [] } = await readSmsDays(readDays, { recheckRecorded: unlocked, onProgress: setProgress });
+      const options = { recheckRecorded: unlocked, onProgress: setProgress };
+      const { read, added, transactions = [] } = days === RANGE
+        ? await readSmsRange(fromIso, toIso, options)
+        : await readSmsDays(readDays, options);
       const dropped = unlocked && added ? await dropAlreadyRecorded() : 0;
+      // The small ones of what was read recorded by themselves (the rest waits, as always)
+      let autoRecorded = 0;
+      if (autoSmall && unlocked && !readOnly) {
+        setProgress({ stage: 'recording' });
+        const amount = (value) => Number(String(value).replace(/[^\d]/g, '')) || 0;
+        const span = days === RANGE
+          ? { from: fromIso, to: toIso }
+          : { from: todayIso(new Date(Date.now() - readDays * 86_400_000)) };
+        autoRecorded = await autoRecordSms({
+          expense: amount(smallExpense) > 0 ? { max: amount(smallExpense), category: SMALL_EXPENSE_CATEGORY } : null,
+          income: amount(smallIncome) > 0 ? { max: amount(smallIncome), category: SMALL_INCOME_CATEGORY } : null,
+          ...span,
+        });
+        if (autoRecorded) bumpVaultEpoch();
+      }
       // The rest of what it read: not waiting any more (recorded, or dismissed)
       const waiting = new Set(getPendingSms().map((p) => p.tx?.key));
       setReadHistory(transactions
         .filter((item) => !waiting.has(item.tx.key))
         .map((item) => ({ ...item, outcome: smsOutcome(item) }))
         .filter((item) => item.outcome));
-      const fresh = Math.max(0, added - dropped);
-      toast.success(`${read.toLocaleString('fa-IR')} پیامک بانکی خوانده شد؛ ${fresh.toLocaleString('fa-IR')} مورد جدید برای ثبت.`);
+      const fresh = Math.max(0, added - dropped - autoRecorded);
+      toast.success(`${read.toLocaleString('fa-IR')} پیامک بانکی خوانده شد؛ ${fresh.toLocaleString('fa-IR')} مورد جدید برای ثبت${autoRecorded ? ` و ${autoRecorded.toLocaleString('fa-IR')} مورد کوچک خودکار ثبت شد` : ''}.`);
     } catch (err) {
       toast.error(err?.message || 'خواندن پیامک‌ها ممکن نشد.');
     } finally {
@@ -253,14 +294,43 @@ export default function SmsInboxPage() {
               <span>روز گذشته</span>
             </label>
           )}
-          <Button size="sm" onClick={handleReadPast} loading={reading} disabled={!readDays}>بخوان</Button>
+          <Button size="sm" onClick={handleReadPast} loading={reading} disabled={!readReady}>بخوان</Button>
         </div>
+        {days === RANGE && (
+          <div className="sms-read-range">
+            <DateField label="از تاریخ" value={fromShamsi} onChange={setFromShamsi} />
+            <DateField label="تا تاریخ" value={toShamsi} onChange={setToShamsi} />
+            {!rangeValid && <p className="expense-form-hint is-warning">تاریخ «از» باید پیش از «تا» (یا همان روز) باشد.</p>}
+          </div>
+        )}
+        <div className="sms-read-auto">
+          <label className="app-switch">
+            <input type="checkbox" role="switch" checked={autoSmall} onChange={(e) => setAutoSmall(e.target.checked)} aria-label="ثبت خودکار موارد کوچک این خواندن" />
+            <span className="app-switch-track" aria-hidden="true" />
+          </label>
+          <span>ثبت خودکار موارد کوچک همین خواندن (نیازمند باز بودن اطلاعات رمزنگاری‌شده)</span>
+        </div>
+        {autoSmall && (
+          <div className="sms-read-auto-fields">
+            <div className="app-setting-field">
+              <label htmlFor="sms-small-expense">هزینه‌ی تا مبلغ (در «هزینه‌های جاری»)</label>
+              <NumericInput id="sms-small-expense" value={smallExpense} onValueChange={setSmallExpense} affix="تومان" />
+            </div>
+            <div className="app-setting-field">
+              <label htmlFor="sms-small-income">واریز تا مبلغ (در «درآمد خرد»)</label>
+              <NumericInput id="sms-small-income" value={smallIncome} onValueChange={setSmallIncome} affix="تومان" />
+            </div>
+            <small>مبلغ صفر یعنی آن نوع ثبت نشود. بقیه‌ی پیامک‌ها مثل همیشه در فهرست می‌مانند.</small>
+          </div>
+        )}
         {days === CUSTOM_DAYS && !customValid && customDays !== '' && (
           <p className="expense-form-hint is-warning">بین ۱ تا {MAX_READ_DAYS.toLocaleString('fa-IR')} روز.</p>
         )}
         {progress && (
           <p className="expense-form-hint" role="status">
-            {progress.stage === 'reading'
+            {progress.stage === 'recording'
+              ? 'در حال ثبت خودکار موارد کوچک…'
+              : progress.stage === 'reading'
               ? `در حال خواندن پیامک‌ها: بازه‌ی ${progress.done.toLocaleString('fa-IR')} از ${progress.total.toLocaleString('fa-IR')} (${(progress.messages || 0).toLocaleString('fa-IR')} پیامک تا اینجا)`
               : `در حال بررسی پیامک‌ها: ${progress.done.toLocaleString('fa-IR')} از ${progress.total.toLocaleString('fa-IR')}`}
           </p>

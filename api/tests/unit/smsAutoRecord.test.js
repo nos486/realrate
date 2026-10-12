@@ -59,6 +59,34 @@ beforeEach(() => {
   ]);
 });
 
+describe('a one-off rule for a read (not the settings)', () => {
+  it('records withdrawals and deposits up to its limits, in its categories, of its days only', async () => {
+    // The settings stay off: only the rule applies
+    expect(getSmsSettings().autoRecord).toBe(false);
+    const n = await autoRecordSms({
+      expense: { max: 400000, category: 'running_costs' },
+      income: { max: 300000, category: 'small_income' },
+      from: '2026-09-25',
+      to: '2026-09-28',
+    });
+    expect(n).toBe(2);
+    expect(expenses.saveExpenses.mock.calls[0][0].map((e) => [e.amount, e.category])).toEqual([[350000, 'running_costs']]);
+    expect(vaultIncomes.createIncomes.mock.calls[0][0].map((i) => [i.amount, i.category])).toEqual([[250000, 'small_income']]);
+    // The rest waits
+    expect(getPendingSms().map((p) => p.tx.amount).sort((a, b) => a - b)).toEqual([480000, 900000]);
+  });
+
+  it('a deposit of a day before the range waits', async () => {
+    expect(await autoRecordSms({ income: { max: 1_000_000, category: 'small_income' }, from: '2026-09-26', to: '2026-09-28' })).toBe(0);
+    expect(vaultIncomes.createIncomes).not.toHaveBeenCalled();
+  });
+
+  it('days outside its range are left alone', async () => {
+    expect(await autoRecordSms({ expense: { max: 1_000_000, category: 'other' }, from: '2026-01-01', to: '2026-01-31' })).toBe(0);
+    expect(getPendingSms()).toHaveLength(4);
+  });
+});
+
 describe('automatic recording of small deposits', () => {
   it('off by default; when on, deposits up to the limit become incomes of the chosen category', async () => {
     expect(getSmsSettings()).toMatchObject({ autoRecordIncome: false, autoRecordIncomeMax: 500000, incomeCategory: 'other' });

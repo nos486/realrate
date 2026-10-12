@@ -48,10 +48,11 @@ export const MAX_READ_DAYS = 36_500;
  * The bank messages since `since` (epoch millis), newest first: one call for a short span, else a
  * window of READ_WINDOW_DAYS at a time back to `since` (each message once)
  */
-async function readMessagesSince(senders, rules, since, now, onProgress) {
+async function readMessagesSince(senders, rules, since, now, onProgress, bounded = false) {
   const start = Math.max(0, Math.floor(since));
   if (now - start <= READ_WINDOW_DAYS * DAY_MS) {
-    return (await BankSms.read({ senders, rules, since: start })).messages || [];
+    // A range ending before now says where it ends
+    return (await BankSms.read({ senders, rules, since: start, ...(bounded ? { until: now + 1 } : {}) })).messages || [];
   }
   const seen = new Set();
   const all = [];
@@ -356,20 +357,24 @@ export async function enableSmsReading() {
 /**
  * Read the bank senders' messages since `since` (epoch millis) into the inbox
  * @param {number} since
- * @param {{ transactions?: boolean, recheckRecorded?: boolean, onProgress?: (p: { stage: 'reading'|'parsing', done: number, total: number, messages?: number }) => void }} [options]
+ * @param {{ until?: number, transactions?: boolean, recheckRecorded?: boolean, onProgress?: (p: { stage: 'reading'|'parsing', done: number, total: number, messages?: number }) => void }} [options]
  *   `onProgress`: how far a long read has come (windows read, then messages parsed)
  * @returns {Promise<{ read: number, added: number, transactions?: Array<object> }>} transactions (only with `options.transactions`): see readTransactions
  */
 export async function readSmsSince(since, options = {}) {
   const now = Date.now();
+  // `until`: the last moment of a range read; a range ends no later than now
+  const bounded = options.until != null;
+  const upper = bounded ? Math.min(Number(options.until), now) : now;
   const { senders, rules } = activeSmsConfig();
   if (!senders.length) {
-    setSmsSettings({ lastRead: now });
+    if (!bounded) setSmsSettings({ lastRead: now });
     return { read: 0, added: 0 };
   }
-  const messages = await readMessagesSince(senders, rules, since, now, options.onProgress);
+  const messages = await readMessagesSince(senders, rules, since, upper, options.onProgress, bounded);
   const added = await addSmsMessagesInChunks(messages, options);
-  setSmsSettings({ lastRead: now });
+  // A range read says nothing about what the automatic one has read up to
+  if (!bounded) setSmsSettings({ lastRead: now });
   // Only a read by hand lists what it found; the automatic one doesn't parse everything twice
   return { read: messages.length, added, ...(options.transactions ? { transactions: await readTransactions(messages) } : {}) };
 }
@@ -415,6 +420,21 @@ export function smsOutcome(item) {
 export function readSmsDays(days, options = {}) {
   const span = Math.min(Math.max(Math.round(Number(days) || 1), 1), MAX_READ_DAYS);
   return readSmsSince(Date.now() - span * DAY_MS, { ...options, transactions: true });
+}
+
+/**
+ * Read the messages of a range of days: from the start of `fromIso` to the end of `toIso`
+ * (YYYY-MM-DD, Tehran days; a range reaching the future ends now). Like readSmsDays: `transactions`
+ * is everything read, waiting or not.
+ * @param {string} fromIso
+ * @param {string} toIso
+ * @param {object} [options] see readSmsSince
+ */
+export function readSmsRange(fromIso, toIso, options = {}) {
+  const since = Date.parse(`${fromIso}T00:00:00`);
+  const until = Date.parse(`${toIso}T00:00:00`) + DAY_MS - 1;
+  if (!Number.isFinite(since) || !Number.isFinite(until) || until < since) throw new Error('بازه‌ی تاریخ نامعتبر است.');
+  return readSmsSince(since, { ...options, until, transactions: true });
 }
 
 /**

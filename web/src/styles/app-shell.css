@@ -1357,3 +1357,20 @@ html.is-app-layout .budget-grid .ui-input-label {
   background: rgba(148, 163, 184, 0.14);
   color: var(--text-muted);
 }
+
+/* The SMS page's read card: a range of days, and what the read records by itself */
+.sms-read-range,
+.sms-read-auto-fields {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.sms-read-auto {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}

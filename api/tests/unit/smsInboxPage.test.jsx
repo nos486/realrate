@@ -36,6 +36,7 @@ const expenses = vi.hoisted(() => ({
     if (error) throw new Error(error);
     return { expense: { id: 'exp_1', ...input, ...value } };
   }),
+  saveExpenses: vi.fn(async (bodies) => bodies.map((body, i) => ({ id: `exp_b${i}`, ...body }))),
 }));
 vi.mock('../../../web/src/shared/vault/vaultExpenses.js', () => expenses);
 const incomes = vi.hoisted(() => ({
@@ -84,6 +85,31 @@ describe('SmsInboxPage', () => {
     await waitFor(() => expect(screen.getByText('برداشت')).toBeTruthy());
     expect(screen.getByText('واریز')).toBeTruthy();
     expect(document.body.textContent).toMatch(/۲.۰۰۰.۰۰۰/);
+  });
+
+  it('reads a range of days, and records the small ones of it by themselves when asked', async () => {
+    render(<SmsInboxPage />);
+    plugin.read.mockClear();
+    plugin.read.mockResolvedValue({ messages: [
+      { address: '+989999987641', body: 'بلو\nبرداشت پول\nسینا عزیز، 30,000 ریال از حساب شما پرید.\nموجودی: 77,436,726 ریال\n۱۰:۴۷\n۱۴۰۵.۰۷.۰۶', date: RECEIVED },
+    ] });
+    // A range (today to today by default) reads up to its last moment
+    fireEvent.click(screen.getByRole('tab', { name: 'بازه‌ی تاریخ' }));
+    expect(screen.getByText('از تاریخ')).toBeTruthy();
+    fireEvent.click(screen.getByText('بخوان').closest('button'));
+    await waitFor(() => expect(plugin.read).toHaveBeenCalled());
+    const { since, until } = plugin.read.mock.calls[0][0];
+    expect(until).toBeGreaterThan(since);
+    expect(expenses.saveExpenses).not.toHaveBeenCalled();
+
+    // The last 30 days, with the small ones recorded by themselves
+    fireEvent.click(screen.getByRole('tab', { name: '۳۰ روز' }));
+    fireEvent.click(screen.getByLabelText('ثبت خودکار موارد کوچک این خواندن'));
+    fireEvent.change(screen.getByLabelText(/هزینه‌ی تا مبلغ/), { target: { value: '10000' } });
+    fireEvent.click(screen.getByText('بخوان').closest('button'));
+    // 3,000 tomans is within 10,000: recorded by itself, as «هزینه‌های جاری»
+    await waitFor(() => expect(expenses.saveExpenses).toHaveBeenCalled());
+    expect(expenses.saveExpenses.mock.calls[0][0][0]).toMatchObject({ amount: 3000, category: 'running_costs' });
   });
 
   it('shows a long inbox a page at a time', async () => {
