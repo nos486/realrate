@@ -2,7 +2,7 @@
  * useSmsAutoRecord.js — Record small withdrawals by themselves (Android app, when turned on in the
  * app settings): whenever the encrypted data is open and the inbox changes — a message arrives,
  * the app comes back, the setting changes — waiting withdrawals up to the limit become everyday
- * expenses (smsRecord.js). A short message says how many.
+ * expenses, and deposits up to theirs incomes (smsRecord.js). A short message says how many.
  */
 
 import { useEffect } from 'react';
@@ -10,7 +10,7 @@ import { useVault } from '../../shared/vault/useVault.js';
 import { bumpVaultEpoch } from '../../shared/vault/vaultStore.js';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { SMS_INBOX_EVENT } from '../../shared/native/smsInbox.js';
-import { autoRecordSmallExpenses } from './smsRecord.js';
+import { autoRecordSms } from './smsRecord.js';
 
 /** How long after the app opens, or after the last inbox change, recording starts (ms) */
 const START_DELAY_MS = 1500;
@@ -25,11 +25,11 @@ export function useSmsAutoRecord(enabled) {
     let cancelled = false;
     let timer = null;
     const run = () => {
-      autoRecordSmallExpenses()
+      autoRecordSms()
         .then((count) => {
           if (cancelled || !count) return;
           bumpVaultEpoch();
-          toast.success(`${count.toLocaleString('fa-IR')} هزینه‌ی کوچک از پیامک خودکار ثبت شد.`);
+          toast.success(`${count.toLocaleString('fa-IR')} تراکنش کوچک از پیامک خودکار ثبت شد.`);
         })
         .catch((err) => console.warn('Automatic SMS recording failed:', err));
     };

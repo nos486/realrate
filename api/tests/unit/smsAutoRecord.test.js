@@ -37,9 +37,11 @@ vi.mock('../../../web/src/shared/vault/vaultAccounts.js', () => ({
 }));
 const incomes = vi.hoisted(() => ({ getIncomes: vi.fn(async () => ({ incomes: [] })) }));
 vi.mock('../../../web/src/features/incomes/api/incomeApi.js', () => incomes);
+const vaultIncomes = vi.hoisted(() => ({ createIncomes: vi.fn(async (list) => list.map((i, n) => ({ id: `inc_${n}`, ...i }))) }));
+vi.mock('../../../web/src/shared/vault/vaultIncomes.js', () => vaultIncomes);
 
 import { addSmsMessages, getPendingSms, setSmsSettings, getSmsSettings } from '../../../web/src/shared/native/smsInbox.js';
-import { autoRecordSmallExpenses } from '../../../web/src/features/sms-inbox/smsRecord.js';
+import { autoRecordSms } from '../../../web/src/features/sms-inbox/smsRecord.js';
 
 const RECEIVED = new Date(2026, 8, 28, 12, 0).getTime();
 const debit = (rial, time) => `بلو\nبرداشت پول\nسینا عزیز، ${rial} ریال از حساب شما پرید.\nموجودی: 70,000,000 ریال\n${time}\n۱۴۰۵.۰۷.۰۶`;
@@ -57,17 +59,39 @@ beforeEach(() => {
   ]);
 });
 
+describe('automatic recording of small deposits', () => {
+  it('off by default; when on, deposits up to the limit become incomes of the chosen category', async () => {
+    expect(getSmsSettings()).toMatchObject({ autoRecordIncome: false, autoRecordIncomeMax: 500000, incomeCategory: 'other' });
+    expect(await autoRecordSms()).toBe(0);
+    expect(vaultIncomes.createIncomes).not.toHaveBeenCalled();
+
+    setSmsSettings({ autoRecordIncome: true, autoRecordIncomeMax: 300000, incomeCategory: 'gift' });
+    expect(await autoRecordSms()).toBe(1);
+    expect(expenses.saveExpenses).not.toHaveBeenCalled();
+    expect(vaultIncomes.createIncomes).toHaveBeenCalledTimes(1);
+    expect(vaultIncomes.createIncomes.mock.calls[0][0][0]).toMatchObject({ amount: 250000, category: 'gift', accountId: 'acc_1', currency: 'IRT' });
+    // The withdrawals still wait: only deposits were turned on
+    expect(getPendingSms().map((p) => p.tx.direction)).toEqual(['debit', 'debit', 'debit']);
+  });
+
+  it('a deposit above the limit waits', async () => {
+    setSmsSettings({ autoRecordIncome: true, autoRecordIncomeMax: 100000 });
+    expect(await autoRecordSms()).toBe(0);
+    expect(getPendingSms()).toHaveLength(4);
+  });
+});
+
 describe('automatic recording of small withdrawals', () => {
   it('off by default: nothing is recorded', async () => {
     expect(getSmsSettings()).toMatchObject({ autoRecord: false, autoRecordMax: 500000, recordCategory: 'other' });
-    expect(await autoRecordSmallExpenses()).toBe(0);
+    expect(await autoRecordSms()).toBe(0);
     expect(expenses.saveExpenses).not.toHaveBeenCalled();
     expect(getPendingSms()).toHaveLength(4);
   });
 
   it('records withdrawals up to the limit in the chosen category; deposits and larger ones wait', async () => {
     setSmsSettings({ autoRecord: true, autoRecordMax: 500000, recordCategory: 'transport' });
-    expect(await autoRecordSmallExpenses()).toBe(2);
+    expect(await autoRecordSms()).toBe(2);
     // Stored together: one batch, not one request per message
     expect(expenses.saveExpenses).toHaveBeenCalledTimes(1);
     expect(expenses.saveExpense).not.toHaveBeenCalled();
@@ -77,7 +101,7 @@ describe('automatic recording of small withdrawals', () => {
     ]);
     expect(getPendingSms().map((p) => [p.tx.direction, p.tx.amount]).sort()).toEqual([['credit', 250000], ['debit', 900000]]);
     // Nothing left to record: a second run records nothing
-    expect(await autoRecordSmallExpenses()).toBe(0);
+    expect(await autoRecordSms()).toBe(0);
     expect(expenses.saveExpenses).toHaveBeenCalledTimes(1);
   });
 
@@ -87,7 +111,7 @@ describe('automatic recording of small withdrawals', () => {
       { id: 'e1', date: '2026-09-28', amount: 350000, currency: 'IRT' },                    // by hand, same day and amount
       { id: 'e2', date: '2026-09-28', amount: 1, currency: 'IRT', smsKey: getPendingSms().find((p) => p.tx.amount === 480000).tx.key },
     ] });
-    expect(await autoRecordSmallExpenses()).toBe(0);
+    expect(await autoRecordSms()).toBe(0);
     expect(expenses.saveExpense).not.toHaveBeenCalled();
     expect(getPendingSms().map((p) => p.tx.amount).sort((a, b) => a - b)).toEqual([250000, 900000]);
   });
