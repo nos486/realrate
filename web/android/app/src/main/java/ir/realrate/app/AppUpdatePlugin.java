@@ -5,6 +5,7 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.PowerManager;
 import android.provider.Settings;
 
 import androidx.core.content.FileProvider;
@@ -93,6 +94,13 @@ public class AppUpdatePlugin extends Plugin {
         downloading = true;
         canceled = false;
         new Thread(() -> {
+            // Keep the CPU awake while the screen is off, or the download stalls and the update hangs
+            PowerManager.WakeLock lock = null;
+            try {
+                PowerManager pm = (PowerManager) getContext().getSystemService(android.content.Context.POWER_SERVICE);
+                lock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "realrate:update");
+                lock.acquire(15 * 60 * 1000L);
+            } catch (Exception ignored) {}
             File target = apkFile();
             File part = new File(target.getPath() + ".part");
             try {
@@ -113,6 +121,7 @@ public class AppUpdatePlugin extends Plugin {
             } finally {
                 part.delete();
                 downloading = false;
+                try { if (lock != null && lock.isHeld()) lock.release(); } catch (Exception ignored) {}
             }
         }).start();
     }
