@@ -59,6 +59,7 @@ vi.mock('react-router-dom', async (importOriginal) => ({ ...(await importOrigina
 
 import { pickRow } from '../helpers/entryForm.js';
 import SmsInboxPage from '../../../web/src/features/sms-inbox/SmsInboxPage.jsx';
+import { setSmsPlanPro } from '../../../web/src/shared/native/smsPlan.js';
 import { addSmsMessages, getPendingSms } from '../../../web/src/shared/native/smsInbox.js';
 
 const RECEIVED = new Date(2026, 8, 28, 12, 0).getTime();
@@ -66,6 +67,7 @@ const BLU_DEBIT = 'بلو\nبرداشت پول\nسینا عزیز، 20,000,000 �
 const BLU_CREDIT = 'بلو\nواریز پول\nسینا عزیز، 2,500,000 ریال به حساب شما نشست.\nموجودی: 104,451,226 ریال\n۱۸:۲۳\n۱۴۰۵.۰۷.۰۳';
 
 beforeEach(() => {
+  setSmsPlanPro(true);
   localStorage.clear();
   vi.clearAllMocks();
   expenses.getExpenses.mockResolvedValue({ expenses: [] });

@@ -16,6 +16,7 @@ import { resolveFrontendOrigin } from '../lib/siteOrigin.js';
 import { getRateLimitState, recordRateLimitHit } from '../lib/security.js';
 import { jsonResponse } from '../lib/helpers.js';
 import { AppError } from '../lib/AppError.js';
+import { hasFeature } from '../lib/features.js';
 
 const PUT_LIMIT = { limit: 30, windowSec: 60 };
 const TEST_LIMIT = { limit: 3, windowSec: 3600 };
@@ -27,6 +28,13 @@ async function requireUser(request, env) {
 }
 
 const userIdOf = (user) => user.userId || user.id || user.email;
+
+/** Email reminders are a Pro feature: a free user can read their settings but not change them */
+async function requireEmailReminders(env, user) {
+  if (!(await hasFeature(env, user, 'email_reminders'))) {
+    throw new AppError('یادآوری ایمیلی در پلن رایگان بسته است. برای استفاده به Pro ارتقا دهید.', 403, 'PLAN_LIMIT');
+  }
+}
 
 /** The session holds no verification state; the account row does (the digest cron reads the same column) */
 async function isEmailVerified(env, userId) {
@@ -50,6 +58,7 @@ export async function handleGetAlertEmailPrefs(request, env) {
 
 export async function handlePutAlertEmailPrefs(request, env) {
   const user = await requireUser(request, env);
+  await requireEmailReminders(env, user);
   const userId = userIdOf(user);
 
   const key = `alert-email-put:${userId}`;
@@ -67,6 +76,7 @@ export async function handlePutAlertEmailPrefs(request, env) {
 
 export async function handleSendTestEmailAlert(request, env) {
   const user = await requireUser(request, env);
+  await requireEmailReminders(env, user);
   const userId = userIdOf(user);
 
   if (!isEmailConfigured(env)) {

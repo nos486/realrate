@@ -34,7 +34,7 @@ describe('the test reminder email', () => {
   it('links to the site, not to the API', async () => {
     const sent = [];
     vi.doMock('../../src/lib/email.js', async (orig) => ({ ...(await orig()), isEmailConfigured: () => true, sendEmail: async (_env, msg) => sent.push(msg) }));
-    vi.doMock('../../src/lib/auth.js', async (orig) => ({ ...(await orig()), getAuthenticatedUser: async () => ({ userId: 'u1', email: 'a@b.co' }) }));
+    vi.doMock('../../src/lib/auth.js', async (orig) => ({ ...(await orig()), getAuthenticatedUser: async () => ({ userId: 'u1', email: 'a@b.co', groups: ['pro'] }) }));
     vi.doMock('../../src/repositories/account.repository.js', async (orig) => ({ ...(await orig()), dbGetUserAuthById: async () => ({ emailVerified: true }) }));
     vi.doMock('../../src/lib/security.js', async (orig) => ({ ...(await orig()), getRateLimitState: async () => ({ limited: false }), recordRateLimitHit: async () => {} }));
     vi.resetModules();

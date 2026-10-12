@@ -22,6 +22,8 @@ vi.mock('../../../web/src/shared/native/nativeApp.js', () => ({ isNativeApp: () 
 vi.mock('../../../web/src/shared/native/nativePlugins.js', () => ({ BankSms: plugin, BiometricVault: biometric }));
 vi.mock('../../../web/src/shared/vault/useVault.js', () => ({ useVault: () => ({ status: 'locked', userId: 'usr_1' }) }));
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
+// The widget settings are a Pro feature (config/features.js)
+vi.mock('../../../web/src/shared/features/useFeature.js', () => ({ useFeature: () => true }));
 vi.mock('../../../web/src/shared/ui/FeedbackProvider.jsx', () => ({ useFeedback: () => ({ toast }) }));
 
 import AppSettingsView from '../../../web/src/features/app-settings/AppSettingsView.jsx';

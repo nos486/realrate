@@ -25,8 +25,27 @@ export const FEATURES = {
   },
   cheque_scan: {
     stage: 'ga',
+    groups: ['pro'],
     label: 'اسکن چک با هوش مصنوعی',
     description: 'استخراج اطلاعات چک بانکی از تصویر با Gemini (محدودیت روزانه: config/usageLimits.js)',
+  },
+  reports: {
+    stage: 'ga',
+    groups: ['pro'],
+    label: 'گزارش‌ها',
+    description: 'گزارش سالانه‌ی درآمد، هزینه و سرمایه‌گذاری (محدودیت پلن رایگان: config/planLimits.js)',
+  },
+  widget: {
+    stage: 'ga',
+    groups: ['pro'],
+    label: 'ویجت اندروید',
+    description: 'ویجت صفحه‌ی اصلی گوشی برای قیمت‌ها، خبر و تحلیل',
+  },
+  email_reminders: {
+    stage: 'ga',
+    groups: ['pro'],
+    label: 'یادآوری ایمیلی',
+    description: 'ایمیل روزانه‌ی سررسید اقساط، چک‌ها و اشتراک‌ها',
   },
   expenses: {
     stage: 'ga',

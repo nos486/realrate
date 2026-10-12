@@ -13,6 +13,7 @@
  *   GET/POST /api/portfolio/shared — Public endpoint for shared portfolios
  */
 
+import { enforcePortfolioLimit } from "../lib/planLimits.js";
 import { getAuthenticatedUser } from "../lib/auth.js";
 import {
   dbGetUserPortfolios,
@@ -121,6 +122,7 @@ export async function handleCreatePortfolio(request, env) {
   if (!name) {
     throw AppError.badRequest("نام پورتفو نمی‌تواند خالی باشد.");
   }
+  await enforcePortfolioLimit(env, user);
 
   const userId = user.userId || user.id || user.email;
   // With account-wide encryption on, every new portfolio must arrive with its own data key

@@ -194,6 +194,7 @@ describe('Alert Email System (Part A)', () => {
       // The session carries no verification flag (session.repository selects none)
       getAuthenticatedUser.mockResolvedValueOnce({
         id: 'usr_1',
+        groups: ['pro'],
         email: 'user@example.com',
       });
 
@@ -212,6 +213,7 @@ describe('Alert Email System (Part A)', () => {
     it('updates preferences and clears cheque direction when disabled', async () => {
       getAuthenticatedUser.mockResolvedValue({
         id: 'usr_1',
+        groups: ['pro'],
         email: 'user@example.com',
         emailVerified: true,
       });
@@ -249,6 +251,7 @@ describe('Alert Email System (Part A)', () => {
     it('sends test email when requested', async () => {
       getAuthenticatedUser.mockResolvedValueOnce({
         id: 'usr_1',
+        groups: ['pro'],
         email: 'user@example.com',
         emailVerified: true,
       });
@@ -272,6 +275,7 @@ describe('Alert Email System (Part A)', () => {
       db.users.set('usr_1', { email: 'user@example.com', email_verified: 0, disabled: 0 });
       getAuthenticatedUser.mockResolvedValueOnce({
         id: 'usr_1',
+        groups: ['pro'],
         email: 'user@example.com',
       });
 

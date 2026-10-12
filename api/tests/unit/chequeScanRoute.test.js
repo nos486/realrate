@@ -16,7 +16,8 @@ import { handleChequeScanRoute, handleChequeScanQuotaRoute } from '../../src/han
 import { tehranDay } from '../../src/lib/usageQuota.js';
 
 const ADMIN = { id: 'a1', role: 'admin', email: 'admin@example.com' };
-const USER = { id: 'u1', role: 'user', email: 'user@example.com' };
+// The Pro group opens the scan (config/features.js)
+const USER = { id: 'u1', role: 'user', email: 'user@example.com', groups: ['pro'] };
 
 const GEMINI_ANSWER = JSON.stringify({
   amount: 500000000, // 500M Rials

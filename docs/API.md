@@ -272,6 +272,14 @@ Standard banks are static (`api/src/config/banks.config.js`) and ship with the c
 | `POST` | `/api/v1/banks/custom` | Add a custom bank (`{ name }`; returns the existing one for a duplicate name) |
 | `DELETE` | `/api/v1/banks/custom/:id` | Remove a custom bank (loans keep their lender name) |
 
+### Free Plan Limits (Protected)
+
+Users outside the `pro` group (admins and the demo account are never limited) are held to the limits of `api/src/config/planLimits.js`. A create past a limit (`PUT /api/v1/vault/records/:kind[/:id]`, `POST /api/v1/portfolios`) returns `403 PLAN_LIMIT`; replacing an existing record never counts. Email reminders (`PUT /api/v1/alerts/email`, `POST /api/v1/alerts/email/test`) return the same code to a user without the `email_reminders` feature.
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/v1/plan` | `{ pro, usage: { <limit>: { used, limit, period: "month"\|"total" } } }`; `usage` is empty on Pro |
+
 ### End-to-End Encryption Vault (Protected)
 
 All payloads are ciphertext produced in the browser (`enc:e2ee:v1:...`); see [E2EE_VAULT.md](E2EE_VAULT.md).
