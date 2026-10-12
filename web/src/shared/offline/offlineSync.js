@@ -104,6 +104,16 @@ export function isNetworkError(err) {
 }
 
 /**
+ * A refusal that is about the moment, not about the change: signed out (401), too many requests
+ * (429), a timeout (408, 425) or a Cloudflare origin error (520–530). The change stays queued and
+ * goes out at a later round — dropping it would lose what the user wrote offline.
+ */
+export function isTransientRefusal(err) {
+  if (!(err instanceof HttpError)) return false;
+  return [401, 408, 425, 429].includes(err.status) || (err.status >= 520 && err.status <= 530);
+}
+
+/**
  * A request got no answer. `certain` (the browser says it is offline): offline at once. Otherwise
  * try again shortly and say offline only if nothing reaches the server for `confirmMs`.
  */
@@ -275,7 +285,7 @@ async function pushOutbox() {
     try {
       await send(op);
     } catch (err) {
-      if (isNetworkError(err)) throw err;
+      if (isNetworkError(err) || isTransientRefusal(err)) throw err;
       // The server refuses it (validation, a feature closed…): it will never go through
       refused++;
       window.dispatchEvent(new CustomEvent(OFFLINE_SYNC_ERROR_EVENT, { detail: { op, message: err.message } }));

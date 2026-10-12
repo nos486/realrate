@@ -83,8 +83,10 @@ export function releaseNotesText(notes) {
 /* ── State shared by the prompt and the settings page ─────────────────── */
 
 /**
- * status: idle | checking | available | downloading | permission | installing | error | latest
- * (permission: Android needs "install unknown apps" for RealRate first)
+ * status: idle | checking | available | downloading | permission | ready | installing | error | latest
+ * (permission: Android needs "install unknown apps" for RealRate first; ready: downloaded while
+ * the app was in the background — Android refuses to open the installer from there, so it opens
+ * when the app comes back)
  */
 let state = { status: 'idle', release: null, installedVersion: '', progress: 0, error: '', open: false, bannerHidden: false };
 
@@ -194,12 +196,42 @@ export async function downloadAndInstall() {
     } finally {
       listener?.remove?.();
     }
-    setState({ status: 'installing', progress: 1 });
-    await AppUpdate.install();
+    // The screen went off or the app left the front during the download: Android silently drops
+    // an installer launched from the background, so wait for the return (resumeUpdate)
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+      setState({ status: 'ready', progress: 1 });
+      return;
+    }
+    await openInstaller();
   } catch (err) {
     if (err?.code === 'CANCELED') return;
     setState({ status: 'error', error: err?.message || 'به‌روزرسانی ناموفق بود.' });
   }
+}
+
+async function openInstaller() {
+  setState({ status: 'installing', progress: 1 });
+  await AppUpdate.install();
+}
+
+/**
+ * The app came back to the front: open the installer of an APK that finished downloading in the
+ * background; an installer already shown (and left) goes back to «به‌روزرسانی» so it never hangs
+ * @returns {Promise<boolean>} true when this handled the return
+ */
+export async function resumeUpdate() {
+  if (state.status === 'ready') {
+    try {
+      await openInstaller();
+    } catch (err) {
+      setState({ status: 'error', error: err?.message || 'به‌روزرسانی ناموفق بود.' });
+    }
+    return true;
+  }
+  if (state.status === 'installing') {
+    setState({ status: state.release ? 'available' : 'idle', progress: 0 });
+  }
+  return false;
 }
 
 /** The "install unknown apps" page for RealRate; coming back to the app continues the update */
@@ -228,6 +260,7 @@ export function startAutoUpdateCheck() {
         if (allowed) downloadAndInstall();
         return;
       }
+      if (await resumeUpdate()) return;
       checkForUpdate();
     });
   }).catch(() => {});

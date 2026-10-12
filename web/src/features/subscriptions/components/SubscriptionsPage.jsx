@@ -36,6 +36,7 @@ import {
   subscriptionPeriod, subscriptionTotals, subscriptionView,
 } from '../../../utils/subscriptionDocument.js';
 import { useSubscriptionsContext } from '../context/SubscriptionsContext.jsx';
+import { moveRenewalPayment } from '../../../shared/vault/spendingRecords.js';
 import SubscriptionForm from './SubscriptionForm.jsx';
 import SubscriptionCard from './SubscriptionCard.jsx';
 import SubscriptionSummary from './SubscriptionSummary.jsx';
@@ -135,10 +136,17 @@ export default function SubscriptionsPage() {
   // on (shared/vault/recordLinks.js), as for a payment recorded from the expenses page
   const handlePay = async (input) => {
     const sub = paying.sub;
+    // One that renews by itself already has this period's payment in the expenses: it moves to the
+    // day given instead of a second one being added; otherwise it is the next renewal paid ahead
+    const moved = sub.autoRenew && input.subscriptionId === sub.id
+      ? await moveRenewalPayment(sub, input, today) : null;
     // In the everyday expenses, or the project picked in the form (vaultExpenses.js)
-    await saveExpense(input);
-    const renews = !sub.autoRenew && input.subscriptionId === sub.id;
-    toast.success(renews ? 'پرداخت ثبت شد و اعتبار اشتراک یک دوره تمدید شد.' : 'پرداخت ثبت شد.');
+    if (!moved) await saveExpense(input);
+    const linked = input.subscriptionId === sub.id;
+    toast.success(!linked ? 'پرداخت ثبت شد.'
+      : moved ? 'تاریخ پرداخت این دوره اصلاح شد.'
+        : sub.autoRenew ? 'پرداخت ثبت شد؛ تمدید بعدی دوباره از شما کسر نمی‌شود.'
+          : 'پرداخت ثبت شد و اعتبار اشتراک یک دوره تمدید شد.');
   };
 
   if (vaultLocked) {
@@ -246,7 +254,8 @@ export default function SubscriptionsPage() {
             title: paying.sub.name,
             amount: paying.sub.amount,
             currency: paying.sub.currency,
-            // The day it is paid: a late renewal of one renewed by hand starts its new period then
+            // The day it is paid — change it for a payment made early or late (a late renewal of
+            // one renewed by hand starts its new period then)
             date: today,
             category: SUBSCRIPTION_EXPENSE_CATEGORY,
             subscriptionId: paying.sub.id,

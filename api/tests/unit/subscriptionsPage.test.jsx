@@ -29,6 +29,7 @@ vi.mock('../../../web/src/shared/vault/vaultExpenses.js', () => ({
   ensureDailyGroup: async () => ({ id: 'grp_daily' }),
   getExpenseGroups: async () => ({ groups: [] }),
   saveExpense: (...a) => store.saveExpense(...a),
+  getExpenses: async () => ({ success: true, expenses: [] }),
 }));
 vi.mock('../../../web/src/features/market/index.js', () => ({ usePricing: () => ({ getAssetPrice: (id) => (id === 'usd' ? 100_000 : 0) }) }));
 vi.mock('../../../web/src/features/accounts/hooks/useAccounts.js', () => ({
@@ -119,10 +120,13 @@ describe('the subscriptions page', () => {
     // Moving the subscription on is the store's, on save (recordLinks.test.js)
   });
 
-  it('one that renews by itself has no «ثبت پرداخت»: its renewals are recorded as they come', () => {
+  it('one that renews by itself has «ثبت پرداخت» too: paying it ahead on a chosen day', async () => {
     store.subscriptions = [chatgpt];
     render(<SubscriptionsPage />);
-    expect(screen.queryByRole('button', { name: 'ثبت پرداخت' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'ثبت پرداخت' }));
+    fireEvent.submit(document.querySelector('form'));
+    await waitFor(() => expect(store.saveExpense).toHaveBeenCalled());
+    expect(store.saveExpense.mock.calls[0][0]).toMatchObject({ subscriptionId: 'sub_a', title: 'ChatGPT', currency: 'USD' });
   });
 
   it('a new subscription says its payment goes into the expenses', () => {
