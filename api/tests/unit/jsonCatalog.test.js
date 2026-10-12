@@ -16,25 +16,36 @@ describe('jsonCatalog adapter', () => {
     null,
   ];
 
+  const fields = { id: ['brand', 'model', 'year'], name: ['brand', 'model', 'year'], price: 'priceToman' };
+
   it('joins the configured fields and leaves out rows without an id or a price', () => {
-    expect(catalogItemsOf(rows, cars.catalogFields)).toEqual([
+    expect(catalogItemsOf(rows, fields)).toEqual([
       { id: 'پژو_206 تیپ 2_1402', name: 'پژو 206 تیپ 2 1402', price: 478000000 },
     ]);
   });
 
+  it('reads the first of a path\'s a|b alternatives that a row has', () => {
+    expect(catalogItemsOf([{ model: 'تارا', year: '1404', price: '1,250,000,000' }, { name: 'شاهین', year: 1404, price_toman: 980000000 }], cars.catalogFields)).toEqual([
+      { id: 'تارا_1404', name: 'تارا 1404', price: 1250000000 },
+      { id: 'شاهین_1404', name: 'شاهین 1404', price: 980000000 },
+    ]);
+  });
+
   it('reads rows from a bare array or from the configured path', () => {
-    const src = { ...cars };
+    const src = { ...cars, catalogFields: fields };
     expect(jsonCatalogSourceAdapter.parse(rows, src).items).toHaveLength(1);
+    expect(jsonCatalogSourceAdapter.parse({ data: rows }, src).items).toHaveLength(1);
     expect(jsonCatalogSourceAdapter.parse({ items: rows }, src).items).toHaveLength(1);
   });
 
   it('throws when the feed holds no priced row or the config has no fields', () => {
     expect(() => jsonCatalogSourceAdapter.parse([], cars)).toThrow();
+    expect(() => jsonCatalogSourceAdapter.parse({ data: [] }, cars)).toThrow();
     expect(() => jsonCatalogSourceAdapter.parse(rows, { id: 'x' })).toThrow();
   });
 
-  it('fails readably while the feed URL is not set', async () => {
-    await expect(jsonCatalogSourceAdapter.fetchRaw(cars, {})).rejects.toThrow('تنظیم نشده');
+  it('names the secret the endpoint needs while it is not set, without calling out', async () => {
+    await expect(jsonCatalogSourceAdapter.fetchRaw(cars, {})).rejects.toThrow('SOURCEARENA_TOKEN');
   });
 });
 
