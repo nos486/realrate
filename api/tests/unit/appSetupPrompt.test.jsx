@@ -9,7 +9,7 @@ import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
 
 const native = vi.hoisted(() => ({ app: true, permission: 'prompt', auto: false, bioAvailable: true, bioEnabled: false, calls: [] }));
 
-vi.mock('../../../web/src/shared/native/nativeApp.js', () => ({ isNativeApp: () => native.app, smsEnabled: () => native.app }));
+vi.mock('../../../web/src/shared/native/nativeApp.js', () => ({ isNativeApp: () => native.app, smsEnabled: () => native.app, selfUpdateEnabled: () => native.app }));
 vi.mock('../../../web/src/shared/native/smsInbox.js', () => ({
   smsPermission: async () => native.permission,
   getSmsSettings: () => ({ auto: native.auto }),
