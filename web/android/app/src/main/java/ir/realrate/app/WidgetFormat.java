@@ -19,6 +19,24 @@ final class WidgetFormat {
         return format.format(value);
     }
 
+    /** A category's colour name (categories.config.js) as a colour, tailwind's 400 shades like the app's chips */
+    static int categoryColor(String name) {
+        String hex;
+        switch (name == null ? "" : name) {
+            case "emerald": hex = "#34d399"; break;
+            case "amber": hex = "#fbbf24"; break;
+            case "slate": hex = "#94a3b8"; break;
+            case "indigo": hex = "#818cf8"; break;
+            case "purple": hex = "#c084fc"; break;
+            case "cyan": hex = "#22d3ee"; break;
+            case "rose": hex = "#fb7185"; break;
+            case "orange": hex = "#fb923c"; break;
+            case "blue": hex = "#60a5fa"; break;
+            default: hex = "#38bdf8"; break; // sky, the app's accent
+        }
+        return android.graphics.Color.parseColor(hex);
+    }
+
     /** A whole number in Persian digits */
     static String count(long value) {
         return number(value, 0, 0);

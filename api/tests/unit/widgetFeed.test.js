@@ -30,6 +30,7 @@ describe('parseWidgetIds', () => {
 describe('widgetPriceOf', () => {
   it('gives a toman asset its toman price and day change', () => {
     const row = widgetPriceOf({ id: 'usd', name: 'دلار', unit: 'تومان', price: 70000, params: { changePercent: 1.234 } });
+    expect(typeof row.color).toBe('string');
     expect(row).toMatchObject({ id: 'usd', price: 70000, currency: 'toman', priceUsd: null, changePct: 1.23 });
   });
 
