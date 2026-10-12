@@ -10,6 +10,7 @@
 
 import { currencyOf } from "./priceBook.js";
 import { toPriceId } from "./priceIds.js";
+import { getItemCategory, getCategoryColor } from "./displayEngine.js";
 import { metricValue } from "./cardMetrics.js";
 
 /** Favourites a widget lists at most (the widget's price tiles: two columns, three rows) */
@@ -45,7 +46,7 @@ export function parseWidgetIds(raw, knownIds = null) {
 /**
  * One favourite as the widget shows it
  * @param {object} item - a price book item
- * @returns {{ id: string, name: string, unit: string, price: number, currency: 'usd'|'toman', priceUsd: number|null, changePct: number|null }|null}
+ * @returns {{ id: string, name: string, unit: string, color: string, price: number, currency: 'usd'|'toman', priceUsd: number|null, changePct: number|null }|null}
  *   null when the item has no price now
  */
 export function widgetPriceOf(item) {
@@ -56,6 +57,8 @@ export function widgetPriceOf(item) {
     id: item.id,
     name: item.name || item.id,
     unit: item.unit || "",
+    // The category's colour name (categories.config.js): the tile's dot takes its hue
+    color: getCategoryColor(getItemCategory(item)),
     price: usd ? Number(item.priceUsd) : Number(item.price),
     currency: usd ? "usd" : "toman",
     priceUsd: usd ? Number(item.priceUsd) : null,

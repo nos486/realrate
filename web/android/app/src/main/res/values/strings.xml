@@ -11,4 +11,5 @@
     <string name="widget_description">قیمت دارایی‌های موردعلاقه و اخبار هوشمند، با به‌روزرسانی هر ۱۰ دقیقه</string>
     <string name="widget_title">RealRate</string>
     <string name="widget_news_label">اخبار هوشمند</string>
+    <string name="widget_ai_badge">AI</string>
 </resources>

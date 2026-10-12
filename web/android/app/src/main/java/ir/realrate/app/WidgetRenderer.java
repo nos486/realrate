@@ -29,6 +29,7 @@ final class WidgetRenderer {
     private static final long REFRESH_EVERY_MS = 10 * 60 * 1000L;
 
     private static final int[] TILES = {R.id.tile_1, R.id.tile_2, R.id.tile_3, R.id.tile_4, R.id.tile_5, R.id.tile_6};
+    private static final int[] TILE_DOTS = {R.id.tile_dot_1, R.id.tile_dot_2, R.id.tile_dot_3, R.id.tile_dot_4, R.id.tile_dot_5, R.id.tile_dot_6};
     private static final int[] TILE_NAMES = {R.id.tile_name_1, R.id.tile_name_2, R.id.tile_name_3, R.id.tile_name_4, R.id.tile_name_5, R.id.tile_name_6};
     private static final int[] TILE_PRICES = {R.id.tile_price_1, R.id.tile_price_2, R.id.tile_price_3, R.id.tile_price_4, R.id.tile_price_5, R.id.tile_price_6};
     private static final int[] TILE_CHANGES = {R.id.tile_change_1, R.id.tile_change_2, R.id.tile_change_3, R.id.tile_change_4, R.id.tile_change_5, R.id.tile_change_6};
@@ -73,6 +74,11 @@ final class WidgetRenderer {
             views.setTextViewText(TILE_PRICES[i], WidgetFormat.price(row.optDouble("price"), usd));
             views.setTextViewText(TILE_CHANGES[i], WidgetFormat.change(change, known));
             views.setTextColor(TILE_CHANGES[i], Color.parseColor(flat ? "#94a3b8" : change > 0 ? "#34d399" : "#fb7185"));
+            // The pill under the price takes the day's direction; the dot, the asset's category colour
+            views.setViewVisibility(TILE_CHANGES[i], known ? View.VISIBLE : View.INVISIBLE);
+            views.setInt(TILE_CHANGES[i], "setBackgroundResource",
+                flat ? R.drawable.widget_pill_flat : change > 0 ? R.drawable.widget_pill_up : R.drawable.widget_pill_down);
+            views.setInt(TILE_DOTS[i], "setColorFilter", WidgetFormat.categoryColor(row.optString("color")));
             views.setInt(TILES[i], "setBackgroundResource",
                 flat ? R.drawable.widget_tile_flat : change > 0 ? R.drawable.widget_tile_up : R.drawable.widget_tile_down);
             views.setOnClickPendingIntent(TILES[i], open(context, "prices", false));
