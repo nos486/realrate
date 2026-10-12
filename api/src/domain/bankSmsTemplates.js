@@ -195,11 +195,12 @@ export const BANK_SMS_TEMPLATES = [
         // مانده: 24,502,460 ریال
         // 1405/07/11
         // 14:15
-        // (a deposit: «واریز:»; the «از طریق» line, the channel, may be missing)
+        // (a deposit: «واریز:» or «واریز حقوق :»; the «از طریق» line, the channel, may be missing;
+        // a «کدشعبه: 2080» line may follow it)
         id: 'tejarat-balance',
         unit: 'rial',
         direction: { debit: ['برداشت', 'خرید', 'پرداخت', 'انتقال'], credit: ['واریز'] },
-        pattern: re(String.raw`^\*?\s?بانک تجارت\s?\*?\nحساب\s?:\s?(?<account>${P.digits})\n(?<kind>[^\d\n:+-]+?)\s?:\s?(?<amount>${P.amount})\s?ریال\n(?:از طریق\s?:\s?(?<desc>[^\n]+)\n)?مانده\s?:\s?(?<balance>${P.balance})\s?ریال\n(?<date>${P.date})\s(?<time>${P.time})$`),
+        pattern: re(String.raw`^\*?\s?بانک تجارت\s?\*?\nحساب\s?:\s?(?<account>${P.digits})\n(?<kind>[^\d\n:+-]+?)\s?:\s?(?<amount>${P.amount})\s?ریال\n(?:از طریق\s?:\s?(?<desc>[^\n]+)\n)?(?:کد\s?شعبه\s?:\s?\d+\n)?مانده\s?:\s?(?<balance>${P.balance})\s?ریال\n(?<date>${P.date})\s(?<time>${P.time})$`),
       },
     ],
   },
