@@ -23,7 +23,7 @@
  * - occurrencesBetween: rolls occurrences forward across any date window using Jalali month clamping
  */
 
-import { isValidIsoDate } from './isoDate.js';
+import { isValidIsoDate, tehranToday } from './isoDate.js';
 import {
   gregorianToJalali,
   jalaliToGregorian,
@@ -127,10 +127,10 @@ export function validateReminder(input) {
  * @param {'loan'|'cheque'|'subscription'} kind
  * @param {object} plainRecord
  * @param {{ includeDirection?: boolean, today?: string }} [options] - today: a subscription's next
- *   renewal is the first on or after it (default: today, UTC)
+ *   renewal is the first on or after it (default: today in Tehran)
  * @returns {object|null}
  */
-export function reminderOf(kind, plainRecord, { includeDirection = false, today = new Date().toISOString().slice(0, 10) } = {}) {
+export function reminderOf(kind, plainRecord, { includeDirection = false, today = tehranToday() } = {}) {
   if (!plainRecord || typeof plainRecord !== 'object') return null;
 
   if (kind === 'loan') {
