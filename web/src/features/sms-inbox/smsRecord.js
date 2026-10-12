@@ -14,6 +14,8 @@
 import { getExpenseCategory } from '../expenses/constants/expenseCategories.js';
 import * as expensesApi from '../../shared/vault/vaultExpenses.js';
 import { createIncome } from '../incomes/api/incomeApi.js';
+import { createIncomes } from '../../shared/vault/vaultIncomes.js';
+import { getIncomeCategory } from '../incomes/constants/incomeCategories.js';
 import { getAccounts } from '../../shared/vault/vaultAccounts.js';
 import { getPendingSms, getSmsSettings, markSmsHandled, markSmsHandledMany, dropRecordedSms } from '../../shared/native/smsInbox.js';
 import { smsExpenseDraft, smsIncomeDraft } from './smsDrafts.js';
@@ -91,6 +93,28 @@ async function recordSmsExpenses(items, { accounts = [], category = getSmsSettin
   return recorded;
 }
 
+/**
+ * Record several waiting deposits together as incomes of `category`, a chunk at a time like
+ * recordSmsExpenses
+ * @returns {Promise<number>} how many were recorded
+ */
+async function recordSmsIncomes(items, { accounts = [], category = getSmsSettings().incomeCategory } = {}) {
+  let recorded = 0;
+  for (let i = 0; i < items.length; i += RECORD_CHUNK) {
+    const chunk = items.slice(i, i + RECORD_CHUNK);
+    const inputs = [];
+    for (const item of chunk) {
+      const accountId = accounts ? await ensureSmsAccount(item.tx, accounts) : '';
+      inputs.push({ ...smsIncomeDraft(item.tx, accounts || []), accountId, category, title: getIncomeCategory(category).label, currency: 'IRT' });
+    }
+    await createIncomes(inputs);
+    markSmsHandledMany(chunk.map((item) => item.fingerprint));
+    recorded += chunk.length;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  return recorded;
+}
+
 async function accountsOrNone() {
   try {
     return (await getAccounts()).accounts.filter((a) => !a.archived);
@@ -129,17 +153,22 @@ export function dropAlreadyRecorded() {
 let running = null;
 
 /**
- * Record the waiting withdrawals up to the automatic limit (when it is on). The vault must be
- * open; one run at a time.
+ * Record the waiting withdrawals and deposits up to their automatic limits (each when turned on in
+ * the app settings): withdrawals as everyday expenses, deposits as incomes of the chosen category.
+ * The vault must be open; one run at a time.
  * @returns {Promise<number>} how many were recorded
  */
-export function autoRecordSmallExpenses() {
+export function autoRecordSms() {
   if (running) return running;
   running = (async () => {
-    const { autoRecord, autoRecordMax, recordCategory } = getSmsSettings();
-    if (!autoRecord) return 0;
-    const small = (list) => list.filter((p) => p.tx?.direction === 'debit' && p.tx.amount > 0 && p.tx.amount <= autoRecordMax);
-    if (!small(getPendingSms()).length) return 0;
+    const { autoRecord, autoRecordMax, recordCategory, autoRecordIncome, autoRecordIncomeMax, incomeCategory } = getSmsSettings();
+    if (!autoRecord && !autoRecordIncome) return 0;
+    const small = (list, direction, max) => list.filter((p) => p.tx?.direction === direction && p.tx.amount > 0 && p.tx.amount <= max);
+    const todo = (list) => [
+      ...(autoRecord ? small(list, 'debit', autoRecordMax) : []),
+      ...(autoRecordIncome ? small(list, 'credit', autoRecordIncomeMax) : []),
+    ];
+    if (!todo(getPendingSms()).length) return 0;
 
     // Already recorded (here, on another device, or by hand): gone from the inbox first
     await dropAlreadyRecorded();
@@ -147,7 +176,11 @@ export function autoRecordSmallExpenses() {
     const accounts = await accountsOrNone();
     // The inbox is newest first: recorded in the order they happened, stored together (a long
     // read of earlier messages is a few requests, not one per message)
-    return recordSmsExpenses(small(getPendingSms()).reverse(), { accounts, category: recordCategory });
+    const pending = getPendingSms();
+    let recorded = 0;
+    if (autoRecord) recorded += await recordSmsExpenses(small(pending, 'debit', autoRecordMax).reverse(), { accounts, category: recordCategory });
+    if (autoRecordIncome) recorded += await recordSmsIncomes(small(pending, 'credit', autoRecordIncomeMax).reverse(), { accounts, category: incomeCategory });
+    return recorded;
   })().finally(() => {
     running = null;
   });

@@ -17,8 +17,8 @@
 import { validateIncome } from '../../utils/incomeDocument.js';
 import { sameLink } from '../../utils/portfolioLink.js';
 import { tomanRateOn } from './recordRates.js';
-import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
-import { putRecord, backfillRecordDates, repairRecordDates } from './vaultRecordMeta.js';
+import { listVaultRecords, deleteVaultRecord, putVaultRecords, VAULT_BATCH_MAX } from './vaultApi.js';
+import { putRecord, recordDateOf, backfillRecordDates, repairRecordDates } from './vaultRecordMeta.js';
 import { encryptVaultRecord, decryptVaultRecord, decryptVaultRecords } from './vaultStore.js';
 import { syncRecordLinks, releaseRecordLinks } from './recordLinks.js';
 import { recordOwnerOf, ownedRecordMessage } from '../../utils/recordOwners.js';
@@ -119,6 +119,39 @@ export async function createIncome(incomeData) {
  * An income another feature recorded (a cleared cheque's) is changed only by that feature
  * (recordOwners.js): its page, through recordLinks.js / spendingRecords.js, which pass `asOwner`
  */
+/**
+ * Create many incomes together (e.g. a run of bank SMS deposits recorded automatically): checked,
+ * encrypted and stored VAULT_BATCH_MAX at a time, one request each, giving the screen a turn
+ * between chunks. Ones that sell a portfolio holding are created one at a time (createIncome).
+ * @param {object[]} list incomes as createIncome takes them
+ * @returns {Promise<object[]>} the created incomes, in order
+ */
+export async function createIncomes(list) {
+  if (list.some((data) => data.soldFrom)) {
+    const created = [];
+    for (const data of list) created.push((await createIncome(data)).income);
+    return created;
+  }
+  const now = new Date().toISOString();
+  const created = [];
+  for (let i = 0; i < list.length; i += VAULT_BATCH_MAX) {
+    const chunk = list.slice(i, i + VAULT_BATCH_MAX).map((data) => ({ id: newIncomeId(), ...parseIncomeInput(data), createdAt: now, updatedAt: now }));
+    const records = await Promise.all(chunk.map(async (income) => ({
+      id: income.id,
+      payload: await encryptVaultRecord(income),
+      recordDate: recordDateOf(KIND, income),
+    })));
+    await putVaultRecords(KIND, records);
+    for (const income of chunk) {
+      incomes.set(income.id, income);
+      await syncRecordLinks('income', income, null);
+    }
+    created.push(...chunk);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  return created;
+}
+
 function assertNotOwned(income, asOwner) {
   if (income && !asOwner && recordOwnerOf(income)) throw new IncomeValidationError(ownedRecordMessage(income, 'income'), 403);
 }

@@ -14,6 +14,7 @@ import { Smartphone, MessageSquareText, Fingerprint, Info, ArrowLeft, RefreshCw,
 import { AlertBanner, Button, Card, FeaturePageHeader } from '../../shared/ui/index.js';
 import { NumericInput } from '../../shared/ui/NumericInput.jsx';
 import { getExpenseCategory } from '../expenses/constants/expenseCategories.js';
+import { getIncomeCategory } from '../incomes/constants/incomeCategories.js';
 import { useCategories } from '../../shared/categories/useCategories.js';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { useVault } from '../../shared/vault/useVault.js';
@@ -153,6 +154,64 @@ function SmsRecordSettings({ settings }) {
           ثبت خودکار و «ثبت سریع» در «{getExpenseCategory(settings.recordCategory).label}» ثبت می‌کنند. بعداً می‌توانید دسته را در فهرست هزینه‌ها عوض کنید.
         </small>
       </div>
+    </div>
+  );
+}
+
+/** Small deposits: recorded by themselves up to an amount, as incomes of a chosen category */
+function SmsIncomeRecordSettings({ settings }) {
+  const categories = useCategories('income', { keep: settings.incomeCategory });
+  const [max, setMax] = useState(String(settings.autoRecordIncomeMax));
+  const saveMax = () => {
+    const value = digits(max);
+    if (value > 0) setSmsSettings({ autoRecordIncomeMax: value });
+    else setMax(String(settings.autoRecordIncomeMax));
+  };
+  return (
+    <div className="app-setting-block">
+      <div className="app-setting-row">
+        <div>
+          <strong>ثبت خودکار واریزهای کوچک</strong>
+          <p>واریزهای تا مبلغ زیر، بدون پرسیدن، به‌عنوان درآمد در دسته‌ی انتخابی ثبت می‌شوند (وقتی اطلاعات رمزنگاری‌شده باز است). واریزهای بزرگ‌تر در صفحه‌ی پیامک‌ها می‌مانند تا خودتان تعیین کنید (درآمد، وام، دنگ یا انتقال).</p>
+        </div>
+        <Switch checked={settings.autoRecordIncome} onChange={(on) => setSmsSettings({ autoRecordIncome: on })} label="ثبت خودکار واریزهای کوچک" />
+      </div>
+      {settings.autoRecordIncome && (
+        <>
+          <div className="app-setting-field">
+            <label htmlFor="sms-auto-income-max">تا مبلغ</label>
+            <NumericInput
+              id="sms-auto-income-max"
+              value={max}
+              onValueChange={setMax}
+              onBlur={saveMax}
+              affix="تومان"
+            />
+          </div>
+          <div className="app-setting-field">
+            <span>دسته‌ی واریزهای خودکار</span>
+            <div className="app-category-chips" role="radiogroup" aria-label="دسته‌ی درآمد">
+              {categories.map(({ value, label, Icon, color }) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={settings.incomeCategory === value}
+                  className={`app-category-chip ${settings.incomeCategory === value ? 'is-active' : ''}`}
+                  style={{ '--chip-color': color }}
+                  onClick={() => setSmsSettings({ incomeCategory: value })}
+                >
+                  <Icon size={14} />
+                  {label}
+                </button>
+              ))}
+            </div>
+            <small>
+              واریزهای کوچک در «{getIncomeCategory(settings.incomeCategory).label}» ثبت می‌شوند. بعداً می‌توانید دسته را در فهرست درآمدها عوض کنید.
+            </small>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -482,6 +541,7 @@ export default function AppSettingsView({ onOpenSms }) {
           <SmsBankSettings settings={settings} />
 
           <SmsRecordSettings key={settings.autoRecordMax} settings={settings} />
+          <SmsIncomeRecordSettings key={`income-${settings.autoRecordIncomeMax}`} settings={settings} />
 
           {permission === 'denied' && (
             <AlertBanner type="warning" message="اجازه‌ی خواندن پیامک داده نشده است. از تنظیمات گوشی (برنامه‌ها ← RealRate ← مجوزها ← پیامک) آن را بدهید." />
