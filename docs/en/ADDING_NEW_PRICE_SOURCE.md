@@ -56,6 +56,8 @@ What a source gives is read from its config alone (`domain/priceSources.js`, `so
 | multi-output (چندخروجی) | `outputs: "multi"` | world currencies (forex), tgju series | several, each with its own id |
 | catalog (کاتالوگ) | `isCatalog: true` + `market` | exchange symbols, Mofid and Charisma funds | a market's whole list, ids `${market}__${symbol}` |
 
+A catalog can also be any JSON feed of priced rows (`sourceType: "json_catalog"`): the source's `catalogFields` say which row fields make the id and name (lists joined together) and the price, `rowsPath` where the rows are when the feed is an object. Cars use it (`src_def_cars`, market `car`, one item per model and year): the feed URL is the Worker var `CAR_PRICES_URL`, and rows look like `{ brand, model, year, priceToman }`. Until the var is set the source reports "آدرس فید ... تنظیم نشده" in the admin and nothing breaks; a car missing from the feed is held as a personal asset with a manual price.
+
 A catalog's list is **merged with its previous one** (`mergeCatalogItems`): a symbol a fetch leaves out, or gives without a price, keeps its last price, so a partial answer never empties a market.
 
 Everything a source needs lives in its config, never in its adapter: the endpoint, `jsonPath`/`regex` (api_url), `series` (tgju), `metaEndpoint` and `symbolMap` (Charisma funds: English name → exchange ticker), and `knownItems` (the names and units shown for an item known only by its id, e.g. Charisma's plans). An api_url source whose answer `jsonPath` can't reach may set `customParser(data, src)` returning a number.

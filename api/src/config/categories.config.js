@@ -82,6 +82,15 @@ export const CATEGORIES_CONFIG = [
     order: 8,
   },
   {
+    // Vehicles priced per model and year by a catalog feed (the `car` market in sources.config.js)
+    key: 'car',
+    name: 'خودرو',
+    badge: 'خودرو',
+    iconName: 'Car',
+    color: 'orange',
+    order: 9,
+  },
+  {
     // Market indicators, not assets: a coin's bubble (its price above its gold's value). Shown on
     // cards and charts, never bought or held — `holdable: false` keeps them out of the portfolio
     key: 'bubble',
@@ -89,7 +98,7 @@ export const CATEGORIES_CONFIG = [
     badge: 'حباب',
     iconName: 'Gauge',
     color: 'amber',
-    order: 9,
+    order: 10,
     holdable: false,
   },
   {
@@ -98,7 +107,7 @@ export const CATEGORIES_CONFIG = [
     badge: 'سفارشی',
     iconName: 'Sparkles',
     color: 'blue',
-    order: 10,
+    order: 11,
   },
 ];
 
