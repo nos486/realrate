@@ -81,6 +81,7 @@ export const DAILY_EXPENSE_CATEGORIES = [
   { value: 'gifts', label: 'هدیه و خیریه' },
   { value: 'installments', label: 'پرداخت قسط' },
   { value: 'credit_fees', label: 'کارمزد و سود اعتبار' },
+  { value: 'running_costs', label: 'هزینه‌های جاری' },
   { value: 'investment', label: 'سرمایه‌گذاری' },
   { value: 'cash_management', label: 'مدیریت نقدینگی' },
   { value: 'other', label: 'سایر' },

@@ -41,8 +41,8 @@ const READ_OVERLAP_MS = 60 * 60 * 1000;
  *  a call (BankSmsPlugin MAX_MESSAGES), and a busy account has that many in a few months */
 export const READ_WINDOW_DAYS = 30;
 
-/** How far back a read by hand may go (days) */
-export const MAX_READ_DAYS = 730;
+/** How far back a read by hand may go (days): a sanity cap of a century, in practice no limit */
+export const MAX_READ_DAYS = 36_500;
 
 /**
  * The bank messages since `since` (epoch millis), newest first: one call for a short span, else a
