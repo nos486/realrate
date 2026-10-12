@@ -9,6 +9,7 @@
  *   category (a cheque is a way of paying, not a category), still paid with it
  * - (v3) the rates older expenses stored are dropped (every rate is the price history's)
  * - (v4) an installment recorded more than once (its id changed between payments) keeps one expense
+ * - (v5) the installment expenses of a loan that was deleted are removed
  * Each goes through spendingRecords.js: a payment already recorded by hand that day (same amount)
  * is linked instead of recorded twice, and its own id makes a second run (another device, a run
  * cut short) rewrite the same records — so it is safe to run more than once.
@@ -27,6 +28,7 @@ const DONE_KEY = 'realrate_spending_backfill_v1';
 const CHEQUE_CATEGORY_KEY = 'realrate_cheque_category_v1';
 const STORED_RATES_KEY = 'realrate_stored_rates_v1';
 const LOAN_DUPLICATES_KEY = 'realrate_loan_duplicates_v2';
+const ORPHAN_LOAN_KEY = 'realrate_orphan_loan_expenses_v1';
 /** The categories a cheque's record had before cheques became a way of paying */
 const RETIRED_CHEQUE_CATEGORY = 'cheques';
 
@@ -243,5 +245,38 @@ export async function runLoanDuplicateCleanup({ userId, expenses }) {
     }
   });
   if (ok) markDone(userId, LOAN_DUPLICATES_KEY);
+  return ok;
+}
+
+/**
+ * The installment expenses recorded by a loan that no longer exists (its deletion used to leave
+ * them behind). Only ones the loan recorded and that name the missing loan.
+ * @param {object[]} expenses all the expenses
+ * @param {Set<string>} loanIds the loans that exist
+ * @returns {object[]} the expenses to delete
+ */
+export function findOrphanLoanExpenses(expenses, loanIds) {
+  return expenses.filter((e) => e.loanInstallment && recordOwnerOf(e) === 'loan' && !loanIds.has(e.loanInstallment.loanId));
+}
+
+/**
+ * (v5) The installment expenses of deleted loans go — once per user on this device
+ * @param {{ userId: string, expenses: boolean }} options
+ * @returns {Promise<boolean>} whether it ran to the end
+ */
+export async function runOrphanLoanExpenseCleanup({ userId, expenses }) {
+  if (!userId || !expenses || done(userId, ORPHAN_LOAN_KEY)) return false;
+  const ok = await step('orphan loan expenses', async () => {
+    const store = await import('./vaultExpenses.js');
+    const api = await import('../../features/loans/api/loanApi.js');
+    // A loans list that could not be read must not look like "no loans"
+    const { loans, success } = await api.getLoans();
+    if (success === false || !Array.isArray(loans)) throw new Error('loans not readable');
+    const { expenses: all = [] } = await store.getExpenses();
+    for (const e of findOrphanLoanExpenses(all, new Set(loans.map((l) => l.id)))) {
+      await store.deleteExpense(e.id, e, { syncLinks: false, asOwner: true });
+    }
+  });
+  if (ok) markDone(userId, ORPHAN_LOAN_KEY);
   return ok;
 }

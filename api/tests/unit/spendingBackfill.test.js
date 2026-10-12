@@ -66,7 +66,7 @@ vi.mock('../../../web/src/shared/vault/vaultSubscriptions.js', () => ({
   saveSubscription: async (input, existing) => ({ subscription: { ...existing, ...input } }),
 }));
 
-const { runSpendingBackfill, runChequeCategoryMigration, findDuplicateInstallmentExpenses } = await import('../../../web/src/shared/vault/spendingBackfill.js');
+const { runSpendingBackfill, runChequeCategoryMigration, findDuplicateInstallmentExpenses, findOrphanLoanExpenses } = await import('../../../web/src/shared/vault/spendingBackfill.js');
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -146,5 +146,14 @@ describe('duplicate installment expenses', () => {
     expect(findDuplicateInstallmentExpenses([exp('a', 'x'), exp('b', 'y'), exp('c', 'z', { recordedBy: undefined, id: 'exp_user' })], l)).toEqual([]);
     expect(findDuplicateInstallmentExpenses([exp('a', 'x', { amount: 200 }), exp('b', 'y', { amount: 200 }), exp('c', 'z', { amount: 200 })], l)).toEqual([]);
     expect(findDuplicateInstallmentExpenses([exp('a', 'x'), exp('b', 'y')], loans([inst(1, { isPaid: false, paidDate: '', paidAmount: 0 })]))).toEqual([]);
+  });
+});
+
+describe('expenses of deleted loans', () => {
+  const exp = (id, loanId, extra = {}) => ({ id, recordedBy: 'loan', loanInstallment: { loanId, installmentId: 'i' }, ...extra });
+
+  it('finds the installment expenses a loan recorded for a loan that is gone, and only those', () => {
+    const list = [exp('a', 'gone'), exp('b', 'here'), exp('c', 'gone', { recordedBy: undefined, id: 'exp_user' }), { id: 'd', recordedBy: 'loan' }];
+    expect(findOrphanLoanExpenses(list, new Set(['here'])).map((e) => e.id)).toEqual(['a']);
   });
 });
