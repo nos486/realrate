@@ -12,7 +12,7 @@ import { Landmark, Plus, ChevronLeft } from 'lucide-react';
 import { Button, Modal } from '../../shared/ui/index.js';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { appPath } from '../../shared/routes.js';
-import { dismissSms } from '../../shared/native/smsInbox.js';
+import { recordSmsLoanDeposit } from './smsRecord.js';
 import { useOptionalLoans } from '../loans/context/LoansContext.jsx';
 import { fundingLoanOptions } from '../../utils/loanFunding.js';
 import { formatAmount } from '../expenses/utils/format.js';
@@ -23,10 +23,14 @@ export default function LoanDepositSheet({ item, onClose }) {
   const loans = fundingLoanOptions(useOptionalLoans());
   const { tx } = item;
 
-  const handleExisting = (loan) => {
-    dismissSms(item.fingerprint);
-    toast.success(`واریز به‌عنوان دریافت «${loan.title}» کنار رفت؛ درآمد ثبت نشد.`);
-    onClose();
+  const handleExisting = async (loan) => {
+    try {
+      await recordSmsLoanDeposit(item, loan);
+      toast.success(`واریز به‌عنوان دریافت «${loan.title}» در دسته‌ی «دریافت وام» ثبت شد؛ جزو جمع درآمد نیست.`);
+      onClose();
+    } catch (err) {
+      toast.error(err?.message || 'ثبت واریز ممکن نشد.');
+    }
   };
 
   const handleNew = () => {
@@ -42,7 +46,7 @@ export default function LoanDepositSheet({ item, onClose }) {
       isOpen
       onClose={onClose}
       title="این واریزِ وام است"
-      subtitle={`${formatAmount(tx.amount)} تومان — وام درآمد نیست و در درآمدها ثبت نمی‌شود`}
+      subtitle={`${formatAmount(tx.amount)} تومان — وام درآمد نیست و در دسته‌ی «دریافت وام» (خارج از جمع) ثبت می‌شود`}
       icon={<Landmark size={18} />}
       maxWidth="460px"
     >

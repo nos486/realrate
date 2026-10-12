@@ -23,7 +23,7 @@ import { useVault } from '../../shared/vault/useVault.js';
 import { useDemo } from '../demo/index.js';
 import { useAccounts } from '../accounts/hooks/useAccounts.js';
 import { usePricing } from '../market/index.js';
-import { markSmsHandled, readSmsDays, smsPermission, getSmsSettings, smsOutcome, getPendingSms, MAX_READ_DAYS } from '../../shared/native/smsInbox.js';
+import { markSmsHandled, restoreSms, readSmsDays, smsPermission, getSmsSettings, smsOutcome, getPendingSms, MAX_READ_DAYS } from '../../shared/native/smsInbox.js';
 import SmsReadHistory from './SmsReadHistory.jsx';
 import { useSmsInbox } from '../../shared/native/useSmsInbox.js';
 import { createIncome } from '../incomes/api/incomeApi.js';
@@ -168,6 +168,13 @@ export default function SmsInboxPage() {
     }
   };
 
+  /** A message dismissed by mistake: back in the inbox, ready to record or edit */
+  const handleRestore = (item) => {
+    if (!restoreSms(item)) return;
+    setReadHistory((list) => list.filter((h) => h.fingerprint !== item.fingerprint));
+    toast.success('پیامک به فهرست برگشت و می‌توانید آن را ثبت یا ویرایش کنید.');
+  };
+
   const handleReadPast = async () => {
     if (!readDays) return;
     setReading(true);
@@ -251,7 +258,7 @@ export default function SmsInboxPage() {
         {readDays > 90 && <p className="expense-form-hint">خواندن بازه‌ی طولانی ممکن است چند ثانیه طول بکشد.</p>}
       </Card>
 
-      <SmsReadHistory items={readHistory} />
+      <SmsReadHistory items={readHistory} onRestore={handleRestore} />
 
       {expenseDraft && (
         <ExpenseForm

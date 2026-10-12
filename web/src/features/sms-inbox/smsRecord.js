@@ -13,9 +13,10 @@
 
 import { getExpenseCategory } from '../expenses/constants/expenseCategories.js';
 import * as expensesApi from '../../shared/vault/vaultExpenses.js';
+import { createIncome } from '../incomes/api/incomeApi.js';
 import { getAccounts } from '../../shared/vault/vaultAccounts.js';
 import { getPendingSms, getSmsSettings, markSmsHandled, dropRecordedSms } from '../../shared/native/smsInbox.js';
-import { smsExpenseDraft } from './smsDrafts.js';
+import { smsExpenseDraft, smsIncomeDraft } from './smsDrafts.js';
 import { ensureSmsAccount } from './smsAccounts.js';
 import { findRecorded, sameDayKey } from './recordedCheck.js';
 
@@ -40,6 +41,26 @@ export async function recordSmsExpense(item, { accounts = [], category = getSmsS
   const { expense } = await saveSmsExpense({ ...smsExpenseDraft(item.tx, accounts || []), accountId, category, title: getExpenseCategory(category).label, currency: 'IRT' });
   markSmsHandled(item.fingerprint);
   return expense;
+}
+
+/**
+ * Record a waiting deposit that is a received loan: an income in «دریافت وام», which is outside
+ * the income totals (a debt, not earnings) but keeps the account's balance right
+ * @param {{ fingerprint: string, tx: object }} item a waiting message
+ * @param {{ title: string }} loan the loan the money came from
+ * @returns {Promise<object>} the income
+ */
+export async function recordSmsLoanDeposit(item, loan) {
+  const accounts = await accountsOrNone();
+  const accountId = accounts ? await ensureSmsAccount(item.tx, accounts) : '';
+  const { income } = await createIncome({
+    ...smsIncomeDraft(item.tx, accounts || []),
+    accountId,
+    category: 'loan_received',
+    title: `دریافت وام ${loan.title}`.slice(0, 120),
+  });
+  markSmsHandled(item.fingerprint);
+  return income;
 }
 
 async function accountsOrNone() {

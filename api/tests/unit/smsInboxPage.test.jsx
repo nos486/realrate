@@ -317,7 +317,7 @@ describe('«وام»: a deposit that is a received loan', () => {
   const openMenus = () => screen.getAllByLabelText('گزینه‌های این پیامک').forEach((b) => fireEvent.click(b));
   const loanButton = () => screen.getByText(LOAN).closest('button');
 
-  it('only on deposits; choosing a loan drops the message without recording income', async () => {
+  it('only on deposits; choosing a loan records it as an income in «دریافت وام» (outside the totals)', async () => {
     loans.list = [
       { id: 'loan_a', title: 'وام مسکن', principalAmount: 250000, installmentCount: 12, paidCount: 0, remainingBalance: 250000 },
       { id: 'loan_s', title: 'وام تسویه‌شده', principalAmount: 1000, installmentCount: 1, paidCount: 1, remainingBalance: 0 },
@@ -331,7 +331,8 @@ describe('«وام»: a deposit that is a received loan', () => {
     fireEvent.click(screen.getByText('وام مسکن').closest('button'));
     await waitFor(() => expect(getPendingSms()).toHaveLength(1));
     expect(getPendingSms()[0].tx.direction).toBe('debit');
-    expect(incomes.createIncome).not.toHaveBeenCalled();
+    expect(incomes.createIncome).toHaveBeenCalledTimes(1);
+    expect(incomes.createIncome.mock.calls[0][0]).toMatchObject({ category: 'loan_received', amount: 250000 });
   });
 
   it('a new loan opens the loans page with the amount, day and bank, keeping the message until saved', async () => {

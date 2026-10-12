@@ -219,6 +219,28 @@ export function dismissSms(fingerprint) {
 }
 
 /**
+ * Bring a dismissed message back to the inbox (a «رد» by mistake): forgotten as dismissed, waiting
+ * again so it can be recorded or edited
+ * @param {{ fingerprint: string, receivedAt: number, sender: string, tx: object }} item
+ * @returns {boolean} whether it was dismissed (and is waiting again)
+ */
+export function restoreSms(item) {
+  const ids = [item?.fingerprint, item?.tx?.key].filter(Boolean);
+  const dismissed = read(DISMISSED_KEY, []);
+  if (!item?.tx || !dismissed.some((id) => ids.includes(id))) return false;
+  write(DISMISSED_KEY, dismissed.filter((id) => !ids.includes(id)));
+  // Also out of the recorded list: recording is checked against the vault again anyway
+  const pending = getPendingSms();
+  if (!pending.some((p) => p.fingerprint === item.fingerprint)) {
+    pending.push({ fingerprint: item.fingerprint, receivedAt: item.receivedAt, sender: item.sender, tx: item.tx });
+    pending.sort((a, b) => b.receivedAt - a.receivedAt);
+    write(PENDING_KEY, pending);
+  }
+  notify();
+  return true;
+}
+
+/**
  * Drop the waiting messages whose transaction is already recorded (an expense or income with
  * that `smsKey`)
  * @param {Iterable<string>} recordedKeys
