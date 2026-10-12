@@ -9,12 +9,14 @@
     android:paddingTop="7dp"
     android:paddingBottom="7dp">
 
-    <View
+    <!-- An ImageView, not a View: RemoteViews allow no plain View -->
+    <ImageView
         android:id="@+id/row_bar"
         android:layout_width="3dp"
         android:layout_height="match_parent"
         android:layout_marginEnd="9dp"
-        android:background="@color/widget_accent" />
+        android:background="@color/widget_accent"
+        android:importantForAccessibility="no" />
 
     <LinearLayout
         android:layout_width="0dp"
