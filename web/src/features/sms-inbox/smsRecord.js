@@ -155,19 +155,23 @@ let running = null;
 /**
  * Record the waiting withdrawals and deposits up to their automatic limits (each when turned on in
  * the app settings): withdrawals as everyday expenses, deposits as incomes of the chosen category.
- * The vault must be open; one run at a time.
+ * With `rule`, a one-off run instead of the settings — what a read of earlier messages records of
+ * what it found (see below). The vault must be open; one run at a time.
+ * @param {{ expense?: { max: number, category: string }, income?: { max: number, category: string },
+ *   from?: string, to?: string }} [rule] limits and categories for this run, and the days
+ *   (YYYY-MM-DD, inclusive) the messages must be of
  * @returns {Promise<number>} how many were recorded
  */
-export function autoRecordSms() {
-  if (running) return running;
+export function autoRecordSms(rule) {
+  if (running) return rule ? running.catch(() => {}).then(() => autoRecordSms(rule)) : running;
   running = (async () => {
-    const { autoRecord, autoRecordMax, recordCategory, autoRecordIncome, autoRecordIncomeMax, incomeCategory } = getSmsSettings();
-    if (!autoRecord && !autoRecordIncome) return 0;
-    const small = (list, direction, max) => list.filter((p) => p.tx?.direction === direction && p.tx.amount > 0 && p.tx.amount <= max);
-    const todo = (list) => [
-      ...(autoRecord ? small(list, 'debit', autoRecordMax) : []),
-      ...(autoRecordIncome ? small(list, 'credit', autoRecordIncomeMax) : []),
-    ];
+    const s = getSmsSettings();
+    const expense = rule ? rule.expense : (s.autoRecord ? { max: s.autoRecordMax, category: s.recordCategory } : null);
+    const income = rule ? rule.income : (s.autoRecordIncome ? { max: s.autoRecordIncomeMax, category: s.incomeCategory } : null);
+    if (!expense && !income) return 0;
+    const inRange = (p) => (!rule?.from || p.tx.date >= rule.from) && (!rule?.to || p.tx.date <= rule.to);
+    const small = (list, direction, limit) => list.filter((p) => p.tx?.direction === direction && p.tx.amount > 0 && p.tx.amount <= limit.max && inRange(p));
+    const todo = (list) => [...(expense ? small(list, 'debit', expense) : []), ...(income ? small(list, 'credit', income) : [])];
     if (!todo(getPendingSms()).length) return 0;
 
     // Already recorded (here, on another device, or by hand): gone from the inbox first
@@ -178,8 +182,8 @@ export function autoRecordSms() {
     // read of earlier messages is a few requests, not one per message)
     const pending = getPendingSms();
     let recorded = 0;
-    if (autoRecord) recorded += await recordSmsExpenses(small(pending, 'debit', autoRecordMax).reverse(), { accounts, category: recordCategory });
-    if (autoRecordIncome) recorded += await recordSmsIncomes(small(pending, 'credit', autoRecordIncomeMax).reverse(), { accounts, category: incomeCategory });
+    if (expense) recorded += await recordSmsExpenses(small(pending, 'debit', expense).reverse(), { accounts, category: expense.category });
+    if (income) recorded += await recordSmsIncomes(small(pending, 'credit', income).reverse(), { accounts, category: income.category });
     return recorded;
   })().finally(() => {
     running = null;

@@ -35,6 +35,7 @@ import {
   dismissSms,
   restoreSms,
   markSmsHandledMany,
+  readSmsRange,
   readSmsDays,
   autoReadSms,
   setSmsSettings,
@@ -144,6 +145,21 @@ describe('SMS inbox', () => {
     expect(reading.map((p) => p.done)).toEqual([1, 2, 3]);
     expect(reading.every((p) => p.total === 3)).toBe(true);
     expect(steps.at(-1)).toMatchObject({ stage: 'parsing', done: 2, total: 2 });
+  });
+
+  it('reads a range of days: from the start of the first to the end of the last, without moving the automatic read', async () => {
+    plugin.read.mockReset();
+    plugin.read.mockResolvedValue({ messages: [DEBIT] });
+    setSmsSettings({ lastRead: 123 });
+    const res = await readSmsRange('2026-09-20', '2026-09-28');
+    const { since, until } = plugin.read.mock.calls[0][0];
+    expect(since).toBe(Date.parse('2026-09-20T00:00:00'));
+    expect(until).toBe(Date.parse('2026-09-28T00:00:00') + 86_400_000);
+    expect(res).toMatchObject({ read: 1, added: 1 });
+    expect(res.transactions).toHaveLength(1);
+    expect(getSmsSettings().lastRead).toBe(123);
+    // Backwards is no range
+    expect(() => readSmsRange('2026-09-28', '2026-09-20')).toThrow();
   });
 
   it('reads the last N days from the bank senders', async () => {

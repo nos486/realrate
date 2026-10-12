@@ -91,6 +91,7 @@ export const BUILTIN_CATEGORIES = {
     { value: 'cash_management', label: 'مدیریت نقدینگی', icon: 'Wallet', color: '#22d3ee', excluded: true, retired: true },
     { value: 'asset_sale', label: 'فروش دارایی', icon: 'PiggyBank', color: '#34d399', excluded: true },
     { value: 'credit_settlement', label: 'تسویه بدهی اعتباری', icon: 'CreditCard', color: '#60a5fa', excluded: true },
+    { value: 'small_income', label: 'درآمد خرد', icon: 'HandCoins', color: '#a3e635' },
     { value: 'loan_received', label: 'دریافت وام', icon: 'Landmark', color: '#fb923c', excluded: true },
     { value: 'other', label: 'سایر', icon: 'CircleDollarSign', color: '#94a3b8' },
   ],
