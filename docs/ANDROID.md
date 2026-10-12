@@ -9,6 +9,7 @@
 | `web/capacitor.config.json` | شناسه اپ (`ir.realrate.app`)، نام، رنگ نوار وضعیت و اسپلش |
 | `web/android/` | پروژه‌ی اندروید (Gradle). آیکون‌ها در `app/src/main/res/mipmap-*` |
 | `web/src/shared/native/nativeApp.js` | تفاوت‌های داخل اپ: بدون service worker، رنگ‌ها، لینک‌های اشتراک به سایت، ورود با گوگل |
+| `web/android/app/src/main/java/ir/realrate/app/*Widget*.java`، `res/layout/widget_*.xml` | ویجت‌های صفحه‌ی اصلی (قیمت‌ها و اخبار): `WidgetFeed` فید `GET /api/widget` را می‌خواند و آخرین نسخه را نگه می‌دارد، `WidgetRenderer` ظاهر و دکمه‌ها را می‌سازد، `*WidgetService` ردیف‌ها را؛ `WidgetsPlugin` و `web/src/shared/native/widgets.js` دارایی‌های موردعلاقه، افزودن ویجت و لینک `ir.realrate.app://widget/<صفحه>` را به اپ وصل می‌کنند |
 | `api/src/lib/appAuth.js` | ورود با گوگل از اپ (کد یک‌بارمصرف) |
 | `.github/workflows/android.yml` | ساخت خودکار APK |
 

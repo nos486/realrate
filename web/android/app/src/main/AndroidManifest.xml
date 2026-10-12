@@ -42,6 +42,38 @@
             </intent-filter>
         </receiver>
 
+        <!-- Home-screen widgets: the favourites' prices and the AI news (WidgetProviderBase) -->
+        <receiver
+            android:name=".PricesWidgetProvider"
+            android:label="@string/widget_prices_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_prices_info" />
+        </receiver>
+        <receiver
+            android:name=".NewsWidgetProvider"
+            android:label="@string/widget_news_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_news_info" />
+        </receiver>
+        <service
+            android:name=".PricesWidgetService"
+            android:exported="false"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
+        <service
+            android:name=".NewsWidgetService"
+            android:exported="false"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
