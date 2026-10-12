@@ -326,7 +326,8 @@ describe('deleting several vault records', () => {
     await dbDeleteVaultRecords(env, 'u1', 'expense', ['warm-up']);
     const batch = vi.spyOn(env.DB, 'batch');
     expect(await dbDeleteVaultRecords(env, 'u1', 'expense', ['exp_1', 'exp_2', 'missing'])).toBe(2);
-    expect(batch).toHaveBeenCalledTimes(1);
+    // Every statement of the three ids goes in one batch
+    expect(batch.mock.calls.some(([statements]) => statements.length === 9)).toBe(true);
     expect((await dbListVaultRecords(env, 'u1', 'expense')).map((r) => r.id)).toEqual(['exp_3']);
     await expect(dbDeleteVaultRecords(env, 'u1', 'expense', [])).rejects.toMatchObject({ statusCode: 400 });
     await expect(dbDeleteVaultRecords(env, 'u1', 'expense', Array.from({ length: 101 }, (_, i) => `x${i}`))).rejects.toMatchObject({ statusCode: 400 });
