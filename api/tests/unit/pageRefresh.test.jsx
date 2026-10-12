@@ -16,7 +16,7 @@ vi.mock('../../../web/src/shared/offline/offlineSync.js', () => ({
   syncNow: () => offline.syncNow(),
 }));
 const native = { on: false, resume: [] };
-vi.mock('../../../web/src/shared/native/nativeApp.js', () => ({ isNativeApp: () => native.on, smsEnabled: () => native.on }));
+vi.mock('../../../web/src/shared/native/nativeApp.js', () => ({ isNativeApp: () => native.on, smsEnabled: () => native.on, selfUpdateEnabled: () => native.on }));
 vi.mock('@capacitor/app', () => ({
   App: {
     addListener: vi.fn(async (event, fn) => {

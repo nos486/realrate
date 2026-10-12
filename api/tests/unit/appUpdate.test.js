@@ -130,14 +130,12 @@ describe('releases before versioned file names', () => {
   });
 });
 
-describe('apkUrlForBuild', () => {
-  it('points the no-SMS build at its own file', async () => {
-    const { apkUrlForBuild } = await import('../../../web/src/shared/native/appUpdate.js');
-    const url = 'https://github.com/o/r/releases/download/v1.0.9/realrate.apk';
-    expect(apkUrlForBuild(url, true)).toBe(url);
-    expect(apkUrlForBuild(url, false)).toBe('https://github.com/o/r/releases/download/v1.0.9/realrate-nosms.apk');
-    const versioned = 'https://github.com/o/r/releases/download/v1.0.9/realrate-1.0.9.apk';
-    expect(apkUrlForBuild(versioned, true)).toBe(versioned);
-    expect(apkUrlForBuild(versioned, false)).toBe('https://github.com/o/r/releases/download/v1.0.9/realrate-nosms-1.0.9.apk');
+describe('selfUpdateEnabled', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('is off in the store (no-SMS) build, which has no install permission', async () => {
+    const { selfUpdateEnabled } = await import('../../../web/src/shared/native/nativeApp.js');
+    vi.stubEnv('VITE_NO_SMS', '1');
+    expect(selfUpdateEnabled()).toBe(false);
   });
 });

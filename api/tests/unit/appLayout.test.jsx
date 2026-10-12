@@ -8,7 +8,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
-vi.mock('../../../web/src/shared/native/nativeApp.js', () => ({ isNativeApp: () => false, smsEnabled: () => false }));
+vi.mock('../../../web/src/shared/native/nativeApp.js', () => ({ isNativeApp: () => false, smsEnabled: () => false, selfUpdateEnabled: () => false }));
 vi.mock('../../../web/src/components/Header.jsx', () => ({ default: () => <header className="site-header" /> }));
 vi.mock('../../../web/src/components/Footer.jsx', () => ({ default: () => <footer /> }));
 vi.mock('../../../web/src/shared/app/AppShell.jsx', () => ({

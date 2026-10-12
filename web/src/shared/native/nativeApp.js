@@ -47,6 +47,15 @@ export function smsEnabled() {
   return isNativeApp() && import.meta.env?.VITE_NO_SMS !== '1';
 }
 
+/**
+ * Whether this build updates itself from the GitHub release (download an APK, open Android's
+ * installer, `REQUEST_INSTALL_PACKAGES`). The "nosms" build is the store build: it has neither
+ * the permission nor the update surfaces, and the store delivers its updates.
+ */
+export function selfUpdateEnabled() {
+  return isNativeApp() && import.meta.env?.VITE_NO_SMS !== '1';
+}
+
 /** Origin for links shared with others: the website (inside the app, the page's origin is local) */
 export function publicOrigin() {
   return isNativeApp() ? PUBLIC_SITE_ORIGIN : window.location.origin;
