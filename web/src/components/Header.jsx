@@ -13,6 +13,7 @@ import { usePrivacyMode, setPrivacyMode } from '../hooks/usePrivacyMode.js';
 import { APP_BASE, LANDING_PATH } from '../shared/routes.js';
 import { useVault } from '../shared/vault/useVault.js';
 import { lockAll } from '../shared/vault/vaultStore.js';
+import PlanBadge from '../shared/plan/PlanBadge.jsx';
 import PageRefreshButton from '../shared/refresh/PageRefreshButton.jsx';
 import { PRIVATE_VALUE_TABS } from '../shared/app/privacyTabs.js';
 
@@ -65,6 +66,7 @@ export default function Header({ activeTab, navItems = null }) {
 
         {/* Header Right: User Profile & Auth */}
         <div className="header-right">
+          {user && !user.demo && <PlanBadge />}
           {user && <PageRefreshButton className="btn-privacy-toggle icon-only" iconSize={15} />}
           {PRIVATE_VALUE_TABS.includes(activeTab) && (
             <button

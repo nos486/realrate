@@ -47,3 +47,19 @@ describe('plan note', () => {
     expect(container.textContent).toBe('');
   });
 });
+
+import PlanBadge from '../../../web/src/shared/plan/PlanBadge.jsx';
+import PlanHomeCard from '../../../web/src/shared/plan/PlanHomeCard.jsx';
+
+describe('free plan badge and home card', () => {
+  it('shows «رایگان» and the plan card to a free user, nothing on Pro', async () => {
+    auth.user = { groups: [] };
+    render(<MemoryRouter><PlanBadge /><PlanHomeCard /></MemoryRouter>);
+    expect(screen.getByText('رایگان')).toBeTruthy();
+    expect(await screen.findByText(/هزینه و درآمد: ۱۲ از ۳۰ در این ماه/)).toBeTruthy();
+    cleanup();
+    auth.user = { groups: ['pro'] };
+    const { container } = render(<MemoryRouter><PlanBadge /><PlanHomeCard /></MemoryRouter>);
+    expect(container.textContent).toBe('');
+  });
+});
