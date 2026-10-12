@@ -20,6 +20,9 @@ import { smsExpenseDraft, smsIncomeDraft } from './smsDrafts.js';
 import { ensureSmsAccount } from './smsAccounts.js';
 import { findRecorded, sameDayKey } from './recordedCheck.js';
 
+/** Messages recorded per stored chunk */
+const RECORD_CHUNK = 100;
+
 /**
  * Save an expense from a bank SMS where the form put it: a project (`groupId`), or the everyday
  * expenses (no `groupId`: the daily section, created on first use — vaultExpenses.js)
@@ -70,14 +73,22 @@ export async function recordSmsLoanDeposit(item, loan) {
  * @returns {Promise<number>} how many were recorded
  */
 async function recordSmsExpenses(items, { accounts = [], category = getSmsSettings().recordCategory } = {}) {
-  const inputs = [];
-  for (const item of items) {
-    const accountId = accounts ? await ensureSmsAccount(item.tx, accounts) : '';
-    inputs.push({ ...smsExpenseDraft(item.tx, accounts || []), accountId, category, title: getExpenseCategory(category).label, currency: 'IRT' });
+  let recorded = 0;
+  // A chunk at a time, each leaving the inbox once stored: a long run never holds the screen, and
+  // one that fails midway keeps the rest waiting
+  for (let i = 0; i < items.length; i += RECORD_CHUNK) {
+    const chunk = items.slice(i, i + RECORD_CHUNK);
+    const inputs = [];
+    for (const item of chunk) {
+      const accountId = accounts ? await ensureSmsAccount(item.tx, accounts) : '';
+      inputs.push({ ...smsExpenseDraft(item.tx, accounts || []), accountId, category, title: getExpenseCategory(category).label, currency: 'IRT' });
+    }
+    await expensesApi.saveExpenses(inputs);
+    markSmsHandledMany(chunk.map((item) => item.fingerprint));
+    recorded += chunk.length;
+    await new Promise((resolve) => setTimeout(resolve, 0));
   }
-  await expensesApi.saveExpenses(inputs);
-  markSmsHandledMany(items.map((item) => item.fingerprint));
-  return items.length;
+  return recorded;
 }
 
 async function accountsOrNone() {

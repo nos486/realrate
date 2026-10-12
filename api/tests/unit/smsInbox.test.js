@@ -135,6 +135,17 @@ describe('SMS inbox', () => {
     expect(addSmsMessages([DEBIT, CREDIT])).toBe(0);
   });
 
+  it('reports how far a long read has come: windows read, then messages parsed', async () => {
+    plugin.read.mockReset();
+    plugin.read.mockResolvedValue({ messages: [DEBIT, CREDIT] });
+    const steps = [];
+    await readSmsDays(65, { onProgress: (p) => steps.push(p) });
+    const reading = steps.filter((p) => p.stage === 'reading');
+    expect(reading.map((p) => p.done)).toEqual([1, 2, 3]);
+    expect(reading.every((p) => p.total === 3)).toBe(true);
+    expect(steps.at(-1)).toMatchObject({ stage: 'parsing', done: 2, total: 2 });
+  });
+
   it('reads the last N days from the bank senders', async () => {
     plugin.read.mockResolvedValue({ messages: [DEBIT, CREDIT] });
     const before = Date.now();
