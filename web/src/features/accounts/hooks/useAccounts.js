@@ -3,9 +3,13 @@
  *
  * Used by the accounts page and by the expense forms (the "paid from" picker). Nothing loads
  * without the `bank_accounts` feature or while the vault is locked.
+ *
+ * Inside an AccountsProvider (context/AccountsContext.jsx) every caller shares one list: one
+ * download and decryption instead of one per component. Outside one, the hook keeps its own.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useContext } from 'react';
+import { AccountsContext } from '../context/accountsContextValue.js';
 import { useRefreshHandler } from '../../../shared/refresh/pageRefresh.js';
 import { useAuth } from '../../auth/index.js';
 import { useVault } from '../../../shared/vault/useVault.js';
@@ -13,7 +17,18 @@ import { useFeature } from '../../../shared/features/useFeature.js';
 import { compareAccounts } from '../../../utils/accountDocument.js';
 import * as api from '../../../shared/vault/vaultAccounts.js';
 
+/** The accounts and changes to them: the shared list when there is a provider, else its own */
 export function useAccounts() {
+  const shared = useContext(AccountsContext);
+  const own = useAccountsState(!shared);
+  return shared || own;
+}
+
+/**
+ * The state behind useAccounts (what AccountsProvider holds once)
+ * @param {boolean} [active] false: loads nothing (a shared list is used instead)
+ */
+export function useAccountsState(active = true) {
   const { user } = useAuth() || {};
   const enabled = useFeature('bank_accounts');
   const { status: vaultStatus, epoch: vaultEpoch } = useVault();
@@ -25,7 +40,7 @@ export function useAccounts() {
   const [error, setError] = useState(null);
 
   const fetchAccounts = useCallback(async () => {
-    if (!user || !enabled || vaultLocked) {
+    if (!active || !user || !enabled || vaultLocked) {
       setAccounts([]);
       setLoading(false);
       return;
@@ -41,13 +56,13 @@ export function useAccounts() {
     }
     // vaultEpoch: reload after unlocking
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, enabled, vaultLocked, vaultEpoch]);
+  }, [active, user, enabled, vaultLocked, vaultEpoch]);
 
   useEffect(() => {
     fetchAccounts();
   }, [fetchAccounts]);
   // The open tab's refresh (header button, window focus) reads them again
-  useRefreshHandler('accounts', fetchAccounts);
+  useRefreshHandler('accounts', fetchAccounts, active);
 
   /** Errors are re-thrown so the open form can show them */
   const saveAccount = useCallback(async (input, existing = null) => {

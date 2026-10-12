@@ -14,6 +14,7 @@ import { APP_BASE, LANDING_PATH, AUTH_PATHS, DEMO_PATH, DEMO_ENABLED } from './s
 import { PricingProvider } from './features/market/context/PricingContext.jsx';
 import { LoansProvider } from './features/loans/context/LoansContext.jsx';
 import { ChequesProvider } from './features/cheques/context/ChequesContext.jsx';
+import { AccountsProvider } from './features/accounts/context/AccountsContext.jsx';
 import { SubscriptionsProvider } from './features/subscriptions/context/SubscriptionsContext.jsx';
 // ONE-TIME: past payments into the expenses (remove with shared/vault/spendingBackfill.js)
 import SpendingBackfill from './shared/vault/SpendingBackfill.jsx';
@@ -119,8 +120,10 @@ function DueDataScope() {
     <LoansProvider>
       <ChequesProvider>
         <SubscriptionsProvider>
-          <SpendingBackfill />
-          <Outlet />
+          <AccountsProvider>
+            <SpendingBackfill />
+            <Outlet />
+          </AccountsProvider>
         </SubscriptionsProvider>
       </ChequesProvider>
     </LoansProvider>

@@ -104,6 +104,16 @@ export function isNetworkError(err) {
 }
 
 /**
+ * A refusal that is about the moment, not about the change: signed out (401), too many requests
+ * (429), a timeout (408, 425) or a Cloudflare origin error (520–530). The change stays queued and
+ * goes out at a later round — dropping it would lose what the user wrote offline.
+ */
+export function isTransientRefusal(err) {
+  if (!(err instanceof HttpError)) return false;
+  return [401, 408, 425, 429].includes(err.status) || (err.status >= 520 && err.status <= 530);
+}
+
+/**
  * A request got no answer. `certain` (the browser says it is offline): offline at once. Otherwise
  * try again shortly and say offline only if nothing reaches the server for `confirmMs`.
  */
@@ -228,8 +238,11 @@ export function syncNow() {
     try {
       do {
         again = false;
-        await pushOutbox();
-        await pull();
+        // Tabs of one browser share the copy: one round at a time among them
+        await withTabLock(async () => {
+          await pushOutbox();
+          await pull();
+        });
       } while (again && state.online);
       setState({ lastSyncAt: Date.now() });
     } catch (err) {
@@ -243,19 +256,26 @@ export function syncNow() {
   return round;
 }
 
+/** Run `fn` while no other tab of this browser is syncing the same copy (Web Locks, when there are) */
+function withTabLock(fn) {
+  const locks = typeof navigator !== 'undefined' ? navigator.locks : null;
+  if (!locks?.request || !userId) return fn();
+  return locks.request(`realrate-sync-${userId}`, fn);
+}
+
 const seg = encodeURIComponent;
 
 async function send(op) {
   if (op.op === 'delete') {
     try {
-      await httpClient.delete(`/api/vault/records/${seg(op.kind)}/${seg(op.id)}`, { silent: true });
+      await httpClient.delete(`/api/vault/records/${seg(op.kind)}/${seg(op.id)}`, { silent: true, background: true });
     } catch (err) {
       // Already gone: nothing left to do
       if (!(err instanceof HttpError && err.status === 404)) throw err;
     }
     return;
   }
-  await httpClient.put(`/api/vault/records/${seg(op.kind)}/${seg(op.id)}`, op.body, { silent: true });
+  await httpClient.put(`/api/vault/records/${seg(op.kind)}/${seg(op.id)}`, op.body, { silent: true, background: true });
 }
 
 async function pushOutbox() {
@@ -265,7 +285,7 @@ async function pushOutbox() {
     try {
       await send(op);
     } catch (err) {
-      if (isNetworkError(err)) throw err;
+      if (isNetworkError(err) || isTransientRefusal(err)) throw err;
       // The server refuses it (validation, a feature closed…): it will never go through
       refused++;
       window.dispatchEvent(new CustomEvent(OFFLINE_SYNC_ERROR_EVENT, { detail: { op, message: err.message } }));
@@ -299,7 +319,7 @@ async function pull() {
   let request = overlapped(cursor);
 
   for (;;) {
-    const res = await httpClient.get(`/api/vault/sync?cursor=${seg(request)}&limit=${SYNC_PAGE}`, { silent: true });
+    const res = await httpClient.get(`/api/vault/sync?cursor=${seg(request)}&limit=${SYNC_PAGE}`, { silent: true, background: true });
     markReachable();
     if (!restarted && (res.reset || (epoch && res.epoch !== epoch))) {
       // Another vault (a reset account) or deletions no longer known: start the copy over
@@ -316,13 +336,14 @@ async function pull() {
     const deleted = res.deleted || [];
     if (records.length || deleted.length) {
       // What the copy did not have yet (records re-read in the overlap window are not news)
-      for (const r of records) {
-        const local = await store.getRecord(r.kind, r.id);
-        if (!local || local.updatedAt !== r.updatedAt || local.payload !== r.payload) changedKinds.add(r.kind);
-      }
-      for (const d of deleted) {
-        if (await store.getRecord(d.kind, d.id)) changedKinds.add(d.kind);
-      }
+      // One transaction for all the lookups. A record changes its updatedAt whenever its content does
+      const [localRecords, localDeleted] = await Promise.all([store.getRecords(records), store.getRecords(deleted)]);
+      records.forEach((r, i) => {
+        if (!localRecords[i] || localRecords[i].updatedAt !== r.updatedAt) changedKinds.add(r.kind);
+      });
+      deleted.forEach((d, i) => {
+        if (localDeleted[i]) changedKinds.add(d.kind);
+      });
       await store.applyChanges({ put: records, remove: deleted });
     }
     cursor = res.cursor || cursor;

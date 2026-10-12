@@ -20,11 +20,11 @@ import {
   unwrapRawKey,
   e2eeEncrypt,
   e2eeDecrypt,
+  e2eeDecryptMany,
   bytesToBase64,
   base64ToBytes,
 } from '../../lib/e2ee.js';
 import { getVault, saveVault, resetVaultData, configureVaultApi } from './vaultApi.js';
-import { isNativeApp } from '../native/nativeApp.js';
 import {
   configureOffline,
   startOffline,
@@ -32,9 +32,9 @@ import {
   VAULT_CHANGED_EVENT,
 } from '../offline/offlineSync.js';
 
-// The Android app keeps an encrypted copy of the records on the device (offline, fast screens);
-// when a sync brings changes, screens holding records read them again
-configureOffline({ isEnabled: isNativeApp });
+// The device keeps an encrypted copy of the records (the Android app and the website: fast
+// screens, and offline); when a sync brings changes, screens holding records read them again
+configureOffline({ isEnabled: () => true });
 if (typeof window !== 'undefined') {
   window.addEventListener(VAULT_CHANGED_EVENT, () => bumpVaultEpoch());
 }
@@ -344,6 +344,12 @@ export async function encryptVaultRecord(value) {
 export async function decryptVaultRecord(payload) {
   const value = await e2eeDecrypt(requireDataKey(), payload);
   return value && typeof value === 'object' ? value : null;
+}
+
+/** Decrypt many vault records in batches; one entry per payload, null where one can't be decrypted */
+export async function decryptVaultRecords(payloads) {
+  const values = await e2eeDecryptMany(requireDataKey(), payloads);
+  return values.map((value) => (value && typeof value === 'object' ? value : null));
 }
 
 // ── Portfolio keys ──────────────────────────────────────────────────────────

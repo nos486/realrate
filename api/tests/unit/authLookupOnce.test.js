@@ -31,3 +31,19 @@ describe('getAuthenticatedUser', () => {
     expect(dbGetSession).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('session token from the request', () => {
+  const withCookie = (cookie) => new Request('https://api.realrate.ir/api/portfolios', { headers: { Cookie: cookie } });
+
+  it('reads the realrate_session cookie, with other cookies around it', async () => {
+    expect(await getAuthenticatedUser(withCookie('a=1; realrate_session=good; b=2'), {})).toMatchObject({ userId: 'u1' });
+  });
+
+  it('ignores a cookie that only ends with the name', async () => {
+    expect(await getAuthenticatedUser(withCookie('old_realrate_session=good'), {})).toBeNull();
+  });
+
+  it('treats a malformed cookie as no session instead of failing the request', async () => {
+    expect(await getAuthenticatedUser(withCookie('realrate_session=%E0%A4%A'), {})).toBeNull();
+  });
+});

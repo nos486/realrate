@@ -22,6 +22,7 @@ vi.mock('../../../web/src/shared/vault/vaultRecordMeta.js', () => ({ putRecord: 
 vi.mock('../../../web/src/shared/vault/vaultStore.js', () => ({
   encryptVaultRecord: vi.fn(async (plain) => JSON.stringify(plain)),
   decryptVaultRecord: vi.fn(async (payload) => JSON.parse(payload)),
+  decryptVaultRecords: async (payloads) => Promise.all(payloads.map(async (payload) => JSON.parse(payload))),
 }));
 const store = await import('../../../web/src/shared/categories/categoryStore.js');
 const { getExpenseCategory } = await import('../../../web/src/features/expenses/constants/expenseCategories.js');

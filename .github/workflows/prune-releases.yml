@@ -1,0 +1,49 @@
+# Keeps only the newest GitHub releases (default 5) and deletes the older ones; tags are left alone.
+# Runs after every Android release, and by hand (Actions → Prune releases) with a different count or a dry run.
+name: Prune releases
+
+on:
+  workflow_run:
+    workflows: [Android]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      keep:
+        description: Number of newest releases to keep
+        default: '5'
+      dry_run:
+        description: Only list what would be deleted
+        type: boolean
+        default: false
+
+concurrency:
+  group: prune-releases
+  cancel-in-progress: false
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    # After an Android run only when it succeeded (a release was published)
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    permissions:
+      contents: write # deleting releases
+    env:
+      GH_TOKEN: ${{ github.token }}
+      KEEP: ${{ inputs.keep || '5' }}
+      DRY_RUN: ${{ inputs.dry_run && 'true' || 'false' }}
+    steps:
+      - name: Delete the older releases
+        run: |
+          case "$KEEP" in ''|*[!0-9]*) echo "keep must be a number"; exit 1;; esac
+          [ "$KEEP" -ge 1 ] || { echo "keep must be at least 1"; exit 1; }
+          # Newest first (by creation date); everything after the first $KEEP goes
+          gh release list --repo "$GITHUB_REPOSITORY" --limit 1000 --json tagName,createdAt \
+            --jq 'sort_by(.createdAt) | reverse | .['"$KEEP"':][].tagName' > old.txt
+          echo "Keeping the newest $KEEP; $(wc -l < old.txt) older releases:"
+          cat old.txt
+          [ "$DRY_RUN" = "true" ] && exit 0
+          # Without --cleanup-tag: the tags stay
+          while read -r tag; do
+            gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --yes
+          done < old.txt

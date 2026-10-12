@@ -14,7 +14,7 @@ const plugin = vi.hoisted(() => ({
   addListener: vi.fn(),
 }));
 const biometric = vi.hoisted(() => ({ isAvailable: vi.fn(), has: vi.fn(), store: vi.fn(), retrieve: vi.fn(), clear: vi.fn() }));
-vi.mock('../../../web/src/shared/native/nativeApp.js', () => ({ isNativeApp: () => true }));
+vi.mock('../../../web/src/shared/native/nativeApp.js', () => ({ isNativeApp: () => true, smsEnabled: () => true }));
 vi.mock('../../../web/src/shared/native/nativePlugins.js', () => ({ BankSms: plugin, BiometricVault: biometric }));
 const vault = vi.hoisted(() => ({ secret: null, unlocked: null, state: { userId: 'usr_1', vault: { wrappedKey: 'w1' } } }));
 vi.mock('../../../web/src/shared/vault/vaultStore.js', () => ({

@@ -23,6 +23,7 @@ vi.mock('../../../web/src/shared/vault/vaultApi.js', () => ({
 vi.mock('../../../web/src/shared/vault/vaultStore.js', () => ({
   encryptVaultRecord: vi.fn(async (plain) => `enc:${JSON.stringify(plain)}`),
   decryptVaultRecord: vi.fn(async (payload) => JSON.parse(payload.slice(4))),
+  decryptVaultRecords: async (payloads) => Promise.all(payloads.map(async (payload) => JSON.parse(payload.slice(4)))),
 }));
 vi.mock('../../../web/src/features/demo/index.js', () => ({ isDemoReadOnly: () => false }));
 

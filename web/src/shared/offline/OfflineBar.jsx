@@ -2,8 +2,8 @@
  * OfflineBar.jsx — A thin bar at the top while the app has no connection, or has changes waiting
  * to be sent
  *
- * - offline: «آفلاین» — in the Android app, what you record is kept on the phone and sent later
- *   (with the count waiting); on the website, only that there is no connection
+ * - offline: «آفلاین» — with the device's copy on, what you record is kept on the device and sent
+ *   later (with the count waiting); without it, only that there is no connection
  * - back online with changes waiting: «در حال همگام‌سازی …» until they are sent
  * A change made offline that the server then refuses is reported (it cannot be kept).
  */
@@ -33,7 +33,7 @@ export default function OfflineBar() {
         <span>
           <strong>آفلاین</strong>
           {active
-            ? ` — آنچه ثبت می‌کنید روی گوشی ذخیره و پس از اتصال همگام می‌شود${pending ? ` (${fa(pending)} تغییر در انتظار)` : ''}`
+            ? ` — آنچه ثبت می‌کنید روی دستگاه ذخیره و پس از اتصال همگام می‌شود${pending ? ` (${fa(pending)} تغییر در انتظار)` : ''}`
             : ' — اتصال اینترنت برقرار نیست'}
         </span>
       </div>

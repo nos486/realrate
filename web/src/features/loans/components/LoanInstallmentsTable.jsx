@@ -113,6 +113,29 @@ export default function LoanInstallmentsTable({
 
   const { confirm, toast } = useFeedback();
 
+  /** Past due and unpaid: it can be settled on its own due day, at its own amount, without a form */
+  const isOverdue = (inst) => !inst.isPaid && Boolean(inst.dueDate) && inst.dueDate < todayIso();
+
+  const handlePayOnDueDate = async (inst) => {
+    setSuccessMessage('');
+    const shouldCascade = installments.some((i) => i.installmentNumber < inst.installmentNumber && !i.isPaid);
+    try {
+      setActionLoadingId(inst.id);
+      const res = await onMarkPaid?.(inst.id, {
+        paidDate: inst.dueDate,
+        paidAmount: inst.totalAmount,
+        cascade: shouldCascade,
+      });
+      if (res?.cascadedCount > 0) {
+        setSuccessMessage(`${res.cascadedCount} قسط قبلی نیز پرداخت‌شده ثبت شد.`);
+      }
+    } catch (err) {
+      toast.error(err.message || 'خطا در ثبت پرداخت');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
   const handleUnmark = async (inst) => {
     const confirmed = await confirm({
       title: 'لغو پرداخت قسط',
@@ -476,6 +499,18 @@ export default function LoanInstallmentsTable({
                             پرداخت شد
                           </button>
                         )}
+                        {!isPaying && isOverdue(inst) && (
+                          <button
+                            type="button"
+                            className="btn-mark-paid"
+                            onClick={() => handlePayOnDueDate(inst)}
+                            disabled={readOnly || isActionLoading}
+                            title="در تاریخ سررسیدش پرداخت‌شده ثبت می‌شود، نه امروز"
+                          >
+                            <Clock size={14} />
+                            در سررسید پرداخت شد
+                          </button>
+                        )}
                       </div>
                     )}
                   </td>
@@ -646,6 +681,18 @@ export default function LoanInstallmentsTable({
                   >
                     <CheckCircle2 size={14} />
                     ثبت پرداخت این قسط
+                  </button>
+                )}
+                {!inst.isPaid && !isPaying && isOverdue(inst) && (
+                  <button
+                    type="button"
+                    className="btn-mark-paid mobile"
+                    onClick={() => handlePayOnDueDate(inst)}
+                    disabled={readOnly || isActionLoading}
+                    title="در تاریخ سررسیدش پرداخت‌شده ثبت می‌شود، نه امروز"
+                  >
+                    <Clock size={14} />
+                    در سررسید پرداخت شد
                   </button>
                 )}
               </div>

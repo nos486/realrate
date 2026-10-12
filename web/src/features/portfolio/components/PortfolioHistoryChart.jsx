@@ -97,7 +97,18 @@ export default function PortfolioHistoryChart({ assets, hideValues = false }) {
   );
   const series = useMemo(() => sliceSeries(full, Number(range)), [full, range]);
 
-  if (!full || full.days.length < 2) return null;
+  // No chart yet: say why, so a portfolio is never just missing the card
+  if (!full || full.days.length < 2) {
+    return (
+      <div className="portfolio-history-panel">
+        <p className="portfolio-history-note">
+          {full
+            ? 'تاریخچه‌ی ارزش از فردا نمایش داده می‌شود؛ همه‌ی ثبت‌ها مال امروزند.'
+            : 'برای دیدن تاریخچه‌ی ارزش، تاریخ خرید دارایی‌ها را ثبت کنید.'}
+        </p>
+      </div>
+    );
+  }
 
   const values = series[unit];
   const known = values.filter((v) => Number.isFinite(v));
@@ -198,6 +209,9 @@ export default function PortfolioHistoryChart({ assets, hideValues = false }) {
             <p className="portfolio-history-note">
               {loading ? 'در حال دریافت تاریخچه قیمت…' : 'برای بعضی دارایی‌ها تاریخچه قیمت کامل نیست؛ ارزش آن روزها با نزدیک‌ترین قیمت معلوم برآورد شده است.'}
             </p>
+          )}
+          {full.datedByCreation && !hideValues && (
+            <p className="portfolio-history-note">برای ثبت‌هایی که تاریخ ندارند، روز ثبت در برنامه حساب شده است.</p>
           )}
           <p className="portfolio-history-note">تغییر، فقط اثر قیمت‌هاست؛ خرید و فروش جزو سود حساب نمی‌شود.</p>
         </div>

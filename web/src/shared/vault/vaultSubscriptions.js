@@ -8,7 +8,7 @@
 import { validateSubscription } from '../../utils/subscriptionDocument.js';
 import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
 import { putRecord, backfillReminders } from './vaultRecordMeta.js';
-import { encryptVaultRecord, decryptVaultRecord } from './vaultStore.js';
+import { encryptVaultRecord, decryptVaultRecords } from './vaultStore.js';
 
 const KIND = 'subscription';
 
@@ -31,7 +31,7 @@ const newId = () => `sub_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
 export async function getSubscriptions() {
   const res = await listVaultRecords(KIND);
   const records = res?.records || [];
-  const plains = await Promise.all(records.map((r) => decryptVaultRecord(r.payload)));
+  const plains = await decryptVaultRecords(records.map((r) => r.payload));
   const decrypted = [];
   const list = [];
   for (const [i, record] of records.entries()) {

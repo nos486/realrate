@@ -19,3 +19,11 @@ describe('ISO calendar dates', () => {
     expect(isValidIsoDate(value)).toBe(false);
   });
 });
+
+describe('tehranToday', () => {
+  it('flips at Tehran midnight (UTC+3:30), not UTC midnight', async () => {
+    const { tehranToday } = await import('../../src/domain/isoDate.js');
+    expect(tehranToday(new Date('2026-10-12T20:29:00Z'))).toBe('2026-10-12');
+    expect(tehranToday(new Date('2026-10-12T20:31:00Z'))).toBe('2026-10-13');
+  });
+});

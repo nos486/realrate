@@ -8,6 +8,8 @@
  * - (v2) records saved in the retired «پرداخت چک» / «وصول چک» categories → their cheque's own
  *   category (a cheque is a way of paying, not a category), still paid with it
  * - (v3) the rates older expenses stored are dropped (every rate is the price history's)
+ * - (v4) an installment recorded more than once (its id changed between payments) keeps one expense
+ * - (v5) the installment expenses of a loan that was deleted are removed
  * Each goes through spendingRecords.js: a payment already recorded by hand that day (same amount)
  * is linked instead of recorded twice, and its own id makes a second run (another device, a run
  * cut short) rewrite the same records — so it is safe to run more than once.
@@ -18,12 +20,15 @@
 
 import { CHEQUE_CLEARED } from '../../utils/chequeDocument.js';
 import { todayIso } from '../utils/dates.js';
-import { recordInstallmentPayments, recordExtraPayment, recordSubscriptionPayments } from './spendingRecords.js';
+import { recordInstallmentPayments, recordExtraPayment, recordSubscriptionPayments, spendingExpenseId, installmentSpendingKey } from './spendingRecords.js';
+import { recordOwnerOf, SPENDING_ID_PREFIX } from '../../utils/recordOwners.js';
 import { settleCheque } from './recordLinks.js';
 
 const DONE_KEY = 'realrate_spending_backfill_v1';
 const CHEQUE_CATEGORY_KEY = 'realrate_cheque_category_v1';
 const STORED_RATES_KEY = 'realrate_stored_rates_v1';
+const LOAN_DUPLICATES_KEY = 'realrate_loan_duplicates_v2';
+const ORPHAN_LOAN_KEY = 'realrate_orphan_loan_expenses_v1';
 /** The categories a cheque's record had before cheques became a way of paying */
 const RETIRED_CHEQUE_CATEGORY = 'cheques';
 
@@ -171,5 +176,120 @@ export async function runStoredRateCleanup({ userId, expenses }) {
     await dropStoredRates();
   });
   if (ok) markDone(userId, STORED_RATES_KEY);
+  return ok;
+}
+
+/**
+ * Of the expenses a loan's installments recorded, those that are surely extra copies: each
+ * installment that is paid now accounts for one expense (its amount), so the loan's expenses
+ * beyond that count for an amount are copies — whatever id their link names (an installment's id
+ * changes when it is unpaid and paid again, and the old one no longer resolves). Only expenses
+ * recorded by the loan itself count; the ones kept are on the paid days, then the canonical one.
+ * Nothing is removed for an amount no installment is paid at now, or when the loan can't be read.
+ * @param {object[]} expenses all the expenses
+ * @param {Map<string, object>} loans loan id → loan (with its installments)
+ * @returns {object[]} the expenses to delete
+ */
+export function findDuplicateInstallmentExpenses(expenses, loans) {
+  const groups = new Map();
+  for (const e of expenses) {
+    const link = e.loanInstallment;
+    if (!link || recordOwnerOf(e) !== 'loan' || !loans.has(link.loanId)) continue;
+    const key = `${link.loanId}|${Math.round(Number(e.amount) * 100)}|${e.currency || ''}`;
+    if (!groups.has(key)) groups.set(key, { loanId: link.loanId, amount: Number(e.amount), copies: [] });
+    groups.get(key).copies.push(e);
+  }
+  const doomed = [];
+  for (const { loanId, amount, copies } of groups.values()) {
+    const paid = (loans.get(loanId).installments || [])
+      .filter((i) => i.isPaid && i.paidDate && Math.abs((Number(i.paidAmount) || 0) - amount) < 0.5);
+    if (paid.length === 0 || copies.length <= paid.length) continue;
+    const left = [...copies];
+    const take = (match) => {
+      const at = left.findIndex(match);
+      return at === -1 ? null : left.splice(at, 1)[0];
+    };
+    const kept = new Set();
+    for (const inst of paid) {
+      const canonical = spendingExpenseId(installmentSpendingKey(loanId, inst));
+      const one = take((e) => e.id === canonical) || take((e) => e.date === inst.paidDate);
+      if (one) kept.add(one);
+    }
+    // An installment whose own day has no copy still keeps one
+    for (const e of left.slice(0, Math.max(0, paid.length - kept.size))) kept.add(e);
+    for (const e of copies) if (!kept.has(e)) doomed.push(e);
+  }
+  return doomed;
+}
+
+/**
+ * (v4) An installment recorded as an expense more than once keeps one — once per user on this
+ * device (findDuplicateInstallmentExpenses says which are removed)
+ * @param {{ userId: string, expenses: boolean }} options
+ * @returns {Promise<boolean>} whether it ran to the end
+ */
+export async function runLoanDuplicateCleanup({ userId, expenses }) {
+  if (!userId || !expenses || done(userId, LOAN_DUPLICATES_KEY)) return false;
+  const ok = await step('loan duplicates', async () => {
+    const store = await import('./vaultExpenses.js');
+    const api = await import('../../features/loans/api/loanApi.js');
+    const { expenses: all = [] } = await store.getExpenses();
+    const loanIds = [...new Set(all.filter((e) => e.loanInstallment && recordOwnerOf(e) === 'loan').map((e) => e.loanInstallment.loanId))];
+    const loans = new Map();
+    for (const id of loanIds) {
+      const { loan } = await api.getLoanDetail(id).catch(() => ({}));
+      if (loan) loans.set(id, loan);
+    }
+    for (const e of findDuplicateInstallmentExpenses(all, loans)) {
+      await store.deleteExpense(e.id, e, { syncLinks: false, asOwner: true });
+    }
+  });
+  if (ok) markDone(userId, LOAN_DUPLICATES_KEY);
+  return ok;
+}
+
+/**
+ * The expenses the app recorded for a loan that no longer exists (its deletion used to leave them
+ * behind): an installment's, which names its loan, and an extra payment's, which is known by its
+ * id (made from the loan and the payment). Only expenses the app made itself (an id made by
+ * spendingExpenseId) and the loan owns; one the user entered and a loan took over stays.
+ * @param {object[]} expenses all the expenses
+ * @param {Set<string>} loanIds the loans that exist
+ * @param {Set<string>} extraExpenseIds the ids of the expenses the existing loans' extra payments have
+ * @returns {object[]} the expenses to delete
+ */
+export function findOrphanLoanExpenses(expenses, loanIds, extraExpenseIds = new Set()) {
+  return expenses.filter((e) => {
+    if (!String(e.id).startsWith(SPENDING_ID_PREFIX) || recordOwnerOf(e) !== 'loan') return false;
+    if (e.loanInstallment) return !loanIds.has(e.loanInstallment.loanId);
+    return !extraExpenseIds.has(e.id);
+  });
+}
+
+/**
+ * (v5) The expenses of deleted loans go — once per user on this device
+ * @param {{ userId: string, expenses: boolean }} options
+ * @returns {Promise<boolean>} whether it ran to the end
+ */
+export async function runOrphanLoanExpenseCleanup({ userId, expenses }) {
+  if (!userId || !expenses || done(userId, ORPHAN_LOAN_KEY)) return false;
+  const ok = await step('orphan loan expenses', async () => {
+    const store = await import('./vaultExpenses.js');
+    const api = await import('../../features/loans/api/loanApi.js');
+    // A list that could not be read must not look like "no loans"; any failure stops the run
+    const { loans, success } = await api.getLoans();
+    if (success === false || !Array.isArray(loans)) throw new Error('loans not readable');
+    const extraExpenseIds = new Set();
+    for (const loan of loans) {
+      const { extraPayments } = await api.getLoanExtraPayments(loan.id);
+      if (!Array.isArray(extraPayments)) throw new Error('extra payments not readable');
+      for (const p of extraPayments) extraExpenseIds.add(spendingExpenseId(`loanx:${loan.id}:${p.id || p.paymentDate}`));
+    }
+    const { expenses: all = [] } = await store.getExpenses();
+    for (const e of findOrphanLoanExpenses(all, new Set(loans.map((l) => l.id)), extraExpenseIds)) {
+      await store.deleteExpense(e.id, e, { syncLinks: false, asOwner: true });
+    }
+  });
+  if (ok) markDone(userId, ORPHAN_LOAN_KEY);
   return ok;
 }

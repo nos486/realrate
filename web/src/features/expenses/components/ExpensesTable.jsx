@@ -202,7 +202,8 @@ export default function ExpensesTable({
     {
       key: 'notes',
       header: 'یادداشت',
-      tdClassName: 'td-notes',
+      thClassName: 'col-wide-only',
+      tdClassName: 'td-notes col-wide-only',
       render: (e) => (
         <span className="table-notes-text" title={e.notes || ''}>
           {e.notes ? (

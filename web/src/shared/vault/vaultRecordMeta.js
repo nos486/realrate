@@ -140,7 +140,7 @@ export function backfillReminders(kind, items) {
           recordDate: record.recordDate || recordDateOf(kind, plain),
           parentId: record.parentId || '',
           reminder: rem,
-          silent: true,
+          silent: true, background: true,
         });
         rememberReminder(kind, record.id, rem);
       } catch {
@@ -169,7 +169,7 @@ export function backfillRecordDates(kind, items) {
         await putVaultRecord(kind, record.id, record.payload, {
           recordDate: recordDateOf(kind, plain),
           parentId: record.parentId || '',
-          silent: true,
+          silent: true, background: true,
         });
       } catch {
         // Tried again on the next read
@@ -194,13 +194,13 @@ export function repairRecordDates(kind, decrypt, parent = '') {
   const tag = `${kind}|${parent}`;
   if (!repairs.has(tag)) {
     const run = (async () => {
-      const res = await listVaultRecords(kind, { silent: true }, { undated: true, parent });
+      const res = await listVaultRecords(kind, { silent: true, background: true }, { undated: true, parent });
       for (const record of res?.records || []) {
         const plain = await decrypt(record.payload);
         const recordDate = plain && typeof plain === 'object' ? recordDateOf(kind, plain) : '';
         // A record with no date of its own stays undated (it still shows under «all»)
         if (!recordDate || recordDate === record.recordDate) continue;
-        await putVaultRecord(kind, record.id, record.payload, { recordDate, parentId: record.parentId || '', silent: true });
+        await putVaultRecord(kind, record.id, record.payload, { recordDate, parentId: record.parentId || '', silent: true, background: true });
       }
     })();
     // A failed run is tried again by the next query

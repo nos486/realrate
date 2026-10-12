@@ -18,3 +18,14 @@ export function isValidIsoDate(value) {
   const date = new Date(Date.UTC(year, month - 1, day));
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }
+
+const tehranDayFormat = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit' });
+
+/**
+ * The Tehran calendar day (YYYY-MM-DD) of a moment — the app's "today" for anything computed
+ * without the screen's own clock (not UTC, which is a day behind between midnight and 03:30)
+ * @param {Date|number} [now]
+ */
+export function tehranToday(now = new Date()) {
+  return tehranDayFormat.format(now);
+}

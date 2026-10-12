@@ -31,6 +31,7 @@ portfolio key ──encrypts──▶ that portfolio's holdings, transactions an
 - Everything is `AES-GCM-256` with a random 12-byte IV, in the format `enc:e2ee:v1:<Base64(IV + CipherText + Tag)>`.
 - **Changing the passphrase** only re-wraps the account data key with the new KEK; no data is re-encrypted.
 - AES-GCM is authenticated: a wrong passphrase never yields a "wrong but valid" key; unwrapping fails.
+- Opening records is cheap on repeat: the browser keeps the plaintext of ciphertexts it already opened (per key, in memory only, never persisted), and decrypts lists in batches of 64 with the native base64 codec when available. A ciphertext never changes meaning (each has its own IV), so the cache needs no invalidation.
 - **A separate key per portfolio** lets one portfolio be shared without exposing anything else.
 
 Code: `web/src/lib/e2ee.js` (primitives) and `web/src/shared/vault/` (state, migration, storage).

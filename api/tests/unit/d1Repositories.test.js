@@ -19,7 +19,7 @@ import { dbGetUsersPage, dbGetUserStats, dbSetUserDisabled, dbGetUserDetail, dbG
 import { getGlobalSettings, saveGlobalSettings } from '../../src/repositories/settings.repository.js';
 import { dbListCustomBanks, dbCreateCustomBank, dbDeleteCustomBank } from '../../src/repositories/customBanks.repository.js';
 import {
-  dbSaveUserVault, dbGetUserVault, dbHasUserVault, dbPutVaultRecord, dbDeleteVaultRecord, dbResetUserVaultData, dbUserHasPlaintextData,
+  dbSaveUserVault, dbGetUserVault, dbHasUserVault, dbPutVaultRecord, dbDeleteVaultRecord, dbResetUserVaultData, dbUserHasPlaintextData, dbPurgeOldVaultTombstones, VAULT_TOMBSTONE_RETENTION_DAYS,
 } from '../../src/repositories/vault.repository.js';
 import {
   dbSaveAlertEmailPrefs, dbGetAlertEmailPrefs, dbGetReminderEmailRecipients, dbGetRemindersForUsers,
@@ -130,6 +130,21 @@ describe('admin', () => {
 });
 
 describe('the encrypted vault', () => {
+  it('purges old tombstones of every user in bounded runs', async () => {
+    const now = Date.parse('2026-10-11T00:00:00Z');
+    const old = new Date(now - (VAULT_TOMBSTONE_RETENTION_DAYS + 1) * 86_400_000).toISOString();
+    const recent = new Date(now - 86_400_000).toISOString();
+    await dbDeleteVaultRecord(env, 'u1', 'income', 'seed');
+    for (const [user, id, at] of [['u7', 'a', old], ['u8', 'b', old], ['u8', 'c', recent]]) {
+      await env.DB.prepare('INSERT INTO vault_tombstones (user_id, kind, id, deleted_at) VALUES (?, ?, ?, ?)').bind(user, 'expense', id, at).run();
+    }
+    expect(await dbPurgeOldVaultTombstones(env, now, 1)).toBe(1);
+    expect(await dbPurgeOldVaultTombstones(env, now)).toBe(1);
+    expect(await dbPurgeOldVaultTombstones(env, now)).toBe(0);
+    const left = await env.DB.prepare("SELECT id FROM vault_tombstones WHERE user_id IN ('u7','u8') ORDER BY id").all();
+    expect(left.results.map((r) => r.id)).toEqual(['c']);
+  });
+
   it('records with their reminder index, deletion, and the reset', async () => {
     await dbSaveUserVault(env, 'u1', { salt: 's', wrappedKey: CIPHER('k') });
     expect(await dbHasUserVault(env, 'u1')).toBe(true);

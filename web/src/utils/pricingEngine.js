@@ -19,6 +19,25 @@ export function normalizePersianText(str) {
 }
 
 /**
+ * What a search compares an asset with, normalized once per asset object (a keystroke then only
+ * normalizes the query, not every name, symbol and alias again)
+ */
+const searchIndex = new WeakMap();
+function indexOf(item) {
+  let entry = searchIndex.get(item);
+  if (!entry) {
+    entry = {
+      name: normalizePersianText(item.name || ''),
+      sym: normalizePersianText(item.symbol || item.code || ''),
+      code: (item.code || item.symbol || '').toUpperCase(),
+      aliases: Array.isArray(item.aliases) ? item.aliases.map(normalizePersianText) : [],
+    };
+    searchIndex.set(item, entry);
+  }
+  return entry;
+}
+
+/**
  * Filter and rank resolved assets by query string
  *
  * @param {Array} assets
@@ -52,9 +71,7 @@ export function searchUnifiedAssets(assets = [], query = '', options = {}) {
   const scored = [];
 
   for (const item of filtered) {
-    const normName = normalizePersianText(item.name || '');
-    const normSym = normalizePersianText(item.symbol || item.code || '');
-    const code = (item.code || item.symbol || '').toUpperCase();
+    const { name: normName, sym: normSym, code, aliases } = indexOf(item);
 
     let score = 0;
 
@@ -77,10 +94,10 @@ export function searchUnifiedAssets(assets = [], query = '', options = {}) {
     }
 
     // Aliases match (e.g. سکه گرمی, لیر, یورو)
-    if (item.aliases && Array.isArray(item.aliases)) {
-      if (item.aliases.some(al => normalizePersianText(al) === cleanQ)) {
+    if (aliases.length) {
+      if (aliases.some(al => al === cleanQ)) {
         score += 600;
-      } else if (item.aliases.some(al => normalizePersianText(al).includes(cleanQ))) {
+      } else if (aliases.some(al => al.includes(cleanQ))) {
         score += 150;
       }
     }

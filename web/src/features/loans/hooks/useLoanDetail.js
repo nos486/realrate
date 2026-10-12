@@ -181,7 +181,7 @@ export function useLoanDetail(loanId) {
       try {
         await apiUnmarkPaid(loanId, installmentId);
         const was = prevLoan?.installments?.find((inst) => inst.id === installmentId);
-        await spend(() => removeInstallmentPayment(loanId, installmentId, was?.paidDate || ''));
+        await spend(() => removeInstallmentPayment(loanId, installmentId, was?.paidDate || '', was?.installmentNumber));
         // Refresh to guarantee full server synchronization
         await fetchLoan();
       } catch (err) {

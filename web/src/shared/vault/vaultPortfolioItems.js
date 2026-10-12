@@ -12,7 +12,7 @@
  * same server batch, so an item is never lost or duplicated.
  */
 
-import { e2eeEncrypt, e2eeDecrypt, decryptHoldingFromApi, isHoldingE2eeEncrypted } from '../../lib/e2ee.js';
+import { e2eeEncrypt, e2eeDecrypt, e2eeDecryptMany, decryptHoldingFromApi, isHoldingE2eeEncrypted } from '../../lib/e2ee.js';
 import { resolveAssetDisplayName, resolveAssetUnit, resolveCategory } from '../../config/sourceRegistry.js';
 import { getPortfolio, deletePortfolioHolding } from '../../features/portfolio/api/portfolioApi.js';
 import { getTransactions, deleteTransaction as deleteTransactionRest } from '../../features/transactions/api/transactionApi.js';
@@ -118,7 +118,7 @@ async function decryptRecords(kind, portfolioId, key, filters = {}) {
   const knownIds = getKnownPriceIds();
   // Decrypted together (WebCrypto works in parallel), then read in order
   const records = res?.records || [];
-  const plains = await Promise.all(records.map((r) => e2eeDecrypt(key, r.payload)));
+  const plains = await e2eeDecryptMany(key, records.map((r) => r.payload));
   for (const [i, record] of records.entries()) {
     const stored = plains[i];
     if (stored && typeof stored === 'object') {

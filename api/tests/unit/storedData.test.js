@@ -18,6 +18,7 @@ vi.mock('../../../web/src/shared/vault/vaultRecordMeta.js', () => ({ putRecord: 
 vi.mock('../../../web/src/shared/vault/vaultStore.js', () => ({
   encryptVaultRecord: vi.fn(async (v) => JSON.stringify(v)),
   decryptVaultRecord: vi.fn(async (p) => JSON.parse(p)),
+  decryptVaultRecords: async (payloads) => Promise.all(payloads.map(async (p) => JSON.parse(p))),
 }));
 vi.mock('../../../web/src/features/portfolio/components/ShamsiDatePicker.jsx', async (importOriginal) => ({
   ...(await importOriginal()),

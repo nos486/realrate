@@ -2,13 +2,20 @@
  * appRelease.js — The Android app's latest release, for the app's own update check
  *
  * Every merge into main publishes a signed APK as a GitHub release tagged `v<versionName>`
- * (.github/workflows/android.yml) with the file `realrate.apk`. The server reads the latest one
+ * (.github/workflows/android.yml) with the file `realrate-<version>.apk` (and `realrate.apk`, the same file under the stable name
+ * the website links to; releases before the versioned names have only that one). The server reads the latest one
  * (handlers/appUpdateRoutes.js) and the app compares it with its own version name
  * (web/src/shared/native/appUpdate.js).
  */
 
 export const APP_RELEASE_REPO = 'nos486/realrate';
+/** The stable file name: the website's download link and releases from before versioned names */
 export const APP_APK_NAME = 'realrate.apk';
+
+/** The versioned file name of a version ("1.0.48" → "realrate-1.0.48.apk") */
+export function apkNameFor(version) {
+  return `realrate-${version}.apk`;
+}
 
 const VERSION_RE = /^\d{1,6}(\.\d{1,6}){0,3}$/;
 const MAX_NOTES = 4000;
@@ -20,8 +27,8 @@ export function versionFromTag(tag) {
 }
 
 /** The APK's address in a release (always the versioned file, never the moving "latest" one) */
-export function apkUrlFor(repo, tag) {
-  return `https://github.com/${repo}/releases/download/${encodeURIComponent(tag)}/${APP_APK_NAME}`;
+export function apkUrlFor(repo, tag, name = apkNameFor(versionFromTag(tag))) {
+  return `https://github.com/${repo}/releases/download/${encodeURIComponent(tag)}/${name}`;
 }
 
 /**
@@ -34,12 +41,13 @@ export function parseGithubRelease(release, repo = APP_RELEASE_REPO) {
   const tag = String(release.tag_name || '');
   const version = versionFromTag(tag);
   if (!version) return null;
-  const asset = (Array.isArray(release.assets) ? release.assets : []).find((a) => a?.name === APP_APK_NAME);
+  const assets = Array.isArray(release.assets) ? release.assets : [];
+  const asset = assets.find((a) => a?.name === apkNameFor(version)) || assets.find((a) => a?.name === APP_APK_NAME);
   if (!asset) return null;
   return {
     version,
     tag,
-    url: apkUrlFor(repo, tag),
+    url: apkUrlFor(repo, tag, asset.name),
     size: Number(asset.size) || 0,
     notes: String(release.body || '').slice(0, MAX_NOTES),
     publishedAt: String(release.published_at || ''),

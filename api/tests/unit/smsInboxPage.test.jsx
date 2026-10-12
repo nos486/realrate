@@ -10,7 +10,7 @@ import { render, cleanup, screen, fireEvent, waitFor } from '@testing-library/re
 const plugin = vi.hoisted(() => ({
   read: vi.fn(), checkPermissions: vi.fn(async () => ({ sms: 'granted' })), requestPermissions: vi.fn(), configure: vi.fn(), addListener: vi.fn(),
 }));
-vi.mock('../../../web/src/shared/native/nativeApp.js', () => ({ isNativeApp: () => true }));
+vi.mock('../../../web/src/shared/native/nativeApp.js', () => ({ isNativeApp: () => true, smsEnabled: () => true }));
 vi.mock('../../../web/src/shared/native/nativePlugins.js', () => ({ BankSms: plugin, BiometricVault: {} }));
 vi.mock('../../../web/src/shared/vault/useVault.js', () => ({ useVault: () => ({ status: 'unlocked', userId: 'usr_1' }) }));
 vi.mock('../../../web/src/features/demo/index.js', () => ({ useDemo: () => ({ readOnly: false }) }));

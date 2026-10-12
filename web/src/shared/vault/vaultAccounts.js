@@ -6,7 +6,7 @@
 import { validateAccount, compareAccounts } from '../../utils/accountDocument.js';
 import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
 import { putRecord } from './vaultRecordMeta.js';
-import { encryptVaultRecord, decryptVaultRecord } from './vaultStore.js';
+import { encryptVaultRecord, decryptVaultRecords } from './vaultStore.js';
 
 const KIND = 'bank_account';
 
@@ -22,7 +22,7 @@ export async function getAccounts() {
   const accounts = [];
   // Decrypted together (WebCrypto works in parallel), then read in order
   const records = res?.records || [];
-  const decrypted = await Promise.all(records.map((r) => decryptVaultRecord(r.payload)));
+  const decrypted = await decryptVaultRecords(records.map((r) => r.payload));
   for (const [i, record] of records.entries()) {
     const account = decrypted[i];
     if (account?.id) accounts.push(account);

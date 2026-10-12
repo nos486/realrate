@@ -9,6 +9,7 @@ import { Landmark, Edit2, Trash2, CheckCircle2, Clock } from 'lucide-react';
 import { RowCard, RowCardAction, RowCardBadge, RowCardBlock, RowCardProgress } from '../../../shared/ui/index.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { getDisplayRatePct } from '../../../utils/loanCalculator.js';
+import { isLoanCompleted } from '../utils/loanStatus.js';
 
 const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
 
@@ -27,7 +28,7 @@ export default function LoansTable({
         const totalCount = loan.totalCount || loan.installmentCount || 0;
         const paidCount = loan.paidCount || 0;
         const progressPct = totalCount > 0 ? Math.min(100, Math.round((paidCount / totalCount) * 100)) : 0;
-        const isCompleted = loan.remainingBalance === 0 || (totalCount > 0 && paidCount >= totalCount);
+        const isCompleted = isLoanCompleted(loan);
         const displayRatePct = getDisplayRatePct(loan);
         const next = loan.nextDueInstallment;
 

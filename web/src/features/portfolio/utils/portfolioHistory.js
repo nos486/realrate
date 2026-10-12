@@ -25,14 +25,31 @@ export function daysBetween(from, to) {
   return out;
 }
 
-/** The quantity an asset's entries leave held after each day: [{ day, qty }] in date order */
+/** The day an entry is held from: its own date, else the day it was recorded in the app, else '' */
+function entryDay(entry) {
+  const own = sortableDate(entry.date);
+  if (own) return { day: own, fromCreation: false };
+  const created = /^\d{4}-\d{2}-\d{2}/.test(String(entry.createdAt || '')) ? String(entry.createdAt).slice(0, 10) : '';
+  return { day: created, fromCreation: Boolean(created) };
+}
+
+/**
+ * The quantity an asset's entries leave held after each day: [{ day, qty }] in date order; an entry
+ * with no date counts from the day it was recorded, or from the start when even that is unknown
+ */
 function quantitySteps(asset) {
+  const events = (asset.entries || []).map((entry) => {
+    const { day, fromCreation } = entryDay(entry);
+    const out = entry.kind === 'sell' || entry.kind === 'spend';
+    return { day, fromCreation, out, delta: (out ? -1 : 1) * (Number(entry.qty) || 0) };
+  });
+  // Date order; on one day what comes in before what goes out
+  events.sort((a, b) => a.day.localeCompare(b.day) || Number(a.out) - Number(b.out));
   const steps = [];
   let qty = 0;
-  for (const entry of asset.entries || []) {
-    const sign = entry.kind === 'sell' || entry.kind === 'spend' ? -1 : 1;
-    qty = Math.max(0, qty + sign * (Number(entry.qty) || 0));
-    steps.push({ day: sortableDate(entry.date), qty });
+  for (const e of events) {
+    qty = Math.max(0, qty + e.delta);
+    steps.push({ day: e.day, qty, fromCreation: e.fromCreation });
   }
   return steps;
 }
@@ -41,8 +58,9 @@ function quantitySteps(asset) {
  * @param {{ assets: object[], priceAt: (id: string, day: string) => number|null,
  *   usdAt?: (day: string) => number|null, today: string }} input - assets from buildAssetLedgers
  * @returns {{ days: string[], toman: number[], usd: (number|null)[], gain: number[], gainUsd: number[],
- *   estimated: boolean }|null}
- *   null when no entry has a date; `estimated`: some value is a stand-in (an asset with no price
+ *   estimated: boolean, datedByCreation: boolean }|null}
+ *   null when no entry has a date; `datedByCreation`: an entry with no date counted from the day it was
+ *   recorded; `estimated`: some value is a stand-in (an asset with no price
  *   history, or a day before its history began, is valued at the nearest price known)
  */
 export function buildPortfolioSeries({ assets = [], priceAt, usdAt, today }) {
@@ -57,6 +75,8 @@ export function buildPortfolioSeries({ assets = [], priceAt, usdAt, today }) {
   const gain = new Array(days.length).fill(0);
   const gainUsd = new Array(days.length).fill(0);
   let estimated = false;
+  // Some entries have no date: they count from the day they were recorded
+  const datedByCreation = prepared.some((p) => p.steps.some((s) => s.fromCreation));
 
   for (const { asset, steps } of prepared) {
     const todayPrice = Number(asset.unitRealPrice) || 0;
@@ -96,7 +116,7 @@ export function buildPortfolioSeries({ assets = [], priceAt, usdAt, today }) {
   }
 
   const usd = days.map((day, i) => (rates[i] > 0 ? toman[i] / rates[i] : null));
-  return { days, toman, usd, gain, gainUsd, estimated };
+  return { days, toman, usd, gain, gainUsd, estimated, datedByCreation };
 }
 
 /**

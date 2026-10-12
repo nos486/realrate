@@ -14,7 +14,8 @@ const m = vi.hoisted(() => ({
   settleCheque: vi.fn(async () => 'income'),
 }));
 
-vi.mock('../../../web/src/shared/vault/spendingRecords.js', () => ({
+vi.mock('../../../web/src/shared/vault/spendingRecords.js', async (importOriginal) => ({
+  ...(await importOriginal()),
   recordInstallmentPayments: m.recordInstallmentPayments,
   recordExtraPayment: m.recordExtraPayment,
   recordSubscriptionPayments: m.recordSubscriptionPayments,
@@ -65,7 +66,7 @@ vi.mock('../../../web/src/shared/vault/vaultSubscriptions.js', () => ({
   saveSubscription: async (input, existing) => ({ subscription: { ...existing, ...input } }),
 }));
 
-const { runSpendingBackfill, runChequeCategoryMigration } = await import('../../../web/src/shared/vault/spendingBackfill.js');
+const { runSpendingBackfill, runChequeCategoryMigration, findDuplicateInstallmentExpenses, findOrphanLoanExpenses } = await import('../../../web/src/shared/vault/spendingBackfill.js');
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -119,5 +120,49 @@ describe('the retired cheque categories (v2)', () => {
     expect(old.saveExpense).toHaveBeenCalledWith({ category: 'other' }, expect.objectContaining({ id: 'exp_1' }), { syncLinks: false, asOwner: true });
     expect(old.saveExpense).toHaveBeenCalledTimes(1);
     expect(await runChequeCategoryMigration({ userId: 'u9', expenses: true })).toBe(false);
+  });
+});
+
+describe('duplicate installment expenses', () => {
+  const inst = (n, extra = {}) => ({ id: `inst_l1_${n}`, installmentNumber: n, isPaid: true, paidDate: '2026-02-05', paidAmount: 100, ...extra });
+  const loans = (installments) => new Map([['l1', { id: 'l1', installments }]]);
+  const exp = (id, installmentId, extra = {}) => ({ id, recordedBy: 'loan', amount: 100, currency: 'IRT', date: '2026-02-05', loanInstallment: { loanId: 'l1', installmentId }, ...extra });
+
+  it('keeps one expense per paid installment, even when the copies name ids that no longer exist', () => {
+    const list = [exp('a', 'inst_l1_1'), exp('b', 'inst_gone1'), exp('c', 'inst_gone2'), exp('d', '1')];
+    const out = findDuplicateInstallmentExpenses(list, loans([inst(1), inst(2, { isPaid: false, paidDate: '', paidAmount: 0 })]));
+    expect(out).toHaveLength(3);
+  });
+
+  it('keeps the copy on the paid day, and one per installment paid the same day at the same amount', () => {
+    const list = [exp('a', 'x', { date: '2026-01-01' }), exp('b', 'y'), exp('c', 'z'), exp('d', 'w')];
+    const out = findDuplicateInstallmentExpenses(list, loans([inst(1), inst(2)]));
+    expect(out.map((e) => e.id).sort()).toEqual(['a', 'd']);
+  });
+
+  it('leaves alone: fewer expenses than paid installments, user-made ones, other amounts, unpaid amounts', () => {
+    const l = loans([inst(1), inst(2)]);
+    expect(findDuplicateInstallmentExpenses([exp('a', 'x'), exp('b', 'y')], l)).toEqual([]);
+    expect(findDuplicateInstallmentExpenses([exp('a', 'x'), exp('b', 'y'), exp('c', 'z', { recordedBy: undefined, id: 'exp_user' })], l)).toEqual([]);
+    expect(findDuplicateInstallmentExpenses([exp('a', 'x', { amount: 200 }), exp('b', 'y', { amount: 200 }), exp('c', 'z', { amount: 200 })], l)).toEqual([]);
+    expect(findDuplicateInstallmentExpenses([exp('a', 'x'), exp('b', 'y')], loans([inst(1, { isPaid: false, paidDate: '', paidAmount: 0 })]))).toEqual([]);
+  });
+});
+
+describe('expenses of deleted loans', () => {
+  const auto = (id, loanId) => ({ id: `exp_s${id}`, recordedBy: 'loan', loanInstallment: { loanId, installmentId: 'i' } });
+
+  it('finds what the app recorded for a loan that is gone: its installments and its extra payments', () => {
+    const list = [
+      auto('a', 'gone'), auto('b', 'here'),
+      { id: 'exp_sx1', recordedBy: 'loan' }, // an extra payment of an existing loan
+      { id: 'exp_sx2', recordedBy: 'loan' }, // an extra payment nothing has now
+    ];
+    expect(findOrphanLoanExpenses(list, new Set(['here']), new Set(['exp_sx1'])).map((e) => e.id)).toEqual(['exp_sa', 'exp_sx2']);
+  });
+
+  it('keeps what the user entered, even one a loan took over', () => {
+    const list = [{ id: 'exp_user', recordedBy: 'loan', loanInstallment: { loanId: 'gone', installmentId: 'i' } }, { id: 'exp_user2', category: 'food' }];
+    expect(findOrphanLoanExpenses(list, new Set())).toEqual([]);
   });
 });

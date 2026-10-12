@@ -20,7 +20,7 @@ const githubRelease = {
   prerelease: false,
   body: '- صفحه‌بندی هزینه‌ها\n\n---\n**دانلود مستقیم آخرین نسخه:** [realrate.apk](https://x)',
   published_at: '2026-10-01T10:00:00Z',
-  assets: [{ name: 'realrate.apk', size: 12_345_678 }],
+  assets: [{ name: 'realrate.apk', size: 12_345_000 }, { name: 'realrate-1.0.48.apk', size: 12_345_678 }],
 };
 
 afterEach(() => {
@@ -39,7 +39,7 @@ describe('appRelease', () => {
     expect(parseGithubRelease(githubRelease, 'nos486/realrate')).toEqual({
       version: '1.0.48',
       tag: 'v1.0.48',
-      url: 'https://github.com/nos486/realrate/releases/download/v1.0.48/realrate.apk',
+      url: 'https://github.com/nos486/realrate/releases/download/v1.0.48/realrate-1.0.48.apk',
       size: 12_345_678,
       notes: githubRelease.body,
       publishedAt: '2026-10-01T10:00:00Z',
@@ -55,7 +55,7 @@ describe('appRelease', () => {
 
   it('falls back to the releases page redirect', () => {
     const r = releaseFromLatestRedirect('https://github.com/nos486/realrate/releases/tag/v1.0.50', 'nos486/realrate');
-    expect(r).toMatchObject({ version: '1.0.50', url: 'https://github.com/nos486/realrate/releases/download/v1.0.50/realrate.apk' });
+    expect(r).toMatchObject({ version: '1.0.50', url: 'https://github.com/nos486/realrate/releases/download/v1.0.50/realrate-1.0.50.apk' });
     expect(releaseFromLatestRedirect('https://github.com/nos486/realrate/releases')).toBeNull();
   });
 });
@@ -120,5 +120,24 @@ describe('app update prompt', () => {
   it('shows the release notes as plain text, without the download footer', () => {
     expect(releaseNotesText(githubRelease.body)).toBe('• صفحه‌بندی هزینه‌ها');
     expect(releaseNotesText('## نسخه\n**مهم:** [لینک](https://a)')).toBe('نسخه\nمهم: لینک');
+  });
+});
+
+describe('releases before versioned file names', () => {
+  it('still finds realrate.apk', () => {
+    const old = { ...githubRelease, assets: [{ name: 'realrate.apk', size: 5 }] };
+    expect(parseGithubRelease(old, 'nos486/realrate').url).toBe('https://github.com/nos486/realrate/releases/download/v1.0.48/realrate.apk');
+  });
+});
+
+describe('apkUrlForBuild', () => {
+  it('points the no-SMS build at its own file', async () => {
+    const { apkUrlForBuild } = await import('../../../web/src/shared/native/appUpdate.js');
+    const url = 'https://github.com/o/r/releases/download/v1.0.9/realrate.apk';
+    expect(apkUrlForBuild(url, true)).toBe(url);
+    expect(apkUrlForBuild(url, false)).toBe('https://github.com/o/r/releases/download/v1.0.9/realrate-nosms.apk');
+    const versioned = 'https://github.com/o/r/releases/download/v1.0.9/realrate-1.0.9.apk';
+    expect(apkUrlForBuild(versioned, true)).toBe(versioned);
+    expect(apkUrlForBuild(versioned, false)).toBe('https://github.com/o/r/releases/download/v1.0.9/realrate-nosms-1.0.9.apk');
   });
 });
