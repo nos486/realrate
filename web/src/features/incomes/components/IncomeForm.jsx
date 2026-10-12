@@ -30,7 +30,12 @@ import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { getTransfers } from '../../../shared/vault/vaultTransfers.js';
 import { findDuplicatePayment } from '../../../utils/creditAccount.js';
 import { AlertBanner, FilterPills, Input, Modal } from '../../../shared/ui/index.js';
-import { AmountField, CategoryGrid, DateField, EntryFormActions, MoreDetails, rememberCategory, recentCategories } from '../../../shared/form/index.js';
+import { AmountField, CategoryGrid, DateField, EntryFormActions, MoreDetails, PickerRow, rememberCategory, recentCategories } from '../../../shared/form/index.js';
+import AccountForm from '../../accounts/components/AccountForm.jsx';
+import { useAccounts } from '../../accounts/hooks/useAccounts.js';
+import { useCreateAccount, withMadeAccounts } from '../../accounts/hooks/useCreateAccount.js';
+import { accountLabel } from '../../accounts/constants/accountDisplay.js';
+import { accountsForCurrency } from '../../../utils/accountDocument.js';
 import {
   getTodayShamsi,
   gregorianToShamsi,
@@ -53,6 +58,8 @@ import { useFxRates } from '../../market/useFxRates.js';
 import { useDayRate } from '../../../shared/currency/useDayRate.js';
 import DayRateHint from '../../../shared/currency/DayRateHint.jsx';
 
+/** The «حساب جدید» option of «واریز به» */
+const NEW_ACCOUNT = '__new_account__';
 const RECEIVE_WITH = [{ value: 'other', label: 'واریز یا نقد' }, { value: 'cheque', label: 'چک' }];
 
 /** A new income starts in the category used last, else the default one */
@@ -68,8 +75,14 @@ export default function IncomeForm({
   submitting = false,
   // A new income filled in from elsewhere (a bank SMS deposit): { title, amount, incomeDate, notes }
   draft = null,
+  // The accounts to pick from, when the caller already has them (else read here)
+  accounts: accountsProp = null,
 }) {
   const source = editingIncome || draft;
+  const loaded = useAccounts();
+  const { made, create: createAccount } = useCreateAccount();
+  const [creatingAccount, setCreatingAccount] = useState(false);
+  const [accountId, setAccountId] = useState(source?.accountId || '');
   const [title, setTitle] = useState(source?.title || '');
   const [category, setCategory] = useState(() => source?.category || startingCategory());
   const [managing, setManaging] = useState(false);
@@ -118,8 +131,16 @@ export default function IncomeForm({
   const { rate: dayRate, state: rateState } = useDayRate(currency, dateIso, todayRate);
   const toman = isForeign ? (amountNum || 0) * (dayRate || todayRate) : amountNum || 0;
   const receivesCheque = withCheque && !isForeign;
+  // The accounts that hold its currency (the one it already names stays)
+  const incomeAccounts = accountsForCurrency(
+    withMadeAccounts((accountsProp || loaded.activeAccounts || []), made), currency, editingIncome?.accountId);
+  const effectiveAccountId = incomeAccounts.some((a) => a.id === accountId) ? accountId : '';
+  // Every income comes into an account: one is picked or made, unless it is a cheque, a credit
+  // settlement, or an older income that never had one
+  const accountRequired = loaded.enabled && !receivesCheque && !settling && (!editingIncome || Boolean(editingIncome.accountId));
   const isAmountValid = amountNum !== null && amountNum > 0;
   const isFormValid = Boolean(title.trim()) && isAmountValid && Boolean(dateIso) && !submitting
+    && (!accountRequired || Boolean(effectiveAccountId))
     && (!selling || isLinkComplete(linkValue))
     // A sale is priced at the day's rate: it must be known
     && (!selling || !isForeign || dayRate > 0)
@@ -168,6 +189,7 @@ export default function IncomeForm({
         // Only its category's link (the store drops the others too)
         creditAccountId: settling ? linkValue : '',
         chequeId: receivesCheque ? chequeId : '',
+        accountId: receivesCheque || settling ? '' : effectiveAccountId,
         soldFrom: selling
           ? {
             portfolioId: linkValue.portfolioId,
@@ -188,6 +210,7 @@ export default function IncomeForm({
   };
 
   return (
+    <>
     <Modal
       isOpen
       onClose={onClose}
@@ -260,6 +283,24 @@ export default function IncomeForm({
 
         <DateField label="تاریخ دریافت *" value={dateShamsi} onChange={setDateShamsi} />
 
+        {loaded.enabled && !receivesCheque && !settling && (
+          <PickerRow
+            label="واریز به"
+            value={effectiveAccountId}
+            options={[
+              ...(accountRequired ? [] : [{ value: '', label: 'نامشخص' }]),
+              ...incomeAccounts.map((a) => ({ value: a.id, label: accountLabel(a) })),
+              { value: NEW_ACCOUNT, label: '+ حساب جدید' },
+            ]}
+            onChange={(v) => (v === NEW_ACCOUNT ? setCreatingAccount(true) : setAccountId(v))}
+            placeholder={accountRequired ? 'یک حساب انتخاب کنید' : 'نامشخص'}
+          >
+            {accountRequired && !effectiveAccountId && (
+              <p className="expense-form-hint is-warning">هر درآمد باید به یک حساب وصل باشد؛ حسابی را انتخاب کنید یا «حساب جدید» بسازید.</p>
+            )}
+          </PickerRow>
+        )}
+
         {!isForeign && (
           <div className="entry-form-section">
             <div className="ui-input-group">
@@ -292,5 +333,15 @@ export default function IncomeForm({
         </MoreDetails>
       </div>
     </Modal>
+      {creatingAccount && (
+        <AccountForm
+          onSubmit={async (input) => {
+            const account = await createAccount(input);
+            setAccountId(account.id);
+          }}
+          onClose={() => setCreatingAccount(false)}
+        />
+      )}
+    </>
   );
 }

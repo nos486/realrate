@@ -16,6 +16,7 @@ import * as expensesApi from '../../shared/vault/vaultExpenses.js';
 import { getAccounts } from '../../shared/vault/vaultAccounts.js';
 import { getPendingSms, getSmsSettings, markSmsHandled, dropRecordedSms } from '../../shared/native/smsInbox.js';
 import { smsExpenseDraft } from './smsDrafts.js';
+import { ensureSmsAccount } from './smsAccounts.js';
 import { findRecorded, sameDayKey } from './recordedCheck.js';
 
 /**
@@ -29,11 +30,14 @@ export async function saveSmsExpense(input) {
 /**
  * Record a waiting withdrawal as it is, in `category`
  * @param {{ fingerprint: string, tx: object }} item a waiting message (getPendingSms)
+ * @param {{ accounts?: object[]|null }} [options] `accounts`: the active accounts, grown by the one made for this message (null: not linked)
  * @returns {Promise<object>} the expense
  */
 export async function recordSmsExpense(item, { accounts = [], category = getSmsSettings().recordCategory } = {}) {
+  // Tied to its account, made from the message when the user has none for it
+  const accountId = accounts ? await ensureSmsAccount(item.tx, accounts) : '';
   // Titled after its category (the user's own categories too)
-  const { expense } = await saveSmsExpense({ ...smsExpenseDraft(item.tx, accounts), category, title: getExpenseCategory(category).label, currency: 'IRT' });
+  const { expense } = await saveSmsExpense({ ...smsExpenseDraft(item.tx, accounts || []), accountId, category, title: getExpenseCategory(category).label, currency: 'IRT' });
   markSmsHandled(item.fingerprint);
   return expense;
 }
@@ -42,8 +46,8 @@ async function accountsOrNone() {
   try {
     return (await getAccounts()).accounts.filter((a) => !a.archived);
   } catch {
-    // No accounts feature, or none yet: recorded without an account
-    return [];
+    // No accounts feature (or they cannot be read): recorded without an account, and none is made
+    return null;
   }
 }
 

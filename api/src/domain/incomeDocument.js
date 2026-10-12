@@ -7,6 +7,7 @@
  * currency's toman rate is read from the daily price history by its day (the rates bag:
  * `usdAt` / `rateAt`, web features/market/useFxRates.js), today's when that day is unknown.
  *
+ * It names the account it came into (`accountId`), as an expense names the one that paid it.
  * Its category may link it to a record (categoryLinks.js): «تسویه بدهی اعتباری» the bank credit
  * whose debt it pays (`creditAccountId`). Received with a cheque, of any category, it names the
  * cheque (`chequeId`, a payment link). A sale from a portfolio names its «sell» entry
@@ -27,6 +28,7 @@ export const INCOME_LIMITS = {
 };
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 const text = (v) => String(v ?? '').trim();
 
 /**
@@ -57,9 +59,12 @@ export function validateIncome(body = {}) {
   // Recorded from a bank SMS: the transaction's key (bankSms.js), so it is not recorded twice
   const smsKey = toman ? text(body.smsKey).slice(0, 120) : '';
 
+  // The account it came into (an accountDocument.js account); older incomes have none
+  const accountId = ID_RE.test(text(body.accountId)) ? text(body.accountId) : '';
+
   return {
     value: {
-      title, category, amount, currency, incomeDate, notes, soldFrom: sold.link,
+      title, category, amount, currency, incomeDate, notes, soldFrom: sold.link, accountId,
       ...(smsKey ? { smsKey } : {}),
       // Always returned, so an edit to another category (or currency) drops them
       creditAccountId: links.creditAccountId || '',
