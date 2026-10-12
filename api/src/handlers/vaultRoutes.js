@@ -17,6 +17,7 @@
  *   PUT    /api/vault/records/:kind/:id              — Create/replace one ({ payload, replacePlain, vaultEpoch }:
  *                                                       with `vaultEpoch`, refused after a vault reset)
  *   DELETE /api/vault/records/:kind/:id              — Delete one
+ *   POST   /api/vault/records/:kind/delete           — Delete several of one kind at once ({ ids }, up to 100; all or none)
  *   GET    /api/vault/sync?cursor&limit               — Every change after `cursor` (records stored and
  *                                                       deleted, all kinds the user may see), for devices
  *                                                       keeping a copy (the Android app, offline)
@@ -35,6 +36,7 @@ import {
   dbPutVaultRecord,
   dbPutVaultRecords,
   dbDeleteVaultRecord,
+  dbDeleteVaultRecords,
   dbGetLoanDocument,
 } from "../repositories/index.js";
 import { VAULT_KIND_FEATURES, VAULT_RECORD_KINDS, dbSyncVaultRecords, dbResetUserVaultData } from "../repositories/vault.repository.js";
@@ -171,6 +173,13 @@ export async function handleDeleteVaultRecord(request, env, { kind, id }) {
   const deleted = await dbDeleteVaultRecord(env, userId, kind, id);
   if (!deleted) throw AppError.notFound("رکورد مورد نظر یافت نشد.");
   return jsonResponse({ success: true }, 200, request);
+}
+
+export async function handleDeleteVaultRecords(request, env, { kind }) {
+  const userId = await requireUserId(request, env, kind);
+  const body = await request.json().catch(() => ({}));
+  const deleted = await dbDeleteVaultRecords(env, userId, kind, body.ids);
+  return jsonResponse({ success: true, deleted }, 200, request);
 }
 
 export async function handleSyncVaultRecords(request, env) {

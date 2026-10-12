@@ -28,7 +28,7 @@ import { recordLinksOf } from '../../utils/categoryLinks.js';
 import { recordOwnerOf, ownedRecordMessage } from '../../utils/recordOwners.js';
 import { syncRecordLinks, releaseRecordLinks } from './recordLinks.js';
 import { tomanRateOn } from './recordRates.js';
-import { listVaultRecords, deleteVaultRecord, putVaultRecords, VAULT_BATCH_MAX } from './vaultApi.js';
+import { listVaultRecords, deleteVaultRecord, deleteVaultRecords, putVaultRecords, VAULT_BATCH_MAX } from './vaultApi.js';
 import { putRecord, recordDateOf } from './vaultRecordMeta.js';
 import { encryptVaultRecord, decryptVaultRecord, decryptVaultRecords } from './vaultStore.js';
 
@@ -94,11 +94,10 @@ export async function saveExpenseGroup(input, existing = null) {
 /** Delete a section with every expense in it (expenses first: a half-done delete leaves the section) */
 export async function deleteExpenseGroup(groupId) {
   const res = await listVaultRecords(EXPENSE_KIND, undefined, { parent: groupId });
-  for (const record of res?.records || []) {
-    const plain = await decryptVaultRecord(record.payload).catch(() => null);
-    // The whole section goes, whoever recorded what is in it
-    await deleteExpense(record.id, plain, { asOwner: true });
-  }
+  const records = res?.records || [];
+  const plains = await Promise.all(records.map((record) => decryptVaultRecord(record.payload).catch(() => null)));
+  // The whole section goes, whoever recorded what is in it
+  await deleteExpenses(records.map((record, i) => plains[i] || { id: record.id }), { asOwner: true });
   await deleteVaultRecord(GROUP_KIND, groupId);
   return { success: true };
 }
@@ -296,6 +295,25 @@ export async function deleteExpense(expenseId, expense = null, { syncLinks = tru
     if (expense?.[field]) await (await funds()).deleteLinkedTransaction(expense[field]).catch(() => {});
   }
   if (syncLinks) await releaseRecordLinks('expense', expense);
+  return { success: true };
+}
+
+/**
+ * Delete several expenses together — what `deleteExpense` does for each, but the records go in
+ * batches (one request per VAULT_BATCH_MAX); only an expense linked to a portfolio or to another
+ * record (a cheque, an installment, a subscription) is then released one at a time
+ * @param {object[]} expenses their stored copies
+ * @param {{ syncLinks?: boolean, asOwner?: boolean }} [options] as deleteExpense
+ */
+export async function deleteExpenses(expenses, { syncLinks = true, asOwner = false } = {}) {
+  for (const expense of expenses) assertNotOwned(expense, asOwner);
+  await deleteVaultRecords(EXPENSE_KIND, expenses.map((e) => e.id));
+  for (const expense of expenses) {
+    for (const { field } of LINKS) {
+      if (expense[field]) await (await funds()).deleteLinkedTransaction(expense[field]).catch(() => {});
+    }
+    if (syncLinks) await releaseRecordLinks('expense', expense);
+  }
   return { success: true };
 }
 

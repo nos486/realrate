@@ -7,6 +7,7 @@ import {
   dbPutVaultRecords,
   VAULT_BATCH_MAX,
   dbDeleteVaultRecord,
+  dbDeleteVaultRecords,
   rejectWhenVaultEnabled,
   dbUserHasPlaintextData,
 } from '../../src/repositories/vault.repository.js';
@@ -315,6 +316,23 @@ describe('vault records', () => {
 
 });
 
+describe('deleting several vault records', () => {
+  it('deletes a batch in one round trip and leaves tombstones', async () => {
+    const env = { DB: createDb() };
+    await dbSaveUserVault(env, 'u1', { salt: 's', wrappedKey: CIPHER });
+    for (const id of ['exp_1', 'exp_2', 'exp_3']) {
+      await dbPutVaultRecord(env, 'u1', 'expense', id, { payload: CIPHER, recordDate: '2026-09-01', parentId: 'exg_daily' });
+    }
+    await dbDeleteVaultRecords(env, 'u1', 'expense', ['warm-up']);
+    const batch = vi.spyOn(env.DB, 'batch');
+    expect(await dbDeleteVaultRecords(env, 'u1', 'expense', ['exp_1', 'exp_2', 'missing'])).toBe(2);
+    expect(batch).toHaveBeenCalledTimes(1);
+    expect((await dbListVaultRecords(env, 'u1', 'expense')).map((r) => r.id)).toEqual(['exp_3']);
+    await expect(dbDeleteVaultRecords(env, 'u1', 'expense', [])).rejects.toMatchObject({ statusCode: 400 });
+    await expect(dbDeleteVaultRecords(env, 'u1', 'expense', Array.from({ length: 101 }, (_, i) => `x${i}`))).rejects.toMatchObject({ statusCode: 400 });
+  });
+});
+
 describe('encrypted cheques', () => {
   let env;
   beforeEach(async () => {
@@ -369,6 +387,7 @@ describe('vault routes', () => {
     ['GET', '/api/vault/records/loan'],
     ['PUT', '/api/vault/records/loan/loan_1'],
     ['DELETE', '/api/vault/records/income/inc_1'],
+    ['POST', '/api/vault/records/income/delete'],
     ['GET', '/api/vault/records/cheque'],
     ['GET', '/api/cheques'],
     ['POST', '/api/cheques'],

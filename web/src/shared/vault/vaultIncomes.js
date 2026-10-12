@@ -17,7 +17,7 @@
 import { validateIncome } from '../../utils/incomeDocument.js';
 import { sameLink } from '../../utils/portfolioLink.js';
 import { tomanRateOn } from './recordRates.js';
-import { listVaultRecords, deleteVaultRecord, putVaultRecords, VAULT_BATCH_MAX } from './vaultApi.js';
+import { listVaultRecords, deleteVaultRecord, deleteVaultRecords, putVaultRecords, VAULT_BATCH_MAX } from './vaultApi.js';
 import { putRecord, recordDateOf, backfillRecordDates, repairRecordDates } from './vaultRecordMeta.js';
 import { encryptVaultRecord, decryptVaultRecord, decryptVaultRecords } from './vaultStore.js';
 import { syncRecordLinks, releaseRecordLinks } from './recordLinks.js';
@@ -167,6 +167,28 @@ export async function updateIncome(incomeId, incomeData, { asOwner = false } = {
   assertNotOwned(existing, asOwner);
   const income = { ...existing, ...parseIncomeInput(incomeData), updatedAt: new Date().toISOString() };
   return { success: true, income: await save(income, existing) };
+}
+
+/**
+ * Delete several incomes together — what `deleteIncome` does for each, but the records go in
+ * batches (one request per VAULT_BATCH_MAX); sales and links are released after, one at a time
+ * @param {string[]} incomeIds
+ * @param {{ asOwner?: boolean }} [options] the feature that recorded them is removing them
+ */
+export async function deleteIncomes(incomeIds, { asOwner = false } = {}) {
+  if (!incomeIds.length) return { success: true };
+  // Read once (no per-income lookup), so the owner check and the links see each stored copy
+  await getIncomes();
+  const existing = incomeIds.map((id) => incomes.get(id) || null);
+  for (const income of existing) assertNotOwned(income, asOwner);
+  await deleteVaultRecords(KIND, incomeIds);
+  for (const [i, id] of incomeIds.entries()) {
+    incomes.delete(id);
+    const income = existing[i];
+    if (income?.soldFrom) await (await funds()).deleteLinkedTransaction(income.soldFrom).catch(() => {});
+    await releaseRecordLinks('income', income);
+  }
+  return { success: true };
 }
 
 /**

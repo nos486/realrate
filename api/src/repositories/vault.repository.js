@@ -412,6 +412,32 @@ export async function dbDeleteVaultRecord(env, userId, kind, id) {
 }
 
 /**
+ * Delete several records of one kind at once — what `dbDeleteVaultRecord` does for each, in one
+ * batch (one round trip however many; all or none)
+ * @param {string[]} ids up to VAULT_BATCH_MAX ids
+ * @returns {Promise<number>} how many existed and were deleted
+ */
+export async function dbDeleteVaultRecords(env, userId, kind, ids) {
+  assertKind(kind);
+  if (!Array.isArray(ids) || ids.length === 0) throw AppError.badRequest("موردی برای حذف فرستاده نشده است.");
+  if (ids.length > VAULT_BATCH_MAX) throw AppError.badRequest(`در هر درخواست حداکثر ${VAULT_BATCH_MAX} مورد حذف می‌شود.`);
+  const unique = [...new Set(ids)];
+  if (unique.some((id) => typeof id !== "string" || !id)) throw AppError.badRequest("شناسه‌ی رکورد نامعتبر است.");
+  await ensureSchema(env);
+  const now = new Date().toISOString();
+  const results = await env.DB.batch(unique.flatMap((id) => [
+    env.DB.prepare(`DELETE FROM vault_records WHERE user_id = ? AND kind = ? AND id = ?`).bind(userId, kind, id),
+    env.DB.prepare(`DELETE FROM vault_reminders WHERE user_id = ? AND kind = ? AND record_id = ?`).bind(userId, kind, id),
+    env.DB.prepare(`
+      INSERT INTO vault_tombstones (user_id, kind, id, deleted_at) VALUES (?, ?, ?, ?)
+      ON CONFLICT(user_id, kind, id) DO UPDATE SET deleted_at = excluded.deleted_at
+    `).bind(userId, kind, id, now),
+  ]));
+  // The first statement of each triple is the record's own delete
+  return results.filter((_, i) => i % 3 === 0).reduce((n, r) => n + (r?.meta?.changes ?? 0), 0);
+}
+
+/**
  * Statements that record the deletion of a portfolio's items (tombstones), to run in the same
  * batch before they are deleted (portfolio.repository.js: deleting a portfolio)
  */
