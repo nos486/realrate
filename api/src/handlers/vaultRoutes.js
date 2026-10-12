@@ -39,7 +39,7 @@ import {
   dbDeleteVaultRecords,
   dbGetLoanDocument,
 } from "../repositories/index.js";
-import { VAULT_KIND_FEATURES, VAULT_RECORD_KINDS, dbSyncVaultRecords, dbResetUserVaultData } from "../repositories/vault.repository.js";
+import { VAULT_KIND_FEATURES, VAULT_RECORD_KINDS, dbSyncVaultRecords, dbResetUserVaultData, dbPlainRecordExists } from "../repositories/vault.repository.js";
 import { dbGetUserAuthById } from "../repositories/account.repository.js";
 import { verifyPassword, getRateLimitState, recordRateLimitHit, clearRateLimit } from "../lib/security.js";
 import { logger } from "../lib/logger.js";
@@ -47,7 +47,7 @@ import { loadFeatureRules, withUserGroups } from "../lib/features.js";
 import { isFeatureEnabled } from "../config/features.js";
 import { jsonResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
-import { enforceRecordLimit } from "../lib/planLimits.js";
+import { withRecordLimit } from "../lib/planLimits.js";
 
 async function requireUser(request, env) {
   const user = await getAuthenticatedUser(request, env);
@@ -154,16 +154,19 @@ export async function handlePutVaultRecord(request, env, { kind, id }) {
   const user = await requireKindUser(request, env, kind);
   const userId = userIdOf(user);
   const body = await request.json().catch(() => ({}));
-  // Encrypting existing plaintext data (replacePlain) is a migration, not a new record
-  if (!body.replacePlain) await enforceRecordLimit(env, user, kind, [id]);
-  const record = await dbPutVaultRecord(env, userId, kind, id, {
+  const input = {
     payload: body.payload,
     replacePlain: Boolean(body.replacePlain),
     recordDate: body.recordDate,
     parentId: body.parentId,
     vaultEpoch: typeof body.vaultEpoch === "string" ? body.vaultEpoch : "",
     reminder: body.reminder,
-  });
+  };
+  // Encrypting existing plaintext data (replacePlain) is a migration, not a new record; claiming
+  // it for a record that has no plaintext copy would be a way around the plan limits
+  const migration = input.replacePlain && (await dbPlainRecordExists(env, userId, kind, id));
+  const store = () => dbPutVaultRecord(env, userId, kind, id, input);
+  const record = migration ? await store() : await withRecordLimit(env, user, kind, [id], store);
   return jsonResponse({ success: true, record }, 200, request);
 }
 
@@ -171,12 +174,10 @@ export async function handlePutVaultRecords(request, env, { kind }) {
   const user = await requireKindUser(request, env, kind);
   const userId = userIdOf(user);
   const body = await request.json().catch(() => ({}));
-  if (Array.isArray(body.records)) {
-    await enforceRecordLimit(env, user, kind, [...new Set(body.records.map((r) => r?.id).filter((x) => typeof x === "string"))]);
-  }
-  const records = await dbPutVaultRecords(env, userId, kind, body.records, {
+  const ids = Array.isArray(body.records) ? [...new Set(body.records.map((r) => r?.id).filter((x) => typeof x === "string"))] : [];
+  const records = await withRecordLimit(env, user, kind, ids, () => dbPutVaultRecords(env, userId, kind, body.records, {
     vaultEpoch: typeof body.vaultEpoch === "string" ? body.vaultEpoch : "",
-  });
+  }));
   return jsonResponse({ success: true, records }, 200, request);
 }
 
