@@ -5,18 +5,24 @@
  *   the messages wait on the «پیامک‌های بانکی» page, which also reads older ones on request.
  *   Small withdrawals: recorded by themselves up to an amount (off by default), in a category
  *   that «ثبت سریع» uses too (features/sms-inbox/smsRecord.js)
+ * - «حذف ثبت‌های خودکار پیامک»: deletes the expenses and incomes made from bank SMS in a date range
+ *   (never hand-entered ones), after showing how many and asking to confirm (smsRecordsCleanup.js)
  * - Fingerprint: open the encrypted data with the fingerprint instead of the passphrase
  * - The app's version and its updates: automatic check on/off, «بررسی به‌روزرسانی» (shared/native/appUpdate.js)
  */
 
 import React, { useEffect, useState } from 'react';
-import { Smartphone, MessageSquareText, Fingerprint, Info, ArrowLeft, RefreshCw, Download, Bell, LayoutGrid, Plus, X } from 'lucide-react';
+import { Smartphone, MessageSquareText, Trash2, Fingerprint, Info, ArrowLeft, RefreshCw, Download, Bell, LayoutGrid, Plus, X } from 'lucide-react';
 import { AlertBanner, Button, Card, FeaturePageHeader } from '../../shared/ui/index.js';
 import { NumericInput } from '../../shared/ui/NumericInput.jsx';
 import { getExpenseCategory } from '../expenses/constants/expenseCategories.js';
 import { getIncomeCategory } from '../incomes/constants/incomeCategories.js';
 import { useCategories } from '../../shared/categories/useCategories.js';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
+import { DateField } from '../../shared/form/index.js';
+import { getTodayShamsi, shamsiToGregorian } from '../portfolio/components/ShamsiDatePicker.jsx';
+import { bumpVaultEpoch } from '../../shared/vault/vaultStore.js';
+import { findSmsRecords, deleteSmsRecords } from './smsRecordsCleanup.js';
 import { useVault } from '../../shared/vault/useVault.js';
 import { resolveBank, BankLogo } from '../../shared/banks/index.js';
 import { BANK_SMS_TEMPLATES } from '../../utils/bankSmsTemplates.js';
@@ -467,6 +473,65 @@ function DueNotificationSettings() {
   );
 }
 
+/** «حذف ثبت‌های خودکار پیامک»: count, confirm, then delete what SMS made in a date range */
+function SmsRecordsCleanup({ vaultUnlocked }) {
+  const { toast, confirm } = useFeedback();
+  const [fromShamsi, setFromShamsi] = useState(getTodayShamsi());
+  const [toShamsi, setToShamsi] = useState(getTodayShamsi());
+  const [busy, setBusy] = useState(false);
+  const fromIso = shamsiToGregorian(fromShamsi);
+  const toIso = shamsiToGregorian(toShamsi);
+  const valid = Boolean(fromIso && toIso && fromIso <= toIso);
+
+  const handleDelete = async () => {
+    setBusy(true);
+    try {
+      const found = await findSmsRecords(fromIso, toIso);
+      const count = found.expenses.length + found.incomes.length;
+      if (!count) {
+        toast.success('در این بازه ثبت خودکاری از پیامک نیست.');
+        return;
+      }
+      const ok = await confirm({
+        title: 'حذف ثبت‌های خودکار پیامک',
+        message: `${found.expenses.length.toLocaleString('fa-IR')} هزینه و ${found.incomes.length.toLocaleString('fa-IR')} درآمد که از پیامک بانک ساخته شده‌اند حذف می‌شوند. موردهای دستی دست نمی‌خورند. ادامه می‌دهید؟`,
+        confirmLabel: 'حذف',
+        danger: true,
+      });
+      if (!ok) return;
+      const deleted = await deleteSmsRecords(found);
+      bumpVaultEpoch();
+      toast.success(`${deleted.toLocaleString('fa-IR')} مورد حذف شد.`);
+    } catch (err) {
+      toast.error(err?.message || 'حذف ممکن نشد.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card
+      className="app-settings-card"
+      padding="lg"
+      icon={<Trash2 size={18} />}
+      title="حذف ثبت‌های خودکار پیامک"
+      subtitle="هزینه‌ها و درآمدهایی که خودکار از پیامک بانک ساخته شده‌اند، در یک بازه حذف می‌شوند. موردهای واردشده با دست هرگز حذف نمی‌شوند."
+    >
+      <div className="sms-read-range">
+        <DateField label="از تاریخ" value={fromShamsi} onChange={setFromShamsi} />
+        <DateField label="تا تاریخ" value={toShamsi} onChange={setToShamsi} />
+        {!valid && <p className="expense-form-hint is-warning">تاریخ «از» باید پیش از «تا» (یا همان روز) باشد.</p>}
+      </div>
+      {!vaultUnlocked && <AlertBanner type="info" message="برای حذف، ابتدا اطلاعات رمزنگاری‌شده را باز کنید." />}
+      <div className="app-setting-actions">
+        <Button size="sm" variant="danger" icon={<Trash2 size={14} />} onClick={handleDelete} loading={busy} disabled={!valid || !vaultUnlocked}>
+          شمارش و حذف
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
 export default function AppSettingsView({ onOpenSms }) {
   const { toast } = useFeedback();
   const vault = useVault();
@@ -562,6 +627,8 @@ export default function AppSettingsView({ onOpenSms }) {
           </dl>
         </Card>
       )}
+
+      {smsEnabled() && <SmsRecordsCleanup vaultUnlocked={vaultUnlocked} />}
 
       <DueNotificationSettings />
 

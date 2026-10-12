@@ -214,6 +214,14 @@ function takeOutMany(fingerprints, listKey) {
   notify();
 }
 
+/**
+ * Dismiss every waiting message at once («رد همه»), or only those in `fingerprints`
+ * @param {string[]} fingerprints the messages to dismiss
+ */
+export function dismissSmsMany(fingerprints) {
+  takeOutMany(fingerprints, DISMISSED_KEY);
+}
+
 const takeOut = (fingerprint, listKey) => takeOutMany([fingerprint], listKey);
 
 /**

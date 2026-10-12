@@ -15,6 +15,8 @@ vi.mock('../../../web/src/shared/native/smsInbox.js', async (orig) => ({
   ...(await orig()),
   smsPermission: async () => 'granted',
 }));
+const feedback = vi.hoisted(() => ({ confirm: vi.fn(async () => true), toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock('../../../web/src/shared/ui/FeedbackProvider.jsx', () => ({ useFeedback: () => feedback }));
 const { default: SmsInboxList } = await import('../../../web/src/features/sms-inbox/SmsInboxList.jsx');
 
 const msg = (fingerprint, bankId, amount) => ({ fingerprint, tx: { bankId, direction: 'debit', amount, date: '2026-01-05' } });
@@ -36,5 +38,18 @@ describe('SMS bank filter', () => {
     rerender(<SmsInboxList onRecord={() => {}} />);
     expect(container.querySelector('.sms-bank-filter')).toBeNull();
     expect(container.querySelectorAll('.sms-inbox-item')).toHaveLength(2);
+  });
+
+  it('«رد همه» dismisses what is on show after a confirmation', async () => {
+    localStorage.clear();
+    const items = [msg('a', 'mellat', 1000), msg('b', 'saman', 2000)];
+    localStorage.setItem('realrate_sms_pending', JSON.stringify(items));
+    state.pending = items;
+    const { container } = render(<SmsInboxList onRecord={() => {}} />);
+    fireEvent.click(screen.getByText(/رد همه/));
+    await vi.waitFor(() => expect(feedback.confirm).toHaveBeenCalled());
+    await vi.waitFor(() => expect(feedback.toast.success).toHaveBeenCalled());
+    expect(JSON.parse(localStorage.getItem('realrate_sms_pending') || '[]')).toHaveLength(0);
+    expect(container).toBeTruthy();
   });
 });

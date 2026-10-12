@@ -12,7 +12,8 @@
  * `onRecordToProject`); a deposit's menu has «وام» (`onLoanDeposit`: a received loan, not
  * income) and «دنگ» (`onShareDeposit`: someone's share of an expense the user paid, not income);
  * either kind can be «انتقال بین حساب‌های خودم» (`onTransfer`: money moved between the user's own
- * accounts — neither expense nor income). «رد» (beside the main action, not in the menu) drops it
+ * accounts — neither expense nor income). «رد همه» above the list drops every message on show (after a
+ * confirmation). «رد» (beside the main action, not in the menu) drops it
  * for good. With messages from more than one bank, pills above the list filter them by bank.
  */
 
@@ -22,7 +23,7 @@ import { ActionMenu, Button, EmptyState } from '../../shared/ui/index.js';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { BankLogo, resolveBank } from '../../shared/banks/index.js';
 import { useSmsInbox } from '../../shared/native/useSmsInbox.js';
-import { dismissSms, smsPermission, enableSmsReading, setSmsSettings, SMS_SENDERS, QUICK_RECORD_MAX } from '../../shared/native/smsInbox.js';
+import { dismissSms, dismissSmsMany, smsPermission, enableSmsReading, setSmsSettings, SMS_SENDERS, QUICK_RECORD_MAX } from '../../shared/native/smsInbox.js';
 import { matchSmsAccount } from '../../utils/bankSms.js';
 import { formatShamsiDisplay } from '../portfolio/components/ShamsiDatePicker.jsx';
 import { accountLabel } from '../accounts/constants/accountDisplay.js';
@@ -84,6 +85,7 @@ function EnableCard({ onChange }) {
  */
 export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, quickRecordingId = null, onLoanDeposit, onShareDeposit, onRecordToProject, onTransfer, canRecord = true }) {
   const { pending, settings } = useSmsInbox();
+  const { confirm, toast } = useFeedback();
   const [permission, setPermission] = useState(null);
   const [bankFilter, setBankFilter] = useState('all');
   const [limit, setLimit] = useState(PAGE_SIZE);
@@ -107,6 +109,19 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
   useEffect(() => {
     smsPermission().then(setPermission);
   }, [settings.auto]);
+
+  /** «رد همه»: after a confirmation, every message of the bank on show (all banks when none is picked) is dismissed */
+  const handleDismissAll = async () => {
+    const ok = await confirm({
+      title: 'رد همه‌ی پیامک‌ها',
+      message: `${matching.length.toLocaleString('fa-IR')} پیامک کنار گذاشته می‌شود و ثبت نمی‌شود. ادامه می‌دهید؟`,
+      confirmLabel: 'رد همه',
+      danger: true,
+    });
+    if (!ok) return;
+    dismissSmsMany(matching.map((item) => item.fingerprint));
+    toast.success(`${matching.length.toLocaleString('fa-IR')} پیامک رد شد.`);
+  };
 
   if (permission && permission !== 'granted' && settings.auto) return <EnableCard onChange={setPermission} />;
 
@@ -140,6 +155,11 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
         ))}
       </div>
     )}
+    <div className="sms-inbox-bulk">
+      <Button size="sm" variant="secondary" icon={<X size={14} />} onClick={handleDismissAll}>
+        رد همه ({matching.length.toLocaleString('fa-IR')})
+      </Button>
+    </div>
     <ul className="sms-inbox-list" aria-label="پیامک‌های بانکی ثبت‌نشده">
       {shown.map((item) => {
         const { tx } = item;
