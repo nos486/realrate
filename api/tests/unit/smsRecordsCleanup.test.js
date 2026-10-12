@@ -33,4 +33,20 @@ describe('SMS records cleanup', () => {
     expect(vault.deleteExpense).toHaveBeenCalledWith('e1', found.expenses[0]);
     expect(vault.deleteIncome).toHaveBeenCalledWith('i1');
   });
+
+  it('deletes several at a time and reports progress', async () => {
+    let active = 0;
+    let peak = 0;
+    vault.deleteExpense.mockImplementation(async () => {
+      active += 1;
+      peak = Math.max(peak, active);
+      await new Promise((r) => setTimeout(r, 1));
+      active -= 1;
+    });
+    const expenses = Array.from({ length: 20 }, (_, i) => ({ id: `e${i}` }));
+    const seen = [];
+    expect(await deleteSmsRecords({ expenses, incomes: [] }, (done, total) => seen.push([done, total]))).toBe(20);
+    expect(peak).toBeGreaterThan(1);
+    expect(seen.at(-1)).toEqual([20, 20]);
+  });
 });

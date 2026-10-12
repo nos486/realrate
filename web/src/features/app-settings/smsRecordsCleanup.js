@@ -23,19 +23,31 @@ export async function findSmsRecords(from, to) {
   return { expenses: expenses.filter(fromSms), incomes: incomes.filter(fromSms) };
 }
 
+/** Deletes in flight at once: each is its own request, so a long list would take minutes one by one */
+const DELETE_PARALLEL = 8;
+
 /**
- * Delete the records `findSmsRecords` returned, one after another
+ * Delete the records `findSmsRecords` returned, several at a time
+ * @param {{ expenses: object[], incomes: object[] }} found
+ * @param {(done: number, total: number) => void} [onProgress] called after each deletion
  * @returns {Promise<number>} how many were deleted
  */
-export async function deleteSmsRecords({ expenses, incomes }) {
+export async function deleteSmsRecords({ expenses, incomes }, onProgress) {
+  const jobs = [
+    ...expenses.map((expense) => () => deleteExpense(expense.id, expense)),
+    ...incomes.map((income) => () => deleteIncome(income.id)),
+  ];
+  let next = 0;
   let deleted = 0;
-  for (const expense of expenses) {
-    await deleteExpense(expense.id, expense);
-    deleted += 1;
-  }
-  for (const income of incomes) {
-    await deleteIncome(income.id);
-    deleted += 1;
-  }
+  // A fixed set of workers, each taking the next job when it finishes one; the first failure stops them all
+  const worker = async () => {
+    while (next < jobs.length) {
+      const job = jobs[next++];
+      await job();
+      deleted += 1;
+      onProgress?.(deleted, jobs.length);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(DELETE_PARALLEL, jobs.length) }, worker));
   return deleted;
 }
