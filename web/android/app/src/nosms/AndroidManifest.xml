@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The no-SMS build: removes the SMS permissions and the bank-message receiver from the main manifest -->
+<!-- The no-SMS (store) build: removes the SMS permissions, the bank-message receiver and the install-packages permission (no in-app update) from the main manifest -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.READ_SMS" tools:node="remove" />
     <uses-permission android:name="android.permission.RECEIVE_SMS" tools:node="remove" />
+
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" tools:node="remove" />
 
     <application>
         <receiver android:name=".BankSmsReceiver" tools:node="remove" />

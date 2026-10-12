@@ -26,7 +26,7 @@ import { findSmsRecords, deleteSmsRecords } from './smsRecordsCleanup.js';
 import { useVault } from '../../shared/vault/useVault.js';
 import { resolveBank, BankLogo } from '../../shared/banks/index.js';
 import { BANK_SMS_TEMPLATES } from '../../utils/bankSmsTemplates.js';
-import { smsEnabled } from '../../shared/native/nativeApp.js';
+import { smsEnabled, selfUpdateEnabled } from '../../shared/native/nativeApp.js';
 import { useSmsInbox } from '../../shared/native/useSmsInbox.js';
 import { setSmsSettings, setSmsBankEnabled, smsPermission, enableSmsReading, QUICK_RECORD_MAX } from '../../shared/native/smsInbox.js';
 import {
@@ -665,7 +665,7 @@ export default function AppSettingsView({ onOpenSms }) {
       </Card>
 
       <Card className="app-settings-card" padding="lg" icon={<Info size={18} />} title="درباره اپ">
-        <AppUpdateSettings />
+        {selfUpdateEnabled() && <AppUpdateSettings />}
         <dl className="app-setting-facts">
           <dt>نسخه</dt>
           <dd dir="ltr">{version || '—'}</dd>
