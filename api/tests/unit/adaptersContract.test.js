@@ -224,7 +224,7 @@ describe("Phase 1 Contract Verification — All Adapters output strictly {items:
 
   // 8. The registry: one adapter per sourceType, each only reads (no state, no legacy methods)
   test("8. Every adapter is registered once, under its sourceType, with the contract's methods only", () => {
-    expect(sourceAdapters.length).toBe(8);
+    expect(sourceAdapters.length).toBe(9);
     expect(new Set(sourceAdapters.map((a) => a.id)).size).toBe(sourceAdapters.length);
     for (const adapter of sourceAdapters) {
       for (const legacy of ["supports", "getItems", "test", "getSymbols", "getFunds", "getLatestFunds", "getLatestPlans"]) {
@@ -259,6 +259,13 @@ describe("Phase 1 Contract Verification — All Adapters output strictly {items:
       charisma_plans: {
         raw: [{ key: "gold", name: "طرح طلای کاریزما", price: 42000 }],
         config: { id: "src_def_charisma_plans", name: "طرح‌های سرمایه‌گذاری کاریزما", priceType: "charisma_plans" },
+      },
+      json_catalog: {
+        raw: [{ brand: "پژو", model: "206 تیپ 2", year: 1402, priceToman: "478,000,000" }],
+        config: {
+          id: "src_def_cars", name: "قیمت بازار خودرو", priceType: "cars", endpoint: "https://feed.test/cars",
+          catalogFields: { id: ["brand", "model", "year"], name: ["brand", "model", "year"], price: "priceToman" },
+        },
       },
       api_url: {
         raw: { price: "72000" },

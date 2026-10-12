@@ -266,6 +266,27 @@ export const PRICE_SOURCES_CONFIG = [
     isActive: true,
     isPrimary: true,
   },
+  // ── Cars: one item per model and year, from a JSON feed (e.g. an n8n webhook that reads the
+  // sites that publish daily market prices). The feed's URL is the Worker var CAR_PRICES_URL; rows
+  // look like { brand, model, year, priceToman } and each one is the asset `car__<brand>_<model>_<year>`
+  {
+    id: "src_def_cars",
+    name: "قیمت بازار خودرو",
+    brand: "بازار خودرو",
+    priceType: "cars",
+    market: "car", // Its items are ids "car__<brand>_<model>_<year>"
+    sourceType: "json_catalog",
+    endpoint: "${CAR_PRICES_URL}",
+    rowsPath: "items", // used when the feed is an object, not a bare array
+    catalogFields: { id: ["brand", "model", "year"], name: ["brand", "model", "year"], price: "priceToman" },
+    category: "car",
+    unit: "دستگاه",
+    isCatalog: true, // A market's whole list: merged with its previous one, ids `${market}__${symbol}`
+    fetchIntervalSec: 21600, // daily-priced assets: every 6 hours
+    maxJumpPct: 30,
+    isActive: true,
+    isPrimary: true,
+  },
 ];
 
 /**
