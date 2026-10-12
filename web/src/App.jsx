@@ -9,6 +9,8 @@ import { useDemo } from './features/demo/index.js';
 import MaintenancePage from './pages/MaintenancePage.jsx';
 import { getToken } from './shared/api/httpClient.js';
 import { isNativeApp } from './shared/native/nativeApp.js';
+import { startBackExit } from './shared/native/backExit.js';
+import { useFeedback } from './shared/ui/FeedbackProvider.jsx';
 import { APP_BASE, LANDING_PATH, AUTH_PATHS, DEMO_PATH, DEMO_ENABLED } from './shared/routes.js';
 // Direct file imports (not the feature barrels) so the pages below stay in their lazy chunks
 import { PricingProvider } from './features/market/context/PricingContext.jsx';
@@ -132,6 +134,9 @@ function DueDataScope() {
 
 export default function App() {
   const { pathname } = useLocation();
+  const { toast } = useFeedback();
+  // Android app: Back steps through the pages, then needs two presses to close the app
+  useEffect(() => startBackExit((message) => toast(message, { duration: 2000 })), [toast]);
   // Loaded fine: a missing chunk after a later deploy may reload the app once more
   useEffect(() => {
     const timer = setTimeout(forgetChunkReload, 30_000);
