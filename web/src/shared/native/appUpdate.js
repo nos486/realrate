@@ -65,7 +65,8 @@ export function isNewer(release, installedVersion) {
 
 /** The APK of this build: the no-SMS build updates to its own file, published beside the full one */
 export function apkUrlForBuild(url, withSms = smsEnabled()) {
-  return withSms ? url : String(url).replace(/realrate\.apk$/, 'realrate-nosms.apk');
+  // realrate-1.0.48.apk → realrate-nosms-1.0.48.apk (older releases: realrate.apk → realrate-nosms.apk)
+  return withSms ? url : String(url).replace(/\/realrate(-[\d.]+)?\.apk$/, '/realrate-nosms$1.apk');
 }
 
 /** The release notes as plain lines (the CHANGELOG's markdown, without the download footer) */
