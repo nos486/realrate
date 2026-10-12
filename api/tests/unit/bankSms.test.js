@@ -128,6 +128,13 @@ const SAMPLES = [
     expect: { templateId: 'tejarat-balance', direction: 'credit', amount: 500000, balance: 2456246, date: '2026-09-27', time: '18:39', description: 'شتاب' },
   },
   {
+    bank: 'tejarat',
+    options: { sender: 'TejaratBank', today: LATER },
+    // Salary deposit: «واریز حقوق :» and a branch-code line after the channel
+    text: '*بانک تجارت* \nحساب: 0177007456214 \nواریز حقوق : 685,426,335 ریال \nاز طريق: شعبه  \nکدشعبه: 2080\nمانده: 689,090,968 ریال \n1405/06/31\n11:23',
+    expect: { templateId: 'tejarat-balance', direction: 'credit', amount: 68542633.5, balance: 68909096.8, accountLast4: '6214', date: '2026-09-22', time: '11:23', description: 'شعبه' },
+  },
+  {
     bank: 'melli',
     options: { sender: '700717', today: LATER },
     // Arabic «ي/ك» throughout, as delivered
