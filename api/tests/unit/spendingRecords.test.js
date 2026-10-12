@@ -30,7 +30,7 @@ vi.mock('../../../web/src/shared/vault/vaultExpenses.js', () => ({
 }));
 
 const {
-  spendingExpenseId, matchingRecord, recordSpending, recordSubscriptionPayments, recordInstallmentPayments, removeInstallmentPayment, moveRenewalPayment, recordExtraPayment, installmentNumberOf,
+  spendingExpenseId, matchingRecord, recordSpending, recordSubscriptionPayments, recordInstallmentPayments, removeInstallmentPayment, moveRenewalPayment, recordExtraPayment, installmentNumberOf, removeLoanPayments,
 } = await import('../../../web/src/shared/vault/spendingRecords.js');
 
 beforeEach(() => {
@@ -188,5 +188,20 @@ describe('an installment whose id changes', () => {
     await removeInstallmentPayment('loan_1', 'inst_abc', '', 3);
     expect(m.deleted).toContain(spendingExpenseId('loan:loan_1:n3'));
     expect(m.deleted).toContain(spendingExpenseId('loan:loan_1:inst_abc'));
+  });
+});
+
+describe('a loan deleted', () => {
+  it('removes its installment and extra-payment expenses, and nothing the user made', async () => {
+    m.dayExpenses = [
+      { id: 'exp_sa', recordedBy: 'loan', loanInstallment: { loanId: 'loan_1', installmentId: 'i1' } },
+      { id: 'exp_sb', recordedBy: 'loan', loanInstallment: { loanId: 'loan_2', installmentId: 'i1' } },
+      { id: 'exp_taken', recordedBy: 'loan', loanInstallment: { loanId: 'loan_1', installmentId: 'i3' } },
+      { id: 'exp_user', loanInstallment: { loanId: 'loan_1', installmentId: 'i2' } },
+      { id: spendingExpenseId('loanx:loan_1:epay_1') },
+      { id: spendingExpenseId('loanx:loan_2:epay_9') },
+    ];
+    await removeLoanPayments('loan_1', ['epay_1']);
+    expect(m.deleted.sort()).toEqual(['exp_sa', spendingExpenseId('loanx:loan_1:epay_1')].sort());
   });
 });

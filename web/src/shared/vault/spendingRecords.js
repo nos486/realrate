@@ -26,7 +26,7 @@
 import { SUBSCRIPTION_EXPENSE_CATEGORY, duePayments, renewalsBetween } from '../../utils/subscriptionDocument.js';
 import { categoryLinkOf, linkFieldsOf, sameLinkValue } from '../../utils/categoryLinks.js';
 import { BASE_CURRENCY, normalizeCurrency } from '../../utils/currencies.js';
-import { SPENDING_ID_PREFIX } from '../../utils/recordOwners.js';
+import { SPENDING_ID_PREFIX, recordOwnerOf } from '../../utils/recordOwners.js';
 
 /** The expense category of a loan's payments (categoryLinks.js: links the installment) */
 export const INSTALLMENT_EXPENSE_CATEGORY = 'installments';
@@ -238,6 +238,22 @@ export async function removeInstallmentPayment(loanId, installmentId, paidDate, 
     for (const e of expenses) if (e.loanInstallment && sameLinkValue(e.loanInstallment, link)) ids.add(e.id);
   }
   for (const id of ids) await deleteExpense(id, null, { syncLinks: false, asOwner: true }).catch(() => {});
+}
+
+/**
+ * A loan deleted: every expense it recorded goes with it — its installments' and its extra
+ * payments' (the ones the user made by hand stay, even when the loan took them over)
+ * @param {string} loanId
+ * @param {string[]} [extraPaymentIds] the ids of the loan's extra payments (read before it was deleted)
+ */
+export async function removeLoanPayments(loanId, extraPaymentIds = []) {
+  const { getExpenses, deleteExpense } = await store();
+  const { expenses = [] } = await getExpenses();
+  const extraIds = new Set(extraPaymentIds.map((id) => spendingExpenseId(`loanx:${loanId}:${id}`)));
+  for (const e of expenses) {
+    const installment = e.loanInstallment?.loanId === loanId && recordOwnerOf(e) === 'loan' && e.id.startsWith(SPENDING_ID_PREFIX);
+    if (installment || extraIds.has(e.id)) await deleteExpense(e.id, e, { syncLinks: false, asOwner: true });
+  }
 }
 
 /**
