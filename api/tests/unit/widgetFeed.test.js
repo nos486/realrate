@@ -9,6 +9,8 @@ import {
   widgetPrices,
   widgetNewsOf,
   widgetAnalysisOf,
+  aiNewsOf,
+  WIDGET_NEWS_LIMIT,
   WIDGET_MAX_ITEMS,
 } from '../../src/domain/widgetFeed.js';
 
@@ -45,6 +47,18 @@ describe('widgetPriceOf', () => {
   it('lists the asked items in order, skipping unknown ones', () => {
     const items = { a: { id: 'a', price: 1 }, b: { id: 'b', price: 2 } };
     expect(widgetPrices(items, ['b', 'zzz', 'a']).map((r) => r.id)).toEqual(['b', 'a']);
+  });
+});
+
+describe('aiNewsOf', () => {
+  it('keeps only the AI-picked news, in order, up to the limit', () => {
+    const news = Array.from({ length: 30 }, (_, i) => ({ id: `n${i}`, ai: i % 2 === 0 }));
+    const kept = aiNewsOf(news);
+    expect(kept).toHaveLength(WIDGET_NEWS_LIMIT);
+    expect(kept.every((n) => n.ai)).toBe(true);
+    expect(kept[0].id).toBe('n0');
+    expect(aiNewsOf([{ id: 'x', ai: false }])).toEqual([]);
+    expect(aiNewsOf(null)).toEqual([]);
   });
 });
 

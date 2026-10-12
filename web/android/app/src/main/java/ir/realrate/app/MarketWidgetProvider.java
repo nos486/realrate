@@ -6,15 +6,17 @@ import android.content.Context;
 import android.content.Intent;
 
 /**
- * Shared behaviour of the two widgets: draw from the cached feed at once, then fetch a fresh one
- * (Android calls onUpdate when the widget is placed, every half hour and after a reboot), and
- * fetch on the refresh button's broadcast.
+ * The home-screen widget (res/xml/widget_market_info.xml): favourite prices above, AI news below.
+ * Android calls onUpdate when it is placed, after a reboot and every half hour at most (the system's
+ * own period); the 10-minute refresh is WidgetRenderer.scheduleNext, an alarm that comes back here
+ * as ACTION_REFRESH, as does the refresh button.
  */
-public abstract class WidgetProviderBase extends AppWidgetProvider {
+public class MarketWidgetProvider extends AppWidgetProvider {
 
     @Override
     public void onUpdate(Context context, AppWidgetManager manager, int[] appWidgetIds) {
         WidgetRenderer.renderAll(context);
+        WidgetRenderer.scheduleNext(context);
         WidgetRenderer.refreshAsync(context, goAsync(), false);
     }
 
@@ -25,5 +27,15 @@ public abstract class WidgetProviderBase extends AppWidgetProvider {
             return;
         }
         super.onReceive(context, intent);
+    }
+
+    @Override
+    public void onEnabled(Context context) {
+        WidgetRenderer.scheduleNext(context);
+    }
+
+    @Override
+    public void onDisabled(Context context) {
+        WidgetRenderer.cancelNext(context);
     }
 }
