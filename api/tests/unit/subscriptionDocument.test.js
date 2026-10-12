@@ -56,7 +56,22 @@ describe('renewals', () => {
   it('a payment moves one renewed by hand a cycle on', () => {
     const s = sub({ autoRenew: false, renewOn: '2026-02-11' });
     expect(renewedAfter(s, '2026-02-10')).toEqual({ renewOn: '2026-03-13', lastPaidOn: '2026-02-10' });
-    expect(renewedAfter(sub(), '2026-02-10')).toEqual({ renewOn: '', lastPaidOn: '2026-02-10' });
+    // One that renews by itself, paid on its day or late: nothing is paid ahead
+    expect(renewedAfter(sub(), '2026-02-10')).toMatchObject({ renewOn: '', lastPaidOn: '2026-02-10', paidThrough: '' });
+    expect(renewedAfter(sub({ lastPaidOn: '2026-01-12' }), '2026-02-12')).toMatchObject({ lastPaidOn: '2026-02-12', paidThrough: '' });
+  });
+
+  it('a payment ahead of the next renewal covers it, so it is not charged again', () => {
+    const auto = sub({ lastPaidOn: '2026-01-12' });
+    const paid = { ...auto, ...renewedAfter(auto, '2026-02-08') };
+    expect(paid).toMatchObject({ lastPaidOn: '2026-02-08', paidThrough: '2026-02-11' });
+    expect(duePayments(paid, '2026-02-12')).toEqual([]);
+    // The renewal after it is charged as usual
+    expect(duePayments(paid, '2026-03-14')).toEqual(['2026-03-13']);
+    // A second payment ahead covers the one after
+    expect(renewedAfter(paid, '2026-02-20').paidThrough).toBe('2026-03-13');
+    expect(validateSubscription({ ...base, paidThrough: '2026-02-11' }).value.paidThrough).toBe('2026-02-11');
+    expect(validateSubscription({ ...base, autoRenew: false, paidThrough: '2026-02-11' }).value.paidThrough).toBe('');
   });
 
   it('paid after it ran out, the new period starts on the payment day', () => {
