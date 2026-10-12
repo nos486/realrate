@@ -28,6 +28,9 @@ import { formatShamsiDisplay } from '../portfolio/components/ShamsiDatePicker.js
 import { accountLabel } from '../accounts/constants/accountDisplay.js';
 import { formatAmount } from '../expenses/utils/format.js';
 
+/** Rows shown at a time: a long inbox (hundreds of messages) is revealed a page at a time */
+const PAGE_SIZE = 50;
+
 const faTime = (time) => time.replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
 
 function EnableCard({ onChange }) {
@@ -83,6 +86,7 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
   const { pending, settings } = useSmsInbox();
   const [permission, setPermission] = useState(null);
   const [bankFilter, setBankFilter] = useState('all');
+  const [limit, setLimit] = useState(PAGE_SIZE);
 
   // The banks of the waiting messages, most messages first
   const banks = useMemo(() => {
@@ -97,7 +101,8 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
   }, [pending]);
   // A bank whose messages are all handled falls back to «همه»
   const activeBank = banks.some((b) => b.id === bankFilter) ? bankFilter : 'all';
-  const shown = activeBank === 'all' ? pending : pending.filter((item) => (item.tx.bankId || '') === activeBank);
+  const matching = activeBank === 'all' ? pending : pending.filter((item) => (item.tx.bankId || '') === activeBank);
+  const shown = matching.slice(0, limit);
 
   useEffect(() => {
     smsPermission().then(setPermission);
@@ -127,7 +132,7 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
             type="button"
             className={`tx-filter-pill ${activeBank === id ? 'active' : ''}`}
             aria-pressed={activeBank === id}
-            onClick={() => setBankFilter(id)}
+            onClick={() => { setBankFilter(id); setLimit(PAGE_SIZE); }}
           >
             {id === 'all' ? 'همه‌ی بانک‌ها' : <><BankLogo bank={bank} size={16} /> {bank.shortName}</>}
             <span className="cheque-filter-count">{count.toLocaleString('fa-IR')}</span>
@@ -212,6 +217,11 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
         );
       })}
     </ul>
+    {matching.length > shown.length && (
+      <Button block variant="secondary" onClick={() => setLimit((n) => n + PAGE_SIZE)}>
+        نمایش بیشتر ({(matching.length - shown.length).toLocaleString('fa-IR')} پیامک دیگر)
+      </Button>
+    )}
     </>
   );
 }

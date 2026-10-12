@@ -15,7 +15,7 @@ import { getExpenseCategory } from '../expenses/constants/expenseCategories.js';
 import * as expensesApi from '../../shared/vault/vaultExpenses.js';
 import { createIncome } from '../incomes/api/incomeApi.js';
 import { getAccounts } from '../../shared/vault/vaultAccounts.js';
-import { getPendingSms, getSmsSettings, markSmsHandled, dropRecordedSms } from '../../shared/native/smsInbox.js';
+import { getPendingSms, getSmsSettings, markSmsHandled, markSmsHandledMany, dropRecordedSms } from '../../shared/native/smsInbox.js';
 import { smsExpenseDraft, smsIncomeDraft } from './smsDrafts.js';
 import { ensureSmsAccount } from './smsAccounts.js';
 import { findRecorded, sameDayKey } from './recordedCheck.js';
@@ -76,7 +76,7 @@ async function recordSmsExpenses(items, { accounts = [], category = getSmsSettin
     inputs.push({ ...smsExpenseDraft(item.tx, accounts || []), accountId, category, title: getExpenseCategory(category).label, currency: 'IRT' });
   }
   await expensesApi.saveExpenses(inputs);
-  items.forEach((item) => markSmsHandled(item.fingerprint));
+  markSmsHandledMany(items.map((item) => item.fingerprint));
   return items.length;
 }
 

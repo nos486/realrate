@@ -188,18 +188,24 @@ export function getPendingSms() {
   return read(PENDING_KEY, []).map(({ body: _body, ...item }) => item);
 }
 
-/** Take a waiting message out of the inbox, remembering its text and transaction in `listKey` */
-function takeOut(fingerprint, listKey) {
-  if (!fingerprint) return;
+/**
+ * Take waiting messages out of the inbox, remembering their text and transaction in `listKey` —
+ * all in one read, one write and one notification, so a long list is not quadratic
+ */
+function takeOutMany(fingerprints, listKey) {
+  const gone = new Set(fingerprints.filter(Boolean));
+  if (!gone.size) return;
   const pending = getPendingSms();
-  const item = pending.find((p) => p.fingerprint === fingerprint);
-  const ids = [fingerprint, item?.tx?.key].filter(Boolean);
-  const list = read(listKey, []).filter((f) => !ids.includes(f));
+  const ids = new Set(gone);
+  for (const p of pending) if (gone.has(p.fingerprint) && p.tx?.key) ids.add(p.tx.key);
+  const list = read(listKey, []).filter((f) => !ids.has(f));
   list.push(...ids);
   write(listKey, list.slice(-MAX_HANDLED));
-  write(PENDING_KEY, pending.filter((p) => p.fingerprint !== fingerprint));
+  write(PENDING_KEY, pending.filter((p) => !gone.has(p.fingerprint)));
   notify();
 }
+
+const takeOut = (fingerprint, listKey) => takeOutMany([fingerprint], listKey);
 
 /**
  * Recorded (an expense or income now carries its key): out of the inbox, and not read again —
@@ -208,6 +214,11 @@ function takeOut(fingerprint, listKey) {
  */
 export function markSmsHandled(fingerprint) {
   takeOut(fingerprint, HANDLED_KEY);
+}
+
+/** Several recorded at once (markSmsHandled): the inbox is stored and announced once */
+export function markSmsHandledMany(fingerprints) {
+  takeOutMany(fingerprints, HANDLED_KEY);
 }
 
 /**
@@ -249,7 +260,7 @@ export function restoreSms(item) {
 export function dropRecordedSms(recordedKeys) {
   const recorded = new Set(recordedKeys);
   const drop = getPendingSms().filter((p) => p.tx?.key && recorded.has(p.tx.key));
-  drop.forEach((p) => markSmsHandled(p.fingerprint));
+  markSmsHandledMany(drop.map((p) => p.fingerprint));
   return drop.length;
 }
 

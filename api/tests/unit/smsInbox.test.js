@@ -34,6 +34,7 @@ import {
   markSmsHandled,
   dismissSms,
   restoreSms,
+  markSmsHandledMany,
   readSmsDays,
   autoReadSms,
   setSmsSettings,
@@ -121,6 +122,17 @@ describe('SMS inbox', () => {
     expect(addSmsMessages([DEBIT])).toBe(0);
     markSmsHandled(item.fingerprint);
     expect(restoreSms(item)).toBe(false);
+  });
+
+  it('several recorded at once leave the inbox with one announcement, and are remembered', () => {
+    addSmsMessages([DEBIT, CREDIT]);
+    const events = vi.fn();
+    window.addEventListener('realrate:sms-inbox', events);
+    markSmsHandledMany(getPendingSms().map((p) => p.fingerprint));
+    window.removeEventListener('realrate:sms-inbox', events);
+    expect(events).toHaveBeenCalledTimes(1);
+    expect(getPendingSms()).toEqual([]);
+    expect(addSmsMessages([DEBIT, CREDIT])).toBe(0);
   });
 
   it('reads the last N days from the bank senders', async () => {

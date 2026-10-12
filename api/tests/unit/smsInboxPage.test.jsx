@@ -86,6 +86,20 @@ describe('SmsInboxPage', () => {
     expect(document.body.textContent).toMatch(/۲.۰۰۰.۰۰۰/);
   });
 
+  it('shows a long inbox a page at a time', async () => {
+    const many = Array.from({ length: 120 }, (_, i) => ({
+      address: '+989999987641',
+      body: `بلو\nبرداشت پول\nسینا عزیز، ${i + 1},000,000 ریال از حساب شما پرید.\nموجودی: 77,436,726 ریال\n۱۰:۴۷\n۱۴۰۵.۰۷.۰۶`,
+      date: RECEIVED + i,
+    }));
+    addSmsMessages(many);
+    render(<SmsInboxPage />);
+    await waitFor(() => expect(screen.getByText(/نمایش بیشتر/)).toBeTruthy());
+    expect(recordButtons()).toHaveLength(50);
+    fireEvent.click(screen.getByText(/نمایش بیشتر/).closest('button'));
+    await waitFor(() => expect(recordButtons()).toHaveLength(100));
+  });
+
   it('records a withdrawal as an everyday expense, then drops it', async () => {
     render(<SmsInboxPage />);
     await waitFor(() => expect(recordButtons()).toHaveLength(2));
