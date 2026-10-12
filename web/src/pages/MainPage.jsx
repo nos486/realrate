@@ -24,6 +24,7 @@ import FeatureOffer from '../shared/features/FeatureOffer.jsx';
 import { useAppLayout } from '../shared/app/appLayout.js';
 import { isNativeApp, smsEnabled } from '../shared/native/nativeApp.js';
 import { startSmsAutoRead } from '../shared/native/smsInbox.js';
+import { startWidgetLinks, refreshWidgets } from '../shared/native/widgets.js';
 import { initDueNotificationClicks } from '../shared/native/dueNotifications.js';
 import { startNewsAlerts } from '../features/news/newsAlerts.js';
 import { useSmsAutoRecord } from '../features/sms-inbox/useSmsAutoRecord.js';
@@ -86,6 +87,11 @@ export default function MainPage() {
   const navigateRef = useRef(navigate);
   navigateRef.current = navigate;
   useEffect(() => startSmsAutoRead({ onOpenInbox: () => navigateRef.current(appPath('/sms')) }), []);
+  // A tap on a home-screen widget opens its page (the news, the home, the widgets' settings)
+  useEffect(() => {
+    refreshWidgets();
+    return startWidgetLinks((path) => navigateRef.current(appPath(path)));
+  }, []);
   useEffect(() => initDueNotificationClicks((path) => navigateRef.current(appPath(path))), []);
   // Android app: a notification for important news while the app runs (when turned on)
   useEffect(() => startNewsAlerts(), []);

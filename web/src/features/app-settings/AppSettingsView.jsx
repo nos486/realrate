@@ -10,7 +10,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Smartphone, MessageSquareText, Fingerprint, Info, ArrowLeft, RefreshCw, Download, Bell } from 'lucide-react';
+import { Smartphone, MessageSquareText, Fingerprint, Info, ArrowLeft, RefreshCw, Download, Bell, LayoutGrid, Plus, X } from 'lucide-react';
 import { AlertBanner, Button, Card, FeaturePageHeader } from '../../shared/ui/index.js';
 import { NumericInput } from '../../shared/ui/NumericInput.jsx';
 import { getExpenseCategory } from '../expenses/constants/expenseCategories.js';
@@ -34,6 +34,16 @@ import {
   enableBiometric,
   disableBiometric,
 } from '../../shared/native/biometricUnlock.js';
+import { usePricing } from '../market/context/PricingContext.jsx';
+import AssetPickerModal from '../home/AssetPickerModal.jsx';
+import {
+  WIDGET_KINDS,
+  WIDGET_MAX_ITEMS,
+  WIDGET_DEFAULT_ITEMS,
+  getWidgetFavorites,
+  setWidgetFavorites,
+  requestPinWidget,
+} from '../../shared/native/widgets.js';
 import { useAppUpdate } from '../../shared/native/useAppUpdate.js';
 import { checkForUpdate, setAutoUpdateCheck, openUpdatePrompt } from '../../shared/native/appUpdate.js';
 
@@ -185,6 +195,80 @@ function AppUpdateSettings() {
         )}
       </div>
     </>
+  );
+}
+
+/** «ویجت‌ها»: place the two home-screen widgets and pick the items the prices widget lists */
+function WidgetSettings() {
+  const { toast } = useFeedback();
+  const pricing = usePricing();
+  const [chosen, setChosen] = useState([]);
+  const [picking, setPicking] = useState(false);
+  useEffect(() => {
+    getWidgetFavorites().then(setChosen);
+  }, []);
+
+  const shown = chosen.length ? chosen : WIDGET_DEFAULT_ITEMS;
+  const save = (ids) => setWidgetFavorites(ids).then(setChosen);
+  const toggle = (id, add) => {
+    // The first pick starts from the list shown until now, so a default isn't lost by surprise
+    const base = chosen.length ? chosen : WIDGET_DEFAULT_ITEMS;
+    if (add && base.length >= WIDGET_MAX_ITEMS) {
+      toast.error(`حداکثر ${faNum(WIDGET_MAX_ITEMS)} مورد در ویجت جا می‌شود.`);
+      return;
+    }
+    save(add ? [...base, id] : base.filter((x) => x !== id));
+  };
+  const handlePin = async (kind) => {
+    const requested = await requestPinWidget(kind.key);
+    if (!requested) toast.info(`«${kind.label}» را از لیست ویجت‌های گوشی (نگه داشتن روی صفحه‌ی اصلی ← ویجت‌ها ← RealRate) اضافه کنید.`);
+  };
+
+  return (
+    <Card
+      className="app-settings-card"
+      padding="lg"
+      icon={<LayoutGrid size={18} />}
+      title="ویجت‌های صفحه‌ی اصلی"
+      subtitle="قیمت دارایی‌های موردعلاقه و اخبار هوشمند را بدون باز کردن اپ روی صفحه‌ی اصلی گوشی ببین. هر ویجت خودش را هر نیم‌ساعت و با ضربه روی دکمه‌ی تازه‌سازی به‌روز می‌کند."
+    >
+      {WIDGET_KINDS.map((kind) => (
+        <div className="app-setting-row" key={kind.key}>
+          <div>
+            <strong>{kind.label}</strong>
+            <p>{kind.hint}</p>
+          </div>
+          <Button size="sm" variant="secondary" icon={<Plus size={14} />} onClick={() => handlePin(kind)}>
+            افزودن
+          </Button>
+        </div>
+      ))}
+      <div className="app-setting-block">
+        <strong>دارایی‌های ویجت قیمت</strong>
+        <p>{chosen.length ? 'به ترتیب نمایش:' : 'تا انتخاب نکنی، این‌ها نشان داده می‌شوند:'}</p>
+        <div className="app-category-chips">
+          {shown.map((id) => (
+            <span className="app-category-chip is-active" key={id}>
+              {pricing?.getAsset?.(id)?.name || id}
+              {chosen.length > 0 && (
+                <button type="button" className="app-chip-remove" aria-label="حذف" onClick={() => toggle(id, false)}>
+                  <X size={12} />
+                </button>
+              )}
+            </span>
+          ))}
+        </div>
+        <Button size="sm" variant="secondary" icon={<Plus size={14} />} onClick={() => setPicking(true)}>
+          انتخاب دارایی‌ها
+        </Button>
+      </div>
+      <AssetPickerModal
+        isOpen={picking}
+        section={{ title: 'ویجت قیمت', items: shown }}
+        onClose={() => setPicking(false)}
+        onToggle={toggle}
+      />
+    </Card>
   );
 }
 
@@ -420,6 +504,8 @@ export default function AppSettingsView({ onOpenSms }) {
       )}
 
       <DueNotificationSettings />
+
+      <WidgetSettings />
 
       <Card
         className="app-settings-card"
