@@ -285,6 +285,15 @@
   }
 }
 
+/* Tablets: the three stat cards share the row; every other card (allocation donut, targets, history,
+   plan) takes the full width instead of sitting in one third of it with empty space beside it */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .portfolio-sidebar-column .portfolio-overview-grid > :not(.portfolio-stat-card),
+  .portfolio-sidebar-column .portfolio-overview-grid > .donut-chart-card {
+    grid-column: 1 / -1;
+  }
+}
+
 @media (max-width: 768px) {
   .portfolio-layout-split {
     gap: 10px;

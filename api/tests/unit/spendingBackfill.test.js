@@ -66,7 +66,7 @@ vi.mock('../../../web/src/shared/vault/vaultSubscriptions.js', () => ({
   saveSubscription: async (input, existing) => ({ subscription: { ...existing, ...input } }),
 }));
 
-const { runSpendingBackfill, runChequeCategoryMigration, findDuplicateInstallmentExpenses } = await import('../../../web/src/shared/vault/spendingBackfill.js');
+const { runSpendingBackfill, runChequeCategoryMigration, findDuplicateInstallmentExpenses, findOrphanLoanExpenses } = await import('../../../web/src/shared/vault/spendingBackfill.js');
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -146,5 +146,23 @@ describe('duplicate installment expenses', () => {
     expect(findDuplicateInstallmentExpenses([exp('a', 'x'), exp('b', 'y'), exp('c', 'z', { recordedBy: undefined, id: 'exp_user' })], l)).toEqual([]);
     expect(findDuplicateInstallmentExpenses([exp('a', 'x', { amount: 200 }), exp('b', 'y', { amount: 200 }), exp('c', 'z', { amount: 200 })], l)).toEqual([]);
     expect(findDuplicateInstallmentExpenses([exp('a', 'x'), exp('b', 'y')], loans([inst(1, { isPaid: false, paidDate: '', paidAmount: 0 })]))).toEqual([]);
+  });
+});
+
+describe('expenses of deleted loans', () => {
+  const auto = (id, loanId) => ({ id: `exp_s${id}`, recordedBy: 'loan', loanInstallment: { loanId, installmentId: 'i' } });
+
+  it('finds what the app recorded for a loan that is gone: its installments and its extra payments', () => {
+    const list = [
+      auto('a', 'gone'), auto('b', 'here'),
+      { id: 'exp_sx1', recordedBy: 'loan' }, // an extra payment of an existing loan
+      { id: 'exp_sx2', recordedBy: 'loan' }, // an extra payment nothing has now
+    ];
+    expect(findOrphanLoanExpenses(list, new Set(['here']), new Set(['exp_sx1'])).map((e) => e.id)).toEqual(['exp_sa', 'exp_sx2']);
+  });
+
+  it('keeps what the user entered, even one a loan took over', () => {
+    const list = [{ id: 'exp_user', recordedBy: 'loan', loanInstallment: { loanId: 'gone', installmentId: 'i' } }, { id: 'exp_user2', category: 'food' }];
+    expect(findOrphanLoanExpenses(list, new Set())).toEqual([]);
   });
 });
