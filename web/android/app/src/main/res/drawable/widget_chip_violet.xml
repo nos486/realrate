@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Analysis chip -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <solid android:color="#268b5cf6" />
+    <solid android:color="#148b5cf6" />
     <corners android:radius="8dp" />
 </shape>
