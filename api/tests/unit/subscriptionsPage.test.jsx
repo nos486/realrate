@@ -29,7 +29,6 @@ vi.mock('../../../web/src/shared/vault/vaultExpenses.js', () => ({
   ensureDailyGroup: async () => ({ id: 'grp_daily' }),
   getExpenseGroups: async () => ({ groups: [] }),
   saveExpense: (...a) => store.saveExpense(...a),
-  getExpenses: async () => ({ success: true, expenses: [] }),
 }));
 vi.mock('../../../web/src/features/market/index.js', () => ({ usePricing: () => ({ getAssetPrice: (id) => (id === 'usd' ? 100_000 : 0) }) }));
 vi.mock('../../../web/src/features/accounts/hooks/useAccounts.js', () => ({

@@ -30,7 +30,7 @@ vi.mock('../../../web/src/shared/vault/vaultExpenses.js', () => ({
 }));
 
 const {
-  spendingExpenseId, matchingRecord, recordSpending, recordSubscriptionPayments, recordInstallmentPayments, removeInstallmentPayment, moveRenewalPayment, recordExtraPayment, installmentNumberOf,
+  spendingExpenseId, matchingRecord, recordSpending, recordSubscriptionPayments, recordInstallmentPayments, removeInstallmentPayment, recordExtraPayment, installmentNumberOf,
 } = await import('../../../web/src/shared/vault/spendingRecords.js');
 
 beforeEach(() => {
@@ -69,28 +69,6 @@ describe('subscriptions', () => {
 
   it('records nothing when it has every payment', async () => {
     expect(await recordSubscriptionPayments({ ...sub, lastPaidOn: '2026-03-13' }, '2026-04-01', { saveSubscription })).toBeNull();
-    expect(m.saveExpense).not.toHaveBeenCalled();
-  });
-});
-
-describe('«ثبت پرداخت» on a subscription that renews by itself', () => {
-  const sub = {
-    id: 'sub_1', name: 'Spotify', amount: 20, currency: 'USD', cycleMonths: 1, startDate: '2026-01-12',
-    autoRenew: true, status: 'active', lastPaidOn: '2026-02-11',
-  };
-  const id = spendingExpenseId('sub:sub_1:2026-02-11');
-
-  it('moves the period\'s own expense to the day given: one expense, never a second', async () => {
-    m.dayExpenses = [{ id, date: '2026-02-11', recordedBy: 'subscription' }];
-    const moved = await moveRenewalPayment(sub, { date: '2026-02-09', amount: 20 }, '2026-02-12');
-    expect(moved).toMatchObject({ date: '2026-02-09', subscriptionId: 'sub_1' });
-    expect(m.saveExpense.mock.calls[0][1]).toBe(m.dayExpenses[0]);
-    expect(m.saveExpense.mock.calls[0][2]).toMatchObject({ syncLinks: false, asOwner: true });
-  });
-
-  it('does nothing when the period has no expense of its own to move (paid ahead instead)', async () => {
-    expect(await moveRenewalPayment(sub, { date: '2026-02-20' }, '2026-02-20')).toBeNull();
-    expect(await moveRenewalPayment({ ...sub, autoRenew: false }, { date: '2026-02-20' }, '2026-02-20')).toBeNull();
     expect(m.saveExpense).not.toHaveBeenCalled();
   });
 });
