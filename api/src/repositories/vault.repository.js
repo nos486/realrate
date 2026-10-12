@@ -588,3 +588,46 @@ export async function dbExistingVaultRecordIds(env, userId, kind, ids) {
   ).bind(userId, kind, ...ids).all();
   return new Set((results || []).map((r) => r.id));
 }
+
+/** Tables that held a kind's records in plaintext, before they were stored encrypted */
+const PLAIN_TABLES = { loan: "loans", cheque: "cheques", holding: "portfolio_holdings", transaction: "transactions", income: "incomes" };
+
+/**
+ * Whether the record still exists as a plaintext row (only then is storing it with `replacePlain`
+ * a migration of existing data rather than a new record)
+ */
+export async function dbPlainRecordExists(env, userId, kind, id) {
+  const table = PLAIN_TABLES[kind];
+  if (!table) return false;
+  const row = await env.DB.prepare(`SELECT 1 AS x FROM ${table} WHERE id = ? AND user_id = ?`).bind(id, userId).first();
+  return Boolean(row);
+}
+
+/**
+ * Atomically add `add` to a per-period counter unless that would pass `limit`. The counter starts
+ * at `seed` (the records already stored in the period) the first time.
+ * @returns {Promise<boolean>} whether the records fit
+ */
+export async function dbClaimPlanCounter(env, userId, counter, period, { seed, add, limit }) {
+  await ensureSchema(env);
+  await env.DB.prepare(`INSERT OR IGNORE INTO plan_counters (user_id, counter, period, n) VALUES (?, ?, ?, ?)`)
+    .bind(userId, counter, period, seed).run();
+  const res = await env.DB.prepare(
+    `UPDATE plan_counters SET n = n + ? WHERE user_id = ? AND counter = ? AND period = ? AND n + ? <= ?`
+  ).bind(add, userId, counter, period, add, limit).run();
+  return Number(res?.meta?.changes) === 1;
+}
+
+/** Give back what dbClaimPlanCounter claimed (the records were not stored) */
+export async function dbReleasePlanCounter(env, userId, counter, period, add) {
+  await env.DB.prepare(`UPDATE plan_counters SET n = MAX(0, n - ?) WHERE user_id = ? AND counter = ? AND period = ?`)
+    .bind(add, userId, counter, period).run();
+}
+
+/** What a per-period counter holds (0 when it has not been started) */
+export async function dbGetPlanCounter(env, userId, counter, period) {
+  await ensureSchema(env);
+  const row = await env.DB.prepare(`SELECT n FROM plan_counters WHERE user_id = ? AND counter = ? AND period = ?`)
+    .bind(userId, counter, period).first();
+  return Number(row?.n) || 0;
+}

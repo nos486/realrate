@@ -348,6 +348,21 @@ export const APP_TABLES = [
     ],
   },
   {
+    // Records first stored per user, limit and period (the free plan's monthly limit, lib/planLimits.js):
+    // unlike counting the rows, it does not shrink when the user deletes a record
+    name: "plan_counters",
+    columns: ["user_id", "counter", "period", "n"],
+    ddl: [
+      `CREATE TABLE IF NOT EXISTS plan_counters (
+        user_id TEXT NOT NULL,
+        counter TEXT NOT NULL,
+        period TEXT NOT NULL,
+        n INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (user_id, counter, period)
+      )`,
+    ],
+  },
+  {
     // Minimal plaintext index for due loan installments, cheques and recurring incomes
     name: "vault_reminders",
     columns: ["user_id", "kind", "record_id", "due_date", "interval_months", "remaining", "direction", "muted", "updated_at"],
