@@ -1,7 +1,7 @@
 # Android app: builds the signed release APK from the web app (web/) and its Android shell (web/android).
 # Push to main publishes a signed release APK when the signing secrets are set (see docs/ANDROID.md).
 # Two APKs are published as one GitHub release (v1.0.<run>): realrate.apk (reads bank SMS) and realrate-nosms.apk
-# (no SMS permission, for stores that refuse it). Latest: releases/latest/download/realrate.apk.
+# (no SMS permission, for stores that refuse it), plus realrate-nosms.aab (the same build as an app bundle, for Google Play). Latest: releases/latest/download/realrate.apk.
 name: Android
 
 on:
@@ -67,9 +67,11 @@ jobs:
           # The no-SMS build: its own web bundle (SMS screens hidden) and manifest (no SMS permission)
           (cd .. && VITE_NO_SMS=1 npm run build:app && npx cap sync android)
           ./gradlew --no-daemon assembleNosmsRelease -PversionCode=$VERSION_CODE -PversionName=$VERSION_NAME
+          ./gradlew --no-daemon bundleNosmsRelease -PversionCode=$VERSION_CODE -PversionName=$VERSION_NAME
           rm -f "$ANDROID_KEYSTORE_PATH"
           cp app/build/outputs/apk/full/release/*.apk "$RUNNER_TEMP/realrate.apk"
           cp app/build/outputs/apk/nosms/release/*.apk "$RUNNER_TEMP/realrate-nosms.apk"
+          cp app/build/outputs/bundle/nosmsRelease/*.aab "$RUNNER_TEMP/realrate-nosms.aab"
 
       - uses: actions/upload-artifact@v4
         if: env.HAS_SIGNING == 'true'
@@ -78,6 +80,7 @@ jobs:
           path: |
             ${{ runner.temp }}/realrate.apk
             ${{ runner.temp }}/realrate-nosms.apk
+            ${{ runner.temp }}/realrate-nosms.aab
           if-no-files-found: ignore
           retention-days: 90
 
@@ -98,12 +101,12 @@ jobs:
           fi
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             # A re-run (or a publish that failed half way): replace the file, make sure it is out
-            gh release upload "$tag" "$RUNNER_TEMP/realrate.apk" "$RUNNER_TEMP/realrate-nosms.apk" --repo "$GITHUB_REPOSITORY" --clobber
+            gh release upload "$tag" "$RUNNER_TEMP/realrate.apk" "$RUNNER_TEMP/realrate-nosms.apk" "$RUNNER_TEMP/realrate-nosms.aab" --repo "$GITHUB_REPOSITORY" --clobber
             gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest \
               --title "RealRate $VERSION_NAME" \
               --notes-file "$RUNNER_TEMP/release_notes.md"
           else
-            gh release create "$tag" "$RUNNER_TEMP/realrate.apk" "$RUNNER_TEMP/realrate-nosms.apk" --repo "$GITHUB_REPOSITORY" --verify-tag --latest \
+            gh release create "$tag" "$RUNNER_TEMP/realrate.apk" "$RUNNER_TEMP/realrate-nosms.apk" "$RUNNER_TEMP/realrate-nosms.aab" --repo "$GITHUB_REPOSITORY" --verify-tag --latest \
               --title "RealRate $VERSION_NAME" \
               --notes-file "$RUNNER_TEMP/release_notes.md"
           fi
