@@ -38,6 +38,7 @@ import { splitCounted } from '../../shared/categories/categoryStore.js';
 import { formatShamsiMonth, buildIncomeReport } from '../incomes/utils/incomeReport.js';
 import { formatShamsiDisplay } from '../portfolio/components/ShamsiDatePicker.jsx';
 import NewsCard from '../news/NewsCard.jsx';
+import PlanHomeCard from '../../shared/plan/PlanHomeCard.jsx';
 
 const MASK = '••••••';
 const fa = (n) => Math.round(Number(n) || 0).toLocaleString('fa-IR');
@@ -176,6 +177,7 @@ export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }
       <div className="app-home">
         {ratesCard}
         <VaultUnlockCard title="برای دیدن خلاصه‌ی ماه، اطلاعات را باز کنید" />
+        <PlanHomeCard />
         <NewsCard count={3} />
       </div>
     );
@@ -241,7 +243,10 @@ export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }
         </button>
       )}
 
-      {/* Latest news */}
+      {/* Free plan (not shown on Pro) */}
+      <PlanHomeCard />
+
+      {/* Latest news (Pro) */}
       <NewsCard count={3} />
 
       {/* Latest expenses */}
