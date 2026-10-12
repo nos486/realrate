@@ -479,7 +479,6 @@ function SmsRecordsCleanup({ vaultUnlocked }) {
   const [fromShamsi, setFromShamsi] = useState(getTodayShamsi());
   const [toShamsi, setToShamsi] = useState(getTodayShamsi());
   const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState('');
   const fromIso = shamsiToGregorian(fromShamsi);
   const toIso = shamsiToGregorian(toShamsi);
   const valid = Boolean(fromIso && toIso && fromIso <= toIso);
@@ -500,14 +499,13 @@ function SmsRecordsCleanup({ vaultUnlocked }) {
         danger: true,
       });
       if (!ok) return;
-      const deleted = await deleteSmsRecords(found, (done, total) => setProgress(`${done.toLocaleString('fa-IR')} از ${total.toLocaleString('fa-IR')}`));
+      const deleted = await deleteSmsRecords(found);
       bumpVaultEpoch();
       toast.success(`${deleted.toLocaleString('fa-IR')} مورد حذف شد.`);
     } catch (err) {
       toast.error(err?.message || 'حذف ممکن نشد.');
     } finally {
       setBusy(false);
-      setProgress('');
     }
   };
 
@@ -529,7 +527,6 @@ function SmsRecordsCleanup({ vaultUnlocked }) {
         <Button size="sm" variant="danger" icon={<Trash2 size={14} />} onClick={handleDelete} loading={busy} disabled={!valid || !vaultUnlocked}>
           شمارش و حذف
         </Button>
-        {progress && <span role="status">در حال حذف: {progress}</span>}
       </div>
     </Card>
   );

@@ -148,6 +148,7 @@ import {
   handlePutVaultRecord,
   handlePutVaultRecords,
   handleDeleteVaultRecord,
+  handleDeleteVaultRecords,
   handleGetLoanDocument,
   handleSyncVaultRecords,
   handleResetVault,
@@ -440,6 +441,11 @@ async function handleRequest(request, env, ctx) {
   }
   if (normalizedPath === "/api/vault/reset" && request.method === "POST") return wrap(handleResetVault)(request, env);
   if (normalizedPath === "/api/vault/sync" && request.method === "GET") return wrap(handleSyncVaultRecords)(request, env);
+  const vaultDeleteManyMatch = normalizedPath.match(/^\/api\/vault\/records\/([^/]+)\/delete$/);
+  if (vaultDeleteManyMatch && request.method === "POST") {
+    const kind = vaultDeleteManyMatch[1];
+    return wrap((req, e) => handleDeleteVaultRecords(req, e, { kind }))(request, env);
+  }
   const vaultRecordMatch = normalizedPath.match(/^\/api\/vault\/records\/([^/]+)\/([^/]+)$/);
   if (vaultRecordMatch) {
     const [, kind, id] = vaultRecordMatch;

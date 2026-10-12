@@ -181,5 +181,21 @@ export const deleteVaultRecord = async (kind, id, options) => {
   }
 };
 
+/**
+ * Delete several records of one kind: one request per VAULT_BATCH_MAX ids (all or none in each).
+ * Offline, each is deleted and queued on its own, like deleteVaultRecord.
+ * @param {string} kind
+ * @param {string[]} ids
+ */
+export const deleteVaultRecords = async (kind, ids, options) => {
+  if (offline.isOfflineActive()) {
+    for (const id of ids) await deleteVaultRecord(kind, id, options).catch((err) => { if (err?.status !== 404) throw err; });
+    return;
+  }
+  for (let i = 0; i < ids.length; i += VAULT_BATCH_MAX) {
+    await httpClient.post(`/api/vault/records/${seg(kind)}/delete`, { ids: ids.slice(i, i + VAULT_BATCH_MAX) }, options);
+  }
+};
+
 /** Raw stored loan (parameters + states + extra payments), used to encrypt an existing loan */
 export const getLoanDocument = (loanId, options) => httpClient.get(`/api/loans/${seg(loanId)}/document`, options);
