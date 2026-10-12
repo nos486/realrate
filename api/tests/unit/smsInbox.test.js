@@ -33,6 +33,7 @@ import {
   getPendingSms,
   markSmsHandled,
   dismissSms,
+  restoreSms,
   readSmsDays,
   autoReadSms,
   setSmsSettings,
@@ -107,6 +108,19 @@ describe('SMS inbox', () => {
     dismissSms(getPendingSms()[0].fingerprint);
     expect(addSmsMessages([DEBIT, CREDIT], { recheckRecorded: true })).toBe(1);
     expect(getPendingSms().map((p) => p.tx.direction)).toEqual(['debit']);
+  });
+
+  it('a dismissed message can be restored: waiting again, and read again by later reads', () => {
+    addSmsMessages([DEBIT]);
+    const item = getPendingSms()[0];
+    dismissSms(item.fingerprint);
+    expect(addSmsMessages([DEBIT])).toBe(0);
+    expect(restoreSms(item)).toBe(true);
+    expect(getPendingSms().map((p) => p.fingerprint)).toEqual([item.fingerprint]);
+    // Not dismissed any more: a repeat read does not duplicate it, and a recorded one can't be "restored"
+    expect(addSmsMessages([DEBIT])).toBe(0);
+    markSmsHandled(item.fingerprint);
+    expect(restoreSms(item)).toBe(false);
   });
 
   it('reads the last N days from the bank senders', async () => {

@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { ArrowDownLeft, ArrowUpRight, CheckCircle2, X, ListChecks } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, CheckCircle2, X, ListChecks, Undo2 } from 'lucide-react';
 import { Card } from '../../shared/ui/index.js';
 import { BankLogo, resolveBank } from '../../shared/banks/index.js';
 import { formatShamsiDisplay } from '../portfolio/components/ShamsiDatePicker.jsx';
@@ -19,9 +19,10 @@ const OUTCOME = {
 };
 
 /**
- * @param {{ items: Array<{ fingerprint: string, tx: object, outcome: 'recorded'|'dismissed' }> }} props
+ * @param {{ items: Array<{ fingerprint: string, tx: object, outcome: 'recorded'|'dismissed' }>,
+ *   onRestore?: (item: object) => void }} props `onRestore`: puts a dismissed message back in the inbox
  */
-export default function SmsReadHistory({ items }) {
+export default function SmsReadHistory({ items, onRestore }) {
   if (!items?.length) return null;
   return (
     <Card
@@ -29,10 +30,11 @@ export default function SmsReadHistory({ items }) {
       padding="lg"
       icon={<ListChecks size={18} />}
       title="قبلاً ثبت‌شده"
-      subtitle="پیامک‌هایی که این بار خوانده شد و از قبل ثبت یا رد شده‌اند — فقط برای دیدن؛ با بستن این صفحه پاک می‌شود."
+      subtitle="پیامک‌هایی که این بار خوانده شد و از قبل ثبت یا رد شده‌اند؛ رد شده‌ها را می‌توانید برگردانید تا دوباره قابل ثبت و ویرایش شوند. با بستن این صفحه فهرست پاک می‌شود."
     >
       <ul className="sms-inbox-list" aria-label="پیامک‌های قبلاً ثبت‌شده">
-        {items.map(({ fingerprint, tx, outcome }) => {
+        {items.map((item) => {
+          const { fingerprint, tx, outcome } = item;
           const bank = resolveBank({ bankId: tx.bankId });
           const isDebit = tx.direction === 'debit';
           const status = OUTCOME[outcome];
@@ -58,6 +60,12 @@ export default function SmsReadHistory({ items }) {
                 <status.Icon size={14} aria-hidden="true" />
                 {status.label}
               </span>
+              {outcome === 'dismissed' && onRestore && (
+                <button type="button" className="sms-inbox-dismiss" onClick={() => onRestore(item)}>
+                  <Undo2 size={14} aria-hidden="true" />
+                  برگردان
+                </button>
+              )}
             </li>
           );
         })}

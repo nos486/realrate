@@ -40,6 +40,7 @@ export const INCOME_CATEGORIES = [
   "cash_management",
   "asset_sale",
   "credit_settlement",
+  "loan_received",
   "other",
 ];
 
