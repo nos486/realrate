@@ -14,7 +14,7 @@
  * hand-recorded expense/income of the same day, amount and kind.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { MessageSquareText, History } from 'lucide-react';
 import { AlertBanner, Button, Card, FeaturePageHeader, FilterPills, NumericInput } from '../../shared/ui/index.js';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
@@ -35,7 +35,8 @@ import ShareDepositSheet from './ShareDepositSheet.jsx';
 import ProjectPickSheet from './ProjectPickSheet.jsx';
 import TransferForm from '../accounts/components/TransferForm.jsx';
 import { saveTransfer } from '../../shared/vault/vaultTransfers.js';
-import { smsExpenseDraft, smsProjectExpenseDraft, smsIncomeDraft, smsTransferDraft } from './smsDrafts.js';
+import { smsExpenseDraft, smsProjectExpenseDraft, smsIncomeDraft, smsTransferDraft, findTransferCounterpart } from './smsDrafts.js';
+import { ensureSmsAccount } from './smsAccounts.js';
 import { saveSmsExpense, recordSmsExpense, dropAlreadyRecorded } from './smsRecord.js';
 import { getExpenseCategory } from '../expenses/constants/expenseCategories.js';
 import { bumpVaultEpoch } from '../../shared/vault/vaultStore.js';
@@ -54,7 +55,12 @@ export default function SmsInboxPage() {
   const { toast } = useFeedback();
   const { readOnly } = useDemo();
   const { status: vaultStatus } = useVault();
-  const { accounts } = useAccounts();
+  const { accounts: loadedAccounts, enabled: accountsEnabled } = useAccounts();
+  // Accounts made from messages in this session, until the list has read them
+  const [madeAccounts, setMadeAccounts] = useState([]);
+  const accounts = useMemo(
+    () => [...loadedAccounts, ...madeAccounts.filter((m) => !loadedAccounts.some((a) => a.id === m.id))],
+    [loadedAccounts, madeAccounts]);
   const pricing = usePricing();
   const usdToman = Number(pricing?.getAssetPrice?.('usd')) || 0;
   const [expenseDraft, setExpenseDraft] = useState(null);
@@ -95,16 +101,33 @@ export default function SmsInboxPage() {
     // `pendingIds`: checked again whenever the list changes
   }, [vaultStatus, pendingIds]);
 
-  const handleRecord = (item) => {
-    if (item.tx.direction === 'debit') setExpenseDraft(smsExpenseDraft(item.tx, accounts));
-    else setIncomeDraft(smsIncomeDraft(item.tx));
+  /**
+   * Make the account each message belongs to when the user has none for it (smsAccounts.js);
+   * returns the accounts, new ones included. Nothing is made without the accounts feature.
+   */
+  const withMessageAccounts = async (...items) => {
+    const active = accounts.filter((a) => !a.archived);
+    if (!accountsEnabled) return active;
+    const before = active.length;
+    for (const item of items) await ensureSmsAccount(item.tx, active);
+    if (active.length > before) {
+      setMadeAccounts((made) => [...made, ...active.slice(before)]);
+      bumpVaultEpoch();
+    }
+    return active;
+  };
+
+  const handleRecord = async (item) => {
+    const active = await withMessageAccounts(item);
+    if (item.tx.direction === 'debit') setExpenseDraft(smsExpenseDraft(item.tx, active));
+    else setIncomeDraft(smsIncomeDraft(item.tx, active));
   };
 
   /** «ثبت سریع»: recorded as it is, in the category of the app settings — no form */
   const handleQuickRecord = async (item) => {
     setQuickId(item.fingerprint);
     try {
-      await recordSmsExpense(item, { accounts: accounts.filter((a) => !a.archived) });
+      await recordSmsExpense(item, { accounts: await withMessageAccounts(item) });
       bumpVaultEpoch();
       toast.success(`هزینه در «${getExpenseCategory(getSmsSettings().recordCategory).label}» ثبت شد.`);
     } catch (err) {
@@ -126,8 +149,11 @@ export default function SmsInboxPage() {
     }
   };
 
-  const handleTransfer = (item) => {
-    const { draft, counterpart } = smsTransferDraft(item, pending, accounts.filter((a) => !a.archived));
+  const handleTransfer = async (item) => {
+    // Both sides are the user's own accounts: the other message's too
+    const other = findTransferCounterpart(item, pending);
+    const active = await withMessageAccounts(...[item, other].filter(Boolean));
+    const { draft, counterpart } = smsTransferDraft(item, pending, active);
     setTransferDraft({ draft, items: [item, counterpart].filter(Boolean) });
   };
 
@@ -243,8 +269,9 @@ export default function SmsInboxPage() {
         <ProjectPickSheet
           item={projectItem}
           onClose={() => setProjectItem(null)}
-          onPick={(project) => {
-            setProjectDraft({ project, draft: smsProjectExpenseDraft(projectItem.tx, accounts) });
+          onPick={async (project) => {
+            const active = await withMessageAccounts(projectItem);
+            setProjectDraft({ project, draft: smsProjectExpenseDraft(projectItem.tx, active) });
             setProjectItem(null);
           }}
         />
@@ -276,6 +303,7 @@ export default function SmsInboxPage() {
       {incomeDraft && (
         <IncomeForm
           draft={incomeDraft}
+          accounts={accounts.filter((a) => !a.archived)}
           submitting={saving}
           onClose={() => setIncomeDraft(null)}
           onSubmit={record(createIncome, incomeDraft, 'درآمد ثبت شد.')}

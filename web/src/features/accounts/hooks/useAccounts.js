@@ -29,7 +29,7 @@ export function useAccounts() {
  * @param {boolean} [active] false: loads nothing (a shared list is used instead)
  */
 export function useAccountsState(active = true) {
-  const { user } = useAuth();
+  const { user } = useAuth() || {};
   const enabled = useFeature('bank_accounts');
   const { status: vaultStatus, epoch: vaultEpoch } = useVault();
   const vaultLocked = vaultStatus === 'locked';

@@ -57,6 +57,9 @@ import { useCategories } from '../../../shared/categories/useCategories.js';
 import { listCategories } from '../../../shared/categories/categoryStore.js';
 import CategoryManagerModal from '../../../shared/categories/CategoryManagerModal.jsx';
 import { accountLabel } from '../../accounts/constants/accountDisplay.js';
+import AccountForm from '../../accounts/components/AccountForm.jsx';
+import { useCreateAccount, withMadeAccounts } from '../../accounts/hooks/useCreateAccount.js';
+import { useFeature } from '../../../shared/features/useFeature.js';
 import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
 import { fundingLoanOptions } from '../../../utils/loanFunding.js';
 import { useAssetFunds } from '../../../shared/vault/useAssetFunds.js';
@@ -92,6 +95,8 @@ const PAY_WITH = {
 
 /** A portfolio among the «پرداخت از» choices (an account's is its id) */
 const FUND_PREFIX = 'pf:';
+/** The «حساب جدید» option of «پرداخت از» */
+const NEW_ACCOUNT = '__new_account__';
 
 const SHARE_OPTIONS = [
   { value: 'own', label: 'همه‌اش سهم من' },
@@ -189,7 +194,10 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
   const [fundId, setFundId] = useState(expense?.paidFrom?.portfolioId || '');
   const fund = fundAsset ? funds.find((f) => f.portfolioId === fundId) || null : null;
   // The accounts that hold the expense's currency (the one it already names stays)
-  const payAccounts = accountsForCurrency(accounts, currency, expense?.accountId);
+  const accountsEnabled = useFeature('bank_accounts');
+  const { made, create: createAccount } = useCreateAccount();
+  const [creatingAccount, setCreatingAccount] = useState(false);
+  const payAccounts = accountsForCurrency(withMadeAccounts(accounts, made), currency, expense?.accountId);
   const effectiveAccountId = payAccounts.some((a) => a.id === accountId) ? accountId : '';
   // A link chosen fills in what it knows (a new expense only: an edit keeps what was typed)
   const fill = (fields) => {
@@ -231,7 +239,11 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
     : [PAY_WITH.account, PAY_WITH.cheque, ...(fundingLoans.length > 0 ? [PAY_WITH.loan] : [])];
   const paidWith = payOptions.some((o) => o.value === payWith) ? payWith : 'account';
   const loanChosen = paidWith === 'loan' && fundingLoans.some((l) => l.id === loanId);
+  // Every expense is tied to an account: one is picked or made, unless it is paid from a
+  // portfolio, a cheque or a loan, or is an older expense that never had one
+  const accountRequired = accountsEnabled && paidWith === 'account' && !paidFromPortfolio && (!expense || Boolean(expense.accountId));
   const isValid = (Boolean(category) || Boolean(title.trim())) && amountNum > 0 && Boolean(dateIso)
+    && (!accountRequired || Boolean(effectiveAccountId))
     && (!needsDayRate || dayRate > 0) && shareValid && !submitting
     && (paidWith !== 'loan' || loanChosen)
     && (!investing || isLinkComplete(linkValue))
@@ -332,16 +344,21 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
 
   // «پرداخت از»: the accounts holding its currency, and that currency held in a portfolio
   const payFromOptions = [
-    { value: '', label: 'نامشخص' },
+    ...(accountRequired ? [] : [{ value: '', label: 'نامشخص' }]),
     ...payAccounts.map((a) => ({ value: a.id, label: accountLabel(a) })),
     ...(fundAsset ? funds.filter((f) => f.amount > 0 || f.portfolioId === fundId).map((f) => ({
       value: `${FUND_PREFIX}${f.portfolioId}`,
       label: `پورتفو «${f.portfolioName}»`,
       hint: `موجودی ${formatNum(f.amount)} ${unit}`,
     })) : []),
+    ...(accountsEnabled ? [{ value: NEW_ACCOUNT, label: '+ حساب جدید' }] : []),
   ];
   const payFrom = fund ? `${FUND_PREFIX}${fund.portfolioId}` : effectiveAccountId;
   const choosePayFrom = (value) => {
+    if (value === NEW_ACCOUNT) {
+      setCreatingAccount(true);
+      return;
+    }
     const portfolioId = value.startsWith(FUND_PREFIX) ? value.slice(FUND_PREFIX.length) : '';
     setFundId(portfolioId);
     setAccountId(portfolioId ? '' : value);
@@ -353,6 +370,7 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
   ];
 
   return (
+    <>
     <Modal
       isOpen
       onClose={onClose}
@@ -443,8 +461,11 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
               <p className="expense-form-hint">از پول این وام خرج شده؛ در «وام‌ها» جزو خرج‌شده‌ی آن حساب می‌شود.</p>
             </PickerRow>
           )}
-          {paidWith !== 'cheque' && payFromOptions.length > 1 && (
-            <PickerRow label="پرداخت از" value={payFrom} options={payFromOptions} onChange={choosePayFrom} placeholder="نامشخص">
+          {paidWith !== 'cheque' && (payFromOptions.length > 1 || accountRequired) && (
+            <PickerRow label="پرداخت از" value={payFrom} options={payFromOptions} onChange={choosePayFrom} placeholder={accountRequired ? 'یک حساب انتخاب کنید' : 'نامشخص'}>
+              {accountRequired && !effectiveAccountId && (
+                <p className="expense-form-hint is-warning">هر هزینه باید به یک حساب وصل باشد؛ حسابی را انتخاب کنید یا «حساب جدید» بسازید.</p>
+              )}
               {fundAsset && loadingFunds && <p className="expense-form-hint">در حال خواندن موجودی {unit} پورتفوها…</p>}
               {fund && (
                 <p className={`expense-form-hint ${fundAfter < 0 ? 'is-warning' : ''}`}>
@@ -522,5 +543,16 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
         </MoreDetails>
       </div>
     </Modal>
+      {creatingAccount && (
+        <AccountForm
+          onSubmit={async (input) => {
+            const account = await createAccount(input);
+            setFundId('');
+            setAccountId(account.id);
+          }}
+          onClose={() => setCreatingAccount(false)}
+        />
+      )}
+    </>
   );
 }

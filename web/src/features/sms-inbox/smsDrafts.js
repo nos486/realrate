@@ -48,9 +48,9 @@ export function smsProjectExpenseDraft(tx, accounts = []) {
 /**
  * The income form's draft for a deposit: titled after what the message says it is (its
  * description and the bank, e.g. «سود بانک شهر») or «واریز <bank>», in the category its
- * description points to
+ * description points to, into the matched account
  */
-export function smsIncomeDraft(tx) {
+export function smsIncomeDraft(tx, accounts = []) {
   const bank = resolveBank({ bankId: tx.bankId });
   const desc = String(tx.description || '').trim();
   return {
@@ -58,6 +58,7 @@ export function smsIncomeDraft(tx) {
     ...categoryOf(tx),
     amount: Math.round(tx.amount),
     incomeDate: tx.date,
+    accountId: matchSmsAccount(tx, accounts),
     notes: smsNote(tx),
     smsFingerprint: tx.fingerprint,
     smsKey: tx.key,
