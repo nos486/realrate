@@ -23,7 +23,7 @@
  * the expenses and incomes don't edit or delete it — only its own page does, through here.
  */
 
-import { SUBSCRIPTION_EXPENSE_CATEGORY, duePayments } from '../../utils/subscriptionDocument.js';
+import { SUBSCRIPTION_EXPENSE_CATEGORY, duePayments, renewalsBetween } from '../../utils/subscriptionDocument.js';
 import { categoryLinkOf, linkFieldsOf, sameLinkValue } from '../../utils/categoryLinks.js';
 import { BASE_CURRENCY, normalizeCurrency } from '../../utils/currencies.js';
 import { SPENDING_ID_PREFIX } from '../../utils/recordOwners.js';
@@ -152,6 +152,29 @@ export async function recordSubscriptionPayments(sub, today, { saveSubscription 
     }, { owner: 'subscription' });
   }
   return saveSubscription({ lastPaidOn: days[days.length - 1] }, sub);
+}
+
+/**
+ * «ثبت پرداخت» on a subscription that renews by itself, when its current period's payment is
+ * already in the expenses on its renewal day (recorded by itself): that expense moves to the day
+ * (and the fields) the user gives, so the period keeps one expense, never a second. Nothing when
+ * it is not there, or was moved already — then the payment is the next renewal's, paid ahead.
+ * @param {object} sub
+ * @param {object} input the expense the payment form made
+ * @param {string} today
+ * @returns {Promise<object|null>} the expense as saved, or null when there was none to move
+ */
+export async function moveRenewalPayment(sub, input, today) {
+  if (!sub?.autoRenew || !sub.startDate) return null;
+  const day = renewalsBetween(sub, sub.startDate, today).pop();
+  if (!day) return null;
+  const { getExpenses, saveExpense } = await store();
+  const id = spendingExpenseId(`sub:${sub.id}:${day}`);
+  const { expenses = [] } = await getExpenses({ from: day, to: day });
+  const own = expenses.find((e) => e.id === id);
+  if (!own) return null;
+  const { expense } = await saveExpense({ ...input, subscriptionId: sub.id }, own, { syncLinks: false, asOwner: true });
+  return expense;
 }
 
 /**
