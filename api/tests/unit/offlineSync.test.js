@@ -57,7 +57,7 @@ vi.mock('../../../web/src/shared/api/httpClient.js', async (orig) => {
     put: vi.fn(async (path, body) => {
       offline();
       const [, , , , kind, id] = path.split('/').map(decodeURIComponent);
-      if (server.refuse === id) throw new HttpError('refused', 400, { errorCode: 'BAD' });
+      if (server.refuse === id) throw new HttpError('refused', server.refuseStatus || 400, { errorCode: 'BAD' });
       const prev = server.records.get(key(kind, id));
       const now = tick();
       const record = { kind, id, payload: body.payload, recordDate: body.recordDate || '', parentId: body.parentId || '', createdAt: prev?.createdAt || now, updatedAt: now };
@@ -95,7 +95,7 @@ async function start() {
 }
 
 beforeEach(() => {
-  Object.assign(server, { online: true, epoch: 'epoch-1', clock: 0, refuse: null });
+  Object.assign(server, { online: true, epoch: 'epoch-1', clock: 0, refuse: null, refuseStatus: 0 });
   server.records.clear();
   server.tombstones.clear();
   // Offline at the first failure (the confirmation delay has tests of its own)
@@ -186,6 +186,19 @@ describe('offline copy', () => {
     window.removeEventListener(offline.VAULT_CHANGED_EVENT, changed);
   });
 
+  it('a sync round runs inside the browser lock shared by the tabs, when there is one', async () => {
+    seed('income', 'i1');
+    const request = vi.fn((name, fn) => fn());
+    Object.defineProperty(navigator, 'locks', { value: { request }, configurable: true });
+    try {
+      await start();
+      expect(request).toHaveBeenCalledWith(expect.stringContaining('realrate-sync-'), expect.any(Function));
+      expect((await listVaultRecords('income', undefined, {})).records.map((r) => r.id)).toEqual(['i1']);
+    } finally {
+      delete navigator.locks;
+    }
+  });
+
   it('a reset account (new epoch) starts the copy over', async () => {
     seed('income', 'old');
     await start();
@@ -210,6 +223,21 @@ describe('offline copy', () => {
     expect(offline.getOfflineState().pending).toBe(0);
     expect((await listVaultRecords('income', undefined, {})).records.map((r) => r.id)).toEqual(['i1']);
     window.removeEventListener(offline.OFFLINE_SYNC_ERROR_EVENT, reported);
+  });
+
+  it('a queued change refused for the moment (signed out, rate limit) stays queued', async () => {
+    await start();
+    server.online = false;
+    await putVaultRecord('income', 'later', C('later'));
+    server.online = true;
+    server.refuseStatus = 401;
+    server.refuse = 'later';
+    await offline.syncNow();
+    expect(offline.getOfflineState().pending).toBe(1);
+    server.refuse = null;
+    await offline.syncNow();
+    expect(offline.getOfflineState().pending).toBe(0);
+    expect(server.records.has('income|later')).toBe(true);
   });
 
   it('online, a refusal still fails as before (nothing queued)', async () => {
@@ -278,6 +306,11 @@ describe('telling offline from a hiccup', () => {
     expect(offline.isNetworkError(new HttpError('x', 503))).toBe(true);
     expect(offline.isNetworkError(new HttpError('x', 503, { errorCode: 'MAINTENANCE' }))).toBe(false);
     expect(offline.isNetworkError(new HttpError('x', 409))).toBe(false);
+    expect(offline.isTransientRefusal(new HttpError('x', 401))).toBe(true);
+    expect(offline.isTransientRefusal(new HttpError('x', 429))).toBe(true);
+    expect(offline.isTransientRefusal(new HttpError('x', 522))).toBe(true);
+    expect(offline.isTransientRefusal(new HttpError('x', 400))).toBe(false);
+    expect(offline.isTransientRefusal(new HttpError('x', 500))).toBe(false);
     expect(offline.isNetworkError(new TypeError("Cannot read properties of undefined (reading 'x')"))).toBe(false);
     expect(offline.isNetworkError(new DOMException('quota', 'QuotaExceededError'))).toBe(false);
   });

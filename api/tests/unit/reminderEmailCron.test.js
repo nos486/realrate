@@ -46,8 +46,10 @@ function createMockDb() {
   const sent = [];
   const reminders = [];
   const users = new Map();
+  const stats = { maxBound: 0 };
 
   return {
+    stats,
     prefs,
     sent,
     reminders,
@@ -62,6 +64,7 @@ function createMockDb() {
       const stmt = {
         bind(...args) {
           bound = args;
+          stats.maxBound = Math.max(stats.maxBound, args.length);
           return stmt;
         },
         async first() {
@@ -486,6 +489,22 @@ describe('Alert Email System (Part A)', () => {
       const res = await runReminderEmailDigest(env, '2026-10-05');
       expect(res.emailsSent).toBe(0);
       expect(db.sent).toEqual([]);
+    });
+
+    it('reads many recipients in chunks that fit D1\'s 100 bound parameters', async () => {
+      for (let i = 0; i < 250; i++) {
+        const userId = `u_many_${i}`;
+        db.users.set(userId, { email: `many${i}@example.com`, email_verified: 1, disabled: 0 });
+        db.prefs.set(userId, {
+          user_id: userId, enabled: 1, sources: JSON.stringify(['loan']), lead_days: JSON.stringify([0]),
+          send_overdue: 0, include_cheque_direction: 0,
+        });
+        db.reminders.push({ user_id: userId, kind: 'loan', record_id: `ln_${i}`, due_date: '2026-10-05', interval_months: 1, remaining: 3, direction: '', muted: 0 });
+      }
+
+      const res = await runReminderEmailDigest(env, { now: new Date('2026-10-05T05:00:00Z') });
+      expect(res.emailsSent).toBe(250);
+      expect(db.stats.maxBound).toBeLessThanOrEqual(100);
     });
 
     it('purges sent records older than 120 days', async () => {

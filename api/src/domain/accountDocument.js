@@ -13,6 +13,7 @@
  */
 
 import { validateCreditTerms } from './creditAccount.js';
+import { tehranToday } from './isoDate.js';
 import { CURRENCY_CODES } from './currencies.js';
 
 export const ACCOUNT_TYPES = [
@@ -98,7 +99,7 @@ export function validateAccount(body = {}) {
   if (currencies.length === 0) return { error: 'دست‌کم یک ارز برای حساب انتخاب کنید.' };
   let credit = null;
   if (type === 'credit') {
-    const terms = validateCreditTerms(body.credit, new Date().toISOString().slice(0, 10));
+    const terms = validateCreditTerms(body.credit, tehranToday());
     if (terms.error) return { error: terms.error };
     credit = terms.value;
   }

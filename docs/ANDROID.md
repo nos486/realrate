@@ -37,7 +37,8 @@
 
 ## ساخت APK
 
-- هر مرج به `main`: APK انتشار امضاشده (اگر کلید امضا تنظیم شده باشد) ساخته شده و در **Releases** مخزن منتشر می‌شود (`v1.0.<شماره‌ی اجرا>`، فایل `realrate.apk`). توضیحات انتشار فقط تغییرات همین نسخه است: خط‌هایی که از Release قبلی به `CHANGELOG.md` اضافه شده (و اگر خطی اضافه نشده، عنوان کامیت‌ها از Release قبلی) — `.github/scripts/release-notes.mjs`. لینک ثابت آخرین نسخه، برای دانلود مستقیم روی گوشی: `https://github.com/nos486/realrate/releases/latest/download/realrate.apk`
+- هر مرج به `main`: APK انتشار امضاشده (اگر کلید امضا تنظیم شده باشد) ساخته شده و در **Releases** مخزن منتشر می‌شود (`v1.0.<شماره‌ی اجرا>`، فایل `realrate.apk`، و کنارش `realrate-nosms.apk` — نسخه‌ی بدون پیامک، بدون مجوز `READ_SMS`/`RECEIVE_SMS` و بدون صفحه‌های پیامک، برای فروشگاه‌هایی که دسترسی به پیامک را نمی‌پذیرند؛ با همان کلید امضا و همان شناسه، پس روی هم نصب می‌شوند، و `realrate-nosms.aab` همان نسخه‌ی بدون پیامک به‌صورت app bundle برای بارگذاری در Google Play؛ هر نسخه به‌روزرسانی را از فایل خودش می‌گیرد). توضیحات انتشار فقط تغییرات همین نسخه است: خط‌هایی که از Release قبلی به `CHANGELOG.md` اضافه شده (و اگر خطی اضافه نشده، عنوان کامیت‌ها از Release قبلی) — `.github/scripts/release-notes.mjs`. لینک ثابت آخرین نسخه، برای دانلود مستقیم روی گوشی: `https://github.com/nos486/realrate/releases/latest/download/realrate.apk`
+- **پاکسازی ریلیزها**: بعد از هر انتشار موفق، workflow `prune-releases.yml` فقط ۵ ریلیز آخر را نگه می‌دارد و بقیه را پاک می‌کند (تگ‌ها می‌مانند). دستی هم از Actions ← Prune releases با تعداد دلخواه و گزینه‌ی «dry run» (فقط فهرست) اجرا می‌شود.
 - شماره نسخه: `versionCode` = شماره‌ی اجرای Actions، `versionName` = `1.0.<شماره>`؛ هر بیلد روی قبلی نصب می‌شود.
 
 ### کلید امضا (یک‌بار)
@@ -69,7 +70,7 @@ cd web
 npm run android:sync          # بیلد وب در dist-app + کپی در پروژه‌ی اندروید
 npx cap open android          # باز کردن در Android Studio (Run روی گوشی)
 # یا بدون Android Studio:
-cd android && ./gradlew assembleDebug   # → app/build/outputs/apk/debug/app-debug.apk
+cd android && ./gradlew assembleFullDebug   # → app/build/outputs/apk/full/debug/ (نسخه‌ی بدون پیامک: VITE_NO_SMS=1 برای ساخت وب و assembleNosmsDebug)
 ```
 
 ## انتشار برای کاربران

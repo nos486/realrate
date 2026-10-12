@@ -23,7 +23,7 @@
  *   brings its message back.
  */
 
-import { isNativeApp } from './nativeApp.js';
+import { smsEnabled } from './nativeApp.js';
 import { BankSms } from './nativePlugins.js';
 import { parseBankSms, nativeSmsRules } from '../../utils/bankSms.js';
 import { BANK_SMS_TEMPLATES } from '../../utils/bankSmsTemplates.js';
@@ -168,7 +168,7 @@ function dropDisabledBanks() {
 
 /** Tell BankSmsReceiver (runs without the app) whether to notify, and for which messages */
 export async function syncNativeSmsConfig() {
-  if (!isNativeApp()) return;
+  if (!smsEnabled()) return;
   try {
     const { senders, rules } = activeSmsConfig();
     // No bank left to read: nothing to notify about
@@ -269,7 +269,7 @@ export function addSmsMessages(messages, { recheckRecorded = false } = {}) {
  * for notifications (Android 13+), for the notification of each bank message.
  */
 export async function smsPermission({ request = false } = {}) {
-  if (!isNativeApp()) return 'unavailable';
+  if (!smsEnabled()) return 'unavailable';
   try {
     const res = request
       ? await BankSms.requestPermissions({ permissions: ['sms', 'notifications'] })
@@ -358,7 +358,7 @@ export function readSmsDays(days, options = {}) {
  */
 export async function autoReadSms() {
   const { auto, lastRead, startedAt } = getSmsSettings();
-  if (!auto || !isNativeApp()) return 0;
+  if (!auto || !smsEnabled()) return 0;
   if ((await smsPermission()) !== 'granted') return 0;
   // The first time: from now on only
   if (!startedAt) {
@@ -390,7 +390,7 @@ const AFTER_RECEIVE_MS = 4000;
  * @returns {() => void} stops
  */
 export function startSmsAutoRead({ onOpenInbox } = {}) {
-  if (!isNativeApp()) return () => {};
+  if (!smsEnabled()) return () => {};
   const handles = [];
   let stopped = false;
   const keep = (handle) => {

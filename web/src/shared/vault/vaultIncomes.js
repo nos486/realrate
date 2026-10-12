@@ -19,7 +19,7 @@ import { sameLink } from '../../utils/portfolioLink.js';
 import { tomanRateOn } from './recordRates.js';
 import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
 import { putRecord, backfillRecordDates, repairRecordDates } from './vaultRecordMeta.js';
-import { encryptVaultRecord, decryptVaultRecord } from './vaultStore.js';
+import { encryptVaultRecord, decryptVaultRecord, decryptVaultRecords } from './vaultStore.js';
 import { syncRecordLinks, releaseRecordLinks } from './recordLinks.js';
 import { recordOwnerOf, ownedRecordMessage } from '../../utils/recordOwners.js';
 
@@ -90,7 +90,7 @@ export async function getIncomes(filters = {}) {
   const decrypted = [];
   // Decrypted together (WebCrypto works in parallel), then read in order
   const records = res?.records || [];
-  const plains = await Promise.all(records.map((r) => decryptVaultRecord(r.payload)));
+  const plains = await decryptVaultRecords(records.map((r) => r.payload));
   for (const [i, record] of records.entries()) {
     const income = plains[i];
     if (income?.id) {

@@ -30,7 +30,7 @@ import { syncRecordLinks, releaseRecordLinks } from './recordLinks.js';
 import { tomanRateOn } from './recordRates.js';
 import { listVaultRecords, deleteVaultRecord, putVaultRecords, VAULT_BATCH_MAX } from './vaultApi.js';
 import { putRecord, recordDateOf } from './vaultRecordMeta.js';
-import { encryptVaultRecord, decryptVaultRecord } from './vaultStore.js';
+import { encryptVaultRecord, decryptVaultRecord, decryptVaultRecords } from './vaultStore.js';
 
 /** The fields of the expense links that name a record by id (the portfolio ones always come back) */
 const ID_LINK_FIELDS = recordLinksOf('expense').filter((l) => l.target !== 'portfolio').map((l) => l.field);
@@ -65,7 +65,7 @@ async function decryptAll(kind, filters) {
   const items = [];
   // Decrypted together (WebCrypto works in parallel), then read in order
   const records = res?.records || [];
-  const decrypted = await Promise.all(records.map((r) => decryptVaultRecord(r.payload)));
+  const decrypted = await decryptVaultRecords(records.map((r) => r.payload));
   for (const [i, record] of records.entries()) {
     const plain = decrypted[i];
     if (plain?.id) items.push(plain);

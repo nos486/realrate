@@ -104,7 +104,7 @@ export default function MonthBarChart({ title, months, series, format, readout, 
           {series.map((s) => (
             <li key={s.key}>
               <span className="monthly-income-swatch" style={{ background: s.color }} aria-hidden="true" />
-              <span className="monthly-income-legend-name">{s.label}</span>
+              <span className="monthly-income-legend-name" title={s.label}>{s.label}</span>
               <span className="monthly-income-legend-amount">{format(Number(s.value(month)) || 0)}</span>
             </li>
           ))}

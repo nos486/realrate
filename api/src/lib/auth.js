@@ -42,24 +42,30 @@ export function getAuthenticatedUser(request, env) {
 /** One session lookup per Request object (entries go away with the request) */
 const userLookups = new WeakMap();
 
-async function lookupUser(request, env) {
-  let token = null;
-
-  // 1. Check Authorization: Bearer <token> header
+/**
+ * The session token a request carries: the Bearer header, else the realrate_session cookie. The
+ * cookie name is matched whole (not as the end of another cookie's name) and a malformed
+ * percent-encoding is read as "no cookie" instead of throwing.
+ * @param {Request} request
+ * @returns {string|null}
+ */
+export function readSessionToken(request) {
   const authHeader = request.headers.get("Authorization");
   if (authHeader && authHeader.startsWith("Bearer ")) {
-    token = authHeader.slice(7).trim();
+    const bearer = authHeader.slice(7).trim();
+    if (bearer) return bearer;
   }
-
-  // 2. Check realrate_session cookie
-  if (!token) {
-    const cookieHeader = request.headers.get("Cookie");
-    if (cookieHeader) {
-      const match = cookieHeader.match(/realrate_session=([^;]+)/);
-      if (match) token = decodeURIComponent(match[1].trim());
-    }
+  const match = (request.headers.get("Cookie") || "").match(/(?:^|;\s*)realrate_session=([^;]+)/);
+  if (!match) return null;
+  try {
+    return decodeURIComponent(match[1].trim()) || null;
+  } catch {
+    return null;
   }
+}
 
+async function lookupUser(request, env) {
+  const token = readSessionToken(request);
   if (!token) return null;
 
   try {

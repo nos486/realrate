@@ -11,7 +11,11 @@ import {
   createLoan as apiCreateLoan,
   updateLoan as apiUpdateLoan,
   deleteLoan as apiDeleteLoan,
+  getLoanExtraPayments as apiGetLoanExtraPayments,
 } from '../api/loanApi.js';
+import { useFeature } from '../../../shared/features/useFeature.js';
+import { isDemoReadOnly } from '../../demo/index.js';
+import { removeLoanPayments } from '../../../shared/vault/spendingRecords.js';
 
 export function useLoans() {
   const { user } = useAuth();
@@ -22,6 +26,8 @@ export function useLoans() {
   const [loadingLoans, setLoadingLoans] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  // Its payments are in the expenses (not without the expenses, nor in the read-only demo)
+  const recordsSpending = useFeature('expenses') && !isDemoReadOnly();
 
   /**
    * Fetch all user loans with aggregate metadata
@@ -121,9 +127,19 @@ export function useLoans() {
     setSubmitting(true);
     setError(null);
     try {
+      // The extra payments can't be read once the loan is gone
+      const extraPaymentIds = recordsSpending
+        ? await apiGetLoanExtraPayments(loanId).then((r) => (r?.extraPayments || []).map((p) => p.id)).catch(() => [])
+        : [];
       const res = await apiDeleteLoan(loanId);
       if (res?.success) {
         setLoans((prev) => prev.filter((l) => l.id !== loanId));
+        // Its expenses go with it; a failure there never undoes the deletion
+        if (recordsSpending) {
+          await removeLoanPayments(loanId, extraPaymentIds).catch((err) => {
+            setError(`وام حذف شد، ولی هزینه‌هایش پاک نشد: ${err?.message || ''}`.trim());
+          });
+        }
         return true;
       }
       throw new Error(res?.message || 'خطا در حذف وام');
@@ -133,7 +149,7 @@ export function useLoans() {
     } finally {
       setSubmitting(false);
     }
-  }, []);
+  }, [recordsSpending]);
 
   return {
     loans,

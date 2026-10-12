@@ -39,6 +39,14 @@ export function isNativeApp() {
   return DEV_APP_PREVIEW || Capacitor.isNativePlatform();
 }
 
+/**
+ * Whether this build reads bank SMS. The "nosms" Android build (`VITE_NO_SMS=1`, flavor `nosms`
+ * in web/android/app/build.gradle) has no SMS permission, so every SMS surface stays hidden.
+ */
+export function smsEnabled() {
+  return isNativeApp() && import.meta.env?.VITE_NO_SMS !== '1';
+}
+
 /** Origin for links shared with others: the website (inside the app, the page's origin is local) */
 export function publicOrigin() {
   return isNativeApp() ? PUBLIC_SITE_ORIGIN : window.location.origin;

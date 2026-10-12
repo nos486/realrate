@@ -69,8 +69,8 @@ describe('vault record metadata', () => {
     await repairRecordDates('transaction', async (payload) => contents[payload], 'p_1');
     expect(lists).toEqual([{ kind: 'transaction', undated: true, parent: 'p_1' }]);
     expect(puts).toEqual([
-      { kind: 'transaction', id: 'tx_1', payload: 'enc:e2ee:v1:A', recordDate: '2026-09-26', parentId: 'p_1', silent: true },
-      { kind: 'transaction', id: 'tx_2', payload: 'enc:e2ee:v1:B', recordDate: '2025-04-21', parentId: 'p_1', silent: true },
+      { kind: 'transaction', id: 'tx_1', payload: 'enc:e2ee:v1:A', recordDate: '2026-09-26', parentId: 'p_1', silent: true, background: true },
+      { kind: 'transaction', id: 'tx_2', payload: 'enc:e2ee:v1:B', recordDate: '2025-04-21', parentId: 'p_1', silent: true, background: true },
     ]);
 
     // Once per kind and portfolio in this tab

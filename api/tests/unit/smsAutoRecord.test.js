@@ -5,7 +5,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('../../../web/src/shared/native/nativeApp.js', () => ({ isNativeApp: () => true }));
+vi.mock('../../../web/src/shared/native/nativeApp.js', () => ({ isNativeApp: () => true, smsEnabled: () => true }));
 vi.mock('../../../web/src/shared/native/nativePlugins.js', () => ({ BankSms: {}, BiometricVault: {} }));
 const expenses = vi.hoisted(() => ({
   getExpenses: vi.fn(async () => ({ expenses: [] })),

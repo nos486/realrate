@@ -24,7 +24,7 @@ import { getBankById, isCustomBankId, matchBankIdByName } from '../../config/ban
 import { ensureCustomBanks } from '../banks/useCustomBanks.js';
 import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
 import { putRecord, backfillRecordDates, backfillReminders } from './vaultRecordMeta.js';
-import { encryptVaultRecord, decryptVaultRecord } from './vaultStore.js';
+import { encryptVaultRecord, decryptVaultRecords } from './vaultStore.js';
 
 const KIND = 'loan';
 
@@ -60,7 +60,7 @@ async function loadDocs() {
   const decrypted = [];
   // Decrypted together (WebCrypto works in parallel), then read in order
   const records = res?.records || [];
-  const plains = await Promise.all(records.map((r) => decryptVaultRecord(r.payload)));
+  const plains = await decryptVaultRecords(records.map((r) => r.payload));
   for (const [i, record] of records.entries()) {
     const doc = plains[i];
     if (doc?.loan?.id) {

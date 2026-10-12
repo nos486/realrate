@@ -13,6 +13,7 @@ import {
 
 vi.mock('../../../web/src/shared/native/nativeApp.js', () => ({
   isNativeApp: vi.fn(() => true),
+  smsEnabled: vi.fn(() => true),
 }));
 
 const mockLocalNotifications = {

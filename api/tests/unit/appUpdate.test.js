@@ -122,3 +122,12 @@ describe('app update prompt', () => {
     expect(releaseNotesText('## نسخه\n**مهم:** [لینک](https://a)')).toBe('نسخه\nمهم: لینک');
   });
 });
+
+describe('apkUrlForBuild', () => {
+  it('points the no-SMS build at its own file', async () => {
+    const { apkUrlForBuild } = await import('../../../web/src/shared/native/appUpdate.js');
+    const url = 'https://github.com/o/r/releases/download/v1.0.9/realrate.apk';
+    expect(apkUrlForBuild(url, true)).toBe(url);
+    expect(apkUrlForBuild(url, false)).toBe('https://github.com/o/r/releases/download/v1.0.9/realrate-nosms.apk');
+  });
+});

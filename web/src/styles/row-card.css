@@ -253,7 +253,7 @@
 
   /* The identity takes the first line; the actions stay on it, at its end */
   .row-card-identity {
-    flex: 1 1 0;
+    flex: 1 1 60%;
     order: -2;
   }
 
