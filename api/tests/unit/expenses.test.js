@@ -27,6 +27,9 @@ vi.mock('../../../web/src/shared/vault/vaultApi.js', () => ({
     records.delete(`${kind}:${id}`);
     return { success: true };
   }),
+  deleteVaultRecords: vi.fn(async (kind, ids) => {
+    for (const id of ids) records.delete(`${kind}:${id}`);
+  }),
 }));
 vi.mock('../../../web/src/shared/vault/vaultStore.js', () => ({
   encryptVaultRecord: vi.fn(async (plain) => `enc:${JSON.stringify(plain)}`),
