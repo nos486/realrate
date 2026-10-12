@@ -34,6 +34,7 @@ import {
   markSmsHandled,
   dismissSms,
   restoreSms,
+  markSmsHandledMany,
   readSmsDays,
   autoReadSms,
   setSmsSettings,
@@ -121,6 +122,28 @@ describe('SMS inbox', () => {
     expect(addSmsMessages([DEBIT])).toBe(0);
     markSmsHandled(item.fingerprint);
     expect(restoreSms(item)).toBe(false);
+  });
+
+  it('several recorded at once leave the inbox with one announcement, and are remembered', () => {
+    addSmsMessages([DEBIT, CREDIT]);
+    const events = vi.fn();
+    window.addEventListener('realrate:sms-inbox', events);
+    markSmsHandledMany(getPendingSms().map((p) => p.fingerprint));
+    window.removeEventListener('realrate:sms-inbox', events);
+    expect(events).toHaveBeenCalledTimes(1);
+    expect(getPendingSms()).toEqual([]);
+    expect(addSmsMessages([DEBIT, CREDIT])).toBe(0);
+  });
+
+  it('reports how far a long read has come: windows read, then messages parsed', async () => {
+    plugin.read.mockReset();
+    plugin.read.mockResolvedValue({ messages: [DEBIT, CREDIT] });
+    const steps = [];
+    await readSmsDays(65, { onProgress: (p) => steps.push(p) });
+    const reading = steps.filter((p) => p.stage === 'reading');
+    expect(reading.map((p) => p.done)).toEqual([1, 2, 3]);
+    expect(reading.every((p) => p.total === 3)).toBe(true);
+    expect(steps.at(-1)).toMatchObject({ stage: 'parsing', done: 2, total: 2 });
   });
 
   it('reads the last N days from the bank senders', async () => {

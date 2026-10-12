@@ -12,6 +12,9 @@ import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { SMS_INBOX_EVENT } from '../../shared/native/smsInbox.js';
 import { autoRecordSmallExpenses } from './smsRecord.js';
 
+/** How long after the app opens, or after the last inbox change, recording starts (ms) */
+const START_DELAY_MS = 1500;
+
 export function useSmsAutoRecord(enabled) {
   const { status } = useVault();
   const { toast } = useFeedback();
@@ -20,6 +23,7 @@ export function useSmsAutoRecord(enabled) {
   useEffect(() => {
     if (!enabled || !unlocked) return undefined;
     let cancelled = false;
+    let timer = null;
     const run = () => {
       autoRecordSmallExpenses()
         .then((count) => {
@@ -29,11 +33,17 @@ export function useSmsAutoRecord(enabled) {
         })
         .catch((err) => console.warn('Automatic SMS recording failed:', err));
     };
-    run();
-    window.addEventListener(SMS_INBOX_EVENT, run);
+    // Not at once: the screen opens first, and a burst of inbox changes becomes one run
+    const schedule = () => {
+      clearTimeout(timer);
+      timer = setTimeout(run, START_DELAY_MS);
+    };
+    schedule();
+    window.addEventListener(SMS_INBOX_EVENT, schedule);
     return () => {
       cancelled = true;
-      window.removeEventListener(SMS_INBOX_EVENT, run);
+      clearTimeout(timer);
+      window.removeEventListener(SMS_INBOX_EVENT, schedule);
     };
   }, [enabled, unlocked, toast]);
 }

@@ -48,13 +48,15 @@ export const MAX_READ_DAYS = 36_500;
  * The bank messages since `since` (epoch millis), newest first: one call for a short span, else a
  * window of READ_WINDOW_DAYS at a time back to `since` (each message once)
  */
-async function readMessagesSince(senders, rules, since, now) {
+async function readMessagesSince(senders, rules, since, now, onProgress) {
   const start = Math.max(0, Math.floor(since));
   if (now - start <= READ_WINDOW_DAYS * DAY_MS) {
     return (await BankSms.read({ senders, rules, since: start })).messages || [];
   }
   const seen = new Set();
   const all = [];
+  const windows = Math.ceil((now - start) / (READ_WINDOW_DAYS * DAY_MS));
+  let done = 0;
   // Each window takes the messages after its start and before its end; the next ends just after
   // this one's start, so a message exactly on the boundary is not missed
   for (let until = now + 1; until > start;) {
@@ -66,6 +68,7 @@ async function readMessagesSince(senders, rules, since, now) {
       seen.add(id);
       all.push(m);
     }
+    onProgress?.({ stage: 'reading', done: ++done, total: windows, messages: all.length });
     if (from === start) break;
     until = from + 1;
   }
@@ -188,18 +191,24 @@ export function getPendingSms() {
   return read(PENDING_KEY, []).map(({ body: _body, ...item }) => item);
 }
 
-/** Take a waiting message out of the inbox, remembering its text and transaction in `listKey` */
-function takeOut(fingerprint, listKey) {
-  if (!fingerprint) return;
+/**
+ * Take waiting messages out of the inbox, remembering their text and transaction in `listKey` —
+ * all in one read, one write and one notification, so a long list is not quadratic
+ */
+function takeOutMany(fingerprints, listKey) {
+  const gone = new Set(fingerprints.filter(Boolean));
+  if (!gone.size) return;
   const pending = getPendingSms();
-  const item = pending.find((p) => p.fingerprint === fingerprint);
-  const ids = [fingerprint, item?.tx?.key].filter(Boolean);
-  const list = read(listKey, []).filter((f) => !ids.includes(f));
+  const ids = new Set(gone);
+  for (const p of pending) if (gone.has(p.fingerprint) && p.tx?.key) ids.add(p.tx.key);
+  const list = read(listKey, []).filter((f) => !ids.has(f));
   list.push(...ids);
   write(listKey, list.slice(-MAX_HANDLED));
-  write(PENDING_KEY, pending.filter((p) => p.fingerprint !== fingerprint));
+  write(PENDING_KEY, pending.filter((p) => !gone.has(p.fingerprint)));
   notify();
 }
+
+const takeOut = (fingerprint, listKey) => takeOutMany([fingerprint], listKey);
 
 /**
  * Recorded (an expense or income now carries its key): out of the inbox, and not read again —
@@ -208,6 +217,11 @@ function takeOut(fingerprint, listKey) {
  */
 export function markSmsHandled(fingerprint) {
   takeOut(fingerprint, HANDLED_KEY);
+}
+
+/** Several recorded at once (markSmsHandled): the inbox is stored and announced once */
+export function markSmsHandledMany(fingerprints) {
+  takeOutMany(fingerprints, HANDLED_KEY);
 }
 
 /**
@@ -249,7 +263,7 @@ export function restoreSms(item) {
 export function dropRecordedSms(recordedKeys) {
   const recorded = new Set(recordedKeys);
   const drop = getPendingSms().filter((p) => p.tx?.key && recorded.has(p.tx.key));
-  drop.forEach((p) => markSmsHandled(p.fingerprint));
+  markSmsHandledMany(drop.map((p) => p.fingerprint));
   return drop.length;
 }
 
@@ -286,6 +300,25 @@ export function addSmsMessages(messages, { recheckRecorded = false } = {}) {
   return added;
 }
 
+/** Messages parsed before the screen gets a turn: a read of thousands never freezes the app */
+const PARSE_CHUNK = 300;
+const yieldToScreen = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+/**
+ * addSmsMessages a chunk at a time, giving the screen a turn between chunks (what a read of
+ * earlier messages uses)
+ * @returns {Promise<number>} how many were added
+ */
+export async function addSmsMessagesInChunks(messages, options = {}) {
+  let added = 0;
+  for (let i = 0; i < messages.length; i += PARSE_CHUNK) {
+    if (i) await yieldToScreen();
+    added += addSmsMessages(messages.slice(i, i + PARSE_CHUNK), options);
+    options.onProgress?.({ stage: 'parsing', done: Math.min(i + PARSE_CHUNK, messages.length), total: messages.length });
+  }
+  return added;
+}
+
 /**
  * Whether the app may read SMS: 'granted' | 'denied' | 'prompt' | 'unavailable'. Asking also asks
  * for notifications (Android 13+), for the notification of each bank message.
@@ -317,7 +350,10 @@ export async function enableSmsReading() {
 
 /**
  * Read the bank senders' messages since `since` (epoch millis) into the inbox
- * @returns {Promise<{ read: number, added: number, transactions: Array<object> }>} transactions: see readTransactions
+ * @param {number} since
+ * @param {{ transactions?: boolean, recheckRecorded?: boolean, onProgress?: (p: { stage: 'reading'|'parsing', done: number, total: number, messages?: number }) => void }} [options]
+ *   `onProgress`: how far a long read has come (windows read, then messages parsed)
+ * @returns {Promise<{ read: number, added: number, transactions?: Array<object> }>} transactions (only with `options.transactions`): see readTransactions
  */
 export async function readSmsSince(since, options = {}) {
   const now = Date.now();
@@ -326,10 +362,11 @@ export async function readSmsSince(since, options = {}) {
     setSmsSettings({ lastRead: now });
     return { read: 0, added: 0 };
   }
-  const messages = await readMessagesSince(senders, rules, since, now);
-  const added = addSmsMessages(messages, options);
+  const messages = await readMessagesSince(senders, rules, since, now, options.onProgress);
+  const added = await addSmsMessagesInChunks(messages, options);
   setSmsSettings({ lastRead: now });
-  return { read: messages.length, added, transactions: readTransactions(messages) };
+  // Only a read by hand lists what it found; the automatic one doesn't parse everything twice
+  return { read: messages.length, added, ...(options.transactions ? { transactions: await readTransactions(messages) } : {}) };
 }
 
 /**
@@ -337,11 +374,12 @@ export async function readSmsSince(since, options = {}) {
  * newest first — what a manual read found, waiting or not
  * @returns {Array<{ fingerprint: string, receivedAt: number, sender: string, tx: object }>}
  */
-function readTransactions(messages) {
+async function readTransactions(messages) {
   const { banks } = activeSmsConfig();
   const seen = new Set();
   const list = [];
-  for (const message of messages) {
+  for (const [index, message] of messages.entries()) {
+    if (index && index % PARSE_CHUNK === 0) await yieldToScreen();
     const receivedAt = Number(message.date) || Date.now();
     const tx = parseBankSms(message.body, banks, { sender: message.address, today: new Date(receivedAt) });
     if (!tx || seen.has(tx.key)) continue;
@@ -367,11 +405,11 @@ export function smsOutcome(item) {
  * "Read the last N days" (a day to MAX_READ_DAYS; a long span a window at a time); `transactions`:
  * everything read, waiting or not
  * @param {number} days
- * @param {{ recheckRecorded?: boolean }} [options] see addSmsMessages
+ * @param {{ recheckRecorded?: boolean, onProgress?: Function }} [options] see addSmsMessages, readSmsSince
  */
 export function readSmsDays(days, options = {}) {
   const span = Math.min(Math.max(Math.round(Number(days) || 1), 1), MAX_READ_DAYS);
-  return readSmsSince(Date.now() - span * DAY_MS, options);
+  return readSmsSince(Date.now() - span * DAY_MS, { ...options, transactions: true });
 }
 
 /**

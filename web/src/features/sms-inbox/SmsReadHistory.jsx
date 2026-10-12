@@ -4,14 +4,17 @@
  * only on screen: leaving the SMS page clears it (nothing is stored).
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { ArrowDownLeft, ArrowUpRight, CheckCircle2, X, ListChecks, Undo2 } from 'lucide-react';
-import { Card } from '../../shared/ui/index.js';
+import { Button, Card } from '../../shared/ui/index.js';
 import { BankLogo, resolveBank } from '../../shared/banks/index.js';
 import { formatShamsiDisplay } from '../portfolio/components/ShamsiDatePicker.jsx';
 import { formatAmount } from '../expenses/utils/format.js';
 
 const faTime = (time) => time.replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+
+/** Rows shown at a time: what a long read found is not listed in full */
+const PAGE_SIZE = 50;
 
 const OUTCOME = {
   recorded: { label: 'ثبت شده', Icon: CheckCircle2, className: 'is-recorded' },
@@ -23,6 +26,7 @@ const OUTCOME = {
  *   onRestore?: (item: object) => void }} props `onRestore`: puts a dismissed message back in the inbox
  */
 export default function SmsReadHistory({ items, onRestore }) {
+  const [limit, setLimit] = useState(PAGE_SIZE);
   if (!items?.length) return null;
   return (
     <Card
@@ -33,7 +37,7 @@ export default function SmsReadHistory({ items, onRestore }) {
       subtitle="پیامک‌هایی که این بار خوانده شد و از قبل ثبت یا رد شده‌اند؛ رد شده‌ها را می‌توانید برگردانید تا دوباره قابل ثبت و ویرایش شوند. با بستن این صفحه فهرست پاک می‌شود."
     >
       <ul className="sms-inbox-list" aria-label="پیامک‌های قبلاً ثبت‌شده">
-        {items.map((item) => {
+        {items.slice(0, limit).map((item) => {
           const { fingerprint, tx, outcome } = item;
           const bank = resolveBank({ bankId: tx.bankId });
           const isDebit = tx.direction === 'debit';
@@ -70,6 +74,11 @@ export default function SmsReadHistory({ items, onRestore }) {
           );
         })}
       </ul>
+      {items.length > limit && (
+        <Button block variant="secondary" onClick={() => setLimit((n) => n + PAGE_SIZE)}>
+          نمایش بیشتر ({(items.length - limit).toLocaleString('fa-IR')} مورد دیگر)
+        </Button>
+      )}
     </Card>
   );
 }

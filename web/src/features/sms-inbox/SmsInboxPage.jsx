@@ -72,6 +72,8 @@ export default function SmsInboxPage() {
   const customValid = Number.isInteger(typedDays) && typedDays >= 1 && typedDays <= MAX_READ_DAYS;
   const readDays = days === CUSTOM_DAYS ? (customValid ? typedDays : null) : days;
   const [reading, setReading] = useState(false);
+  // How far the read has come: { stage: 'reading'|'parsing', done, total, messages? }
+  const [progress, setProgress] = useState(null);
   // What the last «بخوان» found that is already recorded or dismissed: on screen only
   const [readHistory, setReadHistory] = useState([]);
   const [quickId, setQuickId] = useState(null);
@@ -186,7 +188,7 @@ export default function SmsInboxPage() {
       // With the vault open, recorded ones are read again and checked against it: a message whose
       // expense or income was deleted comes back
       const unlocked = vaultStatus === 'unlocked';
-      const { read, added, transactions = [] } = await readSmsDays(readDays, { recheckRecorded: unlocked });
+      const { read, added, transactions = [] } = await readSmsDays(readDays, { recheckRecorded: unlocked, onProgress: setProgress });
       const dropped = unlocked && added ? await dropAlreadyRecorded() : 0;
       // The rest of what it read: not waiting any more (recorded, or dismissed)
       const waiting = new Set(getPendingSms().map((p) => p.tx?.key));
@@ -200,6 +202,7 @@ export default function SmsInboxPage() {
       toast.error(err?.message || 'خواندن پیامک‌ها ممکن نشد.');
     } finally {
       setReading(false);
+      setProgress(null);
     }
   };
 
@@ -255,7 +258,14 @@ export default function SmsInboxPage() {
         {days === CUSTOM_DAYS && !customValid && customDays !== '' && (
           <p className="expense-form-hint is-warning">بین ۱ تا {MAX_READ_DAYS.toLocaleString('fa-IR')} روز.</p>
         )}
-        {readDays > 90 && <p className="expense-form-hint">خواندن بازه‌ی طولانی ممکن است چند ثانیه طول بکشد.</p>}
+        {progress && (
+          <p className="expense-form-hint" role="status">
+            {progress.stage === 'reading'
+              ? `در حال خواندن پیامک‌ها: بازه‌ی ${progress.done.toLocaleString('fa-IR')} از ${progress.total.toLocaleString('fa-IR')} (${(progress.messages || 0).toLocaleString('fa-IR')} پیامک تا اینجا)`
+              : `در حال بررسی پیامک‌ها: ${progress.done.toLocaleString('fa-IR')} از ${progress.total.toLocaleString('fa-IR')}`}
+          </p>
+        )}
+        {!progress && readDays > 90 && <p className="expense-form-hint">خواندن بازه‌ی طولانی ممکن است چند ثانیه طول بکشد.</p>}
       </Card>
 
       <SmsReadHistory items={readHistory} onRestore={handleRestore} />
