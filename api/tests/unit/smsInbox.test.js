@@ -134,7 +134,7 @@ describe('SMS inbox', () => {
     expect(getSmsSettings().lastRead).toBeGreaterThanOrEqual(before);
   });
 
-  it('reads a long span (a year) a window at a time, each message once; never more than two years', async () => {
+  it('reads a long span (a year) a window at a time, each message once; a century is the most', async () => {
     // Every window answers; the newest window also returns a message the next one repeats
     plugin.read.mockReset();
     plugin.read.mockImplementation(async ({ since, until }) => ({
@@ -156,9 +156,9 @@ describe('SMS inbox', () => {
     expect(res.read).toBe(2);
 
     plugin.read.mockClear();
-    await readSmsDays(5000);
+    await readSmsDays(100_000);
     const oldest = Math.min(...plugin.read.mock.calls.map(([arg]) => arg.since));
-    expect(Date.now() - oldest).toBeLessThanOrEqual(730 * 86_400_000 + 1000);
+    expect(Date.now() - oldest).toBeLessThanOrEqual(36_500 * 86_400_000 + 1000);
   });
 
   it('reads automatically (on unless turned off) when allowed, only messages from then on', async () => {
