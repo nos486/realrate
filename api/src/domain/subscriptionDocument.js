@@ -6,7 +6,7 @@
  *
  *   { id, name, category, amount, currency (currencies.js), cycleMonths: 1|3|6|12, startDate,
  *     endDate?, autoRenew, renewOn?, status: 'active'|'paused'|'cancelled', cancelledOn?,
- *     accountId?, url?, notes?, remindersMuted, lastPaidOn?, paidThrough?, createdAt, updatedAt }
+ *     accountId?, url?, notes?, remindersMuted, lastPaidOn?, createdAt, updatedAt }
  *
  * - startDate: the first payment day; renewals fall every `cycleMonths` after it, on its Shamsi
  *   day of the month (clamped to shorter months), as loans' installments do (loanCalculator.js).
@@ -14,8 +14,6 @@
  *   after today. Without it the user renews by hand: `renewOn` is the day it runs out, and moves a
  *   cycle on when they record the renewal's payment (renewedAfter: from the payment day when it
  *   had already run out); past it, the subscription has run out ('expired') until renewed.
- * - paidThrough: for one that renews by itself, the renewal day an early payment already covers
- *   («پرداخت» before the day): that renewal is not charged again (duePayments).
  * - endDate: the last day it runs (a prepaid plan, or one cancelled at the period's end): no
  *   renewal on or after it. Past it, the subscription has ended.
  * - A payment is an ordinary expense in the everyday section, category «اینترنت و اشتراک‌ها»
@@ -138,7 +136,6 @@ export function validateSubscription(body = {}) {
       notes,
       remindersMuted: Boolean(body.remindersMuted),
       lastPaidOn: isDay(text(body.lastPaidOn)) ? text(body.lastPaidOn) : '',
-      paidThrough: autoRenew && isDay(text(body.paidThrough)) ? text(body.paidThrough) : '',
     },
   };
 }
@@ -169,30 +166,14 @@ export function renewalOnOrAfter(sub, date) {
   return '';
 }
 
-/** The first renewal after `date` (before its end), or '' when there is none */
-export function renewalAfter(sub, date) {
-  for (let k = 0; k < 2400; k++) {
-    const day = renewalAt(sub.startDate, sub.cycleMonths, k);
-    if (sub.endDate && day >= sub.endDate) return '';
-    if (day > date) return day;
-  }
-  return '';
-}
-
 /**
  * After a renewal's payment: a subscription renewed by hand runs one more cycle — from the day it
  * ran out when paid by then, or from the payment day when paid after it had run out (a new period
- * starts then). One that renews by itself is paid ahead when the payment comes before the next
- * renewal that isn't paid yet: that renewal is marked paid (`paidThrough`), so it isn't charged
- * again on its day.
- * @returns {{ renewOn: string, lastPaidOn: string, paidThrough?: string }} the fields to save
+ * starts then)
+ * @returns {{ renewOn: string, lastPaidOn: string }} the fields to save
  */
 export function renewedAfter(sub, paidOn) {
-  if (sub.autoRenew) {
-    const covered = [sub.lastPaidOn, sub.paidThrough].filter(Boolean).sort().pop() || '';
-    const next = covered ? renewalAfter(sub, covered) : '';
-    return { renewOn: '', lastPaidOn: paidOn, paidThrough: next && paidOn < next ? next : '' };
-  }
+  if (sub.autoRenew) return { renewOn: '', lastPaidOn: paidOn };
   const runsOut = sub.renewOn || renewalAt(sub.startDate, sub.cycleMonths, 1);
   const from = paidOn > runsOut ? paidOn : runsOut;
   return { renewOn: renewalAt(from, sub.cycleMonths, 1), lastPaidOn: paidOn };
@@ -204,8 +185,7 @@ export function renewedAfter(sub, paidOn) {
  *  - none recorded yet (no `lastPaidOn`): the one that pays its current period — the last renewal
  *    on or before today for one that renews by itself, the start of its validity for one renewed
  *    by hand (a new subscription's first payment; never a backlog of older ones)
- *  - one that renews by itself: then every renewal after the last one recorded (or paid ahead,
- *    `paidThrough`), through today
+ *  - one that renews by itself: then every renewal after the last one recorded, through today
  *  - one renewed by hand: later payments are the user's («ثبت پرداخت»)
  * Nothing for a paused or cancelled one, before its start, or on or after its end.
  * @returns {string[]} the payment days, oldest first
@@ -229,13 +209,11 @@ export function duePayments(sub, today) {
     return current ? [current] : [];
   }
   if (!sub.autoRenew) return [];
-  // An early payment already covers its renewal (paidThrough)
-  const paid = sub.paidThrough && sub.paidThrough > sub.lastPaidOn ? sub.paidThrough : sub.lastPaidOn;
   const out = [];
   for (let k = 0; k < 2400; k++) {
     const day = renewalAt(sub.startDate, sub.cycleMonths, k);
     if (!inRun(day)) break;
-    if (day > paid) out.push(day);
+    if (day > sub.lastPaidOn) out.push(day);
   }
   return out;
 }

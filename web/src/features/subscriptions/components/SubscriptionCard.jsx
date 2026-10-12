@@ -56,9 +56,8 @@ export default function SubscriptionCard({ sub, view, period, account, hideValue
       onClick={readOnly ? undefined : () => onEdit(sub)}
       actions={(
         <>
-          {/* One that renews by itself records its payments as they come (useSubscriptions); paying
-              it here, on the day chosen, covers the next renewal so that one isn't charged again */}
-          {live && sub.status === 'active' && (
+          {/* One that renews by itself records its payments as they come (useSubscriptions) */}
+          {live && sub.status === 'active' && !sub.autoRenew && (
             <RowCardAction onClick={() => onPay(sub, view)} disabled={readOnly} title="ثبت پرداخت" aria-label="ثبت پرداخت">
               <Receipt size={14} />
             </RowCardAction>
