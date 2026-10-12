@@ -19,7 +19,7 @@
 **RealRate** is a market analysis and personal finance app for Iran, running on Cloudflare's edge.
 It computes the intrinsic value and the bubble of gold and coins, tracks currencies, stocks and funds, and manages
 portfolios, expenses, accounts, loans, incomes, cheques and subscriptions — all end-to-end encrypted.
-The web app is at [realrate.geekio.org](https://realrate.geekio.org); the Android app (which records expenses from bank SMS) is on the
+The web app is at [realrate.geekio.org](https://realrate.geekio.org); the Android app (the full build records expenses from bank SMS; a no-SMS build is made for stores such as Google Play) is on the
 [app page](https://realrate.geekio.org/android) or the [latest release](https://github.com/nos486/realrate/releases/latest/download/realrate.apk).
 
 The interface is in Persian (right-to-left, Shamsi calendar, amounts in tomans).
@@ -27,34 +27,36 @@ The interface is in Persian (right-to-left, Shamsi calendar, amounts in tomans).
 ## Features
 
 - **Market**: intrinsic value and bubble of gold and coins (the coins' bubbles computed by the app from the ounce and the dollar), 16 currencies and USDT, Tehran Stock Exchange symbols and funds — updated automatically (each source at most every 5 minutes), on a home page each user lays out (averages, linked assets, cards combining assets with a formula, and when each price last changed, «آخرین تغییر») (the rates page is for Pro users)
-- **Portfolio**: multiple portfolios, buy/sell transactions with weighted average cost, live profit and loss, custom categories, public sharing
+- **Portfolio**: multiple portfolios, buy/sell transactions with weighted average cost, live profit and loss, a value-history chart from the first purchase to today (in tomans or dollars, with the 24-hour, 7-day and 1-month change on the «total value» card), custom categories, public sharing
 - **Expenses**: everyday expenses by category with monthly budgets; projects (a project is where an expense is, not its category, so each project expense keeps its own category); each expense in tomans, dollars, euros, lira or dirhams at that day's rate from the price history; the account that paid («پرداخت از», or that currency held in a portfolio) and the loan that funded it («تأمین از»); subscription, installment and cheque payments recorded as expenses automatically; CSV export and import
 - **Accounts**: bank accounts (Iranian banks, foreign banks and international online accounts), cash and wallets, each in one or more currencies with this month's spending per currency and its toman approximation; the source of every expense, the match for bank SMS, and transfers between accounts («انتقال بین حساب‌ها»)
 - **Bank credit** (new): the limit and the debt, spending from the credit, «تسویه بدهی» and «تبدیل به قسط» by hand (each installment with its own day and amount), and the settlement and installment fees worked out from those amounts and kept with their record
-- **Loans**: installment schedule, payments and extra payments, banks with logos, and loan usage (what the loan paid for, and how those purchases did against the loan's rate)
+- **Loans**: installment schedule, paying an installment with its own day and amount, extra payments, settled loans hidden from the list by default, banks with logos, and loan usage (what the loan paid for, and how those purchases did against the loan's rate)
 - **Incomes**: by source and month, in tomans, dollars, euros, lira or dirhams (rate from that day's price history); categories such as «فروش دارایی» stay out of the totals; CSV export and import
 - **Cheques**: received and issued, due dates, status tracking with history, reminders, and AI cheque scanning; a cheque is a way of paying, not a category (each has its «بابت» category and an account), and a cleared cheque records its income or expense
 - **Subscriptions** (new): every subscription in tomans or another currency with its renewal cycle, start and end; the period's progress bar and days to renewal, the monthly and yearly total, recording a payment (auto-renewing ones recorded as expenses), and a reminder before each renewal
 - **Market news** (new): dollar, gold, oil and economy news from news channels, checked and sorted every minute by AI (Workers AI) — no ads, signals or duplicates; importance 1–3, the day's and week's top stories, and notifications for the important ones
 - **AI day's analysis** (new): what today's news says, how the stories connect and what to watch — no price predictions; the latest analysis is also on the website's landing page
 - **Yearly report** (new): a Shamsi year on one page — income and expenses, savings rate, the share of income invested, dollar value and the year's highlights; PDF and CSV export
-- **Android app**: bottom navigation and quick add, automatic reading of bank withdrawal and deposit SMS (the text never leaves the phone), one-tap and automatic recording of small expenses, fingerprint unlock, offline use
-- **End-to-end encryption**: all financial data is encrypted on the user's device; the server only sees ciphertext
+- **Android app**: bottom navigation and quick add, automatic reading of bank withdrawal and deposit SMS (the text never leaves the phone), one-tap and automatic recording of small expenses, fingerprint unlock, offline use; each release carries `realrate.apk` plus version-named `realrate-<version>.apk`, the no-SMS build `realrate-nosms-<version>.apk` (no SMS permission) and `realrate-nosms-<version>.aab` (Google Play bundle)
+- **End-to-end encryption**: all financial data is encrypted on the user's device; the server only sees ciphertext. The website, like the app, keeps an encrypted copy of the data on the device: tabs open fast and entries can be made offline
 - **Accounts and admin**: Google or email sign-in, a demo account, an admin panel (users, groups and feature access, Android app users and their versions, price sources)
 
 Details: [docs/en/FEATURES.md](docs/en/FEATURES.md)
 
 ## Screenshots
 
-| Portfolio | Everyday expenses |
+| Portfolio and its value history | Everyday expenses |
 | :---: | :---: |
 | ![Portfolio](docs/screenshots/web-portfolio.png) | ![Expenses](docs/screenshots/web-expenses.png) |
+| Loans | Yearly report |
+| ![Loans](docs/screenshots/web-loans.png) | ![Yearly report](docs/screenshots/web-report.png) |
 
 <div align="center">
 
-| App home | Expenses | Bank SMS | Loans |
+| App home | Expenses | Portfolio | Loans |
 | :---: | :---: | :---: | :---: |
-| <img src="docs/screenshots/app-home.png" width="200" alt="App home"> | <img src="docs/screenshots/app-expenses.png" width="200" alt="Expenses in the app"> | <img src="docs/screenshots/app-sms.png" width="200" alt="Bank SMS"> | <img src="docs/screenshots/app-loans.png" width="200" alt="Loans in the app"> |
+| <img src="docs/screenshots/app-home.png" width="200" alt="App home"> | <img src="docs/screenshots/app-expenses.png" width="200" alt="Expenses in the app"> | <img src="docs/screenshots/app-portfolio.png" width="200" alt="Portfolio in the app"> | <img src="docs/screenshots/app-loans.png" width="200" alt="Loans in the app"> |
 
 </div>
 
