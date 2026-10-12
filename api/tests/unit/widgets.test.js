@@ -24,7 +24,7 @@ describe('widgetLinkPath', () => {
     expect(widgetLinkPath(undefined)).toBeNull();
   });
 
-  it('offers the two widgets the native side registers', () => {
-    expect(WIDGET_KINDS.map((k) => k.key)).toEqual(['prices', 'news']);
+  it('offers the one widget the native side registers', () => {
+    expect(WIDGET_KINDS.map((k) => k.key)).toEqual(['market']);
   });
 });

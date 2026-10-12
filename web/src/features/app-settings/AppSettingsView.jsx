@@ -198,7 +198,7 @@ function AppUpdateSettings() {
   );
 }
 
-/** «ویجت‌ها»: place the two home-screen widgets and pick the items the prices widget lists */
+/** «ویجت»: place the home-screen widget and pick the items whose prices it lists */
 function WidgetSettings() {
   const { toast } = useFeedback();
   const pricing = usePricing();
@@ -219,9 +219,9 @@ function WidgetSettings() {
     }
     save(add ? [...base, id] : base.filter((x) => x !== id));
   };
-  const handlePin = async (kind) => {
-    const requested = await requestPinWidget(kind.key);
-    if (!requested) toast.info(`«${kind.label}» را از لیست ویجت‌های گوشی (نگه داشتن روی صفحه‌ی اصلی ← ویجت‌ها ← RealRate) اضافه کنید.`);
+  const handlePin = async () => {
+    const requested = await requestPinWidget();
+    if (!requested) toast.info('ویجت را از لیست ویجت‌های گوشی (نگه داشتن روی صفحه‌ی اصلی ← ویجت‌ها ← RealRate) اضافه کنید.');
   };
 
   return (
@@ -229,8 +229,8 @@ function WidgetSettings() {
       className="app-settings-card"
       padding="lg"
       icon={<LayoutGrid size={18} />}
-      title="ویجت‌های صفحه‌ی اصلی"
-      subtitle="قیمت دارایی‌های موردعلاقه و اخبار هوشمند را بدون باز کردن اپ روی صفحه‌ی اصلی گوشی ببین. هر ویجت خودش را هر نیم‌ساعت و با ضربه روی دکمه‌ی تازه‌سازی به‌روز می‌کند."
+      title="ویجت صفحه‌ی اصلی"
+      subtitle="قیمت دارایی‌های موردعلاقه و خبرهای هوش مصنوعی را بدون باز کردن اپ روی صفحه‌ی اصلی گوشی ببین. ویجت خودش را هر ۱۰ دقیقه و با ضربه روی دکمه‌ی تازه‌سازی به‌روز می‌کند."
     >
       {WIDGET_KINDS.map((kind) => (
         <div className="app-setting-row" key={kind.key}>
@@ -238,13 +238,13 @@ function WidgetSettings() {
             <strong>{kind.label}</strong>
             <p>{kind.hint}</p>
           </div>
-          <Button size="sm" variant="secondary" icon={<Plus size={14} />} onClick={() => handlePin(kind)}>
+          <Button size="sm" variant="secondary" icon={<Plus size={14} />} onClick={handlePin}>
             افزودن
           </Button>
         </div>
       ))}
       <div className="app-setting-block">
-        <strong>دارایی‌های ویجت قیمت</strong>
+        <strong>دارایی‌های ویجت</strong>
         <p>{chosen.length ? 'به ترتیب نمایش:' : 'تا انتخاب نکنی، این‌ها نشان داده می‌شوند:'}</p>
         <div className="app-category-chips">
           {shown.map((id) => (
@@ -264,7 +264,7 @@ function WidgetSettings() {
       </div>
       <AssetPickerModal
         isOpen={picking}
-        section={{ title: 'ویجت قیمت', items: shown }}
+        section={{ title: 'ویجت', items: shown }}
         onClose={() => setPicking(false)}
         onToggle={toggle}
       />
