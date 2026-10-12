@@ -8,12 +8,19 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Newspaper, Sparkles } from 'lucide-react';
+import { useFeature } from '../../shared/features/useFeature.js';
 import Skeleton from '../../shared/ui/Skeleton.jsx';
 import { appPath } from '../../shared/routes.js';
 import { useNews, useNewsToday } from './useNews.js';
 import { newsTimeAgo, newsSource, newsFullTime } from './newsFormat.js';
 
-export default function NewsCard({ count = 4, className = '' }) {
+/** The latest news are a Pro feature: users without it get no card */
+export default function NewsCard(props) {
+  const hasNews = useFeature('news');
+  return hasNews ? <NewsCardContent {...props} /> : null;
+}
+
+function NewsCardContent({ count = 4, className = '' }) {
   const navigate = useNavigate();
   const { items, loading } = useNews({ limit: count });
   const { analysis } = useNewsToday();

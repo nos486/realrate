@@ -9,17 +9,19 @@ import React from 'react';
 import { Crown, Check, Lock } from 'lucide-react';
 import FeaturePageHeader from '../../shared/ui/FeaturePageHeader.jsx';
 import FeatureOffer from '../../shared/features/FeatureOffer.jsx';
+import { useAuth } from '../auth/index.js';
 import { useIsPro } from '../../shared/plan/usePlan.js';
 import { PLAN_COMPARISON } from '../../config/planLimits.js';
 
 export default function ProPage() {
   const pro = useIsPro();
+  const { user } = useAuth() || {};
   return (
     <div className="pro-page">
       <FeaturePageHeader
         icon={<Crown size={22} />}
         title="پلن رایگان و Pro"
-        subtitle={pro ? 'حساب شما Pro است و محدودیتی ندارید.' : 'پلن رایگان برای شروع است؛ Pro همه‌ی بخش‌ها را بدون سقف باز می‌کند.'}
+        subtitle={pro ? (user?.isAdmin ? 'حساب مدیر هیچ محدودیتی ندارد؛ برای دیدن سقف‌ها با یک حساب کاربر عادی وارد شوید.' : 'حساب شما Pro است و محدودیتی ندارید.') : 'پلن رایگان برای شروع است؛ Pro همه‌ی بخش‌ها را بدون سقف باز می‌کند.'}
       />
 
       <div className="pro-compare" role="table" aria-label="مقایسه‌ی پلن رایگان و Pro">

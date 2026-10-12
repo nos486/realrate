@@ -6,6 +6,9 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+const auth = vi.hoisted(() => ({ user: { id: 'u1', role: 'user', groups: ['pro'] } }));
+vi.mock('../../src/lib/auth.js', () => ({ getAuthenticatedUser: vi.fn(async () => auth.user) }));
 import { buildAnalysisPrompt, parseAnalysis, tehranDayStart } from '../../src/domain/news.js';
 import {
   maybeUpdateNewsAnalysis,
@@ -16,7 +19,7 @@ import { answerOf } from '../../src/services/news/workersAi.js';
 import { dbInsertNews, dbTopNewsSince } from '../../src/repositories/news.repository.js';
 import { resetD1SchemaCache } from '../../src/repositories/d1Schema.js';
 import { NEWS_ANALYSIS } from '../../src/config/news.config.js';
-import { handleGetNewsToday } from '../../src/handlers/newsRoutes.js';
+import { handleGetNewsToday, handleGetNews } from '../../src/handlers/newsRoutes.js';
 import { sqliteD1 } from '../helpers/sqliteD1.js';
 
 const NOW = Date.parse('2026-10-05T10:00:00Z'); // 13:30 in Tehran
@@ -163,5 +166,21 @@ describe('maybeUpdateNewsAnalysis', () => {
     expect(body.top.map((n) => n.id)).toEqual(['c/1', 'c/2', 'c/3']);
     expect(body.week.map((n) => n.id)).toEqual(['c/10', 'c/11']);
     expect(body.analysis.title).toMatch(/^فشار تورمی/);
+  });
+
+  it('GET /api/news/today: the news are for Pro; only the analysis is public (?scope=analysis)', async () => {
+    const now = Date.now();
+    await dbInsertNews(env, [1, 2, 3].map((i) => ({ ...item(i, 0), publishedAt: now - i * 60000 })));
+    await maybeUpdateNewsAnalysis(env, opts({ now, force: true }));
+    auth.user = { id: 'u2', role: 'user', groups: [] };
+    try {
+      await expect(handleGetNewsToday(new Request('https://x/api/news/today'), env)).rejects.toMatchObject({ statusCode: 404 });
+      await expect(handleGetNews(new Request('https://x/api/news'), env)).rejects.toMatchObject({ statusCode: 404 });
+      const body = await (await handleGetNewsToday(new Request('https://x/api/news/today?scope=analysis'), env)).json();
+      expect(body.analysis.title).toMatch(/^فشار تورمی/);
+      expect(body.top).toBeUndefined();
+    } finally {
+      auth.user = { id: 'u1', role: 'user', groups: ['pro'] };
+    }
   });
 });

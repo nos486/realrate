@@ -7,7 +7,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import NewsAnalysisCard from './NewsAnalysisCard.jsx';
-import { getNewsToday } from './newsApi.js';
+import { getNewsAnalysisCard } from './newsApi.js';
 
 /**
  * @param {{ head: React.ReactNode, className?: string, id?: string }} props the section's heading
@@ -24,7 +24,7 @@ export default function LandingAnalysis({ head, className = '', id }) {
     const load = () => {
       if (done) return;
       done = true;
-      getNewsToday({ silent: true }).then((res) => setAnalysis(res?.analysis || null)).catch(() => {});
+      getNewsAnalysisCard({ silent: true }).then((res) => setAnalysis(res?.analysis || null)).catch(() => {});
     };
     if (typeof IntersectionObserver !== 'function') {
       load();

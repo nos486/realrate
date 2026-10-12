@@ -17,6 +17,9 @@ export function getNews({ limit = 20, page = 0, before = 0, category = '', impor
 /** The analyst's card and today's most important news: { analysis, top } */
 export const getNewsToday = (options) => httpClient.get('/api/news/today', options);
 
+/** The analyst's card only: public (the landing page shows it to everyone) */
+export const getNewsAnalysisCard = (options) => httpClient.get('/api/news/today?scope=analysis', options);
+
 /** Admin: write the analyst's card now */
 export const runNewsAnalysisNow = () => httpClient.post('/api/admin/news/analysis', {});
 
