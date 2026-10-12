@@ -141,7 +141,7 @@ html.is-app-layout [role='button']:active {
   border-radius: 9px;
   background:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'%3E%3Cpath d='M10 22L15 16L19 19L26 11' stroke='%23f59e0b' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M22 11H26V15' stroke='%23f59e0b' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='19' cy='19' r='2.2' fill='%23fbbf24'/%3E%3C/svg%3E") center / 100% no-repeat,
-    linear-gradient(135deg, #1e2433, #0f131d);
+    var(--bg-surface-elevated);
 }
 
 .app-topbar-actions {
@@ -256,9 +256,9 @@ html.is-app-layout [role='button']:active {
   place-items: center;
   border: 0;
   border-radius: 18px;
-  background: linear-gradient(160deg, #0ea5e9, #0369a1);
-  color: #fff;
-  box-shadow: 0 8px 22px rgba(2, 132, 199, 0.42), 0 0 0 5px var(--bg-app);
+  background: var(--color-primary);
+  color: var(--primary-text);
+  box-shadow: 0 0 0 5px var(--bg-app);
   cursor: pointer;
 }
 
@@ -332,7 +332,7 @@ html.is-app-layout [role='button']:active {
   padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   background: var(--bg-modal);
   border-radius: 24px 24px 0 0;
-  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.5);
+  border-top: var(--border-modal);
   outline: none;
   transform: translateY(105%);
   transition: transform 0.34s var(--app-ease-out);
@@ -621,7 +621,6 @@ html.is-app-layout .site-footer {
   border-radius: 24px;
   background: var(--bg-surface-elevated);
   border: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
 }
 
 .app-home-hero-top {
@@ -789,7 +788,7 @@ button.app-home-card {
   flex-direction: row;
   align-items: center;
   gap: 12px;
-  background: linear-gradient(160deg, rgba(14, 165, 233, 0.16), rgba(14, 165, 233, 0.06));
+  background: var(--color-primary-soft);
   border-color: var(--color-primary-border);
 }
 
@@ -1201,7 +1200,7 @@ html.is-app-layout .budget-grid .ui-input-label {
   border-radius: 14px;
   z-index: 5;
   border: 1px solid rgba(52, 211, 153, 0.35);
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.14), rgba(56, 189, 248, 0.08));
+  background: var(--color-positive-soft);
   color: var(--text-primary);
 }
 .app-suggest-icon {

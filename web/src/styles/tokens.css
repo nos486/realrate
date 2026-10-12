@@ -38,7 +38,7 @@
   --border-input-focus: var(--color-primary);
   --shadow-input-focus: 0 0 0 2px rgba(2, 132, 199, 0.35);
   --text-input: #ffffff;
-  --placeholder-color: rgba(255, 255, 255, 0.35);
+  --placeholder-color: rgba(255, 255, 255, 0.45);
 
   /* Modals & Popups (Glass Backdrop) */
   --bg-modal: #0e131d;
@@ -126,7 +126,7 @@
   --text-primary: #f8fafc;
   --text-heading: #ffffff;
   --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-muted: #7a8aa0; /* ≥4.5:1 on every surface (was #64748b, ~3.5–4.2:1) */
 
   /* Controls & Badges */
   --bg-control: rgba(255, 255, 255, 0.04);
