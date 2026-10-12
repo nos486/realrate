@@ -8,6 +8,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useBackToClose } from '../hooks/useBackToClose.js';
+import { lockBodyScroll } from '../ui/scrollLock.js';
 
 /** Dragged down further than this (px), or flicked, it closes */
 const CLOSE_DISTANCE = 90;
@@ -21,8 +22,7 @@ export default function AppSheet({ open, onClose, title, children, className = '
 
   useEffect(() => {
     if (!open) return undefined;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    const unlock = lockBodyScroll();
     const previousFocus = document.activeElement;
     sheetRef.current?.focus();
     const onKey = (e) => {
@@ -31,7 +31,7 @@ export default function AppSheet({ open, onClose, title, children, className = '
     window.addEventListener('keydown', onKey);
     return () => {
       window.removeEventListener('keydown', onKey);
-      document.body.style.overflow = previousOverflow;
+      unlock();
       previousFocus?.focus?.();
       setOffset(0);
     };

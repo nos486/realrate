@@ -4,7 +4,7 @@
  * PLAN_LIMIT, so every form is covered without handling the error itself.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Crown } from 'lucide-react';
 import Modal from '../ui/Modal.jsx';
@@ -22,7 +22,7 @@ export default function PlanLimitPrompt() {
     return () => window.removeEventListener(PLAN_LIMIT_EVENT, onLimit);
   }, []);
 
-  const close = () => setMessage('');
+  const close = useCallback(() => setMessage(''), []);
   const compare = () => {
     close();
     navigate(appPath(PRO_PATH));

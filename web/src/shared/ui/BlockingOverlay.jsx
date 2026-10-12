@@ -7,6 +7,7 @@
  */
 
 import React, { useEffect } from 'react';
+import { lockBodyScroll } from './scrollLock.js';
 
 /**
  * @param {{ title: string, subtitle?: string, action?: React.ReactNode }} props
@@ -14,14 +15,14 @@ import React, { useEffect } from 'react';
 export default function BlockingOverlay({ title, subtitle = '', action = null }) {
   useEffect(() => {
     // No scrolling behind it, and no keyboard reaching what is under it (its own button aside)
-    document.body.style.overflow = 'hidden';
+    const unlock = lockBodyScroll();
     const handleKeyDown = (e) => {
       if (e.target?.closest?.('.fullscreen-loader-action')) return;
       if (e.key === 'Tab' || e.key === 'Enter' || e.key === ' ') e.preventDefault();
     };
     window.addEventListener('keydown', handleKeyDown, { capture: true });
     return () => {
-      document.body.style.overflow = '';
+      unlock();
       window.removeEventListener('keydown', handleKeyDown, { capture: true });
     };
   }, []);

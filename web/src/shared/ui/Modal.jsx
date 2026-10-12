@@ -7,6 +7,7 @@ const SWIPE_CLOSE_VELOCITY = 0.7;
 const isSheetLayout = () => typeof window !== 'undefined' && window.matchMedia?.('(max-width: 640px)').matches;
 import { X } from 'lucide-react';
 import { useBackToClose } from '../hooks/useBackToClose.js';
+import { lockBodyScroll } from './scrollLock.js';
 
 /**
  * Standard Unified Modal Component
@@ -72,8 +73,7 @@ export default function Modal({
   useEffect(() => {
     if (!isOpen) return;
 
-    const origOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    const unlock = lockBodyScroll();
 
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
@@ -83,7 +83,7 @@ export default function Modal({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => {
-      document.body.style.overflow = origOverflow;
+      unlock();
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen, onClose]);
