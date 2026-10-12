@@ -67,10 +67,10 @@ export default function AppUpdatePrompt() {
         <Button variant="ghost" onClick={snoozeUpdate}>{downloading ? 'لغو' : 'بعداً'}</Button>
         <Button
           icon={status === 'error' ? <RefreshCw size={16} /> : <Download size={16} />}
-          loading={downloading || status === 'installing'}
+          loading={downloading || status === 'ready'}
           onClick={downloadAndInstall}
         >
-          {status === 'error' ? 'تلاش دوباره' : status === 'installing' ? 'نصب' : 'به‌روزرسانی'}
+          {status === 'error' ? 'تلاش دوباره' : 'به‌روزرسانی'}
         </Button>
       </>
     );
@@ -93,6 +93,9 @@ export default function AppUpdatePrompt() {
           <div className="app-update-progress-track"><span style={{ width: `${percent}%` }} /></div>
           <small>در حال دانلود… {percent.toLocaleString('fa-IR')}٪</small>
         </div>
+      )}
+      {status === 'ready' && (
+        <AlertBanner type="info" message="دانلود تمام شد؛ نصب‌کننده‌ی اندروید با بازگشت به اپ باز می‌شود." />
       )}
       {status === 'installing' && (
         <AlertBanner type="info" message="نصب‌کننده‌ی اندروید باز شد؛ «نصب» یا «به‌روزرسانی» را بزنید. اطلاعات شما سر جایش می‌ماند." />
