@@ -1374,3 +1374,10 @@ html.is-app-layout .budget-grid .ui-input-label {
   font-size: 13px;
   color: var(--text-secondary);
 }
+
+/* «رد همه» above the SMS list */
+.sms-inbox-bulk {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
