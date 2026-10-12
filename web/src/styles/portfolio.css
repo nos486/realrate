@@ -1248,6 +1248,14 @@
   min-width: 74px;
 }
 
+/* A secondary column (e.g. notes) only shows where the table has room: below this width the
+   table would overflow its card and hide the actions column behind a scroll */
+@media (max-width: 1279px) {
+  .portfolio-data-table .col-wide-only {
+    display: none;
+  }
+}
+
 .portfolio-table-row {
   transition: background 0.15s ease;
   border-bottom: 1px solid rgba(255, 255, 255, 0.035);
