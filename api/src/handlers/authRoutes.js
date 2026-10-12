@@ -8,7 +8,7 @@
  *  - Cookie is also set for backward compat (SameSite=None for cross-origin).
  */
 
-import { isUserAdmin, getAuthenticatedUser } from "../lib/auth.js";
+import { isUserAdmin, getAuthenticatedUser, readSessionToken } from "../lib/auth.js";
 import { SITE_ORIGIN, siteOrigin } from "../lib/siteOrigin.js";
 import {
   dbUpsertUser,
@@ -557,17 +557,7 @@ export async function handleGetMe(request, env, ctx) {
  * Delete session from the database and clear session cookie
  */
 export async function handleLogout(request, env) {
-  let token = null;
-  const authHeader = request.headers.get("Authorization");
-  if (authHeader && authHeader.startsWith("Bearer ")) token = authHeader.slice(7).trim();
-
-  if (!token) {
-    const cookieHeader = request.headers.get("Cookie");
-    if (cookieHeader) {
-      const match = cookieHeader.match(/realrate_session=([^;]+)/);
-      if (match) token = decodeURIComponent(match[1].trim());
-    }
-  }
+  const token = readSessionToken(request);
 
   if (token) await dbDeleteSession(env, token);
 
