@@ -10,6 +10,8 @@ import { getUserSettings, updateUserSettings } from '../features/portfolio/api/p
 import VaultSettingsSection from '../shared/vault/VaultSettingsSection.jsx';
 import BackupSection from '../shared/vault/BackupSection.jsx';
 import PasswordSettingsSection from '../features/auth/components/PasswordSettingsSection.jsx';
+import { useFeature } from '../shared/features/useFeature.js';
+import ProLockedCard from '../shared/plan/ProLockedCard.jsx';
 import EmailRemindersSection from '../features/alerts/components/EmailRemindersSection.jsx';
 import WebPushRemindersSection from '../features/alerts/components/WebPushRemindersSection.jsx';
 
@@ -18,6 +20,7 @@ import WebPushRemindersSection from '../features/alerts/components/WebPushRemind
  * Rendered directly as a tab view inside the unified SPA.
  */
 export default function AccountSettingsView() {
+  const hasEmailReminders = useFeature('email_reminders');
   const { user, updateUser, triggerLogin } = useAuth();
   const [customName, setCustomName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -183,7 +186,9 @@ export default function AccountSettingsView() {
 
       <VaultSettingsSection />
 
-      <EmailRemindersSection />
+      {hasEmailReminders ? <EmailRemindersSection /> : (
+        <ProLockedCard title="یادآوری ایمیلی" text="ایمیل روزانه‌ی سررسید اقساط، چک‌ها و اشتراک‌ها در پلن رایگان بسته است." />
+      )}
 
       <WebPushRemindersSection />
 

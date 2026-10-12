@@ -38,6 +38,7 @@ export const SPA_ROUTES = [
   { path: '/sms', splat: true },
   { path: '/news', splat: true },
   { path: '/reports', splat: true },
+  { path: '/pro', splat: true },
   { path: '/admin', splat: true },
   { path: '/admin/sources', splat: true },
   { path: '/admin/derived', splat: true },

@@ -31,6 +31,7 @@
  *   auth.css            — Sign-in / sign-up / email-link pages
  *   shared-page-layout.css — Shared feature-page header bar (Portfolio/Transactions/Loans/Incomes)
  *   feature-offer.css   — In place of a feature the user doesn't have (join a group)
+ *   plan.css            — Free plan notes, limit prompt, Free/Pro comparison page
  */
 
 @import './tokens.css';
@@ -40,6 +41,7 @@
 @import './portfolio.css';
 @import './shared-page-layout.css';
 @import './feature-offer.css';
+@import './plan.css';
 @import './modals.css';
 @import './feedback.css';
 @import './admin.css';

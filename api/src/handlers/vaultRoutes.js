@@ -47,6 +47,7 @@ import { loadFeatureRules, withUserGroups } from "../lib/features.js";
 import { isFeatureEnabled } from "../config/features.js";
 import { jsonResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
+import { enforceRecordLimit } from "../lib/planLimits.js";
 
 async function requireUser(request, env) {
   const user = await getAuthenticatedUser(request, env);
@@ -64,11 +65,15 @@ async function kindAllowed(kind, user, env) {
   return isFeatureEnabled(feature, user, rules);
 }
 
-async function requireUserId(request, env, kind = null) {
+async function requireKindUser(request, env, kind = null) {
   const user = await requireUser(request, env);
   // Records of a feature not open to this user are hidden like the feature itself
   if (kind && !(await kindAllowed(kind, user, env))) throw AppError.notFound("یافت نشد.");
-  return userIdOf(user);
+  return user;
+}
+
+async function requireUserId(request, env, kind = null) {
+  return userIdOf(await requireKindUser(request, env, kind));
 }
 
 export async function handleGetVault(request, env) {
@@ -146,8 +151,11 @@ export async function handleListVaultRecords(request, env, { kind }) {
 }
 
 export async function handlePutVaultRecord(request, env, { kind, id }) {
-  const userId = await requireUserId(request, env, kind);
+  const user = await requireKindUser(request, env, kind);
+  const userId = userIdOf(user);
   const body = await request.json().catch(() => ({}));
+  // Encrypting existing plaintext data (replacePlain) is a migration, not a new record
+  if (!body.replacePlain) await enforceRecordLimit(env, user, kind, [id]);
   const record = await dbPutVaultRecord(env, userId, kind, id, {
     payload: body.payload,
     replacePlain: Boolean(body.replacePlain),
@@ -160,8 +168,12 @@ export async function handlePutVaultRecord(request, env, { kind, id }) {
 }
 
 export async function handlePutVaultRecords(request, env, { kind }) {
-  const userId = await requireUserId(request, env, kind);
+  const user = await requireKindUser(request, env, kind);
+  const userId = userIdOf(user);
   const body = await request.json().catch(() => ({}));
+  if (Array.isArray(body.records)) {
+    await enforceRecordLimit(env, user, kind, [...new Set(body.records.map((r) => r?.id).filter((x) => typeof x === "string"))]);
+  }
   const records = await dbPutVaultRecords(env, userId, kind, body.records, {
     vaultEpoch: typeof body.vaultEpoch === "string" ? body.vaultEpoch : "",
   });

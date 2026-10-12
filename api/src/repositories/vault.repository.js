@@ -558,3 +558,33 @@ export async function dbSyncVaultRecords(env, userId, { cursor = "", limit = VAU
     more,
   };
 }
+
+/**
+ * How many records the user has of some kinds, optionally only those first stored since a moment
+ * (plan limits: lib/planLimits.js)
+ * @param {string[]} kinds
+ * @param {{ since?: string }} [opts] ISO instant; counts records created at or after it
+ * @returns {Promise<number>}
+ */
+export async function dbCountVaultRecords(env, userId, kinds, { since = "" } = {}) {
+  await ensureSchema(env);
+  const marks = kinds.map(() => "?").join(",");
+  const row = await env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM vault_records WHERE user_id = ? AND kind IN (${marks})${since ? " AND created_at >= ?" : ""}`
+  ).bind(userId, ...kinds, ...(since ? [since] : [])).first();
+  return Number(row?.n) || 0;
+}
+
+/**
+ * The ids, among `ids`, that already exist as records of the kind (a replace is not a new record)
+ * @returns {Promise<Set<string>>}
+ */
+export async function dbExistingVaultRecordIds(env, userId, kind, ids) {
+  if (!ids.length) return new Set();
+  await ensureSchema(env);
+  const marks = ids.map(() => "?").join(",");
+  const { results } = await env.DB.prepare(
+    `SELECT id FROM vault_records WHERE user_id = ? AND kind = ? AND id IN (${marks})`
+  ).bind(userId, kind, ...ids).all();
+  return new Set((results || []).map((r) => r.id));
+}

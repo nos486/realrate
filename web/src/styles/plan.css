@@ -1,0 +1,113 @@
+/* plan.css — The free plan's notes, the limit prompt and the Free/Pro comparison page (shared/plan, features/pro) */
+
+.plan-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: var(--color-warning-soft);
+  border: 1px solid var(--color-warning-border);
+  border-radius: var(--card-radius);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.plan-note-badge {
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-warning-text);
+  border: 1px solid var(--color-warning-border);
+}
+
+.plan-note-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.plan-note-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 700;
+  color: var(--color-warning-text);
+  text-decoration: none;
+}
+
+.plan-limit-text {
+  margin: 0;
+  line-height: 1.9;
+  color: var(--text-primary);
+}
+
+.pro-page {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.pro-compare {
+  display: flex;
+  flex-direction: column;
+  background: var(--card-bg);
+  border: var(--card-border);
+  border-radius: var(--card-radius);
+  overflow: hidden;
+}
+
+.pro-compare-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.pro-compare-row:first-child {
+  border-top: 0;
+}
+
+.pro-compare-row.is-head {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.pro-compare-label {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.pro-compare-free,
+.pro-compare-pro,
+.pro-compare-row .is-pro {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pro-compare-free.is-closed {
+  color: var(--color-negative-text);
+}
+
+.pro-compare-pro,
+.pro-compare-row .is-pro {
+  color: var(--color-warning-text);
+}
+
+.pro-page .feature-offer {
+  margin-top: 20px;
+}
+
+@media (max-width: 640px) {
+  .pro-compare-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .pro-compare-label {
+    grid-column: 1 / -1;
+  }
+}

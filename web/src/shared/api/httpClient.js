@@ -280,6 +280,15 @@ async function sendRequest(path, options = {}) {
       }
     }
 
+    // A free-plan limit refused the change: the app tells the user (PlanLimitPrompt) and points to Pro
+    if (res.status === 403 && data && typeof data === 'object' && data.errorCode === 'PLAN_LIMIT' && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('realrate:plan-limit', { detail: { message: data.message } }));
+    }
+    // A record was stored or deleted: the plan's usage notes read their counts again
+    if (res.ok && method !== 'GET' && typeof window !== 'undefined' && /\/api\/(vault\/records|portfolios)/.test(path)) {
+      window.dispatchEvent(new Event('realrate:plan-stale'));
+    }
+
     if (!res.ok) {
       const errorMessage = (data && typeof data === 'object' && (data.message || data.error)) || `خطای سرور: ${res.status}`;
       const errorCode = (data && typeof data === 'object' && data.errorCode) || `HTTP_${res.status}`;

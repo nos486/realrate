@@ -39,7 +39,8 @@ describe('Feature Flags Configuration and Logic', () => {
     // stage: ga
     FEATURES.cheque_scan.stage = 'ga';
     expect(isFeatureEnabled('cheque_scan', { role: 'admin' })).toBe(true);
-    expect(isFeatureEnabled('cheque_scan', { role: 'user' })).toBe(true);
+    expect(isFeatureEnabled('cheque_scan', { role: 'user', groups: ['pro'] })).toBe(true);
+    expect(isFeatureEnabled('cheque_scan', { role: 'user' })).toBe(false);
     expect(isFeatureEnabled('cheque_scan', null)).toBe(false);
 
     // Restore
@@ -57,7 +58,11 @@ describe('Feature Flags Configuration and Logic', () => {
     const user = { role: 'user' };
 
     expect(enabledFeatures(admin)).toEqual(expect.arrayContaining(['cheque_scan', 'cheque_scan_debug']));
-    expect(enabledFeatures(user)).toEqual(['cheque_scan', 'expenses', 'bank_accounts']);
+    expect(enabledFeatures(user)).toEqual(['expenses', 'bank_accounts']);
+    // The Pro group opens the features closed to the free plan
+    expect(enabledFeatures({ role: 'user', groups: ['pro'] })).toEqual(
+      expect.arrayContaining(['market', 'cheque_scan', 'reports', 'widget', 'email_reminders']),
+    );
     expect(enabledFeatures(null)).toEqual([]);
   });
 });

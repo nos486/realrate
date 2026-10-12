@@ -169,6 +169,7 @@ import {
 } from "./handlers/pushRoutes.js";
 import { handleGetHomeLayout, handleSaveHomeLayout } from "./handlers/homeLayoutRoutes.js";
 import { requireFeature } from "./lib/features.js";
+import { handleGetPlan } from "./handlers/planRoutes.js";
 import {
   handleGetFeatureAccess,
   handleRequestGroup,
@@ -415,6 +416,9 @@ async function handleRequest(request, env, ctx) {
     if (request.method === "PUT")    return wrap((req, env) => handleUpdateTransaction(req, env, { portfolioId, txId }))(request, env);
     if (request.method === "DELETE") return wrap((req, env) => handleDeleteTransaction(req, env, { portfolioId, txId }))(request, env);
   }
+
+  // ── Free plan limits and usage ──────────────────────────────────────────
+  if (normalizedPath === "/api/plan" && request.method === "GET") return wrap(handleGetPlan)(request, env);
 
   // ── Groups and feature access ───────────────────────────────────────────
   const featureAccessMatch = normalizedPath.match(/^\/api\/features\/([a-z0-9_]+)\/access$/);

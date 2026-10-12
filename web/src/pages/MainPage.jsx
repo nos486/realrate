@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import ErrorBoundary from '../shared/ui/ErrorBoundary.jsx';
-import { TrendingUp, Briefcase, ShieldCheck, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards, Smartphone, MessageSquareText, FolderKanban, Newspaper, ChartColumn, CalendarSync } from 'lucide-react';
+import { TrendingUp, Briefcase, ShieldCheck, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards, Smartphone, MessageSquareText, FolderKanban, Newspaper, ChartColumn, CalendarSync, Crown } from 'lucide-react';
 import { AppLayout, FilterPills, AlertBanner, Button } from '../shared/ui/index.js';
 import { PriceRefreshStatus } from '../features/market/components/index.js';
 import HomeDashboard from '../features/home/HomeDashboard.jsx';
@@ -21,6 +21,10 @@ import { useDocumentTitle } from '../shared/hooks/useDocumentTitle.js';
 import { useTabNavigation } from '../shared/hooks/useTabNavigation.js';
 import { useFeature } from '../shared/features/useFeature.js';
 import FeatureOffer from '../shared/features/FeatureOffer.jsx';
+import PlanNote from '../shared/plan/PlanNote.jsx';
+import PlanLimitPrompt from '../shared/plan/PlanLimitPrompt.jsx';
+import { useIsPro, PRO_PATH } from '../shared/plan/usePlan.js';
+import { setSmsPlanPro } from '../shared/native/smsPlan.js';
 import { useAppLayout } from '../shared/app/appLayout.js';
 import { isNativeApp, smsEnabled } from '../shared/native/nativeApp.js';
 import { startSmsAutoRead } from '../shared/native/smsInbox.js';
@@ -46,8 +50,16 @@ const AppSettingsView = lazy(() => import('../features/app-settings/AppSettingsV
 const SmsInboxPage = lazy(() => import('../features/sms-inbox/SmsInboxPage.jsx'));
 const NewsPage = lazy(() => import('../features/news/NewsPage.jsx'));
 const ReportsPage = lazy(() => import('../features/reports/ReportsPage.jsx'));
+const ProPage = lazy(() => import('../features/pro/ProPage.jsx'));
 // The Android app's home (its own month at a glance); the website's home is the market
 const AppHomeDashboard = lazy(() => import('../features/home/AppHomeDashboard.jsx'));
+
+/** What the reports give, shown to users without them (FeatureOffer) */
+const REPORTS_BENEFITS = [
+  'درآمد، هزینه، مانده و نرخ پس‌انداز هر ماه و کل سال',
+  'نمودار دسته‌ها، منابع درآمد و سرمایه‌گذاری‌ها',
+  'جدول ماه‌به‌ماه و خروجی چاپی',
+];
 
 /** What the market page gives, shown to users without it (FeatureOffer) */
 const MARKET_BENEFITS = [
@@ -71,6 +83,9 @@ export default function MainPage() {
   const [searchParams] = useSearchParams();
   const { user, maintenance } = useAuth();
   const { isDemo } = useDemo();
+  const isPro = useIsPro();
+  const hasReports = useFeature('reports');
+  useEffect(() => setSmsPlanPro(isPro), [isPro]);
   const vault = useVault();
   // Expenses are in beta: only users of the `expenses` feature (admins) see the section
   const hasExpenses = useFeature('expenses');
@@ -186,6 +201,9 @@ export default function MainPage() {
       searchParams.get('tab') === 'reports'
     );
 
+  // Free and Pro side by side: the «Pro» button and every free-plan limit lead here
+  const isProPage = Boolean(user) && subPath.startsWith(PRO_PATH);
+
   // App frame: the market has its own page (the home is the user's own dashboard)
   const isRates = appLayout && subPath.startsWith('/rates');
 
@@ -211,6 +229,7 @@ export default function MainPage() {
     ['rates', isRates],
     ['news', isNews],
     ['reports', isReports],
+    ['pro', isProPage],
   ].find(([, matches]) => matches)?.[0] || 'market';
 
   // The header's refresh button, the window getting focus again and opening the tab again read
@@ -248,6 +267,8 @@ export default function MainPage() {
         return 'اخبار | RealRate';
       case 'reports':
         return 'گزارش‌ها | RealRate';
+      case 'pro':
+        return 'پلن رایگان و Pro | RealRate';
       default:
         return 'داشبورد بازار | RealRate';
     }
@@ -297,6 +318,7 @@ export default function MainPage() {
     rates: '/rates',
     news: '/news',
     reports: '/reports',
+    pro: PRO_PATH,
   };
 
   const handleTabChange = (nextTab) => {
@@ -339,6 +361,8 @@ export default function MainPage() {
       { value: 'cheques', label: 'چک‌ها', icon: <ReceiptText size={16} strokeWidth={2} /> },
       ...(user ? [{ value: 'subscriptions', label: 'اشتراک‌ها', icon: <CalendarSync size={16} strokeWidth={2} /> }] : []),
       ...(user ? [{ value: 'reports', label: 'گزارش‌ها', icon: <ChartColumn size={16} strokeWidth={2} /> }] : []),
+      // Free users: the page comparing the plans, with the button to ask for Pro
+      ...(user && !isDemo && !isPro ? [{ value: 'pro', label: 'Pro', icon: <Crown size={16} strokeWidth={2} /> }] : []),
     ];
     if (user && !isDemo) {
       options.push(
@@ -354,7 +378,7 @@ export default function MainPage() {
       );
     }
     return options;
-  }, [user, isDemo, hasExpenses, hasAccounts, appLayout]);
+  }, [user, isDemo, isPro, hasExpenses, hasAccounts, appLayout]);
 
 
   const {
@@ -395,6 +419,7 @@ export default function MainPage() {
     >
       {/* A tab just opened and still waiting on the server: nothing else can be opened meanwhile */}
       <TabLoadingGate tab={activeTab} />
+      {!isDemo && <PlanLimitPrompt />}
       {/* Maintenance mode is on: only admins reach this page, remind them to switch it off */}
       {maintenance?.enabled && user?.role === 'admin' && (
         <AlertBanner
@@ -441,6 +466,9 @@ export default function MainPage() {
           <VaultSetupScreen />
         ) : (
         <>
+        {/* The free plan's limit on the open section */}
+        {!isDemo && <PlanNote section={activeTab} />}
+
         {!isDemo && activeTab !== 'settings' && <VaultPendingBanner onOpenSettings={() => handleTabChange('settings')} />}
 
         {/* Due-date alerts: on the home page, and each on its own page — not repeated on every
@@ -525,7 +553,16 @@ export default function MainPage() {
 
         {activeTab === 'news' && <NewsPage />}
 
-        {activeTab === 'reports' && <ReportsPage />}
+        {activeTab === 'reports' && (hasReports ? <ReportsPage /> : (
+          <FeatureOffer
+            feature="reports"
+            title="گزارش‌های سالانه مخصوص کاربران Pro است"
+            subtitle="درآمد، هزینه و سرمایه‌گذاری یک سال را یک‌جا ببینید."
+            benefits={REPORTS_BENEFITS}
+          />
+        ))}
+
+        {activeTab === 'pro' && <ProPage />}
 
         </Suspense>
         </ErrorBoundary>

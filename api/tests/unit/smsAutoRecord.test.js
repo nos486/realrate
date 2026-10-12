@@ -40,6 +40,7 @@ vi.mock('../../../web/src/features/incomes/api/incomeApi.js', () => incomes);
 const vaultIncomes = vi.hoisted(() => ({ createIncomes: vi.fn(async (list) => list.map((i, n) => ({ id: `inc_${n}`, ...i }))) }));
 vi.mock('../../../web/src/shared/vault/vaultIncomes.js', () => vaultIncomes);
 
+import { setSmsPlanPro } from '../../../web/src/shared/native/smsPlan.js';
 import { addSmsMessages, getPendingSms, setSmsSettings, getSmsSettings } from '../../../web/src/shared/native/smsInbox.js';
 import { autoRecordSms } from '../../../web/src/features/sms-inbox/smsRecord.js';
 
@@ -48,6 +49,7 @@ const debit = (rial, time) => `بلو\nبرداشت پول\nسینا عزیز، 
 const CREDIT = 'بلو\nواریز پول\nسینا عزیز، 2,500,000 ریال به حساب شما نشست.\nموجودی: 104,451,226 ریال\n۱۸:۲۳\n۱۴۰۵.۰۷.۰۳';
 
 beforeEach(() => {
+  setSmsPlanPro(true);
   localStorage.clear();
   vi.clearAllMocks();
   expenses.getExpenses.mockResolvedValue({ expenses: [] });

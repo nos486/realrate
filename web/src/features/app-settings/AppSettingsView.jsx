@@ -12,6 +12,8 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { useFeature } from '../../shared/features/useFeature.js';
+import ProLockedCard from '../../shared/plan/ProLockedCard.jsx';
 import { Smartphone, MessageSquareText, Trash2, Fingerprint, Info, ArrowLeft, RefreshCw, Download, Bell, LayoutGrid, Plus, X } from 'lucide-react';
 import { AlertBanner, Button, Card, FeaturePageHeader } from '../../shared/ui/index.js';
 import { NumericInput } from '../../shared/ui/NumericInput.jsx';
@@ -533,6 +535,7 @@ function SmsRecordsCleanup({ vaultUnlocked }) {
 }
 
 export default function AppSettingsView({ onOpenSms }) {
+  const hasWidget = useFeature('widget');
   const { toast } = useFeedback();
   const vault = useVault();
   const { pending, settings } = useSmsInbox();
@@ -632,7 +635,9 @@ export default function AppSettingsView({ onOpenSms }) {
 
       <DueNotificationSettings />
 
-      <WidgetSettings />
+      {hasWidget ? <WidgetSettings /> : (
+        <ProLockedCard title="ویجت" text="ویجت صفحه‌ی اصلی گوشی در پلن رایگان بسته است؛ با Pro قیمت‌ها، خبر و تحلیل را روی صفحه‌ی گوشی ببینید." />
+      )}
 
       <Card
         className="app-settings-card"
