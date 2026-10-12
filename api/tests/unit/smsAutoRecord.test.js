@@ -20,6 +20,16 @@ const expenses = vi.hoisted(() => ({
     if (error) throw new Error(error);
     return { expense: { id: `exp_${input.amount}`, ...input, ...value } };
   }),
+  // The batch store: validated the same way, one call for all
+  saveExpenses: vi.fn(async (bodies) => {
+    const { validateExpense } = await import('../../src/domain/expenseDocument.js');
+    return bodies.map((body) => {
+      const input = { ...body, groupId: body.groupId || 'exg_daily' };
+      const { value, error } = validateExpense(input);
+      if (error) throw new Error(error);
+      return { id: `exp_${input.amount}`, ...input, ...value };
+    });
+  }),
 }));
 vi.mock('../../../web/src/shared/vault/vaultExpenses.js', () => expenses);
 vi.mock('../../../web/src/shared/vault/vaultAccounts.js', () => ({
@@ -51,21 +61,24 @@ describe('automatic recording of small withdrawals', () => {
   it('off by default: nothing is recorded', async () => {
     expect(getSmsSettings()).toMatchObject({ autoRecord: false, autoRecordMax: 500000, recordCategory: 'other' });
     expect(await autoRecordSmallExpenses()).toBe(0);
-    expect(expenses.saveExpense).not.toHaveBeenCalled();
+    expect(expenses.saveExpenses).not.toHaveBeenCalled();
     expect(getPendingSms()).toHaveLength(4);
   });
 
   it('records withdrawals up to the limit in the chosen category; deposits and larger ones wait', async () => {
     setSmsSettings({ autoRecord: true, autoRecordMax: 500000, recordCategory: 'transport' });
     expect(await autoRecordSmallExpenses()).toBe(2);
-    expect(expenses.saveExpense.mock.calls.map((c) => [c[0].amount, c[0].category, c[0].accountId])).toEqual([
+    // Stored together: one batch, not one request per message
+    expect(expenses.saveExpenses).toHaveBeenCalledTimes(1);
+    expect(expenses.saveExpense).not.toHaveBeenCalled();
+    expect(expenses.saveExpenses.mock.calls[0][0].map((e) => [e.amount, e.category, e.accountId])).toEqual([
       [350000, 'transport', 'acc_1'],
       [480000, 'transport', 'acc_1'],
     ]);
     expect(getPendingSms().map((p) => [p.tx.direction, p.tx.amount]).sort()).toEqual([['credit', 250000], ['debit', 900000]]);
     // Nothing left to record: a second run records nothing
     expect(await autoRecordSmallExpenses()).toBe(0);
-    expect(expenses.saveExpense).toHaveBeenCalledTimes(2);
+    expect(expenses.saveExpenses).toHaveBeenCalledTimes(1);
   });
 
   it('never twice: one already recorded (another device, or by hand) is only dropped', async () => {

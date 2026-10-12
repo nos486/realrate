@@ -184,6 +184,32 @@ export async function saveExpense(input, existing = null, { id = '', syncLinks =
   return { success: true, expense };
 }
 
+/**
+ * Save many new expenses together (e.g. a long run of bank SMS recorded automatically): checked
+ * first (one invalid, none saved), then stored one request per VAULT_BATCH_MAX, all or none in
+ * each. Ones that name a portfolio (paid from / put into it) are saved one at a time, as
+ * saveExpense does, since each also writes the portfolio's entry.
+ * @param {object[]} inputs new expenses, as saveExpense takes them
+ * @returns {Promise<object[]>} the saved expenses, in order
+ */
+export async function saveExpenses(inputs) {
+  if (!inputs.length) return [];
+  if (inputs.some((input) => LINKS.some((l) => input[l.field]))) {
+    const saved = [];
+    for (const input of inputs) saved.push((await saveExpense(input)).expense);
+    return saved;
+  }
+  const now = new Date().toISOString();
+  const dailyId = inputs.some((input) => !input.groupId) ? (await ensureDailyGroup((await getExpenseGroups()).groups)).id : '';
+  const expenses = inputs.map((input) => {
+    const value = checked(validateExpense({ ...input, groupId: input.groupId || dailyId }));
+    return { id: newId('exp'), ...value, createdAt: now, updatedAt: now };
+  });
+  await putExpenses(expenses);
+  for (const expense of expenses) await syncRecordLinks('expense', expense, null);
+  return expenses;
+}
+
 /** An expense as stored: never a rate (older records' LEGACY_RATE_FIELDS go) */
 function withoutRates(expense) {
   const copy = { ...expense };
