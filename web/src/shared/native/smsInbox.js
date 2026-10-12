@@ -124,12 +124,14 @@ export const DEFAULT_AUTO_RECORD_MAX = 500_000;
 
 /**
  * @returns {{ auto: boolean, lastRead: number, startedAt: number, autoRecord: boolean,
+ *   autoRecordIncome: boolean, autoRecordIncomeMax: number, incomeCategory: string,
  *   autoRecordMax: number, quickRecord: boolean, recordCategory: string, disabledBanks: string[] }}
  *   `auto`: automatic reading, on unless turned off; `startedAt`: when it started (it never reads
  *   messages older than that). `autoRecord`: withdrawals up to `autoRecordMax` tomans are recorded
  *   as everyday expenses by themselves (off unless turned on); `quickRecord`: the «ثبت سریع» button
  *   on small withdrawals (off unless turned on: «ثبت» otherwise); `recordCategory`: the category of
- *   those and of «ثبت سریع»; `disabledBanks`: banks whose messages are not read (activeSmsBanks)
+ *   those and of «ثبت سریع»; `autoRecordIncome` / `autoRecordIncomeMax` / `incomeCategory`: the same
+ *   for deposits, recorded as incomes of that category (off unless turned on); `disabledBanks`: banks whose messages are not read (activeSmsBanks)
  */
 export function getSmsSettings() {
   const s = read(SETTINGS_KEY, {});
@@ -141,6 +143,9 @@ export function getSmsSettings() {
     autoRecordMax: Number(s.autoRecordMax) > 0 ? Number(s.autoRecordMax) : DEFAULT_AUTO_RECORD_MAX,
     quickRecord: s.quickRecord === true,
     recordCategory: typeof s.recordCategory === 'string' && s.recordCategory ? s.recordCategory : 'other',
+    autoRecordIncome: s.autoRecordIncome === true,
+    autoRecordIncomeMax: Number(s.autoRecordIncomeMax) > 0 ? Number(s.autoRecordIncomeMax) : DEFAULT_AUTO_RECORD_MAX,
+    incomeCategory: typeof s.incomeCategory === 'string' && s.incomeCategory ? s.incomeCategory : 'other',
     disabledBanks: Array.isArray(s.disabledBanks) ? s.disabledBanks.filter((id) => typeof id === 'string') : [],
   };
 }
