@@ -10,7 +10,7 @@
  * Only admins get in; anyone else sees a short notice with a way back to the app.
  */
 
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useEffect, useRef } from 'react';
 import { NavLink, Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import ErrorBoundary from '../shared/ui/ErrorBoundary.jsx';
 import { ShieldCheck, Users, Radio, History, ArrowRight, Ban, UsersRound, Newspaper } from 'lucide-react';
@@ -46,6 +46,12 @@ export default function AdminApp() {
   const { user } = useAuth();
   useDocumentTitle('مدیریت | RealRate');
 
+  // The section bar scrolls sideways on a phone: keep the open section in view
+  const navRef = useRef(null);
+  useEffect(() => {
+    navRef.current?.querySelector('.is-active')?.scrollIntoView({ inline: 'center', block: 'nearest' });
+  }, [pathname, user?.role]);
+
   return (
     <div className="admin-shell">
       <header className="admin-topbar">
@@ -61,7 +67,7 @@ export default function AdminApp() {
           </Link>
         </div>
         {user?.role === 'admin' && (
-          <nav className="admin-nav" aria-label="بخش‌های مدیریت">
+          <nav ref={navRef} className="admin-nav" aria-label="بخش‌های مدیریت">
             {SECTIONS.map(({ path, label, icon: Icon, end }) => (
               <NavLink key={path} to={path} end={end} className={({ isActive }) => `admin-nav-item ${isActive ? 'is-active' : ''}`}>
                 <Icon size={16} />
