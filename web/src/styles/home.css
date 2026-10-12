@@ -1211,9 +1211,7 @@
   padding: 12px 14px;
   border-radius: 18px;
   overflow: hidden;
-  background:
-    radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--pro-accent) 9%, transparent) 0%, transparent 55%),
-    linear-gradient(165deg, var(--bg-surface-elevated) 0%, var(--bg-surface) 100%);
+  background: var(--bg-surface-elevated);
   border: var(--card-border);
   box-shadow: var(--card-shadow);
   backface-visibility: hidden;
