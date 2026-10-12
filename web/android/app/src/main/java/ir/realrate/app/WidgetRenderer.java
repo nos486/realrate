@@ -27,6 +27,8 @@ final class WidgetRenderer {
     static final String LINK = "ir.realrate.app://widget/";
     /** Android's own widget period never goes under 30 minutes, so the 10-minute refresh is an alarm */
     private static final long REFRESH_EVERY_MS = 10 * 60 * 1000L;
+    /** After a failed fetch (no network, e.g. while the phone dozes) the next try comes sooner */
+    private static final long RETRY_AFTER_MS = 3 * 60 * 1000L;
 
     private static final int[] TILES = {R.id.tile_1, R.id.tile_2, R.id.tile_3, R.id.tile_4, R.id.tile_5, R.id.tile_6};
     private static final int[] TILE_DOTS = {R.id.tile_dot_1, R.id.tile_dot_2, R.id.tile_dot_3, R.id.tile_dot_4, R.id.tile_dot_5, R.id.tile_dot_6};
@@ -123,11 +125,12 @@ final class WidgetRenderer {
     static void refreshAsync(Context context, BroadcastReceiver.PendingResult pending, boolean force) {
         Context app = context.getApplicationContext();
         new Thread(() -> {
+            boolean fresh = false;
             try {
-                WidgetFeed.refresh(app, force);
+                fresh = WidgetFeed.refresh(app, force);
                 renderAll(app);
             } finally {
-                scheduleNext(app);
+                scheduleNext(app, fresh ? REFRESH_EVERY_MS : RETRY_AFTER_MS);
                 if (pending != null) pending.finish();
             }
         }).start();
@@ -139,15 +142,29 @@ final class WidgetRenderer {
             .getAppWidgetIds(new ComponentName(context, MarketWidgetProvider.class)).length > 0;
     }
 
-    /** The next refresh in ten minutes (an inexact alarm: the system may batch it, e.g. while the phone dozes) */
+    /** The next refresh in ten minutes */
     static void scheduleNext(Context context) {
+        scheduleNext(context, REFRESH_EVERY_MS);
+    }
+
+    /**
+     * The next refresh after `delayMs`: an inexact alarm that also runs in Doze (setAndAllowWhileIdle
+     * wakes the phone, at most about once per nine minutes there); a plain `set` would wait for the
+     * screen to be turned on, so the widget stayed stale while the phone slept
+     */
+    private static void scheduleNext(Context context, long delayMs) {
         AlarmManager alarms = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (alarms == null) return;
         if (!anyPlaced(context)) {
             alarms.cancel(refreshIntent(context));
             return;
         }
-        alarms.set(AlarmManager.RTC, System.currentTimeMillis() + REFRESH_EVERY_MS, refreshIntent(context));
+        long at = System.currentTimeMillis() + delayMs;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, refreshIntent(context));
+        } else {
+            alarms.set(AlarmManager.RTC_WAKEUP, at, refreshIntent(context));
+        }
     }
 
     static void cancelNext(Context context) {
