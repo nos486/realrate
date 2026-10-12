@@ -57,11 +57,25 @@ export function guardSourceItems(previousItems, nextItems, {
   const nextHeld = {};
   const rejected = [];
 
+  // A price that vanished (no price, a placeholder 0, or the item left out) is held like a jump
+  // to zero: the item keeps its last value until the feed keeps leaving it out, then it is dropped
+  const holdLost = (key, before) => {
+    const waiting = held[key];
+    const ticks = waiting?.value === 0 ? waiting.ticks + 1 : 1;
+    if (ticks >= confirmTicks) return false;
+    nextHeld[key] = { value: 0, ticks };
+    rejected.push({ key, previous: positive(before[priceFieldOf(before)]), value: 0 });
+    return true;
+  };
+
+  const seen = new Set();
   const items = (nextItems || []).map((item) => {
     const key = keyOf(item);
+    seen.add(key);
     const field = priceFieldOf(item);
     const before = previous.get(key);
     const beforeField = priceFieldOf(before);
+    if (key && before && beforeField && !field) return holdLost(key, before) ? before : item;
     // Nothing to compare with (a new item, or a different price field): taken as it is
     if (!key || !field || !before || beforeField !== field) return item;
 
@@ -79,6 +93,10 @@ export function guardSourceItems(previousItems, nextItems, {
     rejected.push({ key, previous: last, value });
     return before;
   });
+
+  for (const [key, before] of previous) {
+    if (key && !seen.has(key) && priceFieldOf(before) && holdLost(key, before)) items.push(before);
+  }
 
   return { items, held: nextHeld, rejected };
 }

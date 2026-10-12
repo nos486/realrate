@@ -91,3 +91,39 @@ describe('stale prices', () => {
     expect(staleAfterSecOf({ staleAfterSec: 120 })).toBe(120);
   });
 });
+
+describe('guardSourceItems: a price that vanishes', () => {
+  const pair = [{ id: 'usd', price: 234000 }, { id: 'eur', price: 250000 }];
+
+  it('keeps the last value of an item that came back with a placeholder 0', () => {
+    const { items, held, rejected } = guardSourceItems(pair, [{ id: 'usd', price: 0 }, pair[1]]);
+    expect(items).toEqual(pair);
+    expect(held.usd).toEqual({ value: 0, ticks: 1 });
+    expect(rejected).toEqual([{ key: 'usd', previous: 234000, value: 0 }]);
+  });
+
+  it('keeps the last value of an item the feed left out', () => {
+    const { items, held } = guardSourceItems(pair, [pair[1]]);
+    expect(items).toEqual([pair[1], pair[0]]);
+    expect(held.usd.ticks).toBe(1);
+  });
+
+  it('drops the item once the feed keeps leaving it out', () => {
+    let held = {};
+    let items = null;
+    for (let tick = 1; tick <= DEFAULT_CONFIRM_TICKS; tick++) {
+      const r = guardSourceItems(pair, [pair[1]], { held });
+      held = r.held;
+      items = r.items;
+    }
+    expect(items).toEqual([pair[1]]);
+    expect(held).toEqual({});
+  });
+
+  it('starts over when the item comes back with a price', () => {
+    const lost = guardSourceItems(pair, [pair[1]]);
+    const back = guardSourceItems(pair, pair, { held: lost.held });
+    expect(back.items).toEqual(pair);
+    expect(back.held).toEqual({});
+  });
+});
