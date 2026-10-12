@@ -18,7 +18,7 @@ const biometric = vi.hoisted(() => ({
   retrieve: vi.fn(),
   clear: vi.fn(),
 }));
-vi.mock('../../../web/src/shared/native/nativeApp.js', () => ({ isNativeApp: () => true }));
+vi.mock('../../../web/src/shared/native/nativeApp.js', () => ({ isNativeApp: () => true, smsEnabled: () => true }));
 vi.mock('../../../web/src/shared/native/nativePlugins.js', () => ({ BankSms: plugin, BiometricVault: biometric }));
 vi.mock('../../../web/src/shared/vault/useVault.js', () => ({ useVault: () => ({ status: 'locked', userId: 'usr_1' }) }));
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
