@@ -9,6 +9,7 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, cleanup, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 
+vi.mock('../../../web/src/shared/features/useFeature.js', () => ({ useFeature: () => true }));
 const getNews = vi.fn();
 const getNewsToday = vi.fn(async () => ({ analysis: null, top: [] }));
 vi.mock('../../../web/src/features/news/newsApi.js', () => ({

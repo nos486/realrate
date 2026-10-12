@@ -54,6 +54,13 @@ const ProPage = lazy(() => import('../features/pro/ProPage.jsx'));
 // The Android app's home (its own month at a glance); the website's home is the market
 const AppHomeDashboard = lazy(() => import('../features/home/AppHomeDashboard.jsx'));
 
+/** What the news give, shown to users without them (FeatureOffer) */
+const NEWS_BENEFITS = [
+  'خبرهای مهم دلار، طلا، سکه، نفت و اقتصاد، گزینش‌شده با هوش مصنوعی',
+  'تحلیل روز و مهم‌ترین خبرهای هفته',
+  'اعلان خبرهای مهم',
+];
+
 /** What the reports give, shown to users without them (FeatureOffer) */
 const REPORTS_BENEFITS = [
   'درآمد، هزینه، مانده و نرخ پس‌انداز هر ماه و کل سال',
@@ -109,7 +116,8 @@ export default function MainPage() {
   }, []);
   useEffect(() => initDueNotificationClicks((path) => navigateRef.current(appPath(path))), []);
   // Android app: a notification for important news while the app runs (when turned on)
-  useEffect(() => startNewsAlerts(), []);
+  const hasNews = useFeature('news');
+  useEffect(() => (hasNews ? startNewsAlerts() : undefined), [hasNews]);
   // Small withdrawals recorded by themselves, when turned on in the app settings
   useSmsAutoRecord(smsEnabled() && hasExpenses && !isDemo);
 
@@ -551,7 +559,14 @@ export default function MainPage() {
 
         {activeTab === 'sms' && <SmsInboxPage />}
 
-        {activeTab === 'news' && <NewsPage />}
+        {activeTab === 'news' && (hasNews ? <NewsPage /> : (
+          <FeatureOffer
+            feature="news"
+            title="اخبار بازار مخصوص کاربران Pro است"
+            subtitle="مهم‌ترین خبرهای ارز، طلا و اقتصاد را با تحلیل روز یک‌جا بخوانید."
+            benefits={NEWS_BENEFITS}
+          />
+        ))}
 
         {activeTab === 'reports' && (hasReports ? <ReportsPage /> : (
           <FeatureOffer

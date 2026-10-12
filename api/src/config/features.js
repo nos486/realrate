@@ -29,6 +29,12 @@ export const FEATURES = {
     label: 'اسکن چک با هوش مصنوعی',
     description: 'استخراج اطلاعات چک بانکی از تصویر با Gemini (محدودیت روزانه: config/usageLimits.js)',
   },
+  news: {
+    stage: 'ga',
+    groups: ['pro'],
+    label: 'اخبار',
+    description: 'صفحه‌ی اخبار، کارت آخرین اخبار و اعلان خبرهای مهم (تحلیل روز در صفحه‌ی اول سایت برای همه می‌ماند)',
+  },
   reports: {
     stage: 'ga',
     groups: ['pro'],

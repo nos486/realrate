@@ -2,8 +2,8 @@
  * newsRoutes.js — The news section
  *
  * Endpoints:
- *   GET    /api/news                     — Published news, newest first (?limit, ?page or ?before, ?category, ?important=1)
- *   GET    /api/news/today               — The analyst's card, today's and the week's most important news
+ *   GET    /api/news                     — Published news, newest first (?limit, ?page or ?before, ?category, ?important=1); the `news` feature (Pro)
+ *   GET    /api/news/today               — The analyst's card, today's and the week's most important news (the `news` feature); ?scope=analysis: only the analyst's card, public
  *   GET    /api/admin/news/channels      — The channels read, the last runs' report, the last published news (admin)
  *   PUT    /api/admin/news/channels      — Save the channels ({ channels: [{ username, enabled }] }) (admin)
  *   POST   /api/admin/news/run           — Read the channels now (admin)
@@ -12,6 +12,7 @@
  */
 
 import { getAuthenticatedUser } from "../lib/auth.js";
+import { requireFeature } from "../lib/features.js";
 import { jsonResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
 import { edgeCachedJson } from "../lib/edgeCache.js";
@@ -33,6 +34,8 @@ const MAX_PAGE = 50;
 const PUBLIC_CACHE_SEC = 30;
 
 export async function handleGetNews(request, env) {
+  // The news is a Pro feature: checked before the shared edge cache
+  await requireFeature(request, env, "news");
   const params = new URL(request.url).searchParams;
   const limit = Math.min(MAX_PAGE, Math.max(1, parseInt(params.get("limit") || "20", 10) || 20));
   const before = Math.max(0, parseInt(params.get("before") || "0", 10) || 0);
@@ -53,6 +56,12 @@ const TODAY_TOP = 6;
 const WEEK_TOP = 6;
 
 export async function handleGetNewsToday(request, env) {
+  // The landing page's analysis stays public; the day's news are for users with the news feature
+  if (new URL(request.url).searchParams.get("scope") === "analysis") {
+    const body = await edgeCachedJson("https://news.cache/today-analysis", PUBLIC_CACHE_SEC, async () => ({ analysis: await getNewsAnalysis(env) }));
+    return jsonResponse({ success: true, ...body }, 200, request, { "Cache-Control": `public, max-age=${PUBLIC_CACHE_SEC}` });
+  }
+  await requireFeature(request, env, "news");
   const body = await edgeCachedJson("https://news.cache/today", PUBLIC_CACHE_SEC, async () => {
     const now = Date.now();
     const [today, lastWeek, analysis] = await Promise.all([
