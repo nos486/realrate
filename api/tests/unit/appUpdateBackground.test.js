@@ -13,7 +13,7 @@ const plugin = vi.hoisted(() => ({
 }));
 
 vi.mock('@capacitor/core', () => ({ Capacitor: { isNativePlatform: () => true } }));
-vi.mock('../../../web/src/shared/native/nativeApp.js', () => ({ isNativeApp: () => true, smsEnabled: () => true }));
+vi.mock('../../../web/src/shared/native/nativeApp.js', () => ({ isNativeApp: () => true, smsEnabled: () => true, selfUpdateEnabled: () => true }));
 vi.mock('../../../web/src/shared/native/nativePlugins.js', () => ({ AppUpdate: plugin }));
 vi.mock('../../../web/src/shared/api/httpClient.js', () => ({
   httpClient: { get: vi.fn(async () => ({ release: { version: '1.0.50', url: 'https://x/realrate.apk' } })) },

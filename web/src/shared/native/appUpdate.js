@@ -18,7 +18,7 @@
 import { Capacitor } from '@capacitor/core';
 import { httpClient } from '../api/httpClient.js';
 import { compareVersions } from '../../utils/clientInfo.js';
-import { isNativeApp, smsEnabled } from './nativeApp.js';
+import { selfUpdateEnabled } from './nativeApp.js';
 import { AppUpdate } from './nativePlugins.js';
 
 const SETTINGS_KEY = 'realrate_app_update';
@@ -63,12 +63,6 @@ export function isNewer(release, installedVersion) {
 }
 
 
-/** The APK of this build: the no-SMS build updates to its own file, published beside the full one */
-export function apkUrlForBuild(url, withSms = smsEnabled()) {
-  // realrate-1.0.48.apk → realrate-nosms-1.0.48.apk (older releases: realrate.apk → realrate-nosms.apk)
-  return withSms ? url : String(url).replace(/\/realrate(-[\d.]+)?\.apk$/, '/realrate-nosms$1.apk');
-}
-
 /** The release notes as plain lines (the CHANGELOG's markdown, without the download footer) */
 export function releaseNotesText(notes) {
   return String(notes || '')
@@ -111,7 +105,7 @@ async function installedVersion() {
   return String(info?.version || '');
 }
 
-const canUpdate = () => isNativeApp() && Capacitor.isNativePlatform();
+const canUpdate = () => selfUpdateEnabled() && Capacitor.isNativePlatform();
 
 /**
  * Ask the server for the latest release
@@ -193,7 +187,7 @@ export async function downloadAndInstall() {
       if (size > 0) setState({ progress: Math.min(1, Number(downloaded) / size) });
     });
     try {
-      await AppUpdate.download({ url: apkUrlForBuild(release.url), version: release.version });
+      await AppUpdate.download({ url: release.url, version: release.version });
     } finally {
       listener?.remove?.();
     }
