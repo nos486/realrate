@@ -13,8 +13,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The rows of the news widget: the analyst's headline of the day first (when there is one), then
- * the day's top news with their category and age
+ * The news rows of the widget: the AI analyst's headline of the day first (when there is one), then
+ * the day's AI-picked news with their category and age (the feed carries only those)
  */
 public class NewsWidgetService extends RemoteViewsService {
 
@@ -25,7 +25,7 @@ public class NewsWidgetService extends RemoteViewsService {
 
     private static final class Factory implements RemoteViewsFactory {
         private final Context context;
-        private final List<String[]> rows = new ArrayList<>(); // {label, time, title, important}
+        private final List<String[]> rows = new ArrayList<>(); // {label, time, title, kind: "a" analysis, "h" important, "n" normal}
 
         Factory(Context context) {
             this.context = context;
@@ -42,7 +42,7 @@ public class NewsWidgetService extends RemoteViewsService {
             JSONObject analysis = feed.optJSONObject("analysis");
             if (analysis != null && !analysis.optString("title").isEmpty()) {
                 long at = analysis.optLong("at", 0);
-                rows.add(new String[] {"تحلیل هوشمند امروز", at > 0 ? WidgetFormat.ago(at, now) : "", analysis.optString("title"), "1"});
+                rows.add(new String[] {"تحلیل هوشمند امروز", at > 0 ? WidgetFormat.ago(at, now) : "", analysis.optString("title"), "a"});
             }
             JSONArray news = feed.optJSONArray("news");
             for (int i = 0; news != null && i < news.length(); i++) {
@@ -52,7 +52,7 @@ public class NewsWidgetService extends RemoteViewsService {
                     n.optString("categoryLabel"),
                     WidgetFormat.ago(n.optLong("publishedAt"), now),
                     n.optString("title"),
-                    n.optInt("importance", 1) >= 3 ? "1" : "0",
+                    n.optInt("importance", 1) >= 3 ? "h" : "n",
                 });
             }
         }
@@ -69,9 +69,11 @@ public class NewsWidgetService extends RemoteViewsService {
             RemoteViews view = new RemoteViews(context.getPackageName(), R.layout.widget_news_row);
             if (position >= rows.size()) return view;
             String[] row = rows.get(position);
-            boolean highlight = "1".equals(row[3]);
+            // The analysis in violet, an important item in amber, the rest in the app's blue
+            int color = Color.parseColor("a".equals(row[3]) ? "#a78bfa" : "h".equals(row[3]) ? "#f59e0b" : "#38bdf8");
             view.setTextViewText(R.id.row_category, row[0]);
-            view.setTextColor(R.id.row_category, Color.parseColor(highlight ? "#f59e0b" : "#38bdf8"));
+            view.setTextColor(R.id.row_category, color);
+            view.setInt(R.id.row_bar, "setBackgroundColor", color);
             view.setTextViewText(R.id.row_time, row[1]);
             view.setTextViewText(R.id.row_title, row[2]);
             view.setOnClickFillInIntent(R.id.row_root, new Intent());

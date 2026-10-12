@@ -25,7 +25,7 @@ vi.mock('../../../web/src/shared/vault/portfolioFunds.js', () => ({
   saveLinkedTransaction: vi.fn(),
   deleteLinkedTransaction: vi.fn(),
 }));
-const { moveExpenses, saveExpense } = await import('../../../web/src/shared/vault/vaultExpenses.js');
+const { moveExpenses, saveExpense, saveExpenses } = await import('../../../web/src/shared/vault/vaultExpenses.js');
 const funds = await import('../../../web/src/shared/vault/portfolioFunds.js');
 
 const expense = (i, extra = {}) => ({
@@ -76,5 +76,25 @@ describe('saveExpense: its section', () => {
     expect((await saveExpense({ notes: 'x' }, stored, { syncLinks: false })).expense.groupId).toBe('exg_proj');
     // Moved out of its project
     expect((await saveExpense({ groupId: '' }, stored, { syncLinks: false })).expense.groupId).toBe('exg_daily');
+  });
+});
+
+describe('saveExpenses', () => {
+  it('stores new expenses together, one request per 100, in the everyday section when none is given', async () => {
+    const inputs = Array.from({ length: 150 }, (_, i) => {
+      const { id: _id, groupId: _g, ...rest } = expense(i);
+      return rest;
+    });
+    const saved = await saveExpenses(inputs);
+    expect(saved).toHaveLength(150);
+    expect(new Set(saved.map((e) => e.id)).size).toBe(150);
+    expect(sent.batches.map((b) => b.records.length)).toEqual([100, 50]);
+    expect(sent.batches[0].records[0]).toMatchObject({ parentId: 'exg_daily', recordDate: '2026-10-01' });
+  });
+
+  it('stores nothing when one is invalid, and nothing for an empty list', async () => {
+    await expect(saveExpenses([{ title: 'x', amount: 5, currency: 'IRT', date: '2026-10-01', category: 'groceries' }, { title: '', amount: -1 }])).rejects.toBeTruthy();
+    expect(sent.batches).toHaveLength(0);
+    expect(await saveExpenses([])).toEqual([]);
   });
 });

@@ -17,12 +17,12 @@ import java.util.List;
 
 /**
  * The home-screen widgets' side of the app (web/src/shared/native/widgets.js): the favourite items
- * of the prices widget, a refresh, and asking the launcher to place a widget.
+ * of the widget, a refresh, and asking the launcher to place a widget.
  *
  * JS: Widgets.getFavorites() → { ids }          ([] = none chosen, the server's default list shows)
  *     Widgets.setFavorites({ ids })             (saves, then refreshes the widgets)
  *     Widgets.refresh()
- *     Widgets.requestPin({ kind: "prices" | "news" }) → { requested }   (Android 8+ launchers that allow it)
+ *     Widgets.requestPin() → { requested }   (Android 8+ launchers that allow it)
  */
 @CapacitorPlugin(name = "Widgets")
 public class WidgetsPlugin extends Plugin {
@@ -62,9 +62,8 @@ public class WidgetsPlugin extends Plugin {
         boolean requested = false;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             AppWidgetManager manager = AppWidgetManager.getInstance(context);
-            Class<?> provider = "news".equals(call.getString("kind")) ? NewsWidgetProvider.class : PricesWidgetProvider.class;
             if (manager.isRequestPinAppWidgetSupported()) {
-                requested = manager.requestPinAppWidget(new ComponentName(context, provider), null, null);
+                requested = manager.requestPinAppWidget(new ComponentName(context, MarketWidgetProvider.class), null, null);
             }
         }
         ret.put("requested", requested);

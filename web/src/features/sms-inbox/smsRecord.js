@@ -63,6 +63,23 @@ export async function recordSmsLoanDeposit(item, loan) {
   return income;
 }
 
+/**
+ * Record several waiting withdrawals together, each as `recordSmsExpense` would (its account, the
+ * category's title), but stored in batches rather than one request each
+ * @param {Array<{ fingerprint: string, tx: object }>} items waiting messages
+ * @returns {Promise<number>} how many were recorded
+ */
+async function recordSmsExpenses(items, { accounts = [], category = getSmsSettings().recordCategory } = {}) {
+  const inputs = [];
+  for (const item of items) {
+    const accountId = accounts ? await ensureSmsAccount(item.tx, accounts) : '';
+    inputs.push({ ...smsExpenseDraft(item.tx, accounts || []), accountId, category, title: getExpenseCategory(category).label, currency: 'IRT' });
+  }
+  await expensesApi.saveExpenses(inputs);
+  items.forEach((item) => markSmsHandled(item.fingerprint));
+  return items.length;
+}
+
 async function accountsOrNone() {
   try {
     return (await getAccounts()).accounts.filter((a) => !a.archived);
@@ -117,13 +134,9 @@ export function autoRecordSmallExpenses() {
     await dropAlreadyRecorded();
 
     const accounts = await accountsOrNone();
-    let recorded = 0;
-    // The inbox is newest first: recorded in the order they happened
-    for (const item of small(getPendingSms()).reverse()) {
-      await recordSmsExpense(item, { accounts, category: recordCategory });
-      recorded++;
-    }
-    return recorded;
+    // The inbox is newest first: recorded in the order they happened, stored together (a long
+    // read of earlier messages is a few requests, not one per message)
+    return recordSmsExpenses(small(getPendingSms()).reverse(), { accounts, category: recordCategory });
   })().finally(() => {
     running = null;
   });

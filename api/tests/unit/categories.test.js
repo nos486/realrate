@@ -179,3 +179,12 @@ describe('categoryStore', () => {
     await expect(store.saveCategories('income', [{ value: 'c_x0000001', label: '' }])).rejects.toThrow();
   });
 });
+
+describe('built-in «جاری» and «دریافت وام» categories', () => {
+  it('running costs is an expense category records accept; loan received is an income outside the totals', () => {
+    expect(isCategoryValue('expense', 'running_costs')).toBe(true);
+    expect(BUILTIN_CATEGORIES.expense.find((c) => c.value === 'running_costs').label).toBe('هزینه‌های جاری');
+    expect(isCategoryValue('income', 'loan_received')).toBe(true);
+    expect(BUILTIN_CATEGORIES.income.find((c) => c.value === 'loan_received').excluded).toBe(true);
+  });
+});

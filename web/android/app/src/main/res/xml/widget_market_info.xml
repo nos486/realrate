@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The home-screen widget: prices and AI news. The system's period is its slowest fallback;
+     MarketWidgetProvider refreshes every ten minutes by alarm -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/widget_description"
+    android:initialLayout="@layout/widget_market"
+    android:minWidth="250dp"
+    android:minHeight="250dp"
+    android:minResizeWidth="200dp"
+    android:minResizeHeight="180dp"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellWidth="4"
+    android:targetCellHeight="4"
+    android:updatePeriodMillis="1800000"
+    android:widgetCategory="home_screen" />

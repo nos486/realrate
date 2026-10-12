@@ -1,10 +1,10 @@
 /**
- * widgets.js — The Android home-screen widgets from the app's side
+ * widgets.js — The Android home-screen widget from the app's side
  *
- * Two widgets (android/…/PricesWidgetProvider.java, NewsWidgetProvider.java) show the favourite
- * items' prices and the AI news. They read GET /api/widget by themselves; here the user picks the
- * favourites (kept on the phone, empty = the default list), asks the launcher to place a widget,
- * and a tap on a widget opens the app on the right page (`ir.realrate.app://widget/<page>`).
+ * One widget (android/…/MarketWidgetProvider.java) shows the favourite items' prices and the AI
+ * news, refreshed every ten minutes. It reads GET /api/widget by itself; here the user picks the
+ * favourites (kept on the phone, empty = the default list), asks the launcher to place the widget,
+ * and a tap on it opens the app on the right page (`ir.realrate.app://widget/<page>`).
  */
 
 import { Widgets } from './nativePlugins.js';
@@ -15,10 +15,9 @@ export { WIDGET_MAX_ITEMS, WIDGET_DEFAULT_ITEMS } from '../../utils/widgetFeed.j
 
 export const WIDGET_LINK = 'ir.realrate.app://widget/';
 
-/** The widgets a user can place: key (as the native side names it) and label */
+/** The widget a user can place: key and label */
 export const WIDGET_KINDS = [
-  { key: 'prices', label: 'قیمت‌های موردعلاقه', hint: 'قیمت چند دارایی‌ات را روی صفحه‌ی اصلی گوشی می‌بینی.' },
-  { key: 'news', label: 'اخبار هوشمند', hint: 'مهم‌ترین خبرهای امروز و تحلیل هوش مصنوعی.' },
+  { key: 'market', label: 'قیمت و اخبار هوشمند', hint: 'قیمت دارایی‌های موردعلاقه‌ات و خبرهای هوش مصنوعی روی صفحه‌ی اصلی گوشی، با به‌روزرسانی هر ۱۰ دقیقه.' },
 ];
 
 /** Where a widget link opens: the in-app path, or null when the link isn't a widget's */
@@ -51,10 +50,10 @@ export async function setWidgetFavorites(ids) {
   return clean;
 }
 
-/** Ask the launcher to place a widget ('prices' | 'news'); false when the launcher can't be asked */
-export async function requestPinWidget(kind) {
+/** Ask the launcher to place the widget; false when the launcher can't be asked */
+export async function requestPinWidget() {
   try {
-    const { requested } = await Widgets.requestPin({ kind });
+    const { requested } = await Widgets.requestPin();
     return Boolean(requested);
   } catch {
     return false;

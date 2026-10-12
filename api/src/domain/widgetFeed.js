@@ -5,21 +5,27 @@
  * top news with the analyst's headline. The widgets are native code that only displays numbers, so
  * everything is decided here from the price book — tomans, the asset's own dollar price when it
  * has one (assetPrice rules), the day's change — and a device never downloads the whole book.
- * Pure: shared by the Worker and its tests.
+ * Only the model's own news (and its daily analysis) goes on the widget. Pure: shared by the Worker and its tests.
  */
 
 import { currencyOf } from "./priceBook.js";
 import { toPriceId } from "./priceIds.js";
 import { metricValue } from "./cardMetrics.js";
 
-/** Favourites a widget lists at most (a tall widget has room for about this many rows) */
-export const WIDGET_MAX_ITEMS = 8;
+/** Favourites a widget lists at most (the widget's price tiles: two columns, three rows) */
+export const WIDGET_MAX_ITEMS = 6;
 
 /** Favourites shown until the user picks their own (book ids) */
 export const WIDGET_DEFAULT_ITEMS = ["usd", "gold_18k", "full_coin", "BTC"];
 
-/** News rows the news widget lists */
+/** News rows the widget lists */
 export const WIDGET_NEWS_LIMIT = 6;
+
+/** News read to find enough AI-picked ones (the rest are keyword-only posts, never shown on the widget) */
+export const WIDGET_NEWS_READ = WIDGET_NEWS_LIMIT * 3;
+
+/** The AI-picked news (`ai`), most important first as given, at most WIDGET_NEWS_LIMIT */
+export const aiNewsOf = (news) => (news || []).filter((n) => n?.ai).slice(0, WIDGET_NEWS_LIMIT);
 
 const safeDecode = (s) => {
   try { return decodeURIComponent(s); } catch { return s; }

@@ -2,7 +2,7 @@
  * widgetRoutes.js — The Android home-screen widgets' feed
  *
  * Endpoint:
- *   GET /api/widget?ids=usd,gold_18k   — { updatedAt, prices, news, analysis, defaultIds }; public, cached 60 s at the edge
+ *   GET /api/widget?ids=usd,gold_18k   — { updatedAt, prices, news (the AI-picked ones only), analysis, defaultIds }; public, cached 60 s at the edge
  */
 
 import { jsonResponse } from "../lib/helpers.js";
@@ -14,7 +14,8 @@ import { tehranDayStart } from "../domain/news.js";
 import { NEWS_CATEGORIES } from "../config/news.config.js";
 import {
   WIDGET_DEFAULT_ITEMS,
-  WIDGET_NEWS_LIMIT,
+  WIDGET_NEWS_READ,
+  aiNewsOf,
   parseWidgetIds,
   widgetPrices,
   widgetNewsOf,
@@ -32,15 +33,15 @@ export async function handleGetWidgetFeed(request, env) {
     const now = Date.now();
     const [book, today, analysis] = await Promise.all([
       getPriceBook(env),
-      dbTopNewsSince(env, tehranDayStart(now), WIDGET_NEWS_LIMIT),
+      dbTopNewsSince(env, tehranDayStart(now), WIDGET_NEWS_READ),
       getNewsAnalysis(env),
     ]);
     // Early in the day: the last 24 hours instead (as the news page's "today")
-    const top = today.length >= 3 ? today : await dbTopNewsSince(env, now - 86400000, WIDGET_NEWS_LIMIT);
+    const top = today.length >= 3 ? today : await dbTopNewsSince(env, now - 86400000, WIDGET_NEWS_READ);
     return {
       updatedAt: book.updatedAt || now,
       prices: widgetPrices(book.items, parseWidgetIds(ids.join(","), book.items)),
-      news: top.map((n) => widgetNewsOf(n, NEWS_CATEGORIES)),
+      news: aiNewsOf(top).map((n) => widgetNewsOf(n, NEWS_CATEGORIES)),
       analysis: widgetAnalysisOf(analysis),
     };
   });
