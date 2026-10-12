@@ -21,7 +21,7 @@
 import { CHEQUE_CLEARED } from '../../utils/chequeDocument.js';
 import { todayIso } from '../utils/dates.js';
 import { recordInstallmentPayments, recordExtraPayment, recordSubscriptionPayments, spendingExpenseId, installmentSpendingKey } from './spendingRecords.js';
-import { recordOwnerOf } from '../../utils/recordOwners.js';
+import { recordOwnerOf, SPENDING_ID_PREFIX } from '../../utils/recordOwners.js';
 import { settleCheque } from './recordLinks.js';
 
 const DONE_KEY = 'realrate_spending_backfill_v1';
@@ -249,18 +249,25 @@ export async function runLoanDuplicateCleanup({ userId, expenses }) {
 }
 
 /**
- * The installment expenses recorded by a loan that no longer exists (its deletion used to leave
- * them behind). Only ones the loan recorded and that name the missing loan.
+ * The expenses the app recorded for a loan that no longer exists (its deletion used to leave them
+ * behind): an installment's, which names its loan, and an extra payment's, which is known by its
+ * id (made from the loan and the payment). Only expenses the app made itself (an id made by
+ * spendingExpenseId) and the loan owns; one the user entered and a loan took over stays.
  * @param {object[]} expenses all the expenses
  * @param {Set<string>} loanIds the loans that exist
+ * @param {Set<string>} extraExpenseIds the ids of the expenses the existing loans' extra payments have
  * @returns {object[]} the expenses to delete
  */
-export function findOrphanLoanExpenses(expenses, loanIds) {
-  return expenses.filter((e) => e.loanInstallment && recordOwnerOf(e) === 'loan' && !loanIds.has(e.loanInstallment.loanId));
+export function findOrphanLoanExpenses(expenses, loanIds, extraExpenseIds = new Set()) {
+  return expenses.filter((e) => {
+    if (!String(e.id).startsWith(SPENDING_ID_PREFIX) || recordOwnerOf(e) !== 'loan') return false;
+    if (e.loanInstallment) return !loanIds.has(e.loanInstallment.loanId);
+    return !extraExpenseIds.has(e.id);
+  });
 }
 
 /**
- * (v5) The installment expenses of deleted loans go — once per user on this device
+ * (v5) The expenses of deleted loans go — once per user on this device
  * @param {{ userId: string, expenses: boolean }} options
  * @returns {Promise<boolean>} whether it ran to the end
  */
@@ -269,11 +276,17 @@ export async function runOrphanLoanExpenseCleanup({ userId, expenses }) {
   const ok = await step('orphan loan expenses', async () => {
     const store = await import('./vaultExpenses.js');
     const api = await import('../../features/loans/api/loanApi.js');
-    // A loans list that could not be read must not look like "no loans"
+    // A list that could not be read must not look like "no loans"; any failure stops the run
     const { loans, success } = await api.getLoans();
     if (success === false || !Array.isArray(loans)) throw new Error('loans not readable');
+    const extraExpenseIds = new Set();
+    for (const loan of loans) {
+      const { extraPayments } = await api.getLoanExtraPayments(loan.id);
+      if (!Array.isArray(extraPayments)) throw new Error('extra payments not readable');
+      for (const p of extraPayments) extraExpenseIds.add(spendingExpenseId(`loanx:${loan.id}:${p.id || p.paymentDate}`));
+    }
     const { expenses: all = [] } = await store.getExpenses();
-    for (const e of findOrphanLoanExpenses(all, new Set(loans.map((l) => l.id)))) {
+    for (const e of findOrphanLoanExpenses(all, new Set(loans.map((l) => l.id)), extraExpenseIds)) {
       await store.deleteExpense(e.id, e, { syncLinks: false, asOwner: true });
     }
   });

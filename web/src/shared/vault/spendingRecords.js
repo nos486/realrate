@@ -242,7 +242,7 @@ export async function removeInstallmentPayment(loanId, installmentId, paidDate, 
 
 /**
  * A loan deleted: every expense it recorded goes with it — its installments' and its extra
- * payments' (the ones the user made by hand stay: they are the user's own)
+ * payments' (the ones the user made by hand stay, even when the loan took them over)
  * @param {string} loanId
  * @param {string[]} [extraPaymentIds] the ids of the loan's extra payments (read before it was deleted)
  */
@@ -251,7 +251,7 @@ export async function removeLoanPayments(loanId, extraPaymentIds = []) {
   const { expenses = [] } = await getExpenses();
   const extraIds = new Set(extraPaymentIds.map((id) => spendingExpenseId(`loanx:${loanId}:${id}`)));
   for (const e of expenses) {
-    const installment = e.loanInstallment?.loanId === loanId && recordOwnerOf(e) === 'loan';
+    const installment = e.loanInstallment?.loanId === loanId && recordOwnerOf(e) === 'loan' && e.id.startsWith(SPENDING_ID_PREFIX);
     if (installment || extraIds.has(e.id)) await deleteExpense(e.id, e, { syncLinks: false, asOwner: true });
   }
 }

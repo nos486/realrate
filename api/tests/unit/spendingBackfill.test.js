@@ -150,10 +150,19 @@ describe('duplicate installment expenses', () => {
 });
 
 describe('expenses of deleted loans', () => {
-  const exp = (id, loanId, extra = {}) => ({ id, recordedBy: 'loan', loanInstallment: { loanId, installmentId: 'i' }, ...extra });
+  const auto = (id, loanId) => ({ id: `exp_s${id}`, recordedBy: 'loan', loanInstallment: { loanId, installmentId: 'i' } });
 
-  it('finds the installment expenses a loan recorded for a loan that is gone, and only those', () => {
-    const list = [exp('a', 'gone'), exp('b', 'here'), exp('c', 'gone', { recordedBy: undefined, id: 'exp_user' }), { id: 'd', recordedBy: 'loan' }];
-    expect(findOrphanLoanExpenses(list, new Set(['here'])).map((e) => e.id)).toEqual(['a']);
+  it('finds what the app recorded for a loan that is gone: its installments and its extra payments', () => {
+    const list = [
+      auto('a', 'gone'), auto('b', 'here'),
+      { id: 'exp_sx1', recordedBy: 'loan' }, // an extra payment of an existing loan
+      { id: 'exp_sx2', recordedBy: 'loan' }, // an extra payment nothing has now
+    ];
+    expect(findOrphanLoanExpenses(list, new Set(['here']), new Set(['exp_sx1'])).map((e) => e.id)).toEqual(['exp_sa', 'exp_sx2']);
+  });
+
+  it('keeps what the user entered, even one a loan took over', () => {
+    const list = [{ id: 'exp_user', recordedBy: 'loan', loanInstallment: { loanId: 'gone', installmentId: 'i' } }, { id: 'exp_user2', category: 'food' }];
+    expect(findOrphanLoanExpenses(list, new Set())).toEqual([]);
   });
 });
