@@ -189,6 +189,16 @@
   font-weight: 700;
 }
 
+/* A chosen item's remove button inside its chip (the widget settings) */
+.app-chip-remove {
+  display: inline-flex;
+  padding: 2px;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
 /* Update prompt (shared/app/AppUpdatePrompt.jsx) */
 .app-update-notes {
   margin: 0;

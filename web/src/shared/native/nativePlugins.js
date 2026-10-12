@@ -5,6 +5,7 @@
  * BiometricVault: keeps a secret only the fingerprint can release (BiometricVaultPlugin.java)
  * AppUpdate: downloads the new APK and opens Android's installer (AppUpdatePlugin.java)
  * FileExport: hands a file the app made to Android's share sheet (FileExportPlugin.java)
+ * Widgets: the home-screen widgets' favourites and refresh (WidgetsPlugin.java)
  * Outside the app their calls fail ("not implemented"): check isNativeApp() first.
  */
 
@@ -14,3 +15,4 @@ export const BankSms = registerPlugin('BankSms');
 export const BiometricVault = registerPlugin('BiometricVault');
 export const AppUpdate = registerPlugin('AppUpdate');
 export const FileExport = registerPlugin('FileExport');
+export const Widgets = registerPlugin('Widgets');

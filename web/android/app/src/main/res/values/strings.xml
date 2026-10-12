@@ -4,4 +4,13 @@
     <string name="title_activity_main">RealRate</string>
     <string name="package_name">ir.realrate.app</string>
     <string name="custom_url_scheme">ir.realrate.app</string>
+    <string name="widget_prices_label">قیمت‌های موردعلاقه</string>
+    <string name="widget_prices_description">قیمت دارایی‌های موردعلاقه‌ات روی صفحه‌ی اصلی</string>
+    <string name="widget_news_label">اخبار هوشمند</string>
+    <string name="widget_news_description">مهم‌ترین خبرهای امروز و تحلیل هوش مصنوعی</string>
+    <string name="widget_title_prices">قیمت‌ها</string>
+    <string name="widget_title_news">اخبار هوشمند</string>
+    <string name="widget_empty">داده‌ای نیست؛ برای باز کردن اپ ضربه بزن</string>
+    <string name="widget_refresh">تازه‌سازی</string>
+    <string name="widget_settings">تنظیم دارایی‌ها</string>
 </resources>

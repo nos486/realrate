@@ -80,6 +80,7 @@ import {
   handleAdminGetPriceSourceItems,
   handleAdminSyncPriceSource,
 } from "./handlers/adminRoutes.js";
+import { handleGetWidgetFeed } from "./handlers/widgetRoutes.js";
 import { handleGetPrices, handleGetSparklines, handleGetPriceHistory, handleGetPriceBook, handleGetPriceCatalog } from "./handlers/apiRoutes.js";
 import { handleAdminHistory } from "./handlers/historyRoutes.js";
 import { handleGetUnifiedMarketItems } from "./handlers/unifiedItemsRoute.js";
@@ -577,6 +578,8 @@ async function handleRequest(request, env, ctx) {
   if (normalizedPath === "/api/market/items" || normalizedPath === "/api/market/unified" || normalizedPath === "/api/items") {
     return wrap(handleGetUnifiedMarketItems)(env, request);
   }
+  // The Android home-screen widgets (prices of the favourites + the day's news)
+  if (normalizedPath === "/api/widget" && request.method === "GET") return wrap(handleGetWidgetFeed)(request, env);
   if (normalizedPath === "/api/prices") return wrap(handleGetPrices)(env, request);
   if (normalizedPath === "/api/prices/book") return wrap(handleGetPriceBook)(env, request);
   if (normalizedPath === "/api/prices/catalog") return wrap(handleGetPriceCatalog)(env, request);
