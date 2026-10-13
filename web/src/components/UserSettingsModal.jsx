@@ -159,7 +159,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
               <button
                 type="button"
                 className="btn-danger"
-                onClick={onDelete}
+                onClick={() => onDelete(portfolio?.id)}
                 disabled={saving}
                 title={`حذف «${portfolio?.name || ''}»`}
               >
