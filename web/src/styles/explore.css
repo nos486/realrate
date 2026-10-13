@@ -1,56 +1,11 @@
-/* Market explorer (/explore): the asset list beside one big chart, nothing else */
-.explore-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 16px;
-  align-items: start;
-}
-
-/* Phone: the list, or (once one is chosen) its chart with a back button */
-.explore-layout.has-selection .explore-search-col { display: none; }
-.explore-back { display: inline-flex; }
-
-@media (min-width: 900px) {
-  .explore-layout {
-    grid-template-columns: minmax(260px, 300px) minmax(0, 1fr);
-  }
-  .explore-layout.has-selection .explore-search-col { display: block; }
-  .explore-back { display: none; }
-  /* The list stays beside the chart while the page scrolls */
-  .explore-search-col {
-    position: sticky;
-    top: 84px;
-  }
-}
-
-.explore-search-col .asset-picker-list {
-  max-height: calc(100vh - 260px);
-  min-height: 240px;
-}
-
-.explore-search-col .asset-picker-filters {
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.explore-search-col .asset-picker-filters::-webkit-scrollbar { display: none; }
-.explore-search-col .asset-picker-filters .tx-filter-pill { flex-shrink: 0; }
-
-.explore-detail-col {
-  min-width: 0;
-}
-
-.explore-row {
-  grid-template-columns: 30px minmax(0, 1fr) auto;
-}
-
-/* The chart's one surface */
+/* Market explorer (/explore): one chart panel filling the screen, the asset search inside it */
 .explore-panel {
   display: flex;
   flex-direction: column;
   gap: 10px;
   min-width: 0;
-  padding: 14px 14px 10px;
+  min-height: 460px;
+  padding: 12px 14px 8px;
   border: 1px solid var(--border-color);
   border-radius: 16px;
   background: var(--bg-surface);
@@ -58,29 +13,26 @@
 
 @media (max-width: 640px) {
   .explore-panel {
-    padding: 10px 8px 8px;
+    padding: 10px 8px 6px;
     border-radius: 12px;
   }
 }
 
-/* Title line: the asset, its price and change */
+/* The search, at the top of the panel */
+.explore-search {
+  position: relative;
+  z-index: 5;
+  max-width: 460px;
+}
+
+.explore-search .universal-search-bar { border-radius: 10px; }
+.explore-search .universal-search-input { padding-top: 8px; padding-bottom: 8px; font-size: 13px; }
+
 .explore-title {
   display: flex;
   align-items: center;
   gap: 10px;
   min-width: 0;
-}
-
-.explore-back {
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: 10px;
-  background: var(--bg-surface-elevated);
-  color: var(--text-secondary);
-  cursor: pointer;
 }
 
 .explore-title-names {
@@ -137,29 +89,25 @@
 .explore-change.is-up { color: var(--color-positive-text); }
 .explore-change.is-down { color: var(--color-negative-text); }
 
-.explore-chart-state,
-.explore-empty {
+.explore-chart-state {
   display: flex;
+  flex: 1;
   align-items: center;
   justify-content: center;
-  min-height: 340px;
   padding: 28px 12px;
   color: var(--text-muted);
   font-size: 13px;
   text-align: center;
 }
 
-.explore-empty {
-  border: 1px dashed var(--border-color);
-  border-radius: 16px;
-}
-
-/* PriceChart.jsx */
+/* PriceChart.jsx: the bar, the statistics strip, then the chart taking the rest */
 .xchart-wrap {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 10px;
   min-width: 0;
+  min-height: 0;
 }
 
 .xchart-bar {
@@ -179,7 +127,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 9px;
+  padding: 6px 9px;
   border: 1px solid var(--border-color);
   border-radius: 8px;
   background: transparent;
@@ -225,11 +173,8 @@
 
 .xchart {
   position: relative;
-  height: clamp(360px, calc(100vh - 290px), 680px);
-}
-
-@media (max-width: 640px) {
-  .xchart { height: clamp(340px, calc(100vh - 260px), 560px); }
+  flex: 1;
+  min-height: 280px;
 }
 
 .xchart-canvas {
