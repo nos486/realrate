@@ -362,6 +362,8 @@ A feature can be open to every user or only to the members of some groups (rules
 | `PUT` | `/api/v1/admin/news/channels` | `{ channels: [{ username, enabled }] }` — save the list (`@name`, `t.me/name` accepted; repeats dropped). A new channel's last 10 posts are reviewed on its first read |
 | `GET` / `PUT` | `/api/alerts/push/news` | Signed in: whether this browser (`?deviceId=` / `{ deviceId, enabled }`) gets a Web Push for important news; the browser must be subscribed first (`/api/alerts/push/subscription`). The push is plain `{ plain: 1, title, body, path, tag }` |
 | `POST` | `/api/v1/admin/news/analysis` | Write the analyst's card now (whatever the interval) |
+| `GET` | `/api/v1/admin/outlook` | Admin: the dollar outlook experiment — the recorded daily scenarios (`records`: `base`, `up`/`flat`/`down` percents, `low`–`high` range, `reason`, `horizon` day, and `score` once the horizon day has a close), `summary` (the model against a flat guess: hit rates, in-range rate, Brier scores), the last run's `status`, `model`, `horizonDays`, `flatBandPct`. Nothing public |
+| `POST` | `/api/v1/admin/outlook/run` | Admin: write today's scenario now → `{ result: { recorded, reason? }, …the same as GET }` |
 | `POST` | `/api/v1/admin/news/run` | Read the channels now; `{ result: { checked, candidates, published, aiCalls }, status }` |
 | `POST` | `/api/v1/admin/news/<channel>/<postId>/hidden` | `{ hidden }` — take a news item down (or put it back) |
 | `GET` | `/api/v1/admin/demo` | Inspect demo account state (existence, non-confidential record counts, last updated) |

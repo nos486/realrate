@@ -11,6 +11,7 @@ import { runReminderEmailDigest, tehranTime } from "./reminderEmail.job.js";
 import { runReminderPushDigest, purgeOldPushRemindersJob } from "./reminderPush.job.js";
 import { dbPurgeOldVaultTombstones } from "../repositories/vault.repository.js";
 import { runNewsPolling } from "../services/news/news.service.js";
+import { maybeRecordDollarOutlook } from "../services/outlook/dollarOutlook.service.js";
 import { dbPurgeOldNews } from "../repositories/news.repository.js";
 import { NEWS_LIMITS } from "../config/news.config.js";
 import { logger } from "../lib/logger.js";
@@ -42,6 +43,12 @@ export async function runCronPolling(event, env, ctx) {
   const scheduledDate = Number.isFinite(scheduledTime) && scheduledTime > 0 ? new Date(scheduledTime) : new Date();
 
   if (scheduledDate.getUTCMinutes() === 0) {
+    // The dollar outlook experiment: one scenario a day, late in the Tehran day (admin only)
+    ctx.waitUntil(
+      maybeRecordDollarOutlook(env, { now: scheduledDate.getTime() }).catch(err => {
+        logger.error("[CronPolling] Dollar outlook error:", { error: err.message });
+      })
+    );
     // Each cleanup on its own: one failing never leaves a rejection unhandled or stops the others
     ctx.waitUntil(
       dbDeleteExpiredSessions(env).catch(err => {
