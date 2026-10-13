@@ -81,7 +81,7 @@ function assertPayload(payload) {
 // lookup per request (each request has its own env.DB), forgotten when the vault changes
 const vaultLookups = new WeakMap();
 
-function forgetVaultLookup(env, userId) {
+export function forgetVaultLookup(env, userId) {
   if (env?.DB && typeof env.DB === "object") vaultLookups.get(env.DB)?.delete(userId);
 }
 

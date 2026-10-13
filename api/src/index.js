@@ -135,6 +135,7 @@ import {
   handleForgotPassword,
   handleResetPassword,
   handleSetPassword,
+  handleDeleteAccount,
 } from "./handlers/accountRoutes.js";
 import {
   handleListCustomBanks,
@@ -275,6 +276,7 @@ async function handleRequest(request, env, ctx) {
     if (normalizedPath === "/api/auth/password/forgot")     return wrap(handleForgotPassword)(request, env);
     if (normalizedPath === "/api/auth/password/reset")      return wrap(handleResetPassword)(request, env);
     if (normalizedPath === "/api/auth/password")            return wrap(handleSetPassword)(request, env);
+    if (normalizedPath === "/api/auth/account/delete")      return wrap(handleDeleteAccount)(request, env);
   }
 
   // ── The Android app's update check (public; answered during maintenance too) ──

@@ -16,6 +16,7 @@ vi.mock('../../src/repositories/index.js', () => ({
   dbCreateAuthToken: vi.fn(async () => 'tok_123'),
   dbConsumeAuthToken: vi.fn(),
   dbDeleteUserSessions: vi.fn(async () => 2),
+  dbDeleteUserAccount: vi.fn(),
   dbSaveSession: vi.fn(),
   normalizeEmail: (e) => String(e ?? '').trim().toLowerCase(),
 }));
@@ -40,6 +41,8 @@ import {
   handleResetPassword,
   handleSetPassword,
   handleResendVerification,
+  handleDeleteAccount,
+  ACCOUNT_DELETE_CONFIRM,
   parseNewPassword,
 } from '../../src/handlers/accountRoutes.js';
 
@@ -238,6 +241,38 @@ describe('email/password accounts', () => {
     it('requires a session', async () => {
       getAuthenticatedUser.mockResolvedValue(null);
       await expect(handleSetPassword(authed({ newPassword: 'fresh1234' }), env)).rejects.toMatchObject({ statusCode: 401 });
+    });
+  });
+  describe('delete the account', () => {
+    const del = (body) => post('/api/auth/account/delete', body, { Authorization: 'Bearer cur_token' });
+
+    it('deletes the account of a signed-in user who confirms with the password', async () => {
+      getAuthenticatedUser.mockResolvedValue({ userId: 'usr_1', email: 'sara@example.com' });
+      repo.dbGetUserAuthById.mockResolvedValue(account());
+      await expect(handleDeleteAccount(del({ confirm: ACCOUNT_DELETE_CONFIRM, password: 'wrong1234' }), env))
+        .rejects.toMatchObject({ code: 'INVALID_PASSWORD' });
+      expect(repo.dbDeleteUserAccount).not.toHaveBeenCalled();
+      const res = await handleDeleteAccount(del({ confirm: ACCOUNT_DELETE_CONFIRM, password: 'secret123' }), env);
+      expect(res.status).toBe(200);
+      expect(repo.dbDeleteUserAccount).toHaveBeenCalledWith(env, 'usr_1');
+    });
+
+    it('a Google-only account needs no password, but the confirmation', async () => {
+      getAuthenticatedUser.mockResolvedValue({ userId: 'g_1', email: 'g@example.com' });
+      repo.dbGetUserAuthById.mockResolvedValue(account({ id: 'g_1', passwordHash: '' }));
+      await expect(handleDeleteAccount(del({}), env)).rejects.toMatchObject({ code: 'CONFIRM_REQUIRED' });
+      await handleDeleteAccount(del({ confirm: ACCOUNT_DELETE_CONFIRM }), env);
+      expect(repo.dbDeleteUserAccount).toHaveBeenCalledWith(env, 'g_1');
+    });
+
+    it('refuses the demo account and admins, and a missing session', async () => {
+      getAuthenticatedUser.mockResolvedValue({ userId: 'demo_1', kind: 'demo_edit' });
+      await expect(handleDeleteAccount(del({ confirm: ACCOUNT_DELETE_CONFIRM }), env)).rejects.toMatchObject({ statusCode: 403 });
+      getAuthenticatedUser.mockResolvedValue({ userId: 'adm_1', email: 'admin@example.com' });
+      await expect(handleDeleteAccount(del({ confirm: ACCOUNT_DELETE_CONFIRM }), env)).rejects.toMatchObject({ statusCode: 403 });
+      getAuthenticatedUser.mockResolvedValue(null);
+      await expect(handleDeleteAccount(del({ confirm: ACCOUNT_DELETE_CONFIRM }), env)).rejects.toMatchObject({ statusCode: 401 });
+      expect(repo.dbDeleteUserAccount).not.toHaveBeenCalled();
     });
   });
 });
