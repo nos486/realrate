@@ -19,8 +19,8 @@ const dayFormat = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { month: 'short'
 const dayLongFormat = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { year: 'numeric', month: 'short', day: 'numeric', weekday: 'short' });
 
 const AVERAGES = [
-  { period: 7, label: 'میانگین ۷ روزه', className: 'is-fast', token: '--color-warning-text' },
-  { period: 20, label: 'میانگین ۲۰ روزه', className: 'is-slow', token: '--color-primary-text' },
+  { period: 7, label: 'میانگین ۷ روزه', short: 'MA ۷', className: 'is-fast', token: '--color-warning-text' },
+  { period: 20, label: 'میانگین ۲۰ روزه', short: 'MA ۲۰', className: 'is-slow', token: '--color-primary-text' },
 ];
 
 const pad = (v) => String(v).padStart(2, '0');
@@ -33,10 +33,12 @@ const dateOf = (day, long = false) => (long ? dayLongFormat : dayFormat).format(
 const signedPct = (v) => (v === null || v === undefined ? '—' : `${v < 0 ? '−' : v > 0 ? '+' : ''}${Math.abs(v).toLocaleString('fa-IR', { maximumFractionDigits: 2 })}٪`);
 
 /**
- * @param {{ candles: number[][], days: string[], currency?: string, unit?: string, label: string }} props
+ * @param {{ candles: number[][], days: string[], currency?: string, unit?: string, label: string,
+ *   onNeedOlder?: Function|null, header?: React.ReactNode }} props - header: the title line above
+ *   the chart (the asset and its price), beside the average toggles
  *   candles: [open, high, low, close] per day, days: YYYY-MM-DD (Tehran), oldest first
  */
-export default function PriceChart({ candles, days, currency = 'toman', unit = '', label, onNeedOlder = null }) {
+export default function PriceChart({ candles, days, currency = 'toman', unit = '', label, onNeedOlder = null, header = null }) {
   const holder = useRef(null);
   const chartRef = useRef(null); // { chart, candleSeries, markers, averages: { [period]: series } }
   const needOlder = useRef(onNeedOlder);
@@ -180,6 +182,26 @@ export default function PriceChart({ candles, days, currency = 'toman', unit = '
 
   return (
     <div className="xchart-wrap">
+      <div className="xchart-bar">
+        {header}
+        <div className="xchart-tools" role="group" aria-label="میانگین متحرک">
+          {averages.map((a) => (
+            <button
+              key={a.period}
+              type="button"
+              className={`xchart-tool ${a.className} ${shownAverages.has(a.period) ? 'is-on' : ''}`}
+              aria-pressed={shownAverages.has(a.period)}
+              aria-label={a.label}
+              disabled={n < a.period}
+              title={n < a.period ? 'برای این بازه داده‌ی کافی نیست' : a.label}
+              onClick={() => toggle(a.period)}
+            >
+              <i aria-hidden="true" /> {a.short}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="xchart-stats">
         {cells.map((c) => (
           <div key={c.key} className="xchart-stat">
@@ -187,23 +209,6 @@ export default function PriceChart({ candles, days, currency = 'toman', unit = '
             <strong className={c.tone || ''}><bdi>{c.value}</bdi></strong>
           </div>
         ))}
-      </div>
-
-      <div className="xchart-tools" role="group" aria-label="ابزارهای تحلیل">
-        {averages.map((a) => (
-          <button
-            key={a.period}
-            type="button"
-            className={`xchart-tool ${a.className} ${shownAverages.has(a.period) ? 'is-on' : ''}`}
-            aria-pressed={shownAverages.has(a.period)}
-            disabled={n < a.period}
-            title={n < a.period ? 'برای این بازه داده‌ی کافی نیست' : undefined}
-            onClick={() => toggle(a.period)}
-          >
-            <i aria-hidden="true" /> {a.label}
-          </button>
-        ))}
-        <span className="xchart-hint">با چرخ موس یا دو انگشت بزرگ‌نمایی کنید؛ برای دیدن قدیمی‌تر بکشید</span>
       </div>
 
       <div className="xchart" dir="ltr" role="img" aria-label={label}>
