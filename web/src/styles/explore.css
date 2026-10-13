@@ -8,7 +8,7 @@
 
 @media (min-width: 900px) {
   .explore-layout {
-    grid-template-columns: minmax(280px, 380px) minmax(0, 1fr);
+    grid-template-columns: minmax(250px, 310px) minmax(0, 1fr);
   }
 }
 
@@ -22,6 +22,12 @@
   flex-direction: column;
   gap: 12px;
   min-width: 0;
+}
+
+.explore-detail-col.has-selection { order: -1; }
+
+@media (min-width: 900px) {
+  .explore-detail-col.has-selection { order: 0; }
 }
 
 .explore-row {
@@ -44,27 +50,42 @@
 }
 
 .explore-panel {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 14px;
-  border: 1px solid var(--border-color, var(--border));
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border-color);
   border-radius: 16px;
   background: var(--bg-surface);
 }
 
-.explore-panel-head {
-  display: flex;
+/* The chosen asset in one line */
+.explore-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "icon names price" "meta meta meta";
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--bg-surface-elevated);
 }
+.explore-head .home-asset-icon { grid-area: icon; }
+.explore-head-names { grid-area: names; display: flex; flex-direction: column; min-width: 0; }
+.explore-head-names h2 { margin: 0; font-size: 15px; color: var(--text-primary); }
+.explore-head-names span { display: flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 11.5px; }
+.explore-head-price { grid-area: price; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.explore-head-price strong { font-size: 20px; color: var(--text-primary); }
+.explore-head-price small { color: var(--text-muted); font-size: 11px; font-weight: 400; }
+.explore-change { font-size: 12px; font-weight: 600; }
+.explore-change.is-up { color: var(--color-positive-text); }
+.explore-change.is-down { color: var(--color-negative-text); }
+.explore-head-meta { grid-area: meta; display: flex; gap: 14px; flex-wrap: wrap; color: var(--text-muted); font-size: 11.5px; }
 
-.explore-panel-head h2 {
-  margin: 0;
-  font-size: 14px;
-  color: var(--text-primary);
+@media (max-width: 640px) {
+  .explore-head-price strong { font-size: 17px; }
 }
 
 .explore-chart.is-loading {
@@ -84,30 +105,6 @@
   border-radius: 16px;
 }
 
-.explore-facts {
-  display: grid;
-  gap: 6px;
-  margin: 0;
-}
-
-.explore-facts > div {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  font-size: 13px;
-}
-
-.explore-facts dt {
-  color: var(--text-muted);
-}
-
-.explore-facts dd {
-  margin: 0;
-  color: var(--text-primary);
-  text-align: end;
-}
-
-/* Price chart (PriceChart.jsx): a tall plot with a price axis on the right, a date axis below */
 .xchart-wrap {
   display: flex;
   flex-direction: column;
@@ -147,13 +144,7 @@
 
 .xchart {
   position: relative;
-  height: 380px;
-}
-
-@media (max-width: 640px) {
-  .xchart {
-    height: 300px;
-  }
+  height: clamp(340px, 64vh, 620px);
 }
 
 .xchart-canvas {
@@ -206,3 +197,21 @@
   color: inherit;
   text-decoration: underline;
 }
+
+.xchart-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+}
+
+.xchart-stat {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.xchart-stat span { color: var(--text-muted); }
+.xchart-stat strong { color: var(--text-primary); }
+.xchart-stat strong.up-val { color: var(--color-positive-text); }
+.xchart-stat strong.down-val { color: var(--color-negative-text); }

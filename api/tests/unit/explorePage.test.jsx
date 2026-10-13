@@ -51,12 +51,14 @@ describe('ExplorePage', () => {
     expect(screen.getByText('بیت‌کوین')).toBeTruthy();
   });
 
-  it('opening an asset shows its card, chart and info, and fetches its candles', () => {
+  it('opening an asset shows its price line and chart, and fetches its candles', () => {
     renderAt('/explore');
     fireEvent.click(screen.getByText('دلار'));
     expect(screen.getByLabelText('نمودار')).toBeTruthy();
-    expect(screen.getByText('بازار آزاد')).toBeTruthy(); // the card names its source
-    expect(screen.getByLabelText('اطلاعات')).toBeTruthy();
+    // One line: the name and the live price; no info card
+    expect(screen.getByRole('heading', { name: 'دلار' })).toBeTruthy();
+    expect(screen.getByText((100000).toLocaleString('fa-IR'), { exact: false, selector: 'strong' })).toBeTruthy();
+    expect(screen.queryByLabelText('اطلاعات')).toBeNull();
     expect(getSparklines).toHaveBeenCalledWith(['usd'], '180d', { candles: true });
   });
 

@@ -180,9 +180,9 @@ export default function PriceChart({ candles, days, currency = 'toman', unit = '
 
   return (
     <div className="xchart-wrap">
-      <div className="pro-metrics xchart-stats">
+      <div className="xchart-stats">
         {cells.map((c) => (
-          <div key={c.key} className="pro-metric">
+          <div key={c.key} className="xchart-stat">
             <span>{c.label}</span>
             <strong className={c.tone || ''}><bdi>{c.value}</bdi></strong>
           </div>
