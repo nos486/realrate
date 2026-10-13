@@ -65,3 +65,11 @@ export function resetPassword(token, password) {
 export function setPassword({ currentPassword, newPassword }) {
   return httpClient.post('/api/auth/password', { currentPassword, newPassword });
 }
+
+/** What the server needs to confirm deleting the account (sent once the user typed the phrase) */
+export const ACCOUNT_DELETE_CONFIRM = 'DELETE_ACCOUNT';
+
+/** Signed in: delete the account and all its data for good (`password` when the account has one) */
+export function deleteAccount({ password } = {}) {
+  return httpClient.post('/api/auth/account/delete', { confirm: ACCOUNT_DELETE_CONFIRM, password });
+}

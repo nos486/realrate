@@ -10,6 +10,7 @@
  *                                             user add a password without being signed in)
  *   POST /api/auth/password/reset           — Set a new password with the link's token
  *   POST /api/auth/password                 — Signed in: set a first password, or change it
+ *   POST /api/auth/account/delete           — Signed in: delete the account and all its data for good
  *
  * Privacy & abuse: register / resend / forgot answer the same way whether or not the email is
  * registered (the email itself tells the owner what happened), attempts are rate-limited, links
@@ -29,6 +30,7 @@ import {
   dbCreateAuthToken,
   dbConsumeAuthToken,
   dbDeleteUserSessions,
+  dbDeleteUserAccount,
   dbSaveSession,
   normalizeEmail,
 } from "../repositories/index.js";
@@ -371,4 +373,45 @@ export async function handleSetPassword(request, env) {
       : "رمز عبور تعیین شد؛ از این پس می‌توانید با ایمیل و رمز هم وارد شوید.",
     signedOutSessions: signedOut,
   });
+}
+
+/** What the client sends to confirm deleting the account (after the user typed the Persian phrase) */
+export const ACCOUNT_DELETE_CONFIRM = "DELETE_ACCOUNT";
+const DELETE_LIMIT = { limit: 5, windowSec: 15 * 60 };
+
+/**
+ * Delete the signed-in account and everything it owns. A stolen session alone cannot do it: an
+ * account with a password must give it (rate limited); a Google-only account is proven by its
+ * sign-in. The demo account and admins (who are named in the deployment's settings) cannot be
+ * deleted from here.
+ */
+export async function handleDeleteAccount(request, env) {
+  const user = await getAuthenticatedUser(request, env);
+  if (!user) throw AppError.unauthorized();
+  if (user.kind === "demo_view" || user.kind === "demo_edit") {
+    throw new AppError("حذف حساب دمو مجاز نیست.", 403, "DEMO_EDIT_FORBIDDEN");
+  }
+  if (isUserAdmin(user.email, env)) {
+    throw new AppError("حساب مدیر از اینجا حذف نمی‌شود.", 403, "ADMIN_DELETE_FORBIDDEN");
+  }
+  const userId = user.userId || user.id;
+  const body = await readJson(request);
+  if (body.confirm !== ACCOUNT_DELETE_CONFIRM) {
+    throw AppError.badRequest("برای حذف حساب، عبارت تأیید را وارد کنید.", "CONFIRM_REQUIRED");
+  }
+
+  const account = await dbGetUserAuthById(env, userId);
+  if (!account) throw AppError.unauthorized();
+  if (account.passwordHash) {
+    const key = `account-delete:${userId}`;
+    await enforceLimit(env, key, DELETE_LIMIT);
+    if (!(await verifyPassword(String(body.password ?? ""), account.passwordHash))) {
+      await recordRateLimitHit(env, key, DELETE_LIMIT);
+      throw new AppError("رمز عبور حساب نادرست است.", 400, "INVALID_PASSWORD");
+    }
+    await clearRateLimit(env, key);
+  }
+
+  await dbDeleteUserAccount(env, userId);
+  return json(request, { success: true, message: "حساب و همه‌ی اطلاعات آن حذف شد." });
 }

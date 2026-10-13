@@ -4,7 +4,7 @@
  * Post-build static SEO generator:
  * - Copies dist/index.html to dist/spa.html (noindex shell)
  * - Enhances dist/index.html with metadata, JSON-LD, and crawlable root fallback
- * - Generates standalone static HTML for /features, /features/*, /about, /faq, /android and /404
+ * - Generates standalone static HTML for /features, /features/*, /about, /faq, /android, /privacy, /delete-account and /404
  * - Copies fonts and SEO CSS into dist/seo/
  * - Emits dist/sitemap.xml and dist/robots.txt
  * - Generates dist/_redirects (eliminating catch-all soft 404) and updates dist/_headers
@@ -190,7 +190,8 @@ const crawlableLandingContent = `
             <a href="/features" style="color:#9ca3af;margin-left:1rem;">امکانات</a>
             <a href="/android" style="color:#9ca3af;margin-left:1rem;">اپ اندروید</a>
             <a href="/about" style="color:#9ca3af;margin-left:1rem;">درباره</a>
-            <a href="/faq" style="color:#9ca3af;">سؤالات</a>
+            <a href="/faq" style="color:#9ca3af;margin-left:1rem;">سؤالات</a>
+            <a href="/privacy" style="color:#9ca3af;">حریم خصوصی</a>
           </span>
         </footer>
       </div>
@@ -334,6 +335,7 @@ ${jsonLdBlock}
           <a href="/android">اپ اندروید</a>
           <a href="/about">درباره</a>
           <a href="/faq">سؤالات</a>
+          <a href="/privacy">حریم خصوصی</a>
           ${DEMO_ENABLED ? '<a href="/demo">دمو</a>' : ''}
           <a href="https://github.com/nos486/realrate" target="_blank" rel="noopener noreferrer">GitHub</a>
         </nav>
@@ -716,6 +718,65 @@ console.log(`✓ Generated ${FEATURE_PAGES.length} feature pages in dist/feature
   console.log('✓ Generated dist/faq.html');
 }
 
+// ── 8c. Generate the legal pages (/privacy, /delete-account) ─────────────────
+// Google Play asks for both as public URLs. Plain text sections, no sign-in links.
+for (const page of [STATIC_PAGES.privacy, STATIC_PAGES.deleteAccount]) {
+  const canonicalUrl = `${SITE.origin}/${page.slug}`;
+  const breadcrumbs = [
+    { label: 'خانه', url: `${SITE.origin}/` },
+    { label: page.h1, url: canonicalUrl },
+  ];
+
+  const bodyHtml = `
+    <nav aria-label="مسیر راهنما">
+      <ol class="seo-breadcrumb">
+        <li><a href="/">خانه</a></li>
+        <li aria-current="page">${escapeHtml(page.h1)}</li>
+      </ol>
+    </nav>
+
+    <header class="seo-hero">
+      <h1>${escapeHtml(page.h1)}</h1>
+      <p class="seo-hero-intro">${escapeHtml(page.intro)}</p>
+      <p class="seo-hero-intro">آخرین به‌روزرسانی: ${escapeHtml(page.updated)}</p>
+    </header>
+
+    <article class="seo-article">
+      ${page.sections
+        .map(
+          (sec) => `
+        <section class="seo-section">
+          <h2>${escapeHtml(sec.h2)}</h2>
+          ${sec.paragraphs.map((p) => `<p>${escapeHtml(p)}</p>`).join('')}
+          ${sec.bullets?.length ? `<ul class="seo-bullets">${sec.bullets.map((b) => `<li>${escapeHtml(b)}</li>`).join('')}</ul>` : ''}
+        </section>`
+        )
+        .join('')}
+    </article>`;
+
+  writeFileSync(
+    resolve(distDir, `${page.slug}.html`),
+    renderStaticPage({
+      title: page.title,
+      description: page.description,
+      canonicalUrl,
+      ogImage: page.ogImage,
+      breadcrumbs,
+      jsonLdSchemas: [{
+        '@context': 'https://schema.org',
+        '@type': 'WebPage',
+        'name': page.h1,
+        'description': page.description,
+        'inLanguage': 'fa',
+        'url': canonicalUrl,
+      }],
+      bodyHtml,
+    }),
+    'utf-8'
+  );
+  console.log(`✓ Generated dist/${page.slug}.html`);
+}
+
 // ── 8b. Generate Android App Page (/android) ─────────────────────────────────
 // Download of the signed APK (the latest GitHub release) and how to install it, including the
 // Play Protect warning a sideloaded app with the SMS permission meets
@@ -881,6 +942,8 @@ console.log(`✓ Generated ${FEATURE_PAGES.length} feature pages in dist/feature
     { loc: `${SITE.origin}/about`, priority: '0.6', changefreq: 'monthly' },
     { loc: `${SITE.origin}/faq`, priority: '0.7', changefreq: 'weekly' },
     { loc: `${SITE.origin}/android`, priority: '0.8', changefreq: 'weekly' },
+    { loc: `${SITE.origin}/privacy`, priority: '0.3', changefreq: 'yearly' },
+    { loc: `${SITE.origin}/delete-account`, priority: '0.3', changefreq: 'yearly' },
   ];
 
   const sitemapXml = `<?xml version="1.0" encoding="UTF-8"?>

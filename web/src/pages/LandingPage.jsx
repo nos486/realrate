@@ -301,6 +301,7 @@ export default function LandingPage() {
             <a href="/android">اپ اندروید</a>
             <a href="/about">درباره</a>
             <a href="/faq">سؤالات</a>
+            <a href="/privacy">حریم خصوصی</a>
             {DEMO_ENABLED && <a href="/demo">دمو</a>}
             <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">GitHub</a>
           </nav>

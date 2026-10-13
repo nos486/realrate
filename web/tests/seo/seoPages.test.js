@@ -17,6 +17,8 @@ describe('SEO Pages Acceptance Tests', () => {
     STATIC_PAGES.about,
     STATIC_PAGES.faq,
     STATIC_PAGES.android,
+    STATIC_PAGES.privacy,
+    STATIC_PAGES.deleteAccount,
     ...FEATURE_PAGES,
   ];
 
@@ -42,6 +44,8 @@ describe('SEO Pages Acceptance Tests', () => {
     { slug: 'about', path: resolve(distDir, 'about.html') },
     { slug: 'faq', path: resolve(distDir, 'faq.html') },
     { slug: 'android', path: resolve(distDir, 'android.html') },
+    { slug: 'privacy', path: resolve(distDir, 'privacy.html') },
+    { slug: 'delete-account', path: resolve(distDir, 'delete-account.html') },
     ...FEATURE_PAGES.map((p) => ({
       slug: `features/${p.slug}`,
       path: resolve(distDir, `features/${p.slug}.html`),

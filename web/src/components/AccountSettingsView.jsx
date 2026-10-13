@@ -10,6 +10,7 @@ import { getUserSettings, updateUserSettings } from '../features/portfolio/api/p
 import VaultSettingsSection from '../shared/vault/VaultSettingsSection.jsx';
 import BackupSection from '../shared/vault/BackupSection.jsx';
 import PasswordSettingsSection from '../features/auth/components/PasswordSettingsSection.jsx';
+import DeleteAccountSection from '../features/auth/components/DeleteAccountSection.jsx';
 import { useFeature } from '../shared/features/useFeature.js';
 import ProLockedCard from '../shared/plan/ProLockedCard.jsx';
 import EmailRemindersSection from '../features/alerts/components/EmailRemindersSection.jsx';
@@ -193,6 +194,8 @@ export default function AccountSettingsView() {
       <WebPushRemindersSection />
 
       <BackupSection />
+
+      <DeleteAccountSection />
     </Card>
     </div>
   );

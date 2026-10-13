@@ -9,6 +9,8 @@ import { ensureSchema } from "./schema.repository.js";
 import { generateUrlToken, sha256Hex } from "../lib/security.js";
 import { dbRecordUserActivity } from "./user.repository.js";
 import { forgetSessions } from "./session.repository.js";
+import { forgetVaultLookup } from "./vault.repository.js";
+import { APP_TABLES } from "./d1Schema.js";
 
 const AUTH_COLUMNS = `
   id, email, name, custom_name AS customName, picture, role,
@@ -147,4 +149,23 @@ export async function dbDeleteUserSessions(env, userId, { exceptToken = null } =
     : await env.DB.prepare(`DELETE FROM sessions WHERE user_id = ?`).bind(userId).run();
   forgetSessions({ userId });
   return res?.meta?.changes ?? 0;
+}
+
+/** Tables holding rows of one user, found from the schema so a new per-user table is deleted too */
+const USER_OWNED_TABLES = APP_TABLES.filter((t) => t.columns.includes("user_id")).map((t) => t.name);
+
+/**
+ * Delete an account for good: every row of the user in every per-user table (sessions, encrypted
+ * records, vault, reminders, push subscriptions, group memberships, ...) and the user itself, in
+ * one batch. Backs "delete my account" (Google Play requires it in the app).
+ */
+export async function dbDeleteUserAccount(env, userId) {
+  if (!userId || !env?.DB) throw new Error("Database connection required");
+  await ensureSchema(env);
+  await env.DB.batch([
+    ...USER_OWNED_TABLES.map((table) => env.DB.prepare(`DELETE FROM ${table} WHERE user_id = ?`).bind(userId)),
+    env.DB.prepare(`DELETE FROM users WHERE id = ?`).bind(userId),
+  ]);
+  forgetSessions({ userId });
+  forgetVaultLookup(env, userId);
 }

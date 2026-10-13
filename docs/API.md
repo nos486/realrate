@@ -89,6 +89,7 @@ Returns all active assets and market rates normalized through the centralized `d
 | `POST` | `/api/v1/auth/password/forgot` | `{ email }` — email a reset link (also how a Google account adds a password) |
 | `POST` | `/api/v1/auth/password/reset` | `{ token, password }` → sets it, verifies the address, signs out other sessions, returns `{ token, user }` |
 | `POST` | `/api/v1/auth/password` | Signed in: `{ newPassword, currentPassword? }` — add a first password or change it (other sessions are signed out) |
+| `POST` | `/api/v1/auth/account/delete` | Signed in: deletes the account and **everything it owns** (sessions, vault and encrypted records, portfolios, reminders, push subscriptions, group memberships). `{ confirm: "DELETE_ACCOUNT", password }` — `password` required when the account has one (`400 INVALID_PASSWORD`, rate limited); not for the demo account or an admin (`403`) |
 | `POST` | `/api/v1/auth/demo` | Public: create a short-lived `demo_view` session (2 hours) for the unique demo account (`users.is_demo = 1`); returns `{ token, user }`. Rate-limited per IP. |
 
 Passwords: at least 8 characters with letters and digits, stored as PBKDF2-SHA256 (100,000 rounds).
