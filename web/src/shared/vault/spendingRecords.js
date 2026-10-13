@@ -40,18 +40,41 @@ const LINK_FIELDS = {
 };
 const sameAmount = (a, b) => Math.abs((Number(a) || 0) - (Number(b) || 0)) < 0.005;
 
+/** How far (as a share of the payment) a hand-recorded amount may be from an installment's: bank fees */
+export const INSTALLMENT_AMOUNT_TOLERANCE = 0.05;
+
 /**
  * Of a day's records, the one this payment was already recorded as by hand: the same amount and
  * currency, naming nothing yet (not one recorded here)
  * @param {'expense'|'income'} side
  * @param {object[]} records that day's
  * @param {{ amount: number, currency?: string }} payment
+ * @param {number} [tolerance] a share of the amount the record may differ by (a bank fee on top
+ *   of an installment); the closest amount wins. 0: exactly the same.
  */
-export function matchingRecord(side, records, { amount, currency = BASE_CURRENCY }) {
-  return records.find((r) => !String(r.id).startsWith(SPENDING_ID_PREFIX)
+export function matchingRecord(side, records, { amount, currency = BASE_CURRENCY }, tolerance = 0) {
+  const target = Number(amount) || 0;
+  const limit = Math.max(0.005, Math.abs(target) * tolerance);
+  const candidates = records.filter((r) => !String(r.id).startsWith(SPENDING_ID_PREFIX)
     && normalizeCurrency(r.currency) === normalizeCurrency(currency)
-    && sameAmount(r.amount, amount)
-    && !LINK_FIELDS[side].some((f) => r[f])) || null;
+    && Math.abs((Number(r.amount) || 0) - target) <= limit
+    && !LINK_FIELDS[side].some((f) => r[f]));
+  candidates.sort((a, b) => Math.abs(a.amount - target) - Math.abs(b.amount - target));
+  return candidates[0] || null;
+}
+
+/**
+ * Whether two installment links name the same installment: its id is not stable (see
+ * installmentNumberOf), so the same loan and the same place in the schedule count too
+ * @param {{ loanId: string, installmentId: string }|null} a
+ * @param {{ loanId: string, installmentId: string }|null} b
+ * @param {number} [number] b's place in the schedule when its id doesn't tell
+ */
+export function sameInstallment(a, b, number = 0) {
+  if (!a || !b || a.loanId !== b.loanId) return false;
+  if (String(a.installmentId) === String(b.installmentId)) return true;
+  const n = number || installmentNumberOf({ id: b.installmentId });
+  return n > 0 && n === installmentNumberOf({ id: a.installmentId });
 }
 
 /** Two 32-bit FNV-1a hashes of a key, as 16 hex characters */
@@ -81,15 +104,19 @@ export function spendingExpenseId(key) {
  * @param {object} expense its fields: title, amount, currency, date, category, the link, account
  * @param {{ owner: string, syncLinks?: boolean }} options the feature recording it
  *   (recordOwners.js: it is that feature's from now on); whether saving it updates the record it
- *   names
+ *   names; `tolerance`: see matchingRecord; `installmentNumber`: of the installment it pays. An expense of that day already naming the same
+ *   installment (the user's own, e.g. from a bank SMS) is this payment: nothing is recorded again.
  */
-export async function recordSpending(key, expense, { owner, syncLinks = false } = {}) {
+export async function recordSpending(key, expense, { owner, syncLinks = false, tolerance = 0, installmentNumber = 0 } = {}) {
   const { ensureDailyGroup, getExpenseGroups, getExpenses, saveExpense } = await store();
   const id = spendingExpenseId(key);
   const currency = normalizeCurrency(expense.currency);
   const { expenses: sameDay = [] } = await getExpenses({ from: expense.date, to: expense.date });
   const own = sameDay.find((e) => e.id === id) || null;
-  const match = own ? null : matchingRecord('expense', sameDay, { amount: expense.amount, currency });
+  const namesIt = own || !expense.loanInstallment ? null
+    : sameDay.find((e) => e.id !== id && sameInstallment(e.loanInstallment, expense.loanInstallment, installmentNumber));
+  if (namesIt) return namesIt;
+  const match = own ? null : matchingRecord('expense', sameDay, { amount: expense.amount, currency }, tolerance);
   if (match) {
     // Recorded by hand already: linked, keeping what the user wrote (a category link needs its category)
     const { expense: saved } = await saveExpense({
@@ -190,8 +217,33 @@ export async function recordInstallmentPayments(loan, installments) {
       date: inst.paidDate,
       category: INSTALLMENT_EXPENSE_CATEGORY,
       loanInstallment: { loanId: loan.id, installmentId: String(inst.id) },
-    }, { owner: 'loan' });
+    }, { owner: 'loan', tolerance: INSTALLMENT_AMOUNT_TOLERANCE, installmentNumber: installmentNumberOf(inst) });
   }
+}
+
+/**
+ * An installment was just paid by an expense the user recorded (a bank SMS, the form) naming it:
+ * the expense the loans page had recorded for it earlier is a duplicate and goes — the user's
+ * own, with the real amount and account, is the one kept
+ * @param {{ loanId: string, installmentId: string }} link
+ * @param {string} keepId the user's expense
+ * @param {string[]} [days] the days the installment had been paid on before
+ * @param {number} [installmentNumber]
+ */
+export async function dropDuplicateInstallmentPayments(link, keepId, days = [], installmentNumber = 0) {
+  const { getExpenses, deleteExpense } = await store();
+  const ids = new Set([
+    spendingExpenseId(installmentSpendingKey(link.loanId, { id: link.installmentId, installmentNumber })),
+    spendingExpenseId(`loan:${link.loanId}:${link.installmentId}`),
+  ]);
+  for (const day of new Set(days.filter(Boolean))) {
+    const { expenses = [] } = await getExpenses({ from: day, to: day });
+    for (const e of expenses) {
+      if (e.loanInstallment && sameInstallment(e.loanInstallment, link, installmentNumber) && recordOwnerOf(e) === 'loan') ids.add(e.id);
+    }
+  }
+  ids.delete(keepId);
+  for (const id of ids) await deleteExpense(id, null, { syncLinks: false, asOwner: true }).catch(() => {});
 }
 
 /**

@@ -8,7 +8,8 @@
  *  - cheque: linked → the cheque is cleared on the record's day and points back at the record
  *    (`settlement`); unlinked or deleted → the pointer goes, and a cheque cleared through that
  *    record goes back to the status it had before
- *  - loan_installment: linked → that installment is paid on the record's day, at its amount;
+ *  - loan_installment: linked → that installment is paid on the record's day, at its amount (an
+ *    expense the loans page had recorded for it is dropped: this one is the payment);
  *    unlinked or deleted → unpaid again
  *  - subscription: linked → it moves on a cycle (renewedAfter) — unless it was already paid
  *    through that day (its first payment, or an older one recorded late); unlinking leaves it
@@ -78,7 +79,19 @@ const EFFECTS = {
   loan_installment: {
     scope: 'loans',
     async attach({ loanId, installmentId }, record, side) {
-      await (await loans()).markInstallmentPaid(loanId, installmentId, { paidDate: dayOf(side, record), paidAmount: Number(record.amount) || undefined });
+      const api = await loans();
+      // The loans page may have paid it already (and recorded its own expense): that one is dropped
+      const before = (await Promise.resolve().then(() => api.getLoanDetail(loanId)).catch(() => null))?.loan?.installments
+        ?.find((i) => String(i.id) === String(installmentId));
+      await api.markInstallmentPaid(loanId, installmentId, { paidDate: dayOf(side, record), paidAmount: Number(record.amount) || undefined });
+      const spending = await import('./spendingRecords.js');
+      // Best effort: the installment is paid either way
+      await spending.dropDuplicateInstallmentPayments(
+        { loanId, installmentId },
+        record.id,
+        [before?.isPaid && before.paidDate, dayOf(side, record)],
+        spending.installmentNumberOf(before || { id: installmentId }),
+      ).catch((err) => console.warn('[recordLinks] duplicate installment expense not dropped:', err?.message || err));
     },
     async detach({ loanId, installmentId }) {
       await (await loans()).unmarkInstallmentPaid(loanId, installmentId);

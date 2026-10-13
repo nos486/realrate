@@ -30,7 +30,7 @@ vi.mock('../../../web/src/shared/vault/vaultExpenses.js', () => ({
 }));
 
 const {
-  spendingExpenseId, matchingRecord, recordSpending, recordSubscriptionPayments, recordInstallmentPayments, removeInstallmentPayment, recordExtraPayment, installmentNumberOf, removeLoanPayments,
+  spendingExpenseId, matchingRecord, recordSpending, recordSubscriptionPayments, recordInstallmentPayments, removeInstallmentPayment, recordExtraPayment, installmentNumberOf, removeLoanPayments, dropDuplicateInstallmentPayments, sameInstallment,
 } = await import('../../../web/src/shared/vault/spendingRecords.js');
 
 beforeEach(() => {
@@ -181,5 +181,42 @@ describe('a loan deleted', () => {
     ];
     await removeLoanPayments('loan_1', ['epay_1']);
     expect(m.deleted.sort()).toEqual(['exp_sa', spendingExpenseId('loanx:loan_1:epay_1')].sort());
+  });
+});
+
+describe('an installment paid by the user\'s own expense (a bank SMS)', () => {
+  const loan = { id: 'loan_1', title: 'وام' };
+  const link = { loanId: 'loan_1', installmentId: 'inst_loan_1_3' };
+
+  it('is not recorded again by the loans page, whatever the amount', async () => {
+    m.dayExpenses = [{ id: 'exp_sms', date: '2026-02-05', amount: 4_005_000, currency: 'IRT', loanInstallment: link }];
+    await recordInstallmentPayments(loan, [{ id: 'inst_abc', installmentNumber: 3, paidDate: '2026-02-05', paidAmount: 4_000_000 }]);
+    expect(m.saveExpense).not.toHaveBeenCalled();
+  });
+
+  it('an unlinked hand expense a little above the installment is taken as it', async () => {
+    m.dayExpenses = [
+      { id: 'far', date: '2026-02-05', amount: 6_000_000, currency: 'IRT' },
+      { id: 'near', date: '2026-02-05', amount: 4_005_000, currency: 'IRT' },
+    ];
+    await recordInstallmentPayments(loan, [{ id: 'inst_loan_1_3', paidDate: '2026-02-05', paidAmount: 4_000_000 }]);
+    expect(m.saveExpense.mock.calls[0][1].id).toBe('near');
+  });
+
+  it('the expense the loans page recorded earlier is dropped, the user\'s kept', async () => {
+    m.dayExpenses = [
+      { id: 'exp_old', recordedBy: 'loan', loanInstallment: link },
+      { id: 'exp_sms', loanInstallment: link },
+    ];
+    await dropDuplicateInstallmentPayments(link, 'exp_sms', ['2026-02-01'], 3);
+    expect(m.deleted).toContain('exp_old');
+    expect(m.deleted).toContain(spendingExpenseId('loan:loan_1:n3'));
+    expect(m.deleted).not.toContain('exp_sms');
+  });
+
+  it('names the same installment by its place in the schedule', () => {
+    expect(sameInstallment(link, { loanId: 'loan_1', installmentId: '3' })).toBe(true);
+    expect(sameInstallment(link, { loanId: 'loan_1', installmentId: '4' })).toBe(false);
+    expect(sameInstallment(link, { loanId: 'loan_2', installmentId: 'inst_loan_1_3' })).toBe(false);
   });
 });
