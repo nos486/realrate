@@ -1,9 +1,9 @@
 /**
  * ExplorePage.jsx — «کاوش بازار» (/explore): look up ANY market asset (gold, coins, currencies,
- * crypto, exchange symbols, funds, ...) and see its live price, what the price book knows about it
- * and its candle chart, without saving anything — no home card, no portfolio entry.
+ * crypto, exchange symbols, funds, ...) and see its live price and, mostly, its candle chart,
+ * without saving anything — no home card, no portfolio entry.
  *
- * Everything is read off what the app already holds: the price book (search and every figure,
+ * Everything is read off what the app already holds: the price book (search and the price line,
  * via homeAssets.js) and, for the chart, the same daily candles the home cards use. The chosen
  * asset lives in the URL (`?a=<id>`), so a refresh or a shared link opens the same asset.
  * Pro only (feature `market`: its chart route is gated by it too).
@@ -17,11 +17,10 @@ import TextField from '../../shared/ui/TextField.jsx';
 import { usePricing } from '../market/context/PricingContext.jsx';
 import { ownPriceOf, formatPrice } from '../market/assetPrice.js';
 import { CategoryIcon } from '../portfolio/utils/holdingHelpers.js';
-import HomeAssetCard from '../home/HomeAssetCard.jsx';
 import PriceChart from './PriceChart.jsx';
 import { useCardCandles } from '../home/useAssetCandles.js';
-import { buildAssetIndex, resolveHomeAsset, cardOptionsOf } from '../home/homeAssets.js';
-import { CARD_METRICS } from '../../utils/cardMetrics.js';
+import { buildAssetIndex, resolveHomeAsset } from '../home/homeAssets.js';
+import { timeAgo } from '../../shared/utils/timeAgo.js';
 
 const CATEGORY_FILTERS = [
   { key: '', label: 'همه' },
@@ -33,11 +32,8 @@ const CATEGORY_FILTERS = [
   { key: 'bourse_fund', label: 'صندوق' },
 ];
 
-const CANDLE_RANGES = [
-  { value: '30d', label: '۱ ماه' },
-  { value: '180d', label: '۶ ماه' },
-  { value: '1y', label: '۱ سال' },
-];
+/** The history loaded so far, longest last: the chart asks for the next when scrolled past the oldest day */
+const HISTORY_STEPS = ['180d', '1y', '2y'];
 
 const RESULT_LIMIT = 60;
 
@@ -48,37 +44,32 @@ function OwnPrice({ asset }) {
   return own.currency === 'usd' ? <bdi>${formatPrice(own.value, 'usd')}</bdi> : formatPrice(own.value);
 }
 
-/** The asset's candles over a window the user picks (fetched as soon as the asset is open) */
+/**
+ * The asset's candles: six months to start, then a longer history (one year, two) whenever the
+ * chart is scrolled or zoomed past the oldest day shown; the chart keeps what it has while the
+ * longer one loads
+ */
 function ExploreChart({ asset }) {
-  const [range, setRange] = useState('30d');
-  const { status, series } = useCardCandles(asset, true, range);
+  const [step, setStep] = useState(0);
+  const { status, series } = useCardCandles(asset, true, HISTORY_STEPS[step]);
+  const [loaded, setLoaded] = useState(null); // { series, step }: the last one drawn (kept while a longer one loads)
+  if (status === 'ready' && series && series !== loaded?.series) setLoaded({ series, step });
+  const shown = loaded?.series || null;
   const loading = status === 'loading';
+  // Asked once per step: only when the longer history is not already on its way
+  const more = loaded && loaded.step === step && step < HISTORY_STEPS.length - 1 ? () => setStep(loaded.step + 1) : null;
   return (
     <section className="explore-panel" aria-label="نمودار">
-      <div className="explore-panel-head">
-        <h2>نمودار قیمت</h2>
-        <div className="pro-card-ranges" role="group" aria-label="بازه‌ی نمودار">
-          {CANDLE_RANGES.map((r) => (
-            <button
-              key={r.value}
-              type="button"
-              className={range === r.value ? 'is-active' : ''}
-              aria-pressed={range === r.value}
-              onClick={() => setRange(r.value)}
-            >
-              {r.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      {status === 'ready' && series?.candles?.length ? (
-        <div className={`explore-chart ${loading ? 'is-loading' : ''}`}>
+      {loading && shown && <span className="explore-loading" role="status">در حال دریافت تاریخچه‌ی بیشتر…</span>}
+      {shown?.candles?.length ? (
+        <div className="explore-chart">
           <PriceChart
-            candles={series.candles}
-            days={series.days}
+            candles={shown.candles}
+            days={shown.days}
             unit={asset.unit}
             currency={asset.currency}
             label={`نمودار کندلی ${asset.name}`}
+            onNeedOlder={more}
           />
         </div>
       ) : (
@@ -87,64 +78,53 @@ function ExploreChart({ asset }) {
             ? 'در حال دریافت نمودار…'
             : status === 'error'
               ? 'نمودار فعلاً در دسترس نیست'
-              : 'تاریخچه‌ای برای این بازه ثبت نشده'}
+              : 'تاریخچه‌ای برای این دارایی ثبت نشده'}
         </div>
       )}
     </section>
   );
 }
 
-/** One figure of the «اطلاعات» grid: a price or a percent */
-function metricText(option) {
-  const kind = CARD_METRICS[option.metric]?.kind;
-  if (kind === 'pct') {
-    const sign = option.value < 0 ? '−' : option.value > 0 && /change|deviation/.test(option.metric) ? '+' : '';
-    return `${sign}${Math.abs(option.value).toLocaleString('fa-IR', { maximumFractionDigits: 2 })}٪`;
-  }
-  return `${option.currency === 'usd' ? '$' : ''}${formatPrice(option.value, option.currency)}`;
-}
+const changeOf = (pct) => (pct ? { up: pct > 0, text: `${pct > 0 ? '▲' : '▼'} ${Math.abs(pct).toLocaleString('fa-IR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}٪` } : null);
 
-/** Everything else the book knows about the asset: averages, its linked assets' figures, its source */
-function ExploreInfo({ asset, index }) {
-  const { main, slots } = useMemo(() => cardOptionsOf(asset.id, index), [asset.id, index]);
-  const shown = new Set((asset.slots || []).map((s) => s.key));
-  const figures = [
-    ...main.filter((m) => m.key !== 'price' && m.value !== null).map((m) => ({ ...m, metric: m.key, id: m.key, name: m.label })),
-    ...slots.filter((s) => !shown.has(s.key)).map((s) => ({ ...s, id: s.key, name: s.linkedName ? `${s.label} · ${s.linkedName}` : s.label })),
-  ];
-  const facts = [
-    ['دسته', asset.badge],
-    ['واحد', asset.perUnit],
-  ].filter(([, v]) => v);
-  if (!figures.length && !facts.length) return null;
+/** The chosen asset in one line: who it is, its price and change, today's range, when it last moved */
+function ExploreHeader({ asset }) {
+  const change = changeOf(asset.changePercent);
+  const price = asset.price ? formatPrice(asset.price, asset.currency) : null;
   return (
-    <section className="explore-panel" aria-label="اطلاعات">
-      <div className="explore-panel-head"><h2>اطلاعات</h2></div>
-      {figures.length > 0 && (
-        <div className="pro-metrics explore-figures">
-          {figures.map((f) => (
-            <div key={f.id} className="pro-metric">
-              <span>{f.name}</span>
-              <strong><bdi>{metricText(f)}</bdi></strong>
-            </div>
-          ))}
-        </div>
-      )}
-      {facts.length > 0 && (
-        <dl className="explore-facts">
-          {facts.map(([label, value]) => (
-            <div key={label}>
-              <dt>{label}</dt>
-              <dd>{value}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
-    </section>
+    <header className="explore-head">
+      <span className="home-asset-icon" aria-hidden="true">
+        {asset.flag || <CategoryIcon category={asset.category} size={16} />}
+      </span>
+      <div className="explore-head-names">
+        <h2>{asset.name}</h2>
+        <span>
+          {asset.code && <span className="curr-code-pill">{asset.code}</span>}
+          {asset.badge}
+        </span>
+      </div>
+      <div className="explore-head-price">
+        {price ? (
+          <strong>{asset.currency === 'usd' && '$'}{price} <small>{asset.unit}</small></strong>
+        ) : (
+          <strong className="price-unavailable">نرخ در دسترس نیست</strong>
+        )}
+        {change && <span className={`explore-change ${change.up ? 'is-up' : 'is-down'}`}><bdi>{change.text}</bdi></span>}
+        {asset.stale && <span className="home-stale-mark">قدیمی</span>}
+      </div>
+      <div className="explore-head-meta">
+        {asset.dayRange && (
+          <span title="دامنه‌ی نوسان امروز">
+            کف {formatPrice(asset.dayRange.low, asset.currency)} · سقف {formatPrice(asset.dayRange.high, asset.currency)}
+          </span>
+        )}
+        {asset.updatedAt && <span>آخرین تغییر {timeAgo(asset.updatedAt)}</span>}
+      </div>
+    </header>
   );
 }
 
-/** The chosen asset: its card (price, change, day range), its chart and what else is known */
+/** The chosen asset: its price line and, taking the page, its chart */
 function ExploreDetail({ id, index }) {
   const asset = useMemo(() => resolveHomeAsset(id, index), [id, index]);
   if (!asset.found) {
@@ -152,9 +132,8 @@ function ExploreDetail({ id, index }) {
   }
   return (
     <div className="explore-detail">
-      <HomeAssetCard asset={asset} style="detailed" flippable={false} />
+      <ExploreHeader asset={asset} />
       <ExploreChart key={asset.id} asset={asset} />
-      <ExploreInfo asset={asset} index={index} />
     </div>
   );
 }
@@ -190,7 +169,7 @@ export default function ExplorePage() {
       <FeaturePageHeader
         icon={<Compass size={22} />}
         title="کاوش بازار"
-        subtitle="هر دارایی بازار را جست‌وجو کنید و قیمت لحظه‌ای، اطلاعات و نمودارش را ببینید؛ بدون اینکه چیزی ذخیره شود."
+        subtitle="هر دارایی بازار را جست‌وجو کنید و قیمت لحظه‌ای و نمودارش را ببینید؛ بدون اینکه چیزی ذخیره شود."
         help="explore"
       />
 
@@ -247,7 +226,7 @@ export default function ExplorePage() {
           </div>
         </div>
 
-        <div className="explore-detail-col">
+        <div className={`explore-detail-col ${selectedId ? 'has-selection' : ''}`}>
           {selectedId ? (
             <>
               <button type="button" className="explore-close" onClick={() => select('')}>

@@ -5,10 +5,16 @@
  */
 import React from 'react';
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, cleanup, screen, fireEvent } from '@testing-library/react';
+import { render, cleanup, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
-const getSparklines = vi.fn(async () => ({ available: true, sparklines: {} }));
+const candles = Array.from({ length: 5 }, (_, i) => [100 + i, 105 + i, 98 + i, 102 + i]);
+const days = candles.map((_, i) => `2026-09-0${i + 1}`);
+const getSparklines = vi.fn(async (ids) => ({ available: true, sparklines: Object.fromEntries(ids.map((id) => [id, { points: [], days, candles }])) }));
+// The chart itself is tested on its own (explorePriceChart.test.jsx): here only what the page feeds it
+vi.mock('../../../web/src/features/explore/PriceChart.jsx', () => ({
+  default: ({ candles: c, onNeedOlder }) => <button type="button" onClick={() => onNeedOlder?.()}>{`chart ${c.length}${onNeedOlder ? ' more' : ''}`}</button>,
+}));
 vi.mock('../../../web/src/features/market/api/marketApi.js', () => ({ getSparklines: (...a) => getSparklines(...a) }));
 
 const items = {
@@ -45,17 +51,30 @@ describe('ExplorePage', () => {
     expect(screen.getByText('بیت‌کوین')).toBeTruthy();
   });
 
-  it('opening an asset shows its card, chart and info, and fetches its candles', () => {
+  it('opening an asset shows its price line and chart, and fetches its candles', () => {
     renderAt('/explore');
     fireEvent.click(screen.getByText('دلار'));
     expect(screen.getByLabelText('نمودار')).toBeTruthy();
-    expect(screen.getByText('بازار آزاد')).toBeTruthy(); // the card names its source
-    expect(screen.getByLabelText('اطلاعات')).toBeTruthy();
-    expect(getSparklines).toHaveBeenCalledWith(['usd'], '30d', { candles: true });
+    // One line: the name and the live price; no info card
+    expect(screen.getByRole('heading', { name: 'دلار' })).toBeTruthy();
+    expect(screen.getByText((100000).toLocaleString('fa-IR'), { exact: false, selector: 'strong' })).toBeTruthy();
+    expect(screen.queryByLabelText('اطلاعات')).toBeNull();
+    expect(getSparklines).toHaveBeenCalledWith(['usd'], '180d', { candles: true });
   });
 
   it('a dollar-priced asset is charted by its dollar closes', () => {
     renderAt('/explore?a=btc');
-    expect(getSparklines).toHaveBeenCalledWith(['btc@usd'], '30d', { candles: true });
+    expect(getSparklines).toHaveBeenCalledWith(['btc@usd'], '180d', { candles: true });
+  });
+
+  it('scrolling past the oldest day loads a longer history: one year, then two, then no more', async () => {
+    renderAt('/explore?a=usd');
+    const next = async (steps) => {
+      fireEvent.click(await screen.findByText(/^chart 5/));
+      await waitFor(() => expect(getSparklines).toHaveBeenLastCalledWith(['usd'], steps, { candles: true }));
+    };
+    await next('1y');
+    await next('2y');
+    await waitFor(() => expect(screen.getByText('chart 5').textContent).not.toContain('more'));
   });
 });
