@@ -18,6 +18,9 @@ import { movingAverage, periodStats } from './chartMath.js';
 const dayFormat = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { month: 'short', day: 'numeric' });
 const dayLongFormat = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { year: 'numeric', month: 'short', day: 'numeric', weekday: 'short' });
 
+/** Axis, crosshair and marker text size on the canvas: phones a step smaller to leave room for candles */
+const AXIS_FONT_PX = { wide: 13, phone: 12 };
+
 const AVERAGES = [
   { period: 7, label: 'میانگین ۷ روزه', short: 'MA ۷', className: 'is-fast', token: '--color-warning-text' },
   { period: 20, label: 'میانگین ۲۰ روزه', short: 'MA ۲۰', className: 'is-slow', token: '--color-primary-text' },
@@ -77,9 +80,12 @@ export default function PriceChart({ candles, days, currency = 'toman', unit = '
     if (!el) return undefined;
     const css = getComputedStyle(document.documentElement);
     const token = (name) => css.getPropertyValue(name).trim();
+    // The canvas does not inherit CSS fonts: hand it the page's own font, large enough to read
+    const fontFamily = getComputedStyle(el).fontFamily;
+    const fontSize = window.matchMedia?.('(max-width: 640px)').matches ? AXIS_FONT_PX.phone : AXIS_FONT_PX.wide;
     const chart = createChart(el, {
       autoSize: true,
-      layout: { background: { color: 'transparent' }, textColor: token('--text-muted'), fontFamily: 'inherit', fontSize: 11, attributionLogo: false },
+      layout: { background: { color: 'transparent' }, textColor: token('--text-secondary'), fontFamily, fontSize, attributionLogo: false },
       grid: { vertLines: { color: token('--border-color') }, horzLines: { color: token('--border-color') } },
       rightPriceScale: { borderColor: token('--border-color'), scaleMargins: { top: 0.12, bottom: 0.08 } },
       timeScale: {
