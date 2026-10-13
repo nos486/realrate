@@ -9,9 +9,9 @@
  * Pro only (feature `market`: its chart route is gated by it too).
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Compass, Search, X } from 'lucide-react';
+import { Compass, Search, ArrowRight } from 'lucide-react';
 import FeaturePageHeader from '../../shared/ui/FeaturePageHeader.jsx';
 import TextField from '../../shared/ui/TextField.jsx';
 import { usePricing } from '../market/context/PricingContext.jsx';
@@ -49,7 +49,7 @@ function OwnPrice({ asset }) {
  * chart is scrolled or zoomed past the oldest day shown; the chart keeps what it has while the
  * longer one loads
  */
-function ExploreChart({ asset }) {
+function ExploreChart({ asset, onClose }) {
   const [step, setStep] = useState(0);
   const { status, series } = useCardCandles(asset, true, HISTORY_STEPS[step]);
   const [loaded, setLoaded] = useState(null); // { series, step }: the last one drawn (kept while a longer one loads)
@@ -58,28 +58,30 @@ function ExploreChart({ asset }) {
   const loading = status === 'loading';
   // Asked once per step: only when the longer history is not already on its way
   const more = loaded && loaded.step === step && step < HISTORY_STEPS.length - 1 ? () => setStep(loaded.step + 1) : null;
+  const header = <ChartTitle asset={asset} onClose={onClose} loading={loading && Boolean(shown)} />;
   return (
-    <section className="explore-panel" aria-label="نمودار">
-      {loading && shown && <span className="explore-loading" role="status">در حال دریافت تاریخچه‌ی بیشتر…</span>}
+    <section className="explore-panel" aria-label={`نمودار ${asset.name}`}>
       {shown?.candles?.length ? (
-        <div className="explore-chart">
-          <PriceChart
-            candles={shown.candles}
-            days={shown.days}
-            unit={asset.unit}
-            currency={asset.currency}
-            label={`نمودار کندلی ${asset.name}`}
-            onNeedOlder={more}
-          />
-        </div>
+        <PriceChart
+          candles={shown.candles}
+          days={shown.days}
+          unit={asset.unit}
+          currency={asset.currency}
+          label={`نمودار کندلی ${asset.name}`}
+          onNeedOlder={more}
+          header={header}
+        />
       ) : (
-        <div className={`explore-chart-state ${loading ? 'is-loading' : ''}`} role={loading ? 'status' : undefined}>
-          {loading || status === 'idle'
-            ? 'در حال دریافت نمودار…'
-            : status === 'error'
-              ? 'نمودار فعلاً در دسترس نیست'
-              : 'تاریخچه‌ای برای این دارایی ثبت نشده'}
-        </div>
+        <>
+          {header}
+          <div className={`explore-chart-state ${loading ? 'is-loading' : ''}`} role={loading ? 'status' : undefined}>
+            {loading || status === 'idle'
+              ? 'در حال دریافت نمودار…'
+              : status === 'error'
+                ? 'نمودار فعلاً در دسترس نیست'
+                : 'تاریخچه‌ای برای این دارایی ثبت نشده'}
+          </div>
+        </>
       )}
     </section>
   );
@@ -87,55 +89,65 @@ function ExploreChart({ asset }) {
 
 const changeOf = (pct) => (pct ? { up: pct > 0, text: `${pct > 0 ? '▲' : '▼'} ${Math.abs(pct).toLocaleString('fa-IR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}٪` } : null);
 
-/** The chosen asset in one line: who it is, its price and change, today's range, when it last moved */
-function ExploreHeader({ asset }) {
+/**
+ * The chart's title line (no card of its own): who the asset is, its live price and change, and
+ * when it last moved; on a phone a back button to the list
+ */
+function ChartTitle({ asset, onClose, loading }) {
   const change = changeOf(asset.changePercent);
   const price = asset.price ? formatPrice(asset.price, asset.currency) : null;
   return (
-    <header className="explore-head">
+    <div className="explore-title">
+      <button type="button" className="explore-back" onClick={onClose} aria-label="بازگشت به فهرست">
+        <ArrowRight size={18} />
+      </button>
       <span className="home-asset-icon" aria-hidden="true">
-        {asset.flag || <CategoryIcon category={asset.category} size={16} />}
+        {asset.flag || <CategoryIcon category={asset.category} size={15} />}
       </span>
-      <div className="explore-head-names">
+      <div className="explore-title-names">
         <h2>{asset.name}</h2>
-        <span>
-          {asset.code && <span className="curr-code-pill">{asset.code}</span>}
-          {asset.badge}
-        </span>
+        {asset.code && <span>{asset.code}</span>}
       </div>
-      <div className="explore-head-price">
+      <div className="explore-title-price">
         {price ? (
-          <strong>{asset.currency === 'usd' && '$'}{price} <small>{asset.unit}</small></strong>
+          <strong><bdi>{asset.currency === 'usd' && '$'}{price}</bdi> <small>{asset.unit}</small></strong>
         ) : (
           <strong className="price-unavailable">نرخ در دسترس نیست</strong>
         )}
-        {change && <span className={`explore-change ${change.up ? 'is-up' : 'is-down'}`}><bdi>{change.text}</bdi></span>}
-        {asset.stale && <span className="home-stale-mark">قدیمی</span>}
+        <span className="explore-title-sub">
+          {change && <span className={`explore-change ${change.up ? 'is-up' : 'is-down'}`}><bdi>{change.text}</bdi></span>}
+          {asset.stale ? <span className="home-stale-mark">قدیمی</span> : asset.updatedAt && <span>{timeAgo(asset.updatedAt)}</span>}
+          {loading && <span role="status">در حال دریافت تاریخچه…</span>}
+        </span>
       </div>
-      <div className="explore-head-meta">
-        {asset.dayRange && (
-          <span title="دامنه‌ی نوسان امروز">
-            کف {formatPrice(asset.dayRange.low, asset.currency)} · سقف {formatPrice(asset.dayRange.high, asset.currency)}
-          </span>
-        )}
-        {asset.updatedAt && <span>آخرین تغییر {timeAgo(asset.updatedAt)}</span>}
-      </div>
-    </header>
+    </div>
   );
 }
 
-/** The chosen asset: its price line and, taking the page, its chart */
-function ExploreDetail({ id, index }) {
+/** The chosen asset: its chart, nothing else */
+function ExploreDetail({ id, index, onClose }) {
   const asset = useMemo(() => resolveHomeAsset(id, index), [id, index]);
   if (!asset.found) {
     return <div className="explore-empty">این مورد فعلاً در بازار نرخی ندارد.</div>;
   }
   return (
-    <div className="explore-detail">
-      <ExploreHeader asset={asset} />
-      <ExploreChart key={asset.id} asset={asset} />
-    </div>
+    <ExploreChart key={asset.id} asset={asset} onClose={onClose} />
   );
+}
+
+const WIDE_QUERY = '(min-width: 900px)';
+
+/** Whether the list and the chart sit side by side (the layout's breakpoint, explore.css) */
+function useWideScreen() {
+  const [wide, setWide] = useState(() => typeof window !== 'undefined' && Boolean(window.matchMedia?.(WIDE_QUERY).matches));
+  useEffect(() => {
+    const mq = window.matchMedia?.(WIDE_QUERY);
+    if (!mq) return undefined;
+    const onChange = () => setWide(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return wide;
 }
 
 export default function ExplorePage() {
@@ -157,6 +169,10 @@ export default function ExplorePage() {
       .filter((a) => a?.id && a.category !== 'cash');
   }, [pricing, query, category]);
 
+  // Wide screens never sit empty: until one is chosen, the first in the list (the dollar) is charted
+  const wide = useWideScreen();
+  const shownId = selectedId || (wide ? results[0]?.id || '' : '');
+
   const select = (id) => {
     const next = new URLSearchParams(params);
     if (id) next.set('a', id);
@@ -169,11 +185,10 @@ export default function ExplorePage() {
       <FeaturePageHeader
         icon={<Compass size={22} />}
         title="کاوش بازار"
-        subtitle="هر دارایی بازار را جست‌وجو کنید و قیمت لحظه‌ای و نمودارش را ببینید؛ بدون اینکه چیزی ذخیره شود."
         help="explore"
       />
 
-      <div className="explore-layout">
+      <div className={`explore-layout ${selectedId ? 'has-selection' : ''}`}>
         <div className="explore-search-col">
           <div className="asset-picker">
             <div className="asset-picker-search">
@@ -206,9 +221,9 @@ export default function ExplorePage() {
                   <li key={asset.id}>
                     <button
                       type="button"
-                      className={`asset-picker-row explore-row ${selectedId === asset.id ? 'is-added' : ''}`}
+                      className={`asset-picker-row explore-row ${shownId === asset.id ? 'is-added' : ''}`}
                       onClick={() => select(asset.id)}
-                      aria-pressed={selectedId === asset.id}
+                      aria-pressed={shownId === asset.id}
                     >
                       <span className="home-asset-icon" aria-hidden="true">
                         {asset.flag || <CategoryIcon category={asset.category} size={14} />}
@@ -226,16 +241,11 @@ export default function ExplorePage() {
           </div>
         </div>
 
-        <div className={`explore-detail-col ${selectedId ? 'has-selection' : ''}`}>
-          {selectedId ? (
-            <>
-              <button type="button" className="explore-close" onClick={() => select('')}>
-                <X size={14} aria-hidden="true" /> بستن
-              </button>
-              <ExploreDetail id={selectedId} index={index} />
-            </>
+        <div className="explore-detail-col">
+          {shownId ? (
+            <ExploreDetail id={shownId} index={index} onClose={() => select('')} />
           ) : (
-            <div className="explore-empty">یک دارایی را از فهرست انتخاب کنید تا قیمت، اطلاعات و نمودارش اینجا باز شود.</div>
+            <div className="explore-empty">یک دارایی را از فهرست انتخاب کنید تا نمودارش اینجا باز شود.</div>
           )}
         </div>
       </div>

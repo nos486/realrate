@@ -55,14 +55,14 @@ describe('PriceChart', () => {
   it('shows the period statistics and both average toggles', () => {
     render(<PriceChart candles={candles} days={days} label="x" />);
     expect(screen.getByText('تغییر دوره')).toBeTruthy();
-    expect(screen.getByText('میانگین ۷ روزه').closest('button').getAttribute('aria-pressed')).toBe('true');
-    fireEvent.click(screen.getByText('میانگین ۷ روزه'));
-    expect(screen.getByText('میانگین ۷ روزه').closest('button').getAttribute('aria-pressed')).toBe('false');
+    expect(screen.getByRole('button', { name: 'میانگین ۷ روزه' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: 'میانگین ۷ روزه' }));
+    expect(screen.getByRole('button', { name: 'میانگین ۷ روزه' }).getAttribute('aria-pressed')).toBe('false');
   });
 
   it('an average longer than the data is disabled', () => {
     render(<PriceChart candles={candles.slice(0, 10)} days={days.slice(0, 10)} label="x" />);
-    expect(screen.getByText('میانگین ۲۰ روزه').closest('button').disabled).toBe(true);
+    expect(screen.getByRole('button', { name: 'میانگین ۲۰ روزه' }).disabled).toBe(true);
   });
 
   it('feeds the chart our candles, the averages and the high and low marks', () => {
@@ -77,7 +77,7 @@ describe('PriceChart', () => {
 
   it('the toggle hides an average line on the chart', () => {
     render(<PriceChart candles={candles} days={days} label="x" />);
-    fireEvent.click(screen.getByText('میانگین ۷ روزه'));
+    fireEvent.click(screen.getByRole('button', { name: 'میانگین ۷ روزه' }));
     expect(chartCalls.series[1].options.visible).toBe(false);
     expect(chartCalls.series[2].options.visible).toBe(true);
   });

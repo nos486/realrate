@@ -13,7 +13,7 @@ const days = candles.map((_, i) => `2026-09-0${i + 1}`);
 const getSparklines = vi.fn(async (ids) => ({ available: true, sparklines: Object.fromEntries(ids.map((id) => [id, { points: [], days, candles }])) }));
 // The chart itself is tested on its own (explorePriceChart.test.jsx): here only what the page feeds it
 vi.mock('../../../web/src/features/explore/PriceChart.jsx', () => ({
-  default: ({ candles: c, onNeedOlder }) => <button type="button" onClick={() => onNeedOlder?.()}>{`chart ${c.length}${onNeedOlder ? ' more' : ''}`}</button>,
+  default: ({ candles: c, onNeedOlder, header }) => <>{header}<button type="button" onClick={() => onNeedOlder?.()}>{`chart ${c.length}${onNeedOlder ? ' more' : ''}`}</button></>,
 }));
 vi.mock('../../../web/src/features/market/api/marketApi.js', () => ({ getSparklines: (...a) => getSparklines(...a) }));
 
@@ -33,7 +33,10 @@ vi.mock('../../../web/src/features/market/context/PricingContext.jsx', () => ({
 
 import ExplorePage from '../../../web/src/features/explore/ExplorePage.jsx';
 
-afterEach(cleanup);
+// A phone unless a test says otherwise: the list first, a chart only once one is chosen
+let wide = false;
+window.matchMedia = () => ({ matches: wide, addEventListener() {}, removeEventListener() {} });
+afterEach(() => { cleanup(); wide = false; });
 const renderAt = (url) => render(<MemoryRouter initialEntries={[url]}><ExplorePage /></MemoryRouter>);
 
 describe('ExplorePage', () => {
@@ -51,13 +54,13 @@ describe('ExplorePage', () => {
     expect(screen.getByText('بیت‌کوین')).toBeTruthy();
   });
 
-  it('opening an asset shows its price line and chart, and fetches its candles', () => {
+  it('opening an asset shows its chart with its name and price on top, and fetches its candles', () => {
     renderAt('/explore');
     fireEvent.click(screen.getByText('دلار'));
-    expect(screen.getByLabelText('نمودار')).toBeTruthy();
-    // One line: the name and the live price; no info card
+    expect(screen.getByLabelText('نمودار دلار')).toBeTruthy();
+    // The chart's title line: the name and the live price; no card
     expect(screen.getByRole('heading', { name: 'دلار' })).toBeTruthy();
-    expect(screen.getByText((100000).toLocaleString('fa-IR'), { exact: false, selector: 'strong' })).toBeTruthy();
+    expect(screen.getByText((100000).toLocaleString('fa-IR'), { selector: 'bdi' })).toBeTruthy();
     expect(screen.queryByLabelText('اطلاعات')).toBeNull();
     expect(getSparklines).toHaveBeenCalledWith(['usd'], '180d', { candles: true });
   });
@@ -76,5 +79,12 @@ describe('ExplorePage', () => {
     await next('1y');
     await next('2y');
     await waitFor(() => expect(screen.getByText('chart 5').textContent).not.toContain('more'));
+  });
+
+  it('a wide screen charts the first asset until one is chosen, beside the list', () => {
+    wide = true;
+    renderAt('/explore');
+    expect(screen.getByLabelText('نمودار دلار')).toBeTruthy();
+    expect(screen.getByLabelText('جستجوی دارایی')).toBeTruthy();
   });
 });
