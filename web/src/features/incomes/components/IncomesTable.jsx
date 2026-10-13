@@ -8,6 +8,7 @@ import React from 'react';
 import { Calendar, MessageSquare, Pencil, Trash2 } from 'lucide-react';
 import { ResponsiveDataTable } from '../../../shared/ui/index.js';
 import OwnedRecordLink from '../../../shared/ui/OwnedRecordLink.jsx';
+import RecordOriginBadge from '../../../shared/ui/RecordOriginBadge.jsx';
 import { recordOwnerOf } from '../../../utils/recordOwners.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { formatNum } from '../../portfolio/utils/holdingHelpers.js';
@@ -29,6 +30,7 @@ export default function IncomesTable({ incomes, onEdit, onDelete, deletingId = n
       render: (income) => (
         <span className="income-title-text">
           {income.title}
+          <RecordOriginBadge record={income} />
         </span>
       ),
     },

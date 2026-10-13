@@ -63,6 +63,7 @@ export const PLAN_COMPARISON = [
   { label: 'اشتراک‌ها', free: 'بسته', pro: 'نامحدود، با یادآوری' },
   { label: 'پورتفو', free: `${FREE_PORTFOLIOS} پورتفو با ${PLAN_LIMITS.holdings.total} دارایی`, pro: 'نامحدود' },
   { label: 'انتقال بین حساب‌ها', free: 'بسته', pro: 'باز' },
+  { label: 'ورود گردش حساب از فایل بانک', free: 'بسته', pro: 'باز' },
   { label: 'اخبار و اعلان خبر مهم', free: 'بسته', pro: 'باز' },
   { label: 'گزارش‌های سالانه', free: 'بسته', pro: 'باز' },
   { label: 'ویجت اندروید', free: 'بسته', pro: 'باز' },
