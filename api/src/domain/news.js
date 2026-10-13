@@ -391,7 +391,7 @@ ANSWER: only one JSON object, no markdown, every text in fluent, plain Persian (
 "k":["<key point, at most 15 words>", … at most 4],
 "r":"<what to watch next, at most 25 words>"}`;
 
-const tehranClock = (ts) => new Date(ts + 3.5 * 3600000).toISOString().slice(11, 16);
+export const tehranClock = (ts) => new Date(ts + 3.5 * 3600000).toISOString().slice(11, 16);
 
 /**
  * The analyst's prompt: the day's news, numbered, oldest first

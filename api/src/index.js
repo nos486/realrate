@@ -196,6 +196,7 @@ import {
   handleGetNewsToday,
   handleAdminRunNewsAnalysis,
 } from "./handlers/newsRoutes.js";
+import { handleAdminGetOutlook, handleAdminRunOutlook } from "./handlers/outlookRoutes.js";
 import { fetchAllPrices } from "./services/market/priceAggregator.service.js";
 import {
   searchCatalogItems,
@@ -380,6 +381,9 @@ async function handleRequest(request, env, ctx) {
   }
   if (normalizedPath === "/api/admin/news/run" && request.method === "POST") return wrap(handleAdminRunNews)(request, env);
   if (normalizedPath === "/api/admin/news/analysis" && request.method === "POST") return wrap(handleAdminRunNewsAnalysis)(request, env);
+  // Admin: the dollar outlook experiment
+  if (normalizedPath === "/api/admin/outlook" && request.method === "GET") return wrap(handleAdminGetOutlook)(request, env);
+  if (normalizedPath === "/api/admin/outlook/run" && request.method === "POST") return wrap(handleAdminRunOutlook)(request, env);
   const adminNewsHiddenMatch = normalizedPath.match(/^\/api\/admin\/news\/([a-z0-9_]+\/\d+)\/hidden$/);
   if (adminNewsHiddenMatch && request.method === "POST") {
     return wrap((req, e) => handleAdminSetNewsHidden(req, e, { id: adminNewsHiddenMatch[1] }))(request, env);
