@@ -1,14 +1,35 @@
 // @vitest-environment happy-dom
 /**
- * explorePriceChart.test.jsx — The explorer's chart maths (moving average, period stats, axis
- * ticks) and the chart itself: period statistics, average toggles and the crosshair tooltip
+ * explorePriceChart.test.jsx — The explorer's chart maths (moving average, period stats) and the
+ * chart itself: what it is fed, the average toggles and the crosshair card
  */
 import React from 'react';
-import { describe, it, expect, afterEach } from 'vitest';
-import { render, cleanup, screen, fireEvent } from '@testing-library/react';
-import { movingAverage, periodStats, niceTicks } from '../../../web/src/features/explore/chartMath.js';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
+import { render, cleanup, screen, fireEvent, act } from '@testing-library/react';
+import { movingAverage, periodStats } from '../../../web/src/features/explore/chartMath.js';
 import PriceChart from '../../../web/src/features/explore/PriceChart.jsx';
 
+
+// Lightweight Charts draws on a canvas, which the test DOM has none of: a recording stand-in
+const { crosshair, chartCalls } = vi.hoisted(() => ({ crosshair: { handler: null }, chartCalls: { series: [], markers: [], removed: 0 } }));
+vi.mock('lightweight-charts', () => ({
+  CrosshairMode: { Normal: 0 },
+  CandlestickSeries: 'candles',
+  LineSeries: 'line',
+  createSeriesMarkers: (_series, markers) => chartCalls.markers.push(markers),
+  createChart: () => ({
+    addSeries: (type) => {
+      const series = { type, data: null, options: {}, setData(d) { series.data = d; }, applyOptions(o) { Object.assign(series.options, o); } };
+      chartCalls.series.push(series);
+      return series;
+    },
+    timeScale: () => ({ fitContent() {} }),
+    subscribeCrosshairMove: (fn) => { crosshair.handler = fn; },
+    remove: () => { chartCalls.removed += 1; },
+  }),
+}));
+
+beforeEach(() => { chartCalls.series.length = 0; chartCalls.markers.length = 0; chartCalls.removed = 0; });
 afterEach(cleanup);
 
 // [open, high, low, close]
@@ -28,12 +49,6 @@ describe('chartMath', () => {
     expect(s.average).toBeCloseTo((105 + 120 + 110) / 3);
     expect(periodStats([])).toBeNull();
   });
-
-  it('axis ticks are round and inside the range', () => {
-    const ticks = niceTicks(97, 233, 5);
-    expect(ticks).toEqual([100, 150, 200]);
-    expect(niceTicks(5, 5)).toEqual([5]);
-  });
 });
 
 describe('PriceChart', () => {
@@ -50,13 +65,36 @@ describe('PriceChart', () => {
     expect(screen.getByText('میانگین ۲۰ روزه').closest('button').disabled).toBe(true);
   });
 
-  it('hovering a day shows its open, high, low and close', () => {
+  it('feeds the chart our candles, the averages and the high and low marks', () => {
+    render(<PriceChart candles={candles} days={days} label="x" />);
+    const [candleSeries, fast, slow] = chartCalls.series;
+    expect(candleSeries.data).toHaveLength(30);
+    expect(candleSeries.data[0]).toEqual({ time: '2026-09-01', open: 100, high: 105, low: 98, close: 102 });
+    expect(fast.data).toHaveLength(24); // 7-day average: from the 7th close
+    expect(slow.data).toHaveLength(11);
+    expect(chartCalls.markers[0].map((m) => m.position).sort()).toEqual(['aboveBar', 'belowBar']);
+  });
+
+  it('the toggle hides an average line on the chart', () => {
+    render(<PriceChart candles={candles} days={days} label="x" />);
+    fireEvent.click(screen.getByText('میانگین ۷ روزه'));
+    expect(chartCalls.series[1].options.visible).toBe(false);
+    expect(chartCalls.series[2].options.visible).toBe(true);
+  });
+
+  it('the crosshair day shows its open, high, low and close; leaving hides it', () => {
     const { container } = render(<PriceChart candles={candles} days={days} label="x" />);
-    const plot = container.querySelector('.xchart-plot');
-    plot.getBoundingClientRect = () => ({ left: 0, width: 300, top: 0, height: 300, right: 300, bottom: 300 });
-    fireEvent.pointerMove(plot, { clientX: 299 });
+    act(() => crosshair.handler({ time: '2026-09-30', point: { x: 10 } }));
     const tip = container.querySelector('.xchart-tip');
     expect(tip.textContent).toContain('پایانی');
     expect(tip.textContent).toContain((131).toLocaleString('fa-IR'));
+    act(() => crosshair.handler({ time: undefined }));
+    expect(container.querySelector('.xchart-tip')).toBeNull();
+  });
+
+  it('removes the chart when it goes away', () => {
+    const { unmount } = render(<PriceChart candles={candles} days={days} label="x" />);
+    unmount();
+    expect(chartCalls.removed).toBe(1);
   });
 });

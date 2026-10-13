@@ -1,6 +1,6 @@
 /**
- * chartMath.js — The numbers behind the explorer's price chart: moving averages, the period's
- * statistics (change, high, low, average) and round axis ticks. Pure, no DOM.
+ * chartMath.js — The numbers behind the explorer's price chart: moving averages and the period's
+ * statistics (change, high, low, average). Pure, no DOM.
  * Candles are [open, high, low, close] per day, oldest first.
  */
 
@@ -51,24 +51,4 @@ export function periodStats(candles) {
     average: closeSum / candles.length,
     rangePct: low > 0 ? ((high - low) / low) * 100 : null,
   };
-}
-
-/**
- * Round tick values inside [min, max] (1, 2 or 5 times a power of ten apart)
- * @param {number} min
- * @param {number} max
- * @param {number} [count] - about how many
- * @returns {number[]}
- */
-export function niceTicks(min, max, count = 5) {
-  const span = max - min;
-  if (!(span > 0) || !Number.isFinite(span)) return Number.isFinite(min) ? [min] : [];
-  const raw = span / count;
-  const pow = 10 ** Math.floor(Math.log10(raw));
-  const step = [1, 2, 5, 10].map((m) => m * pow).find((s) => s >= raw) || raw;
-  const ticks = [];
-  for (let v = Math.ceil(min / step) * step; v <= max + step * 1e-9; v += step) {
-    ticks.push(Number(v.toPrecision(12)));
-  }
-  return ticks;
 }
