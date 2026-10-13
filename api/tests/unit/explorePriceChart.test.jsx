@@ -11,19 +11,19 @@ import PriceChart from '../../../web/src/features/explore/PriceChart.jsx';
 
 
 // Lightweight Charts draws on a canvas, which the test DOM has none of: a recording stand-in
-const { crosshair, chartCalls } = vi.hoisted(() => ({ crosshair: { handler: null }, chartCalls: { series: [], markers: [], removed: 0 } }));
+const { crosshair, chartCalls } = vi.hoisted(() => ({ crosshair: { handler: null, range: null }, chartCalls: { series: [], markers: [], removed: 0 } }));
 vi.mock('lightweight-charts', () => ({
   CrosshairMode: { Normal: 0 },
   CandlestickSeries: 'candles',
   LineSeries: 'line',
-  createSeriesMarkers: (_series, markers) => chartCalls.markers.push(markers),
+  createSeriesMarkers: () => ({ setMarkers: (markers) => chartCalls.markers.push(markers) }),
   createChart: () => ({
     addSeries: (type) => {
       const series = { type, data: null, options: {}, setData(d) { series.data = d; }, applyOptions(o) { Object.assign(series.options, o); } };
       chartCalls.series.push(series);
       return series;
     },
-    timeScale: () => ({ fitContent() {} }),
+    timeScale: () => ({ fitContent() {}, subscribeVisibleLogicalRangeChange: (fn) => { crosshair.range = fn; } }),
     subscribeCrosshairMove: (fn) => { crosshair.handler = fn; },
     remove: () => { chartCalls.removed += 1; },
   }),
@@ -72,7 +72,7 @@ describe('PriceChart', () => {
     expect(candleSeries.data[0]).toEqual({ time: '2026-09-01', open: 100, high: 105, low: 98, close: 102 });
     expect(fast.data).toHaveLength(24); // 7-day average: from the 7th close
     expect(slow.data).toHaveLength(11);
-    expect(chartCalls.markers[0].map((m) => m.position).sort()).toEqual(['aboveBar', 'belowBar']);
+    expect(chartCalls.markers.at(-1).map((m) => m.position).sort()).toEqual(['aboveBar', 'belowBar']);
   });
 
   it('the toggle hides an average line on the chart', () => {
@@ -90,6 +90,23 @@ describe('PriceChart', () => {
     expect(tip.textContent).toContain((131).toLocaleString('fa-IR'));
     act(() => crosshair.handler({ time: undefined }));
     expect(container.querySelector('.xchart-tip')).toBeNull();
+  });
+
+  it('scrolled past the oldest day, it asks for an older history; not before', () => {
+    const onNeedOlder = vi.fn();
+    render(<PriceChart candles={candles} days={days} label="x" onNeedOlder={onNeedOlder} />);
+    act(() => crosshair.range({ from: 0, to: 29 }));
+    expect(onNeedOlder).not.toHaveBeenCalled();
+    act(() => crosshair.range({ from: -5, to: 25 }));
+    expect(onNeedOlder).toHaveBeenCalled();
+  });
+
+  it('the statistics follow the days on screen', () => {
+    render(<PriceChart candles={candles} days={days} label="x" />);
+    const high = () => screen.getByText('بیشترین').parentElement.textContent;
+    expect(high()).toContain((134).toLocaleString('fa-IR')); // the last day's high: 105 + 29
+    act(() => crosshair.range({ from: 0, to: 9 }));
+    expect(high()).toContain((114).toLocaleString('fa-IR')); // 105 + 9
   });
 
   it('removes the chart when it goes away', () => {

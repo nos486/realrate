@@ -33,11 +33,8 @@ const CATEGORY_FILTERS = [
   { key: 'bourse_fund', label: 'صندوق' },
 ];
 
-const CANDLE_RANGES = [
-  { value: '30d', label: '۱ ماه' },
-  { value: '180d', label: '۶ ماه' },
-  { value: '1y', label: '۱ سال' },
-];
+/** The history loaded so far, longest last: the chart asks for the next when scrolled past the oldest day */
+const HISTORY_STEPS = ['180d', '1y', '2y'];
 
 const RESULT_LIMIT = 60;
 
@@ -48,37 +45,35 @@ function OwnPrice({ asset }) {
   return own.currency === 'usd' ? <bdi>${formatPrice(own.value, 'usd')}</bdi> : formatPrice(own.value);
 }
 
-/** The asset's candles over a window the user picks (fetched as soon as the asset is open) */
+/**
+ * The asset's candles: six months to start, then a longer history (one year, two) whenever the
+ * chart is scrolled or zoomed past the oldest day shown; the chart keeps what it has while the
+ * longer one loads
+ */
 function ExploreChart({ asset }) {
-  const [range, setRange] = useState('30d');
-  const { status, series } = useCardCandles(asset, true, range);
+  const [step, setStep] = useState(0);
+  const { status, series } = useCardCandles(asset, true, HISTORY_STEPS[step]);
+  const [loaded, setLoaded] = useState(null); // { series, step }: the last one drawn (kept while a longer one loads)
+  if (status === 'ready' && series && series !== loaded?.series) setLoaded({ series, step });
+  const shown = loaded?.series || null;
   const loading = status === 'loading';
+  // Asked once per step: only when the longer history is not already on its way
+  const more = loaded && loaded.step === step && step < HISTORY_STEPS.length - 1 ? () => setStep(loaded.step + 1) : null;
   return (
     <section className="explore-panel" aria-label="نمودار">
       <div className="explore-panel-head">
         <h2>نمودار قیمت</h2>
-        <div className="pro-card-ranges" role="group" aria-label="بازه‌ی نمودار">
-          {CANDLE_RANGES.map((r) => (
-            <button
-              key={r.value}
-              type="button"
-              className={range === r.value ? 'is-active' : ''}
-              aria-pressed={range === r.value}
-              onClick={() => setRange(r.value)}
-            >
-              {r.label}
-            </button>
-          ))}
-        </div>
+        {loading && shown && <span className="explore-loading" role="status">در حال دریافت تاریخچه‌ی بیشتر…</span>}
       </div>
-      {status === 'ready' && series?.candles?.length ? (
-        <div className={`explore-chart ${loading ? 'is-loading' : ''}`}>
+      {shown?.candles?.length ? (
+        <div className="explore-chart">
           <PriceChart
-            candles={series.candles}
-            days={series.days}
+            candles={shown.candles}
+            days={shown.days}
             unit={asset.unit}
             currency={asset.currency}
             label={`نمودار کندلی ${asset.name}`}
+            onNeedOlder={more}
           />
         </div>
       ) : (
@@ -87,7 +82,7 @@ function ExploreChart({ asset }) {
             ? 'در حال دریافت نمودار…'
             : status === 'error'
               ? 'نمودار فعلاً در دسترس نیست'
-              : 'تاریخچه‌ای برای این بازه ثبت نشده'}
+              : 'تاریخچه‌ای برای این دارایی ثبت نشده'}
         </div>
       )}
     </section>

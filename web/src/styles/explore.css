@@ -189,3 +189,20 @@
 
 .xchart-tip .up-val { color: var(--color-positive-text); }
 .xchart-tip .down-val { color: var(--color-negative-text); }
+
+.explore-loading {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.xchart-credit {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  text-align: center;
+}
+
+.xchart-credit a {
+  color: inherit;
+  text-decoration: underline;
+}
