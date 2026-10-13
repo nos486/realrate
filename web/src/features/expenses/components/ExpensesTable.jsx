@@ -15,6 +15,7 @@ import { DollarValueLine } from '../../../shared/ui/DollarValue.jsx';
 import { Calendar, FolderInput, FolderOpen, HandCoins, Landmark, MessageSquare, Pencil, Trash2 } from 'lucide-react';
 import { ResponsiveDataTable } from '../../../shared/ui/index.js';
 import OwnedRecordLink from '../../../shared/ui/OwnedRecordLink.jsx';
+import RecordOriginBadge from '../../../shared/ui/RecordOriginBadge.jsx';
 import { recordOwnerOf } from '../../../utils/recordOwners.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { formatAmount } from '../utils/format.js';
@@ -85,6 +86,7 @@ export default function ExpensesTable({
       render: (e) => (
         <span className="income-title-text">
           {e.title}
+          <RecordOriginBadge record={e} />
           {e.loanId && (
             <small className="expense-loan-badge">
               <Landmark size={11} />

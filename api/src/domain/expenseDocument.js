@@ -28,6 +28,8 @@
  *
  * An expense read from a bank SMS (bankSms.js) has `source: 'sms'`, the bank's `bankId`, the
  * message's `smsFingerprint` and the transaction's `smsKey` (so it is not recorded twice).
+ * One read from a bank's exported statement (bankStatement.js) has `source: 'import'`, the bank's
+ * `bankId` and the row's `importKey`, so importing the same file again records nothing twice.
  *
  * A foreign expense may be paid from that currency held in a portfolio (`paidFrom: { portfolioId,
  * portfolioName, assetId, txId }`): the portfolio gets a «spend» transaction (`txId`) at the currency's rate on its day
@@ -87,7 +89,7 @@ export const DAILY_EXPENSE_CATEGORIES = [
   { value: 'other', label: 'سایر' },
 ];
 
-export const EXPENSE_SOURCES = ['manual', 'sms'];
+export const EXPENSE_SOURCES = ['manual', 'sms', 'import'];
 
 export const EXPENSE_LIMITS = {
   nameLength: 80,
@@ -221,6 +223,7 @@ export function validateExpense(body = {}) {
   const links = { ...categoryLinkFields('expense', category, body), ...paymentLinkFields('expense', body) };
   const smsFingerprint = source === 'sms' && /^[0-9a-f]{8}$/.test(text(body.smsFingerprint)) ? text(body.smsFingerprint) : '';
   const smsKey = source === 'sms' ? text(body.smsKey).slice(0, 120) : '';
+  const importKey = source === 'import' ? text(body.importKey).slice(0, 120) : '';
 
   // «دنگ» is for toman expenses only
   const shared = currency === BASE_CURRENCY ? validateShare(body, amount) : validateShare({ myShare: null, reimbursements: body.reimbursements }, amount);
@@ -245,6 +248,7 @@ export function validateExpense(body = {}) {
       ...(creditAccountId ? { creditAccountId } : {}),
       ...links,
       smsFingerprint, smsKey, myShare, reimbursements, paidFrom, investedIn,
+      ...(importKey ? { importKey } : {}),
       tags: normalizeTags(body.tags),
       // Recorded by another feature: changed only from its page (recordOwners.js)
       ...(isRecordOwner(body.recordedBy) ? { recordedBy: body.recordedBy } : {}),

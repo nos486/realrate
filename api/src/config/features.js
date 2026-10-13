@@ -53,6 +53,12 @@ export const FEATURES = {
     label: 'یادآوری ایمیلی',
     description: 'ایمیل روزانه‌ی سررسید اقساط، چک‌ها و اشتراک‌ها',
   },
+  statement_import: {
+    stage: 'ga',
+    groups: ['pro'],
+    label: 'ورود از همراه بانک',
+    description: 'ورود گردش حساب از فایل اکسل بانک (پارسیان) به هزینه‌ها، درآمدها و انتقال‌ها، با دسته‌بندی خودکار و پرسش از کاربر',
+  },
   expenses: {
     stage: 'ga',
     label: 'هزینه‌ها',

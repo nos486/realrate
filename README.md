@@ -87,6 +87,7 @@ npm test
 | [E2EE_VAULT.md](docs/E2EE_VAULT.md) | رمزنگاری سرتاسری حساب، همگام‌سازی و نسخه‌ی آفلاین |
 | [ANDROID.md](docs/ANDROID.md) | اپ اندروید: ساخت، امضا، انتشار، پیامک بانک، اثر انگشت، آفلاین |
 | [BANK_SMS.md](docs/BANK_SMS.md) | قالب پیامک بانک‌ها و افزودن بانک جدید |
+| [BANK_STATEMENT_IMPORT.md](docs/BANK_STATEMENT_IMPORT.md) | ورود صورت‌حساب همراه بانک و افزودن بانک |
 | [EXPENSES.md](docs/EXPENSES.md) | ساختار داده‌ی هزینه‌ها، حساب‌ها، بودجه و «تأمین از» |
 | [DESIGN.md](docs/DESIGN.md) | استاندارد رنگ‌ها و چیدمان صفحه‌ها |
 | [ADDING_NEW_ASSET.md](docs/ADDING_NEW_ASSET.md) | افزودن دارایی جدید |

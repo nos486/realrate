@@ -25,6 +25,7 @@
  *   cheques.css         — Cheques page, status badges, tracking timeline
  *   subscriptions.css   — Subscriptions page, cards, state badges
  *   expenses.css        — Expenses page, section chips
+ *   statement-import.css — Import from a bank's statement, the «ورود خودکار» tag on records
  *   app-settings.css    — Settings of the Android app
  *   offline.css         — The offline / syncing bar
  *   landing.css          — Logged-out landing page
@@ -63,6 +64,7 @@
 @import './cheques.css';
 @import './subscriptions.css';
 @import './expenses.css';
+@import './statement-import.css';
 @import './app-settings.css';
 @import './offline.css';
 @import './landing.css';

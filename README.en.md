@@ -91,6 +91,7 @@ Full guide (D1 and KV, Google sign-in, email, Pages, Workers, the Android signin
 | [E2EE_VAULT.md](docs/en/E2EE_VAULT.md) | Account-wide end-to-end encryption, sync and the offline copy |
 | [ANDROID.md](docs/en/ANDROID.md) | Android app: build, signing, releases, bank SMS, fingerprint, offline |
 | [BANK_SMS.md](docs/en/BANK_SMS.md) | Bank SMS templates and adding a bank |
+| [BANK_STATEMENT_IMPORT.md](docs/en/BANK_STATEMENT_IMPORT.md) | Mobile-bank statement import and adding a bank |
 | [EXPENSES.md](docs/en/EXPENSES.md) | Expense, account, budget and loan-funding data model |
 | [DESIGN.md](docs/en/DESIGN.md) | Color and layout standard |
 | [ADDING_NEW_ASSET.md](docs/en/ADDING_NEW_ASSET.md) | Adding an asset |

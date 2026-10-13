@@ -11,7 +11,8 @@
  * Its category may link it to a record (categoryLinks.js): «تسویه بدهی اعتباری» the bank credit
  * whose debt it pays (`creditAccountId`). Received with a cheque, of any category, it names the
  * cheque (`chequeId`, a payment link). A sale from a portfolio names its «sell» entry
- * (`soldFrom`, portfolioLink.js). A bank credit, a cheque and a bank SMS (`smsKey`) are in
+ * (`soldFrom`, portfolioLink.js). A bank credit, a cheque, a bank SMS (`smsKey`) and a row of an
+ * imported bank statement (`source: 'import'`, `bankId`, `importKey`: bankStatement.js) are in
  * tomans, so those links are kept on a toman income only.
  */
 
@@ -58,6 +59,8 @@ export function validateIncome(body = {}) {
   const links = toman ? { ...categoryLinkFields('income', category, body), ...paymentLinkFields('income', body) } : {};
   // Recorded from a bank SMS: the transaction's key (bankSms.js), so it is not recorded twice
   const smsKey = toman ? text(body.smsKey).slice(0, 120) : '';
+  // Read from an exported bank statement: the row's key, so a file imported twice records nothing twice
+  const importKey = toman && body.source === 'import' ? text(body.importKey).slice(0, 120) : '';
 
   // The account it came into (an accountDocument.js account); older incomes have none
   const accountId = ID_RE.test(text(body.accountId)) ? text(body.accountId) : '';
@@ -66,6 +69,7 @@ export function validateIncome(body = {}) {
     value: {
       title, category, amount, currency, incomeDate, notes, soldFrom: sold.link, accountId,
       ...(smsKey ? { smsKey } : {}),
+      ...(importKey ? { source: 'import', importKey, bankId: text(body.bankId).slice(0, 64) } : {}),
       // Always returned, so an edit to another category (or currency) drops them
       creditAccountId: links.creditAccountId || '',
       chequeId: links.chequeId || '',

@@ -14,8 +14,8 @@
  * utils/creditAccount.js). Everything is end-to-end encrypted.
  */
 
-import React, { useMemo, useState } from 'react';
-import { WalletCards, Plus, Pencil, Trash2, Archive, ArchiveRestore, ArrowLeftRight, ChevronRight, ChevronLeft, ArrowLeft } from 'lucide-react';
+import React, { lazy, Suspense, useMemo, useState } from 'react';
+import { WalletCards, Plus, Pencil, Trash2, Archive, ArchiveRestore, ArrowLeftRight, ChevronRight, ChevronLeft, ArrowLeft, FileSpreadsheet } from 'lucide-react';
 import { AlertBanner, Button, EmptyState, FeaturePageHeader } from '../../../shared/ui/index.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonCards } from '../../../shared/ui/Skeleton.jsx';
@@ -49,6 +49,9 @@ import TransferForm from './TransferForm.jsx';
 import CreditSummary from './CreditSummary.jsx';
 import CreditPaymentForm from './CreditPaymentForm.jsx';
 import CreditConversionForm from './CreditConversionForm.jsx';
+// Loaded on first use: the statement reader and its engine are only needed when importing
+const StatementImportModal = lazy(() => import('../statement-import/StatementImportModal.jsx'));
+import { statementBanksFor } from '../statement-import/statementFormat.js';
 
 const HEADER = {
   icon: <WalletCards size={24} />,
@@ -88,6 +91,7 @@ export default function AccountsPage() {
   const hideValues = usePrivacyMode();
   const { customBanks } = useCustomBanks();
   const hasExpenses = useFeature('expenses');
+  const canImportStatement = useFeature('statement_import');
   const {
     accounts, vaultLocked, loading, submitting, deletingId, error, clearError, fetchAccounts,
     saveAccount, deleteAccount,
@@ -97,6 +101,7 @@ export default function AccountsPage() {
   // null | { accountId, installment?: { planId, n, count, dueDate, amount } }: settling a credit, or paying an installment
   const [payCredit, setPayCredit] = useState(null);
   const [convertId, setConvertId] = useState(null); // null | the credit account whose debt is turned into installments
+  const [importAccountId, setImportAccountId] = useState(null); // null | the account a bank statement is imported into
   // Each bank credit's debt, next payment and installments
   const credit = useCreditStatus(accounts);
 
@@ -308,6 +313,12 @@ export default function AccountsPage() {
                   </div>
                 )}
                 {account.notes && <p className="account-card-notes">{account.notes}</p>}
+                {/* «ورود از همراه بانک»: the bank's exported statement becomes this account's records */}
+                {canImportStatement && !readOnly && !account.archived && statementBanksFor(account).length > 0 && (
+                  <Button size="sm" variant="secondary" icon={<FileSpreadsheet size={14} />} onClick={() => setImportAccountId(account.id)}>
+                    ورود از همراه بانک
+                  </Button>
+                )}
                 {!readOnly && (
                   <div className="row-actions-group account-card-actions">
                     <button type="button" className="btn-table-action edit" title="ویرایش حساب" onClick={() => setForm({ account })}>
@@ -422,6 +433,20 @@ export default function AccountsPage() {
           }}
           onClose={() => setPayCredit(null)}
         />
+      )}
+
+      {importAccountId && accountById.get(importAccountId) && (
+        <Suspense fallback={null}>
+          <StatementImportModal
+            account={accountById.get(importAccountId)}
+            accounts={accounts}
+            onClose={() => setImportAccountId(null)}
+            onImported={() => {
+              fetchAccounts();
+              credit.reload();
+            }}
+          />
+        </Suspense>
       )}
 
       {form && (

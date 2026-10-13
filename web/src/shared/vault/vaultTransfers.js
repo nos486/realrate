@@ -43,7 +43,7 @@ export async function saveTransfer(input, existing = null) {
     ? { ...existing, ...value, updatedAt: now }
     : { id: `trf_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`, ...value, createdAt: now, updatedAt: now };
   // An edit may drop the fee, the notes or the messages
-  if (existing) for (const key of ['fee', 'smsKeys']) if (!(key in value)) delete transfer[key];
+  if (existing) for (const key of ['fee', 'smsKeys', 'importKeys']) if (!(key in value)) delete transfer[key];
   await putRecord(KIND, transfer.id, await encryptVaultRecord(transfer), transfer);
   return { success: true, transfer };
 }

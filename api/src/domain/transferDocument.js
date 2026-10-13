@@ -6,12 +6,14 @@
  * yours. A transfer is its own end-to-end encrypted vault record ("transfer"), kept out of every
  * expense and income total:
  *
- *   { id, fromAccountId, toAccountId, amount, fee?, date, notes?, smsKeys?, createdAt, updatedAt }
+ *   { id, fromAccountId, toAccountId, amount, fee?, date, notes?, smsKeys?, importKeys?, createdAt, updatedAt }
  *
  * - amount: tomans that left `fromAccountId` and reached `toAccountId`
  * - fee: what the bank kept (tomans), optional — informational, not an expense
  * - smsKeys: the bank messages it was recorded from (the withdrawal and / or the deposit), so
  *   neither waits again as an expense or an income (bankSms.js)
+ * - importKeys: the rows of an imported bank statement it was recorded from (bankStatement.js),
+ *   so importing the same file again records nothing twice
  * Shared by the browser and the API, like the other domain modules.
  */
 
@@ -19,6 +21,7 @@ export const TRANSFER_LIMITS = {
   notesLength: 300,
   maxAmount: 1e13,
   smsKeys: 2,
+  importKeys: 2,
 };
 
 const ID_RE = /^[A-Za-z0-9_-]{1,80}$/;
@@ -52,6 +55,9 @@ export function validateTransfer(body = {}) {
   const smsKeys = [...new Set((Array.isArray(body.smsKeys) ? body.smsKeys : []).map((k) => text(k).slice(0, 120)).filter(Boolean))]
     .slice(0, TRANSFER_LIMITS.smsKeys);
 
+  const importKeys = [...new Set((Array.isArray(body.importKeys) ? body.importKeys : []).map((k) => text(k).slice(0, 120)).filter(Boolean))]
+    .slice(0, TRANSFER_LIMITS.importKeys);
+
   return {
     value: {
       fromAccountId,
@@ -61,6 +67,7 @@ export function validateTransfer(body = {}) {
       date,
       notes,
       ...(smsKeys.length ? { smsKeys } : {}),
+      ...(importKeys.length ? { importKeys } : {}),
     },
   };
 }
