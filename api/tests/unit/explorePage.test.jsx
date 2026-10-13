@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 /**
- * explorePage.test.jsx — «کاوش بازار»: search any price-book asset, open it to see its card, its
- * chart and its info, with nothing saved (the choice lives in the URL only)
+ * explorePage.test.jsx — «کاوش بازار»: one chart, the dollar's until another asset is picked with
+ * the asset search inside it; nothing is saved (the choice lives in the URL only)
  */
 import React from 'react';
 import { describe, it, expect, afterEach, vi } from 'vitest';
@@ -28,46 +28,38 @@ const { itemMap, assets } = (() => {
   return { itemMap: b.itemMap, assets: Object.values(b.itemMap) };
 })();
 vi.mock('../../../web/src/features/market/context/PricingContext.jsx', () => ({
-  usePricing: () => ({ itemMap, loading: false, searchAssets: (q, o) => searchUnifiedAssets(assets, q, o) }),
+  usePricing: () => ({ itemMap, resolvedAssets: assets, loading: false, searchAssets: (q, o) => searchUnifiedAssets(assets, q, o) }),
 }));
 
 import ExplorePage from '../../../web/src/features/explore/ExplorePage.jsx';
 
-// A phone unless a test says otherwise: the list first, a chart only once one is chosen
-let wide = false;
-window.matchMedia = () => ({ matches: wide, addEventListener() {}, removeEventListener() {} });
-afterEach(() => { cleanup(); wide = false; });
+afterEach(cleanup);
 const renderAt = (url) => render(<MemoryRouter initialEntries={[url]}><ExplorePage /></MemoryRouter>);
 
 describe('ExplorePage', () => {
-  it('lists the assets and asks to choose one', () => {
+  it('charts the dollar until another is picked, with its name and price on top', async () => {
     renderAt('/explore');
-    expect(screen.getByText('دلار')).toBeTruthy();
-    expect(screen.getByText('بیت‌کوین')).toBeTruthy();
-    expect(screen.getByText(/یک دارایی را از فهرست انتخاب کنید/)).toBeTruthy();
-  });
-
-  it('search narrows the list', () => {
-    renderAt('/explore');
-    fireEvent.change(screen.getByLabelText('جستجوی دارایی'), { target: { value: 'بیت' } });
-    expect(screen.queryByText('دلار')).toBeNull();
-    expect(screen.getByText('بیت‌کوین')).toBeTruthy();
-  });
-
-  it('opening an asset shows its chart with its name and price on top, and fetches its candles', () => {
-    renderAt('/explore');
-    fireEvent.click(screen.getByText('دلار'));
-    expect(screen.getByLabelText('نمودار دلار')).toBeTruthy();
-    // The chart's title line: the name and the live price; no card
     expect(screen.getByRole('heading', { name: 'دلار' })).toBeTruthy();
     expect(screen.getByText((100000).toLocaleString('fa-IR'), { selector: 'bdi' })).toBeTruthy();
-    expect(screen.queryByLabelText('اطلاعات')).toBeNull();
-    expect(getSparklines).toHaveBeenCalledWith(['usd'], '180d', { candles: true });
+    await waitFor(() => expect(getSparklines).toHaveBeenCalledWith(['usd'], '180d', { candles: true }));
   });
 
-  it('a dollar-priced asset is charted by its dollar closes', () => {
-    renderAt('/explore?a=btc');
-    expect(getSparklines).toHaveBeenCalledWith(['btc@usd'], '180d', { candles: true });
+  it('the search inside the chart picks another asset and charts it', async () => {
+    renderAt('/explore');
+    await screen.findByText(/^chart/); // the dollar's chart is up; the search stays where it was
+    const input = screen.getByPlaceholderText(/جستجوی نماد/);
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: 'بیت' } });
+    fireEvent.click(await screen.findByText('بیت‌کوین'));
+    expect(screen.getByRole('heading', { name: 'بیت‌کوین' })).toBeTruthy();
+    // A dollar-priced asset is charted by its dollar closes
+    await waitFor(() => expect(getSparklines).toHaveBeenCalledWith(['btc@usd'], '180d', { candles: true }));
+  });
+
+  it('an asset the market has no price for says so, and the search stays', () => {
+    renderAt('/explore?a=nothing_here');
+    expect(screen.getByText(/نرخی ندارد/)).toBeTruthy();
+    expect(screen.getByPlaceholderText(/جستجوی نماد/)).toBeTruthy();
   });
 
   it('scrolling past the oldest day loads a longer history: one year, then two, then no more', async () => {
@@ -79,12 +71,5 @@ describe('ExplorePage', () => {
     await next('1y');
     await next('2y');
     await waitFor(() => expect(screen.getByText('chart 5').textContent).not.toContain('more'));
-  });
-
-  it('a wide screen charts the first asset until one is chosen, beside the list', () => {
-    wide = true;
-    renderAt('/explore');
-    expect(screen.getByLabelText('نمودار دلار')).toBeTruthy();
-    expect(screen.getByLabelText('جستجوی دارایی')).toBeTruthy();
   });
 });
