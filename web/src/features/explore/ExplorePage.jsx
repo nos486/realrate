@@ -18,7 +18,7 @@ import { usePricing } from '../market/context/PricingContext.jsx';
 import { ownPriceOf, formatPrice } from '../market/assetPrice.js';
 import { CategoryIcon } from '../portfolio/utils/holdingHelpers.js';
 import HomeAssetCard from '../home/HomeAssetCard.jsx';
-import TrendCandles from '../home/TrendCandles.jsx';
+import PriceChart from './PriceChart.jsx';
 import { useCardCandles } from '../home/useAssetCandles.js';
 import { buildAssetIndex, resolveHomeAsset, cardOptionsOf } from '../home/homeAssets.js';
 import { CARD_METRICS } from '../../utils/cardMetrics.js';
@@ -73,7 +73,7 @@ function ExploreChart({ asset }) {
       </div>
       {status === 'ready' && series?.candles?.length ? (
         <div className={`explore-chart ${loading ? 'is-loading' : ''}`}>
-          <TrendCandles
+          <PriceChart
             candles={series.candles}
             days={series.days}
             unit={asset.unit}

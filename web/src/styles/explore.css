@@ -106,3 +106,189 @@
   color: var(--text-primary);
   text-align: end;
 }
+
+/* Price chart (PriceChart.jsx): a tall plot with a price axis on the right, a date axis below */
+.xchart-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.xchart-tools {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.xchart-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.xchart-tool i {
+  width: 14px;
+  height: 0;
+  border-top: 2px solid currentColor;
+}
+
+.xchart-tool.is-fast { --ma: var(--color-warning-text); }
+.xchart-tool.is-slow { --ma: var(--color-primary-text); }
+.xchart-tool.is-on { color: var(--ma); border-color: var(--ma); }
+.xchart-tool:disabled { opacity: 0.4; cursor: default; }
+
+.xchart {
+  --axis-w: 74px;
+  --axis-h: 24px;
+  position: relative;
+  height: 380px;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: pan-y;
+}
+
+@media (max-width: 640px) {
+  .xchart {
+    --axis-w: 62px;
+    height: 300px;
+  }
+}
+
+.xchart-plot {
+  position: absolute;
+  inset: 0 var(--axis-w) var(--axis-h) 0;
+  border-bottom: 1px solid var(--border-color);
+  cursor: crosshair;
+}
+
+.xchart-plot svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.xchart-grid {
+  stroke: var(--border-color);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.xchart-last {
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+  vector-effect: non-scaling-stroke;
+}
+.xchart-last.is-up { stroke: var(--color-positive); }
+.xchart-last.is-down { stroke: var(--color-negative); }
+
+.xchart-ma {
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+}
+.xchart-ma.is-fast { stroke: var(--color-warning-text); }
+.xchart-ma.is-slow { stroke: var(--color-primary-text); }
+
+.xchart-mark {
+  position: absolute;
+  transform: translate(-50%, -140%);
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--bg-surface-elevated);
+  color: var(--text-secondary);
+  font-size: 10.5px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.xchart-mark.is-low { transform: translate(-50%, 40%); }
+
+.xchart-cross-v,
+.xchart-cross-h {
+  position: absolute;
+  pointer-events: none;
+  background: var(--text-muted);
+  opacity: 0.55;
+}
+.xchart-cross-v { top: 0; bottom: 0; width: 1px; }
+.xchart-cross-h { left: 0; right: 0; height: 1px; }
+
+.xchart-tip {
+  position: absolute;
+  top: 6px;
+  min-width: 150px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-surface-elevated);
+  color: var(--text-primary);
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 2;
+}
+.xchart-tip.is-end { right: 6px; }
+.xchart-tip.is-start { left: 6px; }
+.xchart-tip dl { display: grid; gap: 2px; margin: 6px 0 0; }
+.xchart-tip dl > div { display: flex; justify-content: space-between; gap: 12px; }
+.xchart-tip dt { color: var(--text-muted); }
+.xchart-tip dd { margin: 0; }
+
+.xchart-axis-y {
+  position: absolute;
+  top: 0;
+  bottom: var(--axis-h);
+  right: 0;
+  width: var(--axis-w);
+  pointer-events: none;
+}
+
+.xchart-axis-y > span {
+  position: absolute;
+  right: 0;
+  padding-inline-start: 6px;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+.xchart-axis-y > .xchart-axis-last,
+.xchart-axis-y > .xchart-axis-cross {
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: var(--bg-surface);
+  font-weight: 600;
+}
+.xchart-axis-last.is-up { background: var(--color-positive); }
+.xchart-axis-last.is-down { background: var(--color-negative); }
+.xchart-axis-y > .xchart-axis-cross { background: var(--text-secondary); z-index: 1; }
+
+.xchart-axis-x {
+  position: absolute;
+  left: 0;
+  right: var(--axis-w);
+  bottom: 0;
+  height: var(--axis-h);
+  pointer-events: none;
+}
+
+.xchart-axis-x > span {
+  position: absolute;
+  top: 6px;
+  transform: translateX(-50%);
+  color: var(--text-muted);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+.xchart-axis-x > span:first-child { transform: none; }
+.xchart-axis-x > span:last-child { transform: translateX(-100%); }
+
+.xchart-tip .up-val { color: var(--color-positive-text); }
+.xchart-tip .down-val { color: var(--color-negative-text); }
