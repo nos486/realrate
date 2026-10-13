@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import ErrorBoundary from '../shared/ui/ErrorBoundary.jsx';
-import { TrendingUp, Briefcase, ShieldCheck, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards, Smartphone, MessageSquareText, FolderKanban, Newspaper, ChartColumn, CalendarSync, Crown } from 'lucide-react';
+import { TrendingUp, Briefcase, ShieldCheck, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards, Smartphone, MessageSquareText, FolderKanban, Newspaper, ChartColumn, CalendarSync, Crown, Compass } from 'lucide-react';
 import { AppLayout, FilterPills, AlertBanner, Button } from '../shared/ui/index.js';
 import { PriceRefreshStatus } from '../features/market/components/index.js';
 import HomeDashboard from '../features/home/HomeDashboard.jsx';
@@ -50,6 +50,7 @@ const AppSettingsView = lazy(() => import('../features/app-settings/AppSettingsV
 const SmsInboxPage = lazy(() => import('../features/sms-inbox/SmsInboxPage.jsx'));
 const NewsPage = lazy(() => import('../features/news/NewsPage.jsx'));
 const ReportsPage = lazy(() => import('../features/reports/ReportsPage.jsx'));
+const ExplorePage = lazy(() => import('../features/explore/ExplorePage.jsx'));
 const ProPage = lazy(() => import('../features/pro/ProPage.jsx'));
 // The Android app's home (its own month at a glance); the website's home is the market
 const AppHomeDashboard = lazy(() => import('../features/home/AppHomeDashboard.jsx'));
@@ -66,6 +67,13 @@ const REPORTS_BENEFITS = [
   'درآمد، هزینه، مانده و نرخ پس‌انداز هر ماه و کل سال',
   'نمودار دسته‌ها، منابع درآمد و سرمایه‌گذاری‌ها',
   'جدول ماه‌به‌ماه و خروجی چاپی',
+];
+
+/** What the market explorer gives, shown to users without it (FeatureOffer) */
+const EXPLORE_BENEFITS = [
+  'جست‌وجوی هر دارایی بازار: طلا، سکه، ارز، رمزارز، نمادهای بورس و صندوق‌ها',
+  'قیمت لحظه‌ای، تغییر روز، کف و سقف امروز و میانگین‌ها بدون ذخیره‌ی چیزی',
+  'نمودار کندلی ۱ ماه، ۶ ماه و ۱ سال',
 ];
 
 /** What the market page gives, shown to users without it (FeatureOffer) */
@@ -209,6 +217,9 @@ export default function MainPage() {
       searchParams.get('tab') === 'reports'
     );
 
+  // The market explorer: search any asset, see its price, info and chart (nothing is saved)
+  const isExplore = !isSettings && subPath.startsWith('/explore');
+
   // Free and Pro side by side: the «Pro» button and every free-plan limit lead here
   const isProPage = Boolean(user) && subPath.startsWith(PRO_PATH);
 
@@ -237,6 +248,7 @@ export default function MainPage() {
     ['rates', isRates],
     ['news', isNews],
     ['reports', isReports],
+    ['explore', isExplore],
     ['pro', isProPage],
   ].find(([, matches]) => matches)?.[0] || 'market';
 
@@ -275,6 +287,8 @@ export default function MainPage() {
         return 'اخبار | RealRate';
       case 'reports':
         return 'گزارش‌ها | RealRate';
+      case 'explore':
+        return 'کاوش بازار | RealRate';
       case 'pro':
         return 'پلن رایگان و Pro | RealRate';
       default:
@@ -326,6 +340,7 @@ export default function MainPage() {
     rates: '/rates',
     news: '/news',
     reports: '/reports',
+    explore: '/explore',
     pro: PRO_PATH,
   };
 
@@ -357,6 +372,7 @@ export default function MainPage() {
       // App frame: «خانه» is the dashboard, the market is one of the other sections
       ...(appLayout ? [{ value: 'rates', label: 'نرخ و حباب', icon: <TrendingUp size={16} strokeWidth={2} /> }] : []),
       { value: 'news', label: 'اخبار', icon: <Newspaper size={16} strokeWidth={2} /> },
+      { value: 'explore', label: 'کاوش بازار', icon: <Compass size={16} strokeWidth={2} /> },
       { value: 'incomes', label: 'درآمدها', icon: <Wallet size={16} strokeWidth={2} /> },
       // Beta (admins): expenses right after incomes, then the accounts they are paid from
       ...(hasExpenses ? [{ value: 'expenses', label: 'هزینه‌ها', icon: <HandCoins size={16} strokeWidth={2} /> }] : []),
@@ -465,7 +481,7 @@ export default function MainPage() {
       )}
 
       {/* Only where prices are shown */}
-      {(appLayout ? ['rates', 'portfolio'] : ['market', 'portfolio']).includes(activeTab) && (hasMarket || activeTab === 'portfolio') && <PriceRefreshStatus />}
+      {(appLayout ? ['rates', 'portfolio', 'explore'] : ['market', 'portfolio', 'explore']).includes(activeTab) && (hasMarket || activeTab === 'portfolio') && <PriceRefreshStatus />}
 
       {/* Tab Views */}
       <section className="tab-view-container">
@@ -574,6 +590,15 @@ export default function MainPage() {
             title="گزارش‌های سالانه مخصوص کاربران Pro است"
             subtitle="درآمد، هزینه و سرمایه‌گذاری یک سال را یک‌جا ببینید."
             benefits={REPORTS_BENEFITS}
+          />
+        ))}
+
+        {activeTab === 'explore' && (hasMarket ? <ExplorePage /> : (
+          <FeatureOffer
+            feature="market"
+            title="کاوش بازار مخصوص کاربران Pro است"
+            subtitle="هر دارایی بازار را جست‌وجو کنید و قیمت، اطلاعات و نمودارش را ببینید."
+            benefits={EXPLORE_BENEFITS}
           />
         ))}
 

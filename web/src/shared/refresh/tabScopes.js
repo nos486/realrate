@@ -25,6 +25,7 @@ export const TAB_REFRESH_SCOPES = {
   projects: ['expenses'],
   accounts: ['accounts', 'expenses'],
   reports: ['incomes', 'expenses'],
+  explore: ['prices'],
   pro: [],
   sms: ['expenses'],
   settings: [],
