@@ -1,3 +1,4 @@
+import { t } from '../../../utils/i18n.js';
 import { clearAlerts } from '../../../shared/alerts/alertStore.js';
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -67,7 +68,7 @@ export function AuthProvider({ children }) {
           const cleanSearch = url.searchParams.toString() ? `?${url.searchParams.toString()}` : '';
           window.history.replaceState({}, document.title, url.pathname + cleanSearch + url.hash);
         } else if (authError) {
-          toast.error(`خطا در ورود با گوگل: ${authError}`, { duration: 8000 });
+          toast.error(t('خطا در ورود با گوگل: {error}', { error: authError }), { duration: 8000 });
           url.searchParams.delete('auth_error');
           const cleanSearch = url.searchParams.toString() ? `?${url.searchParams.toString()}` : '';
           window.history.replaceState({}, document.title, url.pathname + cleanSearch + url.hash);
@@ -125,11 +126,11 @@ export function AuthProvider({ children }) {
         signInUser(setUser, userWithDemo);
         writeCachedUser(userWithDemo);
       } else {
-        toast.error(data?.message || 'خطا در ورود با گوگل');
+        toast.error(data?.message || t('خطا در ورود با گوگل'));
       }
     } catch (e) {
       console.error('Auth error:', e);
-      toast.error('خطا در ارتباط با سرور');
+      toast.error(t('خطا در ارتباط با سرور'));
     }
   }, [toast]);
 
@@ -149,7 +150,7 @@ export function AuthProvider({ children }) {
   // In the Android app it runs in the phone's browser and comes back through the app's link.
   const loginWithGoogle = useCallback(() => {
     if (isNativeApp()) {
-      startNativeGoogleLogin().catch(() => toast.error('مرورگر برای ورود با گوگل باز نشد.'));
+      startNativeGoogleLogin().catch(() => toast.error(t('مرورگر برای ورود با گوگل باز نشد.')));
       return;
     }
     const { origin } = window.location;
@@ -177,13 +178,13 @@ export function AuthProvider({ children }) {
     const verifier = takeNativeLoginVerifier();
     if (!verifier) return;
     if (result.error) {
-      toast.error(`خطا در ورود با گوگل: ${result.error}`, { duration: 8000 });
+      toast.error(t('خطا در ورود با گوگل: {error}', { error: result.error }), { duration: 8000 });
       return;
     }
     try {
       completeLogin(await appSignIn(result.code, verifier));
     } catch (err) {
-      toast.error(err?.message || 'ورود با گوگل کامل نشد. دوباره تلاش کنید.');
+      toast.error(err?.message || t('ورود با گوگل کامل نشد. دوباره تلاش کنید.'));
     }
   };
   useEffect(() => listenForNativeAuthReturn((result) => nativeReturnRef.current?.(result)), []);

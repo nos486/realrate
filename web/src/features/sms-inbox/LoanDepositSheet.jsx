@@ -6,6 +6,7 @@
  * deposit's amount, day and bank; the message leaves the inbox once that loan is saved.
  */
 
+import { t } from '../../utils/i18n.js';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Landmark, Plus, ChevronLeft } from 'lucide-react';
@@ -26,10 +27,10 @@ export default function LoanDepositSheet({ item, onClose }) {
   const handleExisting = async (loan) => {
     try {
       await recordSmsLoanDeposit(item, loan);
-      toast.success(`واریز به‌عنوان دریافت «${loan.title}» در دسته‌ی «دریافت وام» ثبت شد؛ جزو جمع درآمد نیست.`);
+      toast.success(t('واریز به‌عنوان دریافت «{title}» در دسته‌ی «دریافت وام» ثبت شد؛ جزو جمع درآمد نیست.', { title: loan.title }));
       onClose();
     } catch (err) {
-      toast.error(err?.message || 'ثبت واریز ممکن نشد.');
+      toast.error(err?.message || t('ثبت واریز ممکن نشد.'));
     }
   };
 
@@ -45,15 +46,15 @@ export default function LoanDepositSheet({ item, onClose }) {
     <Modal
       isOpen
       onClose={onClose}
-      title="این واریزِ وام است"
-      subtitle={`${formatAmount(tx.amount)} تومان — وام درآمد نیست و در دسته‌ی «دریافت وام» (خارج از جمع) ثبت می‌شود`}
+      title={t('این واریزِ وام است')}
+      subtitle={t('{amount} تومان — وام درآمد نیست و در دسته‌ی «دریافت وام» (خارج از جمع) ثبت می‌شود', { amount: formatAmount(tx.amount) })}
       icon={<Landmark size={18} />}
       maxWidth="460px"
     >
       <div className="loan-deposit-body">
         {loans.length > 0 && (
           <>
-            <p className="loan-deposit-hint">دریافت کدام وام است؟</p>
+            <p className="loan-deposit-hint">{t('دریافت کدام وام است؟')}</p>
             <ul className="loan-deposit-list">
               {loans.map((loan) => (
                 <li key={loan.id}>
@@ -61,7 +62,7 @@ export default function LoanDepositSheet({ item, onClose }) {
                     <Landmark size={16} />
                     <span>
                       <strong>{loan.title}</strong>
-                      <small>اصل: {formatAmount(loan.principalAmount)} تومان</small>
+                      <small>{t('اصل: {amount} تومان', { amount: formatAmount(loan.principalAmount) })}</small>
                     </span>
                     <ChevronLeft size={16} />
                   </button>
@@ -71,10 +72,10 @@ export default function LoanDepositSheet({ item, onClose }) {
           </>
         )}
         <Button block variant={loans.length ? 'secondary' : 'primary'} icon={<Plus size={16} />} onClick={handleNew}>
-          ثبت وام جدید با این مبلغ
+          {t('ثبت وام جدید با این مبلغ')}
         </Button>
         <p className="loan-deposit-hint">
-          آنچه با این پول می‌خرید را با «تأمین از» همین وام ثبت کنید تا در جزئیات وام، مصرفش دیده شود.
+          {t('آنچه با این پول می‌خرید را با «تأمین از» همین وام ثبت کنید تا در جزئیات وام، مصرفش دیده شود.')}
         </p>
       </div>
     </Modal>

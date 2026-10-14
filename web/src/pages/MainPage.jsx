@@ -1,3 +1,4 @@
+import { t } from '../utils/i18n.js';
 import React, { useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import ErrorBoundary from '../shared/ui/ErrorBoundary.jsx';
@@ -57,35 +58,35 @@ const AppHomeDashboard = lazy(() => import('../features/home/AppHomeDashboard.js
 
 /** What the news give, shown to users without them (FeatureOffer) */
 const NEWS_BENEFITS = [
-  'خبرهای مهم دلار، طلا، سکه، نفت و اقتصاد، گزینش‌شده با هوش مصنوعی',
-  'تحلیل روز و مهم‌ترین خبرهای هفته',
-  'اعلان خبرهای مهم',
+  t('خبرهای مهم دلار، طلا، سکه، نفت و اقتصاد، گزینش‌شده با هوش مصنوعی'),
+  t('تحلیل روز و مهم‌ترین خبرهای هفته'),
+  t('اعلان خبرهای مهم'),
 ];
 
 /** What the reports give, shown to users without them (FeatureOffer) */
 const REPORTS_BENEFITS = [
-  'درآمد، هزینه، مانده و نرخ پس‌انداز هر ماه و کل سال',
-  'نمودار دسته‌ها، منابع درآمد و سرمایه‌گذاری‌ها',
-  'جدول ماه‌به‌ماه و خروجی چاپی',
+  t('درآمد، هزینه، مانده و نرخ پس‌انداز هر ماه و کل سال'),
+  t('نمودار دسته‌ها، منابع درآمد و سرمایه‌گذاری‌ها'),
+  t('جدول ماه‌به‌ماه و خروجی چاپی'),
 ];
 
 /** What the market explorer gives, shown to users without it (FeatureOffer) */
 const EXPLORE_BENEFITS = [
-  'جست‌وجوی هر دارایی بازار: طلا، سکه، ارز، رمزارز، نمادهای بورس و صندوق‌ها',
-  'قیمت لحظه‌ای، تغییر روز، کف و سقف امروز و میانگین‌ها بدون ذخیره‌ی چیزی',
-  'نمودار کندلی ۱ ماه، ۶ ماه و ۱ سال',
+  t('جست‌وجوی هر دارایی بازار: طلا، سکه، ارز، رمزارز، نمادهای بورس و صندوق‌ها'),
+  t('قیمت لحظه‌ای، تغییر روز، کف و سقف امروز و میانگین‌ها بدون ذخیره‌ی چیزی'),
+  t('نمودار کندلی ۱ ماه، ۶ ماه و ۱ سال'),
 ];
 
 /** What the market page gives, shown to users without it (FeatureOffer) */
 const MARKET_BENEFITS = [
-  'قیمت لحظه‌ای طلا، سکه، ارز، رمزارز، نمادهای بورس و صندوق‌ها، با ارزش ذاتی و حباب',
-  'نمودار شمعی و تاریخچه‌ی قیمت هر دارایی',
-  'صفحه‌ی اول شخصی: بخش‌ها و کارت‌های دلخواه، با قالب‌های آماده',
+  t('قیمت لحظه‌ای طلا، سکه، ارز، رمزارز، نمادهای بورس و صندوق‌ها، با ارزش ذاتی و حباب'),
+  t('نمودار شمعی و تاریخچه‌ی قیمت هر دارایی'),
+  t('صفحه‌ی اول شخصی: بخش‌ها و کارت‌های دلخواه، با قالب‌های آماده'),
 ];
 
 function TabLoader() {
   return (
-    <div className="tab-lazy-loader" role="status" aria-label="در حال بارگذاری">
+    <div className="tab-lazy-loader" role="status" aria-label={t('در حال بارگذاری')}>
       <div className="spinner-glow" />
     </div>
   );
@@ -260,39 +261,39 @@ export default function MainPage() {
   const tabTitle = useMemo(() => {
     switch (activeTab) {
       case 'portfolio':
-        return 'پورتفو | RealRate';
+        return t('پورتفو | RealRate');
       case 'loans':
-        return 'وام‌ها و اقساط | RealRate';
+        return t('وام‌ها و اقساط | RealRate');
       case 'incomes':
-        return 'درآمدها | RealRate';
+        return t('درآمدها | RealRate');
       case 'cheques':
-        return 'مدیریت چک‌ها | RealRate';
+        return t('مدیریت چک‌ها | RealRate');
       case 'subscriptions':
-        return 'اشتراک‌ها | RealRate';
+        return t('اشتراک‌ها | RealRate');
       case 'expenses':
-        return 'هزینه‌ها | RealRate';
+        return t('هزینه‌ها | RealRate');
       case 'projects':
-        return 'پروژه‌ها | RealRate';
+        return t('پروژه‌ها | RealRate');
       case 'accounts':
-        return 'حساب‌ها | RealRate';
+        return t('حساب‌ها | RealRate');
       case 'settings':
-        return 'تنظیمات حساب | RealRate';
+        return t('تنظیمات حساب | RealRate');
       case 'app-settings':
-        return 'تنظیمات اپ | RealRate';
+        return t('تنظیمات اپ | RealRate');
       case 'sms':
-        return 'پیامک‌های بانکی | RealRate';
+        return t('پیامک‌های بانکی | RealRate');
       case 'rates':
-        return 'نرخ و حباب | RealRate';
+        return t('نرخ و حباب | RealRate');
       case 'news':
-        return 'اخبار | RealRate';
+        return t('اخبار | RealRate');
       case 'reports':
-        return 'گزارش‌ها | RealRate';
+        return t('گزارش‌ها | RealRate');
       case 'explore':
-        return 'کاوش بازار | RealRate';
+        return t('کاوش بازار | RealRate');
       case 'pro':
-        return 'پلن رایگان و Pro | RealRate';
+        return t('پلن رایگان و Pro | RealRate');
       default:
-        return 'داشبورد بازار | RealRate';
+        return t('داشبورد بازار | RealRate');
     }
   }, [activeTab]);
 
@@ -368,37 +369,37 @@ export default function MainPage() {
 
   const tabOptions = useMemo(() => {
     const options = [
-      { value: 'market', label: 'نرخ و حباب', icon: <TrendingUp size={16} strokeWidth={2} /> },
+      { value: 'market', label: t('نرخ و حباب'), icon: <TrendingUp size={16} strokeWidth={2} /> },
       // App frame: «خانه» is the dashboard, the market is one of the other sections
-      ...(appLayout ? [{ value: 'rates', label: 'نرخ و حباب', icon: <TrendingUp size={16} strokeWidth={2} /> }] : []),
-      { value: 'news', label: 'اخبار', icon: <Newspaper size={16} strokeWidth={2} /> },
-      { value: 'explore', label: 'کاوش بازار', icon: <Compass size={16} strokeWidth={2} /> },
-      { value: 'incomes', label: 'درآمدها', icon: <Wallet size={16} strokeWidth={2} /> },
+      ...(appLayout ? [{ value: 'rates', label: t('نرخ و حباب'), icon: <TrendingUp size={16} strokeWidth={2} /> }] : []),
+      { value: 'news', label: t('اخبار'), icon: <Newspaper size={16} strokeWidth={2} /> },
+      { value: 'explore', label: t('کاوش بازار'), icon: <Compass size={16} strokeWidth={2} /> },
+      { value: 'incomes', label: t('درآمدها'), icon: <Wallet size={16} strokeWidth={2} /> },
       // Beta (admins): expenses right after incomes, then the accounts they are paid from
-      ...(hasExpenses ? [{ value: 'expenses', label: 'هزینه‌ها', icon: <HandCoins size={16} strokeWidth={2} /> }] : []),
-      ...(hasExpenses ? [{ value: 'projects', label: 'پروژه‌ها', icon: <FolderKanban size={16} strokeWidth={2} /> }] : []),
-      ...(hasAccounts ? [{ value: 'accounts', label: 'حساب‌ها', icon: <WalletCards size={16} strokeWidth={2} /> }] : []),
+      ...(hasExpenses ? [{ value: 'expenses', label: t('هزینه‌ها'), icon: <HandCoins size={16} strokeWidth={2} /> }] : []),
+      ...(hasExpenses ? [{ value: 'projects', label: t('پروژه‌ها'), icon: <FolderKanban size={16} strokeWidth={2} /> }] : []),
+      ...(hasAccounts ? [{ value: 'accounts', label: t('حساب‌ها'), icon: <WalletCards size={16} strokeWidth={2} /> }] : []),
       // Android app: the bank messages it read, next to the expenses and incomes they become
-      ...(smsEnabled() && hasExpenses ? [{ value: 'sms', label: 'پیامک‌ها', icon: <MessageSquareText size={16} strokeWidth={2} /> }] : []),
-      { value: 'portfolio', label: 'پورتفو', icon: <Briefcase size={16} strokeWidth={2} /> },
-      { value: 'loans', label: 'وام و اقساط', icon: <Landmark size={16} strokeWidth={2} /> },
-      { value: 'cheques', label: 'چک‌ها', icon: <ReceiptText size={16} strokeWidth={2} /> },
-      ...(user ? [{ value: 'subscriptions', label: 'اشتراک‌ها', icon: <CalendarSync size={16} strokeWidth={2} /> }] : []),
-      ...(user ? [{ value: 'reports', label: 'گزارش‌ها', icon: <ChartColumn size={16} strokeWidth={2} /> }] : []),
+      ...(smsEnabled() && hasExpenses ? [{ value: 'sms', label: t('پیامک‌ها'), icon: <MessageSquareText size={16} strokeWidth={2} /> }] : []),
+      { value: 'portfolio', label: t('پورتفو'), icon: <Briefcase size={16} strokeWidth={2} /> },
+      { value: 'loans', label: t('وام و اقساط'), icon: <Landmark size={16} strokeWidth={2} /> },
+      { value: 'cheques', label: t('چک‌ها'), icon: <ReceiptText size={16} strokeWidth={2} /> },
+      ...(user ? [{ value: 'subscriptions', label: t('اشتراک‌ها'), icon: <CalendarSync size={16} strokeWidth={2} /> }] : []),
+      ...(user ? [{ value: 'reports', label: t('گزارش‌ها'), icon: <ChartColumn size={16} strokeWidth={2} /> }] : []),
       // Free users: the page comparing the plans, with the button to ask for Pro
       ...(user && !isDemo && !isPro ? [{ value: 'pro', label: 'Pro', icon: <Crown size={16} strokeWidth={2} /> }] : []),
     ];
     if (user && !isDemo) {
       options.push(
-        { value: 'settings', label: 'تنظیمات', icon: <Settings size={16} strokeWidth={2} /> }
+        { value: 'settings', label: t('تنظیمات'), icon: <Settings size={16} strokeWidth={2} /> }
       );
       if (isNativeApp()) {
-        options.push({ value: 'app-settings', label: 'تنظیمات اپ', icon: <Smartphone size={16} strokeWidth={2} /> });
+        options.push({ value: 'app-settings', label: t('تنظیمات اپ'), icon: <Smartphone size={16} strokeWidth={2} /> });
       }
     }
     if (user?.role === 'admin') {
       options.push(
-        { value: 'admin', label: 'پنل مدیریت', icon: <ShieldCheck size={16} strokeWidth={2} /> }
+        { value: 'admin', label: t('پنل مدیریت'), icon: <ShieldCheck size={16} strokeWidth={2} /> }
       );
     }
     return options;
@@ -449,10 +450,10 @@ export default function MainPage() {
         <AlertBanner
           type="warning"
           icon={<Wrench size={16} />}
-          message="حالت توسعه فعال است: فقط مدیران به سایت دسترسی دارند و بقیه صفحه «در حال به‌روزرسانی» را می‌بینند."
+          message={t('حالت توسعه فعال است: فقط مدیران به سایت دسترسی دارند و بقیه صفحه «در حال به‌روزرسانی» را می‌بینند.')}
           action={
             <Button size="sm" variant="secondary" onClick={() => handleTabChange('admin')}>
-              پنل مدیریت
+              {t('پنل مدیریت')}
             </Button>
           }
           style={{ marginBottom: '20px' }}
@@ -523,8 +524,8 @@ export default function MainPage() {
             ) : (
               <FeatureOffer
                 feature="market"
-                title="صفحه‌ی نرخ و حباب مخصوص کاربران Pro است"
-                subtitle="بازار امروز را یک‌جا ببینید و صفحه‌ی اول را برای خودتان بچینید."
+                title={t('صفحه‌ی نرخ و حباب مخصوص کاربران Pro است')}
+                subtitle={t('بازار امروز را یک‌جا ببینید و صفحه‌ی اول را برای خودتان بچینید.')}
                 benefits={MARKET_BENEFITS}
               />
             )}
@@ -578,8 +579,8 @@ export default function MainPage() {
         {activeTab === 'news' && (hasNews ? <NewsPage /> : (
           <FeatureOffer
             feature="news"
-            title="اخبار بازار مخصوص کاربران Pro است"
-            subtitle="مهم‌ترین خبرهای ارز، طلا و اقتصاد را با تحلیل روز یک‌جا بخوانید."
+            title={t('اخبار بازار مخصوص کاربران Pro است')}
+            subtitle={t('مهم‌ترین خبرهای ارز، طلا و اقتصاد را با تحلیل روز یک‌جا بخوانید.')}
             benefits={NEWS_BENEFITS}
           />
         ))}
@@ -587,8 +588,8 @@ export default function MainPage() {
         {activeTab === 'reports' && (hasReports ? <ReportsPage /> : (
           <FeatureOffer
             feature="reports"
-            title="گزارش‌های سالانه مخصوص کاربران Pro است"
-            subtitle="درآمد، هزینه و سرمایه‌گذاری یک سال را یک‌جا ببینید."
+            title={t('گزارش‌های سالانه مخصوص کاربران Pro است')}
+            subtitle={t('درآمد، هزینه و سرمایه‌گذاری یک سال را یک‌جا ببینید.')}
             benefits={REPORTS_BENEFITS}
           />
         ))}
@@ -596,8 +597,8 @@ export default function MainPage() {
         {activeTab === 'explore' && (hasMarket ? <ExplorePage /> : (
           <FeatureOffer
             feature="market"
-            title="کاوش بازار مخصوص کاربران Pro است"
-            subtitle="هر دارایی بازار را جست‌وجو کنید و قیمت، اطلاعات و نمودارش را ببینید."
+            title={t('کاوش بازار مخصوص کاربران Pro است')}
+            subtitle={t('هر دارایی بازار را جست‌وجو کنید و قیمت، اطلاعات و نمودارش را ببینید.')}
             benefits={EXPLORE_BENEFITS}
           />
         ))}

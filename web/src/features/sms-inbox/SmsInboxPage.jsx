@@ -14,7 +14,7 @@
  * hand-recorded expense/income of the same day, amount and kind.
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { MessageSquareText, History } from 'lucide-react';
 import { AlertBanner, Button, Card, FeaturePageHeader, FilterPills, NumericInput } from '../../shared/ui/index.js';
@@ -57,11 +57,11 @@ const SMALL_EXPENSE_CATEGORY = 'running_costs';
 const SMALL_INCOME_CATEGORY = 'small_income';
 
 const DAY_OPTIONS = [
-  { value: 1, label: '۲۴ ساعت' },
-  ...[7, 30, 90].map((d) => ({ value: d, label: `${d.toLocaleString(intlLocale())} روز` })),
-  { value: 365, label: '۱ سال' },
-  { value: CUSTOM_DAYS, label: 'دلخواه' },
-  { value: RANGE, label: 'بازه‌ی تاریخ' },
+  { value: 1, label: t('۲۴ ساعت') },
+  ...[7, 30, 90].map((d) => ({ value: d, label: t('{n} روز', { n: d.toLocaleString(intlLocale()) }) })),
+  { value: 365, label: t('۱ سال') },
+  { value: CUSTOM_DAYS, label: t('دلخواه') },
+  { value: RANGE, label: t('بازه‌ی تاریخ') },
 ];
 
 export default function SmsInboxPage() {
@@ -155,9 +155,9 @@ export default function SmsInboxPage() {
     try {
       await recordSmsExpense(item, { accounts: await withMessageAccounts(item) });
       bumpVaultEpoch();
-      toast.success(`هزینه در «${getExpenseCategory(getSmsSettings().recordCategory).label}» ثبت شد.`);
+      toast.success(t('هزینه در «{category}» ثبت شد.', { category: getExpenseCategory(getSmsSettings().recordCategory).label }));
     } catch (err) {
-      toast.error(err?.message || 'ثبت هزینه ممکن نشد.');
+      toast.error(err?.message || t('ثبت هزینه ممکن نشد.'));
     } finally {
       setQuickId(null);
     }
@@ -188,7 +188,7 @@ export default function SmsInboxPage() {
     try {
       await saveTransfer(input);
       for (const msg of transferDraft.items) markSmsHandled(msg.fingerprint);
-      toast.success('انتقال بین حساب‌ها ثبت شد (جزو هزینه و درآمد نیست).');
+      toast.success(t('انتقال بین حساب‌ها ثبت شد (جزو هزینه و درآمد نیست).'));
     } finally {
       setSaving(false);
     }
@@ -198,7 +198,7 @@ export default function SmsInboxPage() {
   const handleRestore = (item) => {
     if (!restoreSms(item)) return;
     setReadHistory((list) => list.filter((h) => h.fingerprint !== item.fingerprint));
-    toast.success('پیامک به فهرست برگشت و می‌توانید آن را ثبت یا ویرایش کنید.');
+    toast.success(t('پیامک به فهرست برگشت و می‌توانید آن را ثبت یا ویرایش کنید.'));
   };
 
   const handleReadPast = async () => {
@@ -206,7 +206,7 @@ export default function SmsInboxPage() {
     setReading(true);
     try {
       if ((await smsPermission()) !== 'granted' && (await smsPermission({ request: true })) !== 'granted') {
-        toast.error('اجازه‌ی خواندن پیامک داده نشد. از تنظیمات گوشی (برنامه‌ها ← RealRate ← مجوزها) آن را بدهید.', { duration: 8000 });
+        toast.error(t('اجازه‌ی خواندن پیامک داده نشد. از تنظیمات گوشی (برنامه‌ها ← RealRate ← مجوزها) آن را بدهید.'), { duration: 8000 });
         return;
       }
       // With the vault open, recorded ones are read again and checked against it: a message whose
@@ -239,9 +239,11 @@ export default function SmsInboxPage() {
         .map((item) => ({ ...item, outcome: smsOutcome(item) }))
         .filter((item) => item.outcome));
       const fresh = Math.max(0, added - dropped - autoRecorded);
-      toast.success(`${read.toLocaleString(intlLocale())} پیامک بانکی خوانده شد؛ ${fresh.toLocaleString(intlLocale())} مورد جدید برای ثبت${autoRecorded ? ` و ${autoRecorded.toLocaleString(intlLocale())} مورد کوچک خودکار ثبت شد` : ''}.`);
+      toast.success(autoRecorded
+        ? t('{read} پیامک بانکی خوانده شد؛ {fresh} مورد جدید برای ثبت و {auto} مورد کوچک خودکار ثبت شد.', { read: read.toLocaleString(intlLocale()), fresh: fresh.toLocaleString(intlLocale()), auto: autoRecorded.toLocaleString(intlLocale()) })
+        : t('{read} پیامک بانکی خوانده شد؛ {fresh} مورد جدید برای ثبت.', { read: read.toLocaleString(intlLocale()), fresh: fresh.toLocaleString(intlLocale()) }));
     } catch (err) {
-      toast.error(err?.message || 'خواندن پیامک‌ها ممکن نشد.');
+      toast.error(err?.message || t('خواندن پیامک‌ها ممکن نشد.'));
     } finally {
       setReading(false);
       setProgress(null);
@@ -252,12 +254,12 @@ export default function SmsInboxPage() {
     <div className="incomes-page-container sms-inbox-page">
       <FeaturePageHeader
         icon={<MessageSquareText size={24} />}
-        title="پیامک‌های بانکی"
+        title={t('پیامک‌های بانکی')}
         help="sms"
-        subtitle="برداشت‌ها و واریزهای خوانده‌شده از پیامک بانک؛ دسته را انتخاب و ثبت کنید"
+        subtitle={t('برداشت‌ها و واریزهای خوانده‌شده از پیامک بانک؛ دسته را انتخاب و ثبت کنید')}
       />
 
-      {locked && <VaultUnlockCard title="برای ثبت، اطلاعات رمزنگاری‌شده را باز کنید" />}
+      {locked && <VaultUnlockCard title={t('برای ثبت، اطلاعات رمزنگاری‌شده را باز کنید')} />}
 
       <Card className="sms-inbox-page-card" padding="lg">
         <SmsInboxList
@@ -277,8 +279,8 @@ export default function SmsInboxPage() {
         className="sms-inbox-page-card"
         padding="lg"
         icon={<History size={18} />}
-        title="خواندن پیامک‌های قبلی"
-        subtitle="خواندن خودکار فقط پیامک‌هایی را می‌گیرد که از زمان روشن شدنش می‌رسند؛ پیامک‌های قبل را اینجا بخوانید (تکراری‌ها کنار گذاشته می‌شوند؛ ثبت‌شده‌ها زیر همین کارت جدا نشان داده می‌شوند)."
+        title={t('خواندن پیامک‌های قبلی')}
+        subtitle={t('خواندن خودکار فقط پیامک‌هایی را می‌گیرد که از زمان روشن شدنش می‌رسند؛ پیامک‌های قبل را اینجا بخوانید (تکراری‌ها کنار گذاشته می‌شوند؛ ثبت‌شده‌ها زیر همین کارت جدا نشان داده می‌شوند).')}
       >
         <div className="app-setting-actions">
           <FilterPills options={DAY_OPTIONS} activeValue={days} onChange={setDays} size="sm" />
@@ -288,55 +290,55 @@ export default function SmsInboxPage() {
                 id="sms-read-days"
                 value={customDays}
                 onValueChange={setCustomDays}
-                placeholder="مثلاً ۱۸۰"
+                placeholder={t('مثلاً ۱۸۰')}
                 className="ui-input-control"
-                aria-label="تعداد روز"
+                aria-label={t('تعداد روز')}
               />
-              <span>روز گذشته</span>
+              <span>{t('روز گذشته')}</span>
             </label>
           )}
-          <Button size="sm" onClick={handleReadPast} loading={reading} disabled={!readReady}>بخوان</Button>
+          <Button size="sm" onClick={handleReadPast} loading={reading} disabled={!readReady}>{t('بخوان')}</Button>
         </div>
         {days === RANGE && (
           <div className="sms-read-range">
-            <DateField label="از تاریخ" value={fromShamsi} onChange={setFromShamsi} />
-            <DateField label="تا تاریخ" value={toShamsi} onChange={setToShamsi} />
-            {!rangeValid && <p className="expense-form-hint is-warning">تاریخ «از» باید پیش از «تا» (یا همان روز) باشد.</p>}
+            <DateField label={t('از تاریخ')} value={fromShamsi} onChange={setFromShamsi} />
+            <DateField label={t('تا تاریخ')} value={toShamsi} onChange={setToShamsi} />
+            {!rangeValid && <p className="expense-form-hint is-warning">{t('تاریخ «از» باید پیش از «تا» (یا همان روز) باشد.')}</p>}
           </div>
         )}
         <div className="sms-read-auto">
           <label className="app-switch">
-            <input type="checkbox" role="switch" checked={autoSmall} onChange={(e) => setAutoSmall(e.target.checked)} aria-label="ثبت خودکار موارد کوچک این خواندن" />
+            <input type="checkbox" role="switch" checked={autoSmall} onChange={(e) => setAutoSmall(e.target.checked)} aria-label={t('ثبت خودکار موارد کوچک این خواندن')} />
             <span className="app-switch-track" aria-hidden="true" />
           </label>
-          <span>ثبت خودکار موارد کوچک همین خواندن (نیازمند باز بودن اطلاعات رمزنگاری‌شده)</span>
+          <span>{t('ثبت خودکار موارد کوچک همین خواندن (نیازمند باز بودن اطلاعات رمزنگاری‌شده)')}</span>
         </div>
         {autoSmall && (
           <div className="sms-read-auto-fields">
             <div className="app-setting-field">
-              <label htmlFor="sms-small-expense">هزینه‌ی تا مبلغ (در «هزینه‌های جاری»)</label>
-              <NumericInput id="sms-small-expense" value={smallExpense} onValueChange={setSmallExpense} affix="تومان" />
+              <label htmlFor="sms-small-expense">{t('هزینه‌ی تا مبلغ (در «هزینه‌های جاری»)')}</label>
+              <NumericInput id="sms-small-expense" value={smallExpense} onValueChange={setSmallExpense} affix={t('تومان')} />
             </div>
             <div className="app-setting-field">
-              <label htmlFor="sms-small-income">واریز تا مبلغ (در «درآمد خرد»)</label>
-              <NumericInput id="sms-small-income" value={smallIncome} onValueChange={setSmallIncome} affix="تومان" />
+              <label htmlFor="sms-small-income">{t('واریز تا مبلغ (در «درآمد خرد»)')}</label>
+              <NumericInput id="sms-small-income" value={smallIncome} onValueChange={setSmallIncome} affix={t('تومان')} />
             </div>
-            <small>مبلغ صفر یعنی آن نوع ثبت نشود. بقیه‌ی پیامک‌ها مثل همیشه در فهرست می‌مانند.</small>
+            <small>{t('مبلغ صفر یعنی آن نوع ثبت نشود. بقیه‌ی پیامک‌ها مثل همیشه در فهرست می‌مانند.')}</small>
           </div>
         )}
         {days === CUSTOM_DAYS && !customValid && customDays !== '' && (
-          <p className="expense-form-hint is-warning">بین ۱ تا {MAX_READ_DAYS.toLocaleString(intlLocale())} روز.</p>
+          <p className="expense-form-hint is-warning">{t('بین ۱ تا {max} روز.', { max: MAX_READ_DAYS.toLocaleString(intlLocale()) })}</p>
         )}
         {progress && (
           <p className="expense-form-hint" role="status">
             {progress.stage === 'recording'
-              ? 'در حال ثبت خودکار موارد کوچک…'
+              ? t('در حال ثبت خودکار موارد کوچک…')
               : progress.stage === 'reading'
-              ? `در حال خواندن پیامک‌ها: بازه‌ی ${progress.done.toLocaleString(intlLocale())} از ${progress.total.toLocaleString(intlLocale())} (${(progress.messages || 0).toLocaleString(intlLocale())} پیامک تا اینجا)`
-              : `در حال بررسی پیامک‌ها: ${progress.done.toLocaleString(intlLocale())} از ${progress.total.toLocaleString(intlLocale())}`}
+              ? t('در حال خواندن پیامک‌ها: بازه‌ی {done} از {total} ({messages} پیامک تا اینجا)', { done: progress.done.toLocaleString(intlLocale()), total: progress.total.toLocaleString(intlLocale()), messages: (progress.messages || 0).toLocaleString(intlLocale()) })
+              : t('در حال بررسی پیامک‌ها: {done} از {total}', { done: progress.done.toLocaleString(intlLocale()), total: progress.total.toLocaleString(intlLocale()) })}
           </p>
         )}
-        {!progress && readDays > 90 && <p className="expense-form-hint">خواندن بازه‌ی طولانی ممکن است چند ثانیه طول بکشد.</p>}
+        {!progress && readDays > 90 && <p className="expense-form-hint">{t('خواندن بازه‌ی طولانی ممکن است چند ثانیه طول بکشد.')}</p>}
       </Card>
 
       <SmsReadHistory items={readHistory} onRestore={handleRestore} />
@@ -349,7 +351,7 @@ export default function SmsInboxPage() {
           accounts={accounts.filter((a) => !a.archived)}
           submitting={saving}
           onClose={() => setExpenseDraft(null)}
-          onSubmit={record(saveSmsExpense, expenseDraft, 'هزینه ثبت شد.')}
+          onSubmit={record(saveSmsExpense, expenseDraft, t('هزینه ثبت شد.'))}
         />
       )}
       {loanItem && <LoanDepositSheet item={loanItem} onClose={() => setLoanItem(null)} />}
@@ -372,7 +374,7 @@ export default function SmsInboxPage() {
           accounts={accounts.filter((a) => !a.archived)}
           submitting={saving}
           onClose={() => setProjectDraft(null)}
-          onSubmit={record(saveSmsExpense, projectDraft.draft, 'هزینه ثبت شد.')}
+          onSubmit={record(saveSmsExpense, projectDraft.draft, t('هزینه ثبت شد.'))}
         />
       )}
       {transferDraft && (
@@ -383,7 +385,7 @@ export default function SmsInboxPage() {
           onClose={() => setTransferDraft(null)}
           onSubmit={handleSaveTransfer}
           note={transferDraft.items.length > 1 && (
-            <AlertBanner type="info" message="پیامک طرف دیگر این انتقال (همان مبلغ، همان روز) هم پیدا شد و با ثبت آن کنار گذاشته می‌شود." />
+            <AlertBanner type="info" message={t('پیامک طرف دیگر این انتقال (همان مبلغ، همان روز) هم پیدا شد و با ثبت آن کنار گذاشته می‌شود.')} />
           )}
         />
       )}
@@ -394,7 +396,7 @@ export default function SmsInboxPage() {
           accounts={accounts.filter((a) => !a.archived)}
           submitting={saving}
           onClose={() => setIncomeDraft(null)}
-          onSubmit={record(createIncome, incomeDraft, 'درآمد ثبت شد.')}
+          onSubmit={record(createIncome, incomeDraft, t('درآمد ثبت شد.'))}
         />
       )}
     </div>

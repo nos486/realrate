@@ -5,6 +5,7 @@
  * settings keeps the same links.
  */
 
+import { t } from '../../utils/i18n.js';
 import React, { useCallback, useState } from 'react';
 import AppSheet from './AppSheet.jsx';
 import { Button } from '../ui/index.js';
@@ -44,9 +45,9 @@ function Notice() {
   if (!open || !userId || user?.demo || wasSeen(userId)) return null;
 
   return (
-    <AppSheet open onClose={close} title="نسخه‌ی Google Play" className="app-setup-sheet">
+    <AppSheet open onClose={close} title={t('نسخه‌ی Google Play')} className="app-setup-sheet">
       <p className="app-setup-intro">
-        نسخه‌ی Google Play نسخه‌ی ناقص‌تری است: بدون خواندن خودکار پیامک بانک. برای تجربه‌ی کامل، نسخه‌ی گیت‌هاب را نصب کنید.
+        {t('نسخه‌ی Google Play نسخه‌ی ناقص‌تری است: بدون خواندن خودکار پیامک بانک. برای تجربه‌ی کامل، نسخه‌ی گیت‌هاب را نصب کنید.')}
       </p>
       <p className="app-setup-note" dir="ltr">
         <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">github.com/nos486/realrate</a>
@@ -54,7 +55,7 @@ function Notice() {
         <a href={`${GITHUB_URL}/releases/latest`} target="_blank" rel="noopener noreferrer">github.com/nos486/realrate/releases/latest</a>
       </p>
       <div className="app-setup-actions">
-        <Button onClick={close}>متوجه شدم</Button>
+        <Button onClick={close}>{t('متوجه شدم')}</Button>
       </div>
     </AppSheet>
   );

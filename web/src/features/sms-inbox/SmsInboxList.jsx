@@ -17,7 +17,8 @@
  * for good. With messages from more than one bank, pills above the list filter them by bank.
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
+import { toPersianDigits } from '../../shared/utils/formatters.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { MessageSquareText, Check, X, ArrowDownLeft, ArrowUpRight, BellRing, Inbox, Zap, Landmark, HandCoins, FolderOpen, ArrowLeftRight } from 'lucide-react';
 import { ActionMenu, Button, EmptyState } from '../../shared/ui/index.js';
@@ -33,7 +34,7 @@ import { formatAmount } from '../expenses/utils/format.js';
 /** Rows shown at a time: a long inbox (hundreds of messages) is revealed a page at a time */
 const PAGE_SIZE = 50;
 
-const faTime = (time) => time.replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+const faTime = (v) => toPersianDigits(v);
 
 function EnableCard({ onChange }) {
   const { toast } = useFeedback();
@@ -45,9 +46,9 @@ function EnableCard({ onChange }) {
       const { permission } = await enableSmsReading();
       onChange(permission);
       if (permission !== 'granted') {
-        toast.error('اجازه‌ی خواندن پیامک داده نشد. از تنظیمات گوشی (برنامه‌ها ← RealRate ← مجوزها) آن را بدهید.', { duration: 8000 });
+        toast.error(t('اجازه‌ی خواندن پیامک داده نشد. از تنظیمات گوشی (برنامه‌ها ← RealRate ← مجوزها) آن را بدهید.'), { duration: 8000 });
       } else {
-        toast.success('از این پس پیامک‌های بانک خودکار خوانده می‌شوند.');
+        toast.success(t('از این پس پیامک‌های بانک خودکار خوانده می‌شوند.'));
       }
     } finally {
       setBusy(false);
@@ -58,23 +59,23 @@ function EnableCard({ onChange }) {
     <section className="sms-inbox-card is-setup">
       <header className="sms-inbox-head">
         <BellRing size={18} />
-        <h4>ثبت خودکار از پیامک بانک</h4>
+        <h4>{t('ثبت خودکار از پیامک بانک')}</h4>
       </header>
       <p className="sms-inbox-setup-text">
-        از این پس با هر پیامک برداشت یا واریز بانک اعلانی می‌آید و مبلغ و تاریخ آماده‌ی ثبت است؛ فقط دسته را انتخاب کنید.
+        {t('از این پس با هر پیامک برداشت یا واریز بانک اعلانی می‌آید و مبلغ و تاریخ آماده‌ی ثبت است؛ فقط دسته را انتخاب کنید.')}
       </p>
       <ul className="sms-inbox-privacy">
-        <li>فقط پیامک‌های <strong>برداشت و واریز</strong> فرستنده‌های بانک (<bdi dir="ltr">{SMS_SENDERS.join(', ')}</bdi>) خوانده می‌شوند؛ پیامک‌های دیگر — حتی پیام‌های دیگر بانک — به برنامه نمی‌رسند و اعلانی ندارند.</li>
-        <li>پیامک‌های رمز پویا و کد تأیید، حتی از خود بانک، همان‌جا کنار گذاشته می‌شوند و خوانده یا نمایش داده نمی‌شوند.</li>
-        <li>متن پیامک از گوشی خارج نمی‌شود و ذخیره هم نمی‌شود؛ فقط مبلغ و تاریخی که ثبت می‌کنید، رمزنگاری‌شده، ذخیره می‌شود.</li>
-        <li>اعلان‌ها متن پیامک را نشان نمی‌دهند. هر وقت بخواهید از تنظیمات اپ یا گوشی خاموشش کنید.</li>
+        <li>{t('فقط پیامک‌های')} <strong>{t('برداشت و واریز')}</strong> {t('فرستنده‌های بانک (')}<bdi dir="ltr">{SMS_SENDERS.join(', ')}</bdi>{t(') خوانده می‌شوند؛ پیامک‌های دیگر — حتی پیام‌های دیگر بانک — به برنامه نمی‌رسند و اعلانی ندارند.')}</li>
+        <li>{t('پیامک‌های رمز پویا و کد تأیید، حتی از خود بانک، همان‌جا کنار گذاشته می‌شوند و خوانده یا نمایش داده نمی‌شوند.')}</li>
+        <li>{t('متن پیامک از گوشی خارج نمی‌شود و ذخیره هم نمی‌شود؛ فقط مبلغ و تاریخی که ثبت می‌کنید، رمزنگاری‌شده، ذخیره می‌شود.')}</li>
+        <li>{t('اعلان‌ها متن پیامک را نشان نمی‌دهند. هر وقت بخواهید از تنظیمات اپ یا گوشی خاموشش کنید.')}</li>
       </ul>
       <div className="sms-inbox-setup-actions">
         <Button size="sm" icon={<MessageSquareText size={14} />} onClick={handleEnable} loading={busy}>
-          فعال کردن
+          {t('فعال کردن')}
         </Button>
         <Button size="sm" variant="secondary" onClick={() => setSmsSettings({ auto: false })} disabled={busy}>
-          نه، ممنون
+          {t('نه، ممنون')}
         </Button>
       </div>
     </section>
@@ -114,14 +115,14 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
   /** «رد همه»: after a confirmation, every message of the bank on show (all banks when none is picked) is dismissed */
   const handleDismissAll = async () => {
     const ok = await confirm({
-      title: 'رد همه‌ی پیامک‌ها',
-      message: `${matching.length.toLocaleString(intlLocale())} پیامک کنار گذاشته می‌شود و ثبت نمی‌شود. ادامه می‌دهید؟`,
-      confirmLabel: 'رد همه',
+      title: t('رد همه‌ی پیامک‌ها'),
+      message: t('{n} پیامک کنار گذاشته می‌شود و ثبت نمی‌شود. ادامه می‌دهید؟', { n: matching.length.toLocaleString(intlLocale()) }),
+      confirmLabel: t('رد همه'),
       danger: true,
     });
     if (!ok) return;
     dismissSmsMany(matching.map((item) => item.fingerprint));
-    toast.success(`${matching.length.toLocaleString(intlLocale())} پیامک رد شد.`);
+    toast.success(t('{n} پیامک رد شد.', { n: matching.length.toLocaleString(intlLocale()) }));
   };
 
   if (permission && permission !== 'granted' && settings.auto) return <EnableCard onChange={setPermission} />;
@@ -130,10 +131,10 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
     return (
       <EmptyState
         icon={<Inbox size={40} strokeWidth={1.5} />}
-        title="پیامک ثبت‌نشده‌ای نیست"
+        title={t('پیامک ثبت‌نشده‌ای نیست')}
         description={permission === 'granted' && settings.auto
-          ? 'پیامک‌های بانک به محض رسیدن اینجا می‌آیند.'
-          : 'خواندن خودکار پیامک خاموش است (تنظیمات اپ).'}
+          ? t('پیامک‌های بانک به محض رسیدن اینجا می‌آیند.')
+          : t('خواندن خودکار پیامک خاموش است (تنظیمات اپ).')}
       />
     );
   }
@@ -141,7 +142,7 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
   return (
     <>
     {banks.length > 1 && (
-      <div className="tx-filter-pills-bar sms-bank-filter" role="group" aria-label="فیلتر بانک">
+      <div className="tx-filter-pills-bar sms-bank-filter" role="group" aria-label={t('فیلتر بانک')}>
         {[{ id: 'all', count: pending.length }, ...banks].map(({ id, bank, count }) => (
           <button
             key={id || 'unknown'}
@@ -150,7 +151,7 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
             aria-pressed={activeBank === id}
             onClick={() => { setBankFilter(id); setLimit(PAGE_SIZE); }}
           >
-            {id === 'all' ? 'همه‌ی بانک‌ها' : <><BankLogo bank={bank} size={16} /> {bank.shortName}</>}
+            {id === 'all' ? t('همه‌ی بانک‌ها') : <><BankLogo bank={bank} size={16} /> {bank.shortName}</>}
             <span className="cheque-filter-count">{count.toLocaleString(intlLocale())}</span>
           </button>
         ))}
@@ -158,10 +159,10 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
     )}
     <div className="sms-inbox-bulk">
       <Button size="sm" variant="secondary" icon={<X size={14} />} onClick={handleDismissAll}>
-        رد همه ({matching.length.toLocaleString(intlLocale())})
+        {t('رد همه ({n})', { n: matching.length.toLocaleString(intlLocale()) })}
       </Button>
     </div>
-    <ul className="sms-inbox-list" aria-label="پیامک‌های بانکی ثبت‌نشده">
+    <ul className="sms-inbox-list" aria-label={t('پیامک‌های بانکی ثبت‌نشده')}>
       {shown.map((item) => {
         const { tx } = item;
         const bank = resolveBank({ bankId: tx.bankId });
@@ -176,9 +177,9 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
               <strong>
                 <span className="sms-inbox-kind">
                   {isDebit ? <ArrowUpRight size={13} /> : <ArrowDownLeft size={13} />}
-                  {isDebit ? 'برداشت' : 'واریز'}
+                  {isDebit ? t('برداشت') : t('واریز')}
                 </span>
-                {formatAmount(tx.amount)} <small>تومان</small>
+                {formatAmount(tx.amount)} <small>{t('تومان')}</small>
               </strong>
               <span>
                 {tx.date ? formatShamsiDisplay(`${tx.date}T00:00:00`) : bank.shortName}
@@ -196,13 +197,13 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
                   onClick={() => onQuickRecord(item)}
                   loading={quickRecordingId === item.fingerprint}
                   disabled={!canRecord || Boolean(quickRecordingId)}
-                  title="بدون فرم، با دسته‌ی تنظیمات اپ ثبت می‌شود"
+                  title={t('بدون فرم، با دسته‌ی تنظیمات اپ ثبت می‌شود')}
                 >
-                  ثبت سریع
+                  {t('ثبت سریع')}
                 </Button>
               ) : (
                 <Button size="sm" icon={<Check size={14} />} onClick={() => onRecord(item)} disabled={!canRecord}>
-                  ثبت
+                  {t('ثبت')}
                 </Button>
               )}
               <Button
@@ -211,25 +212,25 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
                 icon={<X size={14} />}
                 className="sms-inbox-dismiss"
                 onClick={() => dismissSms(item.fingerprint)}
-                title="این پیامک کنار گذاشته شود (ثبت نمی‌شود)"
+                title={t('این پیامک کنار گذاشته شود (ثبت نمی‌شود)')}
               >
-                رد
+                {t('رد')}
               </Button>
               <ActionMenu
-                label="گزینه‌های این پیامک"
+                label={t('گزینه‌های این پیامک')}
                 items={[
-                  quick && { key: 'record', label: 'ثبت با فرم', icon: <Check size={16} />, onClick: () => onRecord(item), disabled: !canRecord },
+                  quick && { key: 'record', label: t('ثبت با فرم'), icon: <Check size={16} />, onClick: () => onRecord(item), disabled: !canRecord },
                   onRecordToProject && isDebit && {
-                    key: 'project', label: 'ثبت در یک پروژه', icon: <FolderOpen size={16} />, onClick: () => onRecordToProject(item), disabled: !canRecord,
+                    key: 'project', label: t('ثبت در یک پروژه'), icon: <FolderOpen size={16} />, onClick: () => onRecordToProject(item), disabled: !canRecord,
                   },
                   onLoanDeposit && !isDebit && {
-                    key: 'loan', label: 'دریافت وام (درآمد نیست)', icon: <Landmark size={16} />, onClick: () => onLoanDeposit(item), disabled: !canRecord,
+                    key: 'loan', label: t('دریافت وام (درآمد نیست)'), icon: <Landmark size={16} />, onClick: () => onLoanDeposit(item), disabled: !canRecord,
                   },
                   onShareDeposit && !isDebit && {
-                    key: 'share', label: 'دنگ یک هزینه (درآمد نیست)', icon: <HandCoins size={16} />, onClick: () => onShareDeposit(item), disabled: !canRecord,
+                    key: 'share', label: t('دنگ یک هزینه (درآمد نیست)'), icon: <HandCoins size={16} />, onClick: () => onShareDeposit(item), disabled: !canRecord,
                   },
                   onTransfer && {
-                    key: 'transfer', label: 'انتقال بین حساب‌های خودم', icon: <ArrowLeftRight size={16} />, onClick: () => onTransfer(item), disabled: !canRecord,
+                    key: 'transfer', label: t('انتقال بین حساب‌های خودم'), icon: <ArrowLeftRight size={16} />, onClick: () => onTransfer(item), disabled: !canRecord,
                   },
                 ]}
               />
@@ -240,7 +241,7 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
     </ul>
     {matching.length > shown.length && (
       <Button block variant="secondary" onClick={() => setLimit((n) => n + PAGE_SIZE)}>
-        نمایش بیشتر ({(matching.length - shown.length).toLocaleString(intlLocale())} پیامک دیگر)
+        {t('نمایش بیشتر ({n} پیامک دیگر)', { n: (matching.length - shown.length).toLocaleString(intlLocale()) })}
       </Button>
     )}
     </>

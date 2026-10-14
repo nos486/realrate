@@ -5,6 +5,7 @@
  * message (SmsInboxPage). Without a project, a link to make one on the expenses page.
  */
 
+import { t } from '../../utils/i18n.js';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FolderOpen, ChevronLeft, Plus } from 'lucide-react';
@@ -31,22 +32,22 @@ export default function ProjectPickSheet({ item, onPick, onClose }) {
     <Modal
       isOpen
       onClose={onClose}
-      title="ثبت در یک پروژه"
-      subtitle={`${formatAmount(item.tx.amount)} تومان — در کدام پروژه ثبت شود؟`}
+      title={t('ثبت در یک پروژه')}
+      subtitle={t('{amount} تومان — در کدام پروژه ثبت شود؟', { amount: formatAmount(item.tx.amount) })}
       icon={<FolderOpen size={18} />}
       maxWidth="460px"
     >
       <div className="loan-deposit-body">
         {state.loading ? (
-          <SkeletonRows rows={3} columns={2} label="در حال دریافت پروژه‌ها" />
+          <SkeletonRows rows={3} columns={2} label={t('در حال دریافت پروژه‌ها')} />
         ) : state.projects.length === 0 ? (
           <EmptyState
             icon={<FolderOpen size={36} strokeWidth={1.5} />}
-            title="پروژه‌ای ندارید"
-            description="در صفحه‌ی هزینه‌ها، بخش «پروژه‌ها»، یک پروژه (مثلاً سفر یا تعمیر خانه) بسازید."
+            title={t('پروژه‌ای ندارید')}
+            description={t('در صفحه‌ی هزینه‌ها، بخش «پروژه‌ها»، یک پروژه (مثلاً سفر یا تعمیر خانه) بسازید.')}
             action={(
               <Button icon={<Plus size={16} />} onClick={() => { onClose(); navigate(appPath('/projects')); }}>
-                ساخت پروژه
+                {t('ساخت پروژه')}
               </Button>
             )}
           />

@@ -6,6 +6,7 @@
  * it for SNOOZE_DAYS in this browser.
  */
 
+import { t } from '../../utils/i18n.js';
 import React, { useState } from 'react';
 import { Smartphone, Download, X } from 'lucide-react';
 import { isNativeApp } from '../native/nativeApp.js';
@@ -40,19 +41,19 @@ export default function AppSuggestBanner() {
   };
 
   return (
-    <div className="app-suggest-banner" role="complementary" aria-label="اپ اندروید RealRate">
+    <div className="app-suggest-banner" role="complementary" aria-label={t('اپ اندروید RealRate')}>
       <span className="app-suggest-icon"><Smartphone size={20} /></span>
       <div className="app-suggest-text">
-        <strong>اپ اندروید RealRate راحت‌تر و سریع‌تر است</strong>
-        <span>باز شدن فوری و کار بدون اینترنت، ثبت خودکار هزینه از پیامک بانک، ورود با اثر انگشت</span>
+        <strong>{t('اپ اندروید RealRate راحت‌تر و سریع‌تر است')}</strong>
+        <span>{t('باز شدن فوری و کار بدون اینترنت، ثبت خودکار هزینه از پیامک بانک، ورود با اثر انگشت')}</span>
       </div>
       <div className="app-suggest-actions">
         <a className="ui-btn ui-btn-primary ui-btn-sm" href={ANDROID_APK_URL} rel="noopener">
-          <Download size={14} /> دانلود اپ
+          <Download size={14} /> {t('دانلود اپ')}
         </a>
-        <a className="app-suggest-guide" href="/android">راهنمای نصب</a>
+        <a className="app-suggest-guide" href="/android">{t('راهنمای نصب')}</a>
       </div>
-      <button type="button" className="app-suggest-close" onClick={dismiss} aria-label="بستن">
+      <button type="button" className="app-suggest-close" onClick={dismiss} aria-label={t('بستن')}>
         <X size={16} />
       </button>
     </div>

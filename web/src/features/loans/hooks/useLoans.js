@@ -3,6 +3,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { t } from '../../../utils/i18n.js';
 import { useRefreshHandler } from '../../../shared/refresh/pageRefresh.js';
 import { useAuth } from '../../auth/index.js';
 import { useVault } from '../../../shared/vault/useVault.js';
@@ -49,7 +50,7 @@ export function useLoans() {
         setLoans([]);
       }
     } catch (err) {
-      setError(err.message || 'خطا در بارگذاری لیست وام‌ها');
+      setError(err.message || t('خطا در بارگذاری لیست وام‌ها'));
       setLoans([]);
     } finally {
       setLoadingLoans(false);
@@ -80,9 +81,9 @@ export function useLoans() {
           await fetchLoans();
           return res.loan;
         }
-        throw new Error(res?.message || 'خطا در ایجاد وام');
+        throw new Error(res?.message || t('خطا در ایجاد وام'));
       } catch (err) {
-        setError(err.message || 'خطا در ایجاد وام');
+        setError(err.message || t('خطا در ایجاد وام'));
         throw err;
       } finally {
         setSubmitting(false);
@@ -107,9 +108,9 @@ export function useLoans() {
           await fetchLoans();
           return res.loan;
         }
-        throw new Error(res?.message || 'خطا در ویرایش وام');
+        throw new Error(res?.message || t('خطا در ویرایش وام'));
       } catch (err) {
-        setError(err.message || 'خطا در ویرایش وام');
+        setError(err.message || t('خطا در ویرایش وام'));
         throw err;
       } finally {
         setSubmitting(false);
@@ -137,14 +138,14 @@ export function useLoans() {
         // Its expenses go with it; a failure there never undoes the deletion
         if (recordsSpending) {
           await removeLoanPayments(loanId, extraPaymentIds).catch((err) => {
-            setError(`وام حذف شد، ولی هزینه‌هایش پاک نشد: ${err?.message || ''}`.trim());
+            setError(t('وام حذف شد، ولی هزینه‌هایش پاک نشد: {reason}', { reason: err?.message || '' }).trim());
           });
         }
         return true;
       }
-      throw new Error(res?.message || 'خطا در حذف وام');
+      throw new Error(res?.message || t('خطا در حذف وام'));
     } catch (err) {
-      setError(err.message || 'خطا در حذف وام');
+      setError(err.message || t('خطا در حذف وام'));
       throw err;
     } finally {
       setSubmitting(false);

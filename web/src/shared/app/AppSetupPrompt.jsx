@@ -9,6 +9,7 @@
  * automatic reading isn't on yet, the fingerprint where the phone has one and it isn't set up.
  */
 
+import { t } from '../../utils/i18n.js';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Fingerprint, MessageSquareText, Check } from 'lucide-react';
 import AppSheet from './AppSheet.jsx';
@@ -102,22 +103,22 @@ export default function AppSetupPrompt() {
     if (needs.sms && !result.sms) {
       const { permission } = await enableSmsReading();
       result.sms = permission === 'granted';
-      if (!result.sms) toast.error('اجازه‌ی خواندن پیامک داده نشد؛ بعداً از «تنظیمات اپ» یا تنظیمات گوشی قابل فعال شدن است.', { duration: 7000 });
+      if (!result.sms) toast.error(t('اجازه‌ی خواندن پیامک داده نشد؛ بعداً از «تنظیمات اپ» یا تنظیمات گوشی قابل فعال شدن است.'), { duration: 7000 });
     }
     if (needs.fingerprint && !result.fingerprint) {
       try {
         await enableBiometric();
         result.fingerprint = true;
       } catch (err) {
-        if (err?.code !== 'CANCELED') toast.error(err?.message || 'فعال کردن اثر انگشت ممکن نشد.');
+        if (err?.code !== 'CANCELED') toast.error(err?.message || t('فعال کردن اثر انگشت ممکن نشد.'));
       }
     }
     setDone(result);
     setBusy(false);
     const all = (!needs.sms || result.sms) && (!needs.fingerprint || result.fingerprint);
     if (all) {
-      const parts = [needs.sms && 'پیامک‌های بانک خوانده می‌شوند', needs.fingerprint && 'اپ با اثر انگشت باز می‌شود'].filter(Boolean);
-      toast.success(`آماده است: ${parts.join(' و ')}.`);
+      const parts = [needs.sms && t('پیامک‌های بانک خوانده می‌شوند'), needs.fingerprint && t('اپ با اثر انگشت باز می‌شود')].filter(Boolean);
+      toast.success(t('آماده است: {parts}.', { parts: parts.length === 2 ? t('{a} و {b}', { a: parts[0], b: parts[1] }) : parts[0] }));
       close();
     }
   };
@@ -125,29 +126,29 @@ export default function AppSetupPrompt() {
   if (!needs) return null;
 
   return (
-    <AppSheet open onClose={close} title="راه‌اندازی اپ" className="app-setup-sheet">
-      <p className="app-setup-intro">دو کار کوچک تا اپ کامل کار کند:</p>
+    <AppSheet open onClose={close} title={t('راه‌اندازی اپ')} className="app-setup-sheet">
+      <p className="app-setup-intro">{t('دو کار کوچک تا اپ کامل کار کند:')}</p>
       {needs.sms && (
         <SetupItem
           on={done.sms}
           Icon={MessageSquareText}
-          title="خواندن پیامک‌های بانک"
-          text="برداشت و واریز از پیامک بانک خوانده می‌شود تا فقط دسته‌اش را بزنید. متن پیامک‌ها روی گوشی می‌ماند."
+          title={t('خواندن پیامک‌های بانک')}
+          text={t('برداشت و واریز از پیامک بانک خوانده می‌شود تا فقط دسته‌اش را بزنید. متن پیامک‌ها روی گوشی می‌ماند.')}
         />
       )}
       {needs.fingerprint && (
         <SetupItem
           on={done.fingerprint}
           Icon={Fingerprint}
-          title="باز کردن با اثر انگشت"
-          text="اطلاعات رمزنگاری‌شده بدون تایپ رمز عبور باز می‌شود."
+          title={t('باز کردن با اثر انگشت')}
+          text={t('اطلاعات رمزنگاری‌شده بدون تایپ رمز عبور باز می‌شود.')}
         />
       )}
       <div className="app-setup-actions">
-        <Button onClick={enableAll} loading={busy}>فعال کن</Button>
-        <Button variant="ghost" onClick={close} disabled={busy}>بعداً</Button>
+        <Button onClick={enableAll} loading={busy}>{t('فعال کن')}</Button>
+        <Button variant="ghost" onClick={close} disabled={busy}>{t('بعداً')}</Button>
       </div>
-      <p className="app-setup-note">هر دو بعداً هم از «تنظیمات اپ» قابل تغییرند.</p>
+      <p className="app-setup-note">{t('هر دو بعداً هم از «تنظیمات اپ» قابل تغییرند.')}</p>
     </AppSheet>
   );
 }

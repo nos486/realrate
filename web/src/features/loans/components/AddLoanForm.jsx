@@ -14,7 +14,7 @@
  * rarely needed (the annual fee, notes, reminders) under «جزئیات بیشتر».
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { t, intlLocale } from '../../../utils/i18n.js';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Landmark, AlertCircle, Calculator } from 'lucide-react';
 import { AlertBanner, FilterPills, Input, Modal, NumericInput } from '../../../shared/ui/index.js';
@@ -39,17 +39,17 @@ const formatPersianNum = (val) => Number(val || 0).toLocaleString(intlLocale());
 
 /** How installment amounts are set, on creation (see installmentMode) */
 const INSTALLMENT_MODES = [
-  { value: 'standard', label: 'نرخ سود سالانه' },
-  { value: 'totalRepaymentBased', label: 'کل بازپرداخت را می‌دانم' },
+  { value: 'standard', label: t('نرخ سود سالانه') },
+  { value: 'totalRepaymentBased', label: t('کل بازپرداخت را می‌دانم') },
 ];
 
 /** The payment interval, in months (a picker row: its value is the month count as a string) */
 const INTERVAL_OPTIONS = [
-  { value: '1', label: 'ماهانه (هر ۱ ماه)' },
-  { value: '2', label: 'دو ماه یک‌بار' },
-  { value: '3', label: 'فصلی (هر ۳ ماه)' },
-  { value: '6', label: 'شش‌ماهه (هر ۶ ماه)' },
-  { value: '12', label: 'سالانه (هر ۱۲ ماه)' },
+  { value: '1', label: t('ماهانه (هر ۱ ماه)') },
+  { value: '2', label: t('دو ماه یک‌بار') },
+  { value: '3', label: t('فصلی (هر ۳ ماه)') },
+  { value: '6', label: t('شش‌ماهه (هر ۶ ماه)') },
+  { value: '12', label: t('سالانه (هر ۱۲ ماه)') },
 ];
 
 export default function AddLoanForm({
@@ -271,7 +271,7 @@ export default function AddLoanForm({
       }
       return { schedule, error: null, approxRatePct };
     } catch (err) {
-      return { schedule: [], error: err.message || 'محاسبه ممکن نشد.', approxRatePct: null };
+      return { schedule: [], error: err.message || t('محاسبه ممکن نشد.'), approxRatePct: null };
     }
   }, [installmentMode, cleanPrincipal, cleanCount, intervalMonths, startDateIso, cleanTotalRepaymentInput]);
 
@@ -305,23 +305,23 @@ export default function AddLoanForm({
     setFormError('');
 
     if (!title.trim()) {
-      setFormError('لطفاً عنوان یا نام وام را وارد نمایید.');
+      setFormError(t('لطفاً عنوان یا نام وام را وارد نمایید.'));
       return;
     }
     if (cleanPrincipal <= 0) {
-      setFormError('مبلغ اصل وام باید مقداری بزرگتر از صفر باشد.');
+      setFormError(t('مبلغ اصل وام باید مقداری بزرگتر از صفر باشد.'));
       return;
     }
     if (cleanCount <= 0) {
-      setFormError('تعداد اقساط باید حداقل ۱ قسط باشد.');
+      setFormError(t('تعداد اقساط باید حداقل ۱ قسط باشد.'));
       return;
     }
     if (isCountBelowPaid) {
-      setFormError(`تعداد اقساط نمی‌تواند از تعداد اقساط پرداخت‌شده (${editingPaidCount}) کمتر باشد.`);
+      setFormError(t('تعداد اقساط نمی‌تواند از تعداد اقساط پرداخت‌شده ({n}) کمتر باشد.', { n: editingPaidCount }));
       return;
     }
     if (isStartDateChangedAfterPaid) {
-      setFormError('پس از پرداخت حداقل یک قسط، امکان تغییر تاریخ شروع وام وجود ندارد.');
+      setFormError(t('پس از پرداخت حداقل یک قسط، امکان تغییر تاریخ شروع وام وجود ندارد.'));
       return;
     }
 
@@ -330,7 +330,7 @@ export default function AddLoanForm({
     let totalRepaymentAmountToSubmit = null;
     if (installmentMode === 'totalRepaymentBased' && !editingLoan) {
       if (cleanTotalRepaymentInput <= 0) {
-        setFormError('لطفاً مبلغ کل بازپرداخت را وارد نمایید.');
+        setFormError(t('لطفاً مبلغ کل بازپرداخت را وارد نمایید.'));
         return;
       }
       if (totalBasedResult.error) {
@@ -357,32 +357,32 @@ export default function AddLoanForm({
       });
       onClose();
     } catch (err) {
-      setFormError(err.message || 'خطا در ذخیره اطلاعات وام');
+      setFormError(err.message || t('خطا در ذخیره اطلاعات وام'));
     }
   };
 
   const canSubmit = cleanPrincipal > 0 && cleanCount > 0 && !isCountBelowPaid && !isStartDateChangedAfterPaid && !isTotalRepaymentInvalid;
   const detailsFilled = [
-    ...(cleanAnnualFee > 0 ? ['کارمزد'] : []),
-    ...(notes.trim() ? ['یادداشت'] : []),
-    ...(!remindersEnabled ? ['بدون یادآوری'] : []),
+    ...(cleanAnnualFee > 0 ? [t('کارمزد')] : []),
+    ...(notes.trim() ? [t('یادداشت')] : []),
+    ...(!remindersEnabled ? [t('بدون یادآوری')] : []),
   ];
-  const tomans = (n) => `${formatPersianNum(n)} تومان`;
+  const tomans = (n) => t('{amount} تومان', { amount: formatPersianNum(n) });
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={editingLoan ? 'ویرایش اطلاعات وام' : 'افزودن وام جدید'}
+      title={editingLoan ? t('ویرایش اطلاعات وام') : t('افزودن وام جدید')}
       subtitle={
         editingLoan
-          ? 'تغییر عنوان، شرایط مالی و بازسازی خودکار اقساط معوق'
-          : 'مشخصات وام را وارد کنید تا جدول استهلاک و اقساط به صورت خودکار ایجاد شود'
+          ? t('تغییر عنوان، شرایط مالی و بازسازی خودکار اقساط معوق')
+          : t('مشخصات وام را وارد کنید تا جدول استهلاک و اقساط به صورت خودکار ایجاد شود')
       }
       icon={<Landmark size={20} />}
       footer={
         <EntryFormActions
-          submitLabel={editingLoan ? 'به‌روزرسانی وام' : 'افزودن و ساخت اقساط'}
+          submitLabel={editingLoan ? t('به‌روزرسانی وام') : t('افزودن و ساخت اقساط')}
           valid={canSubmit}
           submitting={submitting}
           onCancel={onClose}
@@ -398,17 +398,16 @@ export default function AddLoanForm({
 
         {/* Edit mode financial alteration alert */}
         {isFinancialTermsChanged && (
-          <AlertBanner type="warning" title="توجه به تغییر شرایط مالی:">
-            اقساط پرداخت‌شده دست‌نخورده می‌مونن، فقط اقساط باقیمانده بازمحاسبه می‌شن.
+          <AlertBanner type="warning" title={t('توجه به تغییر شرایط مالی:')}>
+            {t('اقساط پرداخت‌شده دست‌نخورده می‌مونن، فقط اقساط باقیمانده بازمحاسبه می‌شن.')}
             {editingPaidCount > 0 && (
               <>
-                {' '}تعداد اقساط نمی‌تواند کمتر از {editingPaidCount} و مبلغ اصل وام نمی‌تواند کمتر از مبلغ اصلِ قبلاً پرداخت‌شده باشد؛
-                همچنین تاریخ شروع وام پس از پرداخت اولین قسط قابل تغییر نیست.
+                {' '}{t('تعداد اقساط نمی‌تواند کمتر از {n} و مبلغ اصل وام نمی‌تواند کمتر از مبلغ اصلِ قبلاً پرداخت‌شده باشد؛ همچنین تاریخ شروع وام پس از پرداخت اولین قسط قابل تغییر نیست.', { n: editingPaidCount })}
               </>
             )}
             {editingLoan?.scheduleMode === 'distributed' && (
               <>
-                {' '}این وام با «ویرایش گروهی اقساط» تقسیم‌بندی شده بود؛ با این تغییر، آن تقسیم‌بندی پاک می‌شود و اقساط باقیمانده دوباره طبق فرمول استاندارد محاسبه می‌شوند.
+                {' '}{t('این وام با «ویرایش گروهی اقساط» تقسیم‌بندی شده بود؛ با این تغییر، آن تقسیم‌بندی پاک می‌شود و اقساط باقیمانده دوباره طبق فرمول استاندارد محاسبه می‌شوند.')}
               </>
             )}
           </AlertBanner>
@@ -416,27 +415,27 @@ export default function AddLoanForm({
 
         <AmountField
           id="loan-principal"
-          label="مبلغ وام"
+          label={t('مبلغ وام')}
           value={principalAmount}
           onValueChange={setPrincipalAmount}
           currency={BASE_CURRENCY}
-          placeholder="مثلاً ۱۰۰,۰۰۰,۰۰۰"
+          placeholder={t('مثلاً ۱۰۰,۰۰۰,۰۰۰')}
           autoFocus={!editingLoan}
         />
 
         <Input
           id="loan-title"
-          label="نام یا عنوان وام *"
-          placeholder="مثلاً: وام مسکن، خرید خودرو"
+          label={t('نام یا عنوان وام *')}
+          placeholder={t('مثلاً: وام مسکن، خرید خودرو')}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           required
         />
 
-        <BankPicker id="loan-bank" value={bank} onChange={setBank} label="بانک / وام‌دهنده" />
+        <BankPicker id="loan-bank" value={bank} onChange={setBank} label={t('بانک / وام‌دهنده')} />
 
         <DateField
-          label="تاریخ دریافت وام *"
+          label={t('تاریخ دریافت وام *')}
           value={startDateShamsi}
           onChange={(val) => {
             setStartDateShamsi(val);
@@ -449,7 +448,7 @@ export default function AddLoanForm({
           {/* Installment Determination Mode — Only on creation */}
           {!editingLoan && (
             <div className="ui-input-group">
-              <span className="ui-input-label">روش تعیین مبلغ اقساط</span>
+              <span className="ui-input-label">{t('روش تعیین مبلغ اقساط')}</span>
               <FilterPills
                 variant="segmented"
                 size="sm"
@@ -462,8 +461,8 @@ export default function AddLoanForm({
               />
               <p className="expense-form-hint">
                 {installmentMode === 'totalRepaymentBased'
-                  ? 'مبلغ دقیق کل بازپرداختی که بانک اعلام کرده را وارد کنید — بدون نیاز به دانستن نرخ سود، این مبلغ به‌طور مساوی بین همه‌ی اقساط تقسیم می‌شود.'
-                  : 'مبلغ هر قسط از نرخ سود سالانه با فرمول بانکی حساب می‌شود (پیشنهادی).'}
+                  ? t('مبلغ دقیق کل بازپرداختی که بانک اعلام کرده را وارد کنید — بدون نیاز به دانستن نرخ سود، این مبلغ به‌طور مساوی بین همه‌ی اقساط تقسیم می‌شود.')
+                  : t('مبلغ هر قسط از نرخ سود سالانه با فرمول بانکی حساب می‌شود (پیشنهادی).')}
               </p>
             </div>
           )}
@@ -472,15 +471,15 @@ export default function AddLoanForm({
             {installmentMode !== 'totalRepaymentBased' && (
               <div className="ui-input-group">
                 <div className="loan-form-label-row">
-                  <label className="ui-input-label" htmlFor="loan-rate">نرخ سود سالانه (٪)</label>
-                  {cleanRate === 0 && <span className="loan-form-badge">قرض‌الحسنه</span>}
+                  <label className="ui-input-label" htmlFor="loan-rate">{t('نرخ سود سالانه (٪)')}</label>
+                  {cleanRate === 0 && <span className="loan-form-badge">{t('قرض‌الحسنه')}</span>}
                 </div>
                 <NumericInput
                   id="loan-rate"
                   value={annualInterestRate}
                   onValueChange={setAnnualInterestRate}
-                  placeholder="۰ برای بدون سود"
-                  affix="٪"
+                  placeholder={t('۰ برای بدون سود')}
+                  affix={t('٪')}
                   allowDecimals
                   className="form-input"
                 />
@@ -488,13 +487,13 @@ export default function AddLoanForm({
             )}
 
             <div className="ui-input-group">
-              <label className="ui-input-label" htmlFor="loan-count">تعداد کل اقساط *</label>
+              <label className="ui-input-label" htmlFor="loan-count">{t('تعداد کل اقساط *')}</label>
               <NumericInput
                 id="loan-count"
                 value={installmentCount}
                 onValueChange={setInstallmentCount}
-                placeholder="مثلاً: ۱۲، ۲۴، ۳۶"
-                affix="قسط"
+                placeholder={t('مثلاً: ۱۲، ۲۴، ۳۶')}
+                affix={t('قسط')}
                 className="form-input"
                 required
               />
@@ -504,27 +503,27 @@ export default function AddLoanForm({
           {installmentMode === 'totalRepaymentBased' && (
             <div className="ui-input-group">
               <label className="ui-input-label" htmlFor="loan-total-repayment">
-                کل بازپرداخت (اصل + سود) {editingLoan ? '' : '*'}
+                {t('کل بازپرداخت (اصل + سود)')} {editingLoan ? '' : '*'}
               </label>
               <NumericInput
                 id="loan-total-repayment"
                 value={loadingDistributedTotal ? '' : totalRepaymentAmount}
                 onValueChange={setTotalRepaymentAmount}
-                placeholder={loadingDistributedTotal ? 'در حال دریافت مبلغ فعلی...' : 'مبلغ دقیقی که طبق بانک باید در مجموع پس بدهید'}
-                affix="تومان"
+                placeholder={loadingDistributedTotal ? t('در حال دریافت مبلغ فعلی...') : t('مبلغ دقیقی که طبق بانک باید در مجموع پس بدهید')}
+                affix={t('تومان')}
                 className="form-input"
                 required={!editingLoan}
                 disabled={Boolean(editingLoan)}
               />
               {editingLoan ? (
                 <p className="expense-form-hint">
-                  این وام با «ویرایش گروهی اقساط» تنظیم شده — برای تغییر مبلغ اقساط از همان بخش (داخل جدول اقساط وام) استفاده کنید.
+                  {t('این وام با «ویرایش گروهی اقساط» تنظیم شده — برای تغییر مبلغ اقساط از همان بخش (داخل جدول اقساط وام) استفاده کنید.')}
                 </p>
               ) : (
                 <>
                   {totalBasedResult.approxRatePct !== null && totalBasedResult.approxRatePct !== undefined && (
                     <p className="expense-form-hint">
-                      نرخ سود معادل تقریبی: {totalBasedResult.approxRatePct}٪ (فقط اطلاعاتی — در محاسبه اقساط استفاده نمی‌شود)
+                      {t('نرخ سود معادل تقریبی: {rate}٪ (فقط اطلاعاتی — در محاسبه اقساط استفاده نمی‌شود)', { rate: totalBasedResult.approxRatePct })}
                     </p>
                   )}
                   {totalBasedResult.error && (
@@ -539,7 +538,7 @@ export default function AddLoanForm({
           )}
 
           <PickerRow
-            label="دوره پرداخت اقساط"
+            label={t('دوره پرداخت اقساط')}
             value={String(intervalMonths)}
             options={INTERVAL_OPTIONS}
             onChange={(v) => setIntervalMonths(parseInt(v, 10) || 1)}
@@ -549,10 +548,10 @@ export default function AddLoanForm({
         {/* Live preview — rate-based: the bank formula (from the real schedule generator) */}
         {installmentMode !== 'totalRepaymentBased' && (
           <LoanPreview
-            title="پیش‌نمایش زنده اقساط (فرمول بانکی)"
+            title={t('پیش‌نمایش زنده اقساط (فرمول بانکی)')}
             installment={liveInstallment > 0 ? tomans(liveInstallment) : '—'}
             total={liveTotalRepayment > 0 ? tomans(liveTotalRepayment) : '—'}
-            interest={cleanRate === 0 ? '۰ (بدون سود)' : liveTotalInterest > 0 ? tomans(liveTotalInterest) : '—'}
+            interest={cleanRate === 0 ? t('۰ (بدون سود)') : liveTotalInterest > 0 ? tomans(liveTotalInterest) : '—'}
             interestFree={cleanRate === 0}
           />
         )}
@@ -564,7 +563,7 @@ export default function AddLoanForm({
             it was customized per-installment via "ویرایش گروهی اقساط"). */}
         {!editingLoan && installmentMode === 'totalRepaymentBased' && totalBasedResult.schedule.length > 0 && (
           <LoanPreview
-            title="پیش‌نمایش زنده اقساط (تقسیم مساوی کل بازپرداخت)"
+            title={t('پیش‌نمایش زنده اقساط (تقسیم مساوی کل بازپرداخت)')}
             installment={tomans(totalBasedResult.schedule[0].totalAmount)}
             total={tomans(cleanTotalRepaymentInput)}
             interest={tomans(Math.max(0, cleanTotalRepaymentInput - cleanPrincipal))}
@@ -573,23 +572,23 @@ export default function AddLoanForm({
 
         <MoreDetails filled={detailsFilled}>
           <div className="ui-input-group">
-            <label className="ui-input-label" htmlFor="loan-annual-fee">کارمزد سالانه</label>
+            <label className="ui-input-label" htmlFor="loan-annual-fee">{t('کارمزد سالانه')}</label>
             <NumericInput
               id="loan-annual-fee"
               value={annualFeeAmount}
               onValueChange={setAnnualFeeAmount}
-              placeholder="در صورت وجود، مبلغ کارمزدی که بانک هرسال دریافت می‌کند"
-              affix="تومان"
+              placeholder={t('در صورت وجود، مبلغ کارمزدی که بانک هرسال دریافت می‌کند')}
+              affix={t('تومان')}
               className="form-input"
             />
-            <p className="expense-form-hint">هر سال یک‌بار، به مبلغ نزدیک‌ترین قسط به سالگرد دریافت وام اضافه می‌شود.</p>
+            <p className="expense-form-hint">{t('هر سال یک‌بار، به مبلغ نزدیک‌ترین قسط به سالگرد دریافت وام اضافه می‌شود.')}</p>
           </div>
 
           <Input
             id="loan-notes"
             as="textarea"
-            label="توضیحات و شرایط"
-            placeholder="شماره قرارداد، ضامن‌ها، وثیقه‌ها، نحوه پرداخت..."
+            label={t('توضیحات و شرایط')}
+            placeholder={t('شماره قرارداد، ضامن‌ها، وثیقه‌ها، نحوه پرداخت...')}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={2}
@@ -602,8 +601,8 @@ export default function AddLoanForm({
               onChange={(e) => setRemindersEnabled(e.target.checked)}
             />
             <span>
-              <strong>یادآوری برای این مورد</strong>
-              <small>در صورت فعال بودن، در زمان سررسید اقساط این وام اعلان یا ایمیل یادآوری ارسال می‌شود.</small>
+              <strong>{t('یادآوری برای این مورد')}</strong>
+              <small>{t('در صورت فعال بودن، در زمان سررسید اقساط این وام اعلان یا ایمیل یادآوری ارسال می‌شود.')}</small>
             </span>
           </label>
         </MoreDetails>
@@ -625,15 +624,15 @@ function LoanPreview({ title, installment, total, interest, interestFree = false
       </div>
       <div className="loan-form-preview-grid">
         <div className="loan-form-preview-cell">
-          <span>مبلغ هر قسط</span>
+          <span>{t('مبلغ هر قسط')}</span>
           <strong className="is-main">{installment}</strong>
         </div>
         <div className="loan-form-preview-cell">
-          <span>کل بازپرداخت (اصل + سود)</span>
+          <span>{t('کل بازپرداخت (اصل + سود)')}</span>
           <strong>{total}</strong>
         </div>
         <div className="loan-form-preview-cell">
-          <span>مجموع سود وام</span>
+          <span>{t('مجموع سود وام')}</span>
           <strong className={interestFree ? 'is-positive' : ''}>{interest}</strong>
         </div>
       </div>
