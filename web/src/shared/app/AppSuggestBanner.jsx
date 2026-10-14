@@ -10,6 +10,7 @@ import { t } from '../../utils/i18n.js';
 import React, { useState } from 'react';
 import { Smartphone, Download, X } from 'lucide-react';
 import { isNativeApp } from '../native/nativeApp.js';
+import { publicPath } from '../i18n/publicPath.js';
 
 export const ANDROID_APK_URL = 'https://github.com/nos486/realrate/releases/latest/download/realrate.apk';
 const DISMISS_KEY = 'realrate_app_suggest_dismissed';
@@ -51,7 +52,7 @@ export default function AppSuggestBanner() {
         <a className="ui-btn ui-btn-primary ui-btn-sm" href={ANDROID_APK_URL} rel="noopener">
           <Download size={14} /> {t('دانلود اپ')}
         </a>
-        <a className="app-suggest-guide" href="/android">{t('راهنمای نصب')}</a>
+        <a className="app-suggest-guide" href={publicPath('/android')}>{t('راهنمای نصب')}</a>
       </div>
       <button type="button" className="app-suggest-close" onClick={dismiss} aria-label={t('بستن')}>
         <X size={16} />

@@ -11,10 +11,11 @@
  * - The app's version and its updates: automatic check on/off, «بررسی به‌روزرسانی» (shared/native/appUpdate.js)
  */
 
-import { getLocale, intlLocale, t } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
 import { toPersianDigits } from '../../shared/utils/formatters.js';
 import React, { useEffect, useState } from 'react';
 import LanguageSwitch from '../../shared/i18n/LanguageSwitch.jsx';
+import { publicPath } from '../../shared/i18n/publicPath.js';
 import { useFeature } from '../../shared/features/useFeature.js';
 import ProLockedCard from '../../shared/plan/ProLockedCard.jsx';
 import { Languages, Smartphone, MessageSquareText, Trash2, Fingerprint, Info, ArrowLeft, RefreshCw, Download, Bell, LayoutGrid, Plus, X } from 'lucide-react';
@@ -688,7 +689,7 @@ export default function AppSettingsView({ onOpenSms }) {
           <dt>{t('نسخه')}</dt>
           <dd dir="ltr">{version || '—'}</dd>
           <dt>{t('حریم خصوصی')}</dt>
-          <dd dir="ltr"><a href={getLocale() === 'en' ? 'https://realrate.geekio.org/en/privacy' : 'https://realrate.geekio.org/privacy'} target="_blank" rel="noopener noreferrer">{getLocale() === 'en' ? 'realrate.geekio.org/en/privacy' : 'realrate.geekio.org/privacy'}</a></dd>
+          <dd dir="ltr"><a href={`https://realrate.geekio.org${publicPath('/privacy')}`} target="_blank" rel="noopener noreferrer">{`realrate.geekio.org${publicPath('/privacy')}`}</a></dd>
           {packageId && (
             <>
               <dt>{t('نام پکیج')}</dt>

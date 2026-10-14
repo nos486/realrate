@@ -36,6 +36,13 @@ describe('resolveBootLocale', () => {
     expect(localStorage.getItem('realrate_locale')).toBe('en');
   });
 
+  it('drops ?lang= from the address once it is applied, so a later choice is not overridden on reload', () => {
+    go('/register?lang=en&x=1#top');
+    resolveBootLocale();
+    expect(window.location.search).toBe('?x=1');
+    expect(window.location.hash).toBe('#top');
+  });
+
   it('ignores an unknown ?lang= value', () => {
     go('/register?lang=xx');
     expect(resolveBootLocale().needsChoice).toBe(true);

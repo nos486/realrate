@@ -58,6 +58,8 @@ export function resolveBootLocale() {
     } catch {
       // Private mode: only this page load follows the link's language
     }
+    // The link has done its job: keeping ?lang= would override the user's later choice on every reload
+    dropLangParam();
     return { locale: requested, needsChoice: false };
   }
   const stored = getStoredLocale();
@@ -66,6 +68,18 @@ export function resolveBootLocale() {
   const onLanding = typeof window !== 'undefined' && window.location.pathname === '/';
   if (onLanding && !isNativeApp() && !isStandalone()) return { locale: browserLocale(), needsChoice: false };
   return { locale: browserLocale(), needsChoice: true };
+}
+
+/** Removes ?lang= from the address bar without reloading (the choice itself is stored) */
+function dropLangParam() {
+  try {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has('lang')) return;
+    url.searchParams.delete('lang');
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+  } catch {
+    // An address that cannot be rewritten stays as it is
+  }
 }
 
 /** Points the document at the active language: `lang` and the layout direction (`dir`) */
@@ -93,5 +107,6 @@ export function chooseLocale(code) {
   } catch {
     // Private mode: the choice lasts only until the next launch, which asks again
   }
+  dropLangParam();
   window.location.reload();
 }
