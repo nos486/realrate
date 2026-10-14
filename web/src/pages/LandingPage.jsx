@@ -303,7 +303,7 @@ export default function LandingPage() {
             <a href="/android">{t('اپ اندروید')}</a>
             <a href="/about">{t('درباره')}</a>
             <a href="/faq">{t('سؤالات')}</a>
-            <a href="/privacy">{t('حریم خصوصی')}</a>
+            <a href={getLocale() === 'en' ? '/en/privacy' : '/privacy'}>{t('حریم خصوصی')}</a>
             {DEMO_ENABLED && <a href="/demo">{t('دمو')}</a>}
             <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">GitHub</a>
           </nav>

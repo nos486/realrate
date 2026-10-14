@@ -143,6 +143,7 @@
 }
 
 .lp-btn-small {
+  white-space: nowrap;
   min-height: 38px;
   padding: 0 14px;
   font-size: 0.9rem;
