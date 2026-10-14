@@ -14,7 +14,7 @@ import { chooseLocale } from './localeStore.js';
 export default function LanguageSwitch({ className = '' }) {
   const active = getLocale();
   return (
-    <div className={`language-switch ${className}`.trim()} role="group" aria-label="Language / زبان">
+    <div className={`language-switch ${className}`.trim()} role="group" aria-label="Language / زبان"> {/* i18n-ignore */}
       {Object.values(LOCALES).map((locale) => (
         <button
           key={locale.code}
