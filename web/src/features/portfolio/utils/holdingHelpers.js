@@ -1,4 +1,4 @@
-import { intlLocale } from '../../../utils/i18n.js';
+import { intlLocale, msg, t } from '../../../utils/i18n.js';
 import React from 'react';
 import {
   Award,
@@ -109,7 +109,7 @@ export function computeReferenceAssetPnl(item, priceMap = {}, itemMap = {}) {
   return {
     referenceAssetId: item.referenceAssetId,
     referenceAssetName: refItem?.name || resolveAssetDisplayName(item.referenceAssetId) || item.referenceAssetId,
-    unit: refItem?.unit || resolveAssetUnit(item.referenceAssetId) || 'واحد',
+    unit: refItem?.unit || resolveAssetUnit(item.referenceAssetId) || t('واحد'),
     referenceQuantity,
     referenceCurrentValue,
     referencePnl,
@@ -119,14 +119,17 @@ export function computeReferenceAssetPnl(item, priceMap = {}, itemMap = {}) {
 
 export const CATEGORY_DEFINITIONS = PORTFOLIO_CATEGORIES;
 
+/** Placeholder units a stock holding may carry (stored in Persian, or in the active language) */
+const GENERIC_UNITS = [msg('واحد'), msg('گرم'), msg('عدد'), msg('تومان')];
+
 export function formatNum(num) {
-  if (num === null || num === undefined || isNaN(num)) return '۰';
+  if (num === null || num === undefined || isNaN(num)) return (0).toLocaleString(intlLocale());
   return Math.round(num).toLocaleString(intlLocale());
 }
 
 export function parseInputNumber(val) {
   if (val === null || val === undefined || val === '') return null;
-  const pers = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+  const pers = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']; // i18n-ignore
   let s = String(val);
   for (let i = 0; i < 10; i++) {
     s = s.replace(new RegExp(pers[i], 'g'), i);
@@ -176,8 +179,8 @@ export function normalizeHolding(h, itemMap = null) {
       ? { ...h, name: liveItem.name, sourceId: liveSourceId, category: liveItem.category }
       : h;
     const displayName = resolveAssetDisplayName(assetId, rawForDisplay);
-    if (!unit || unit === 'واحد' || unit === 'گرم' || unit === 'عدد' || unit === 'تومان') {
-      unit = isFund ? 'واحد' : 'برگ سهام';
+    if (!unit || GENERIC_UNITS.some((u) => unit === u || unit === t(u))) {
+      unit = isFund ? t('واحد') : t('برگ سهام');
     }
     return {
       ...h,
@@ -198,10 +201,10 @@ export function normalizeHolding(h, itemMap = null) {
     return {
       ...h,
       assetId: assetId.startsWith('custom_') ? assetId : (cleanId === 'custom' ? `custom_${Date.now()}` : assetId),
-      assetName: assetName && !assetName.includes('__') ? assetName : ('دارایی شخصی'),
+      assetName: assetName && !assetName.includes('__') ? assetName : (t('دارایی شخصی')),
       assetType: 'custom',
       category: 'custom',
-      unit: unit || 'واحد',
+      unit: unit || t('واحد'),
       currentPrice,
       customPrice,
     };
@@ -212,7 +215,7 @@ export function normalizeHolding(h, itemMap = null) {
     ? { ...h, name: liveItem.name, sourceId: liveSourceId, category: liveItem.category }
     : h;
   const displayName = resolveAssetDisplayName(assetId, rawForDisplay);
-  const resolvedUnit = resolveAssetUnit(assetId, rawForDisplay, unit || 'واحد');
+  const resolvedUnit = resolveAssetUnit(assetId, rawForDisplay, unit || t('واحد'));
   return {
     ...h,
     assetId: cleanId || assetId,
@@ -265,12 +268,12 @@ export function formatAssetName(item, itemMap = null) {
   const assetId = item.assetId || (typeof item === 'string' ? item : null);
   if (!assetId) {
     const raw = item.assetName || item.name || '';
-    return raw.replace(/\s*\([^)]*\)/g, '').trim() || raw || 'دارایی';
+    return raw.replace(/\s*\([^)]*\)/g, '').trim() || raw || t('دارایی');
   }
   // The asset in the price book (old stored ids resolve too) gives the name
   const liveItem = assetOf(itemMap, assetId);
   const rawForDisplay = liveItem
     ? { ...item, name: liveItem.name, sourceId: liveItem.sourceId || liveItem.source, category: liveItem.category }
     : item;
-  return resolveAssetDisplayName(assetId, rawForDisplay) || 'دارایی';
+  return resolveAssetDisplayName(assetId, rawForDisplay) || t('دارایی');
 }

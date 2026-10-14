@@ -28,6 +28,7 @@ import {
   markLegacyVaultUnlocked,
   LOCK_ALL_EVENT,
 } from '../../../shared/vault/vaultStore.js';
+import { t } from '../../../utils/i18n.js';
 
 export function useHoldings(activePortfolio) {
   const { user } = useAuth();
@@ -172,7 +173,7 @@ export function useHoldings(activePortfolio) {
         // One passphrase opens the whole account vault (every portfolio, loans, incomes)
         if (await unlockAccountVault(passphrase)) return true;
         if (!hasOwnPassphrase) {
-          setVaultUnlockError('رمز عبور رمزنگاری حساب اشتباه است.');
+          setVaultUnlockError(t('رمز عبور رمزنگاری حساب اشتباه است.'));
           return false;
         }
       }
@@ -180,7 +181,7 @@ export function useHoldings(activePortfolio) {
       const derivedKey = await deriveE2eeKey(passphrase, activePortfolio.e2eeSalt);
       const isValid = await verifyE2eeKey(derivedKey, activePortfolio.e2eeVerifier);
       if (!isValid) {
-        setVaultUnlockError('رمز عبور گاوصندوق اشتباه است.');
+        setVaultUnlockError(t('رمز عبور گاوصندوق اشتباه است.'));
         return false;
       }
 
@@ -189,7 +190,7 @@ export function useHoldings(activePortfolio) {
       saveVaultPassphraseToSession(activePortfolio.id, passphrase);
       return true;
     } catch (err) {
-      setVaultUnlockError('خطا در بررسی رمز عبور: ' + (err.message || ''));
+      setVaultUnlockError(t('خطا در بررسی رمز عبور: {message}', { message: err.message || '' }));
       return false;
     } finally {
       setUnlockingVault(false);
@@ -210,7 +211,7 @@ export function useHoldings(activePortfolio) {
   // Add holding
   const addHolding = async (holdingData) => {
     if (isVaultLocked) {
-      throw new Error("پورتفو قفل است، ابتدا آن را باز کنید.");
+      throw new Error(t('پورتفو قفل است، ابتدا آن را باز کنید.'));
     }
     if (!activePortfolio?.id) return null;
     setSubmitting(true);
@@ -236,7 +237,7 @@ export function useHoldings(activePortfolio) {
   // Update holding
   const updateHolding = async (holdingData) => {
     if (isVaultLocked) {
-      throw new Error("پورتفو قفل است، ابتدا آن را باز کنید.");
+      throw new Error(t('پورتفو قفل است، ابتدا آن را باز کنید.'));
     }
     if (!holdingData?.id || !activePortfolio?.id) return null;
     setSubmitting(true);
@@ -262,7 +263,7 @@ export function useHoldings(activePortfolio) {
   // Delete holding
   const deleteHolding = async (id) => {
     if (isVaultLocked) {
-      throw new Error("پورتفو قفل است، ابتدا آن را باز کنید.");
+      throw new Error(t('پورتفو قفل است، ابتدا آن را باز کنید.'));
     }
     if (!id) return false;
     setDeletingId(id);

@@ -12,27 +12,29 @@
 
 import { parseInputNumber, resolveAssetDisplayName } from './holdingHelpers.js';
 import { CANONICAL_ASSET_REGISTRY } from '../../../utils/financialSpecs.js';
+import { t } from '../../../utils/i18n.js';
 
-const KIND_LABEL = { buy: 'خرید', holding: 'موجودی', sell: 'فروش', spend: 'پرداخت هزینه' };
+// CSV files keep Persian column titles and labels: a stable interchange format that older exports and imports rely on
+const KIND_LABEL = { buy: 'خرید', holding: 'موجودی', sell: 'فروش', spend: 'پرداخت هزینه' }; // i18n-ignore
 const kindOfEntry = (entry) => (entry.kind === 'manual' ? (entry.price > 0 ? 'buy' : 'holding') : entry.kind);
 
 export const LEDGER_HEADERS = [
-  'نوع ثبت',
-  'نام دارایی',
-  'شناسه سیستمی',
-  'دسته‌بندی',
-  'واحد',
-  'مقدار',
-  'قیمت واحد (تومان)',
-  'تاریخ',
-  'یادداشت',
-  'قیمت دستی دارایی (تومان)',
-  'مانده از این خرید',
-  'سود/زیان این ثبت (تومان)',
-  'ارزش روز واحد (تومان)',
-  'دارایی مرجع (پرداخت/تهاتر)',
-  'شناسه دارایی مرجع',
-  'مقدار دارایی مرجع',
+  'نوع ثبت', // i18n-ignore
+  'نام دارایی', // i18n-ignore
+  'شناسه سیستمی', // i18n-ignore
+  'دسته‌بندی', // i18n-ignore
+  'واحد', // i18n-ignore
+  'مقدار', // i18n-ignore
+  'قیمت واحد (تومان)', // i18n-ignore
+  'تاریخ', // i18n-ignore
+  'یادداشت', // i18n-ignore
+  'قیمت دستی دارایی (تومان)', // i18n-ignore
+  'مانده از این خرید', // i18n-ignore
+  'سود/زیان این ثبت (تومان)', // i18n-ignore
+  'ارزش روز واحد (تومان)', // i18n-ignore
+  'دارایی مرجع (پرداخت/تهاتر)', // i18n-ignore
+  'شناسه دارایی مرجع', // i18n-ignore
+  'مقدار دارایی مرجع', // i18n-ignore
 ];
 
 const escapeCSV = (val) => {
@@ -89,19 +91,19 @@ export function buildHoldingsCsv(assets = []) {
 
 // Each field's column: this version's header first, then older versions'
 export const HEADERS = {
-  kind: ['نوع ثبت'],
-  name: ['نام دارایی'],
-  category: ['دسته‌بندی'],
-  amount: ['مقدار'],
-  price: ['قیمت واحد (تومان)', 'قیمت خرید (تومان)'],
-  customPrice: ['قیمت دستی دارایی (تومان)'],
-  currentPrice: ['ارزش روز واحد (تومان)'],
-  date: ['تاریخ', 'تاریخ خرید'],
-  notes: ['یادداشت'],
-  assetId: ['شناسه سیستمی'],
-  source: ['منبع'],
-  referenceAssetId: ['شناسه دارایی مرجع'],
-  referenceQuantity: ['مقدار دارایی مرجع'],
+  kind: ['نوع ثبت'], // i18n-ignore
+  name: ['نام دارایی'], // i18n-ignore
+  category: ['دسته‌بندی'], // i18n-ignore
+  amount: ['مقدار'], // i18n-ignore
+  price: ['قیمت واحد (تومان)', 'قیمت خرید (تومان)'], // i18n-ignore
+  customPrice: ['قیمت دستی دارایی (تومان)'], // i18n-ignore
+  currentPrice: ['ارزش روز واحد (تومان)'], // i18n-ignore
+  date: ['تاریخ', 'تاریخ خرید'], // i18n-ignore
+  notes: ['یادداشت'], // i18n-ignore
+  assetId: ['شناسه سیستمی'], // i18n-ignore
+  source: ['منبع'], // i18n-ignore
+  referenceAssetId: ['شناسه دارایی مرجع'], // i18n-ignore
+  referenceQuantity: ['مقدار دارایی مرجع'], // i18n-ignore
 };
 
 /** Whether a file is of this version (one row per ledger entry) */
@@ -193,7 +195,7 @@ export function buildRows(headerIndex, dataRows) {
       const name = get(row, 'name').trim();
       const amount = parseInputNumber(get(row, 'amount'));
       if (!name && (amount === null || amount === undefined)) return null;
-      const label = name || `ردیف ${i + 2}`;
+      const label = name || t('ردیف {n}', { n: i + 2 });
 
       // This version: the entry's kind; older files: every row is a manual holding (rows that
       // were computed from transactions are skipped)
@@ -202,7 +204,7 @@ export function buildRows(headerIndex, dataRows) {
         kind = kindOf(get(row, 'kind'));
         if (!kind) return { status: 'invalid', name: label };
         if (kind === 'spend') return { status: 'skipped', name: label };
-      } else if (hasSourceCol && get(row, 'source').includes('تراکنش')) {
+      } else if (hasSourceCol && get(row, 'source').includes('تراکنش')) { // i18n-ignore
         return { status: 'skipped', name: label };
       }
 
@@ -222,7 +224,7 @@ export function buildRows(headerIndex, dataRows) {
       const price = parseInputNumber(get(row, 'price')) || 0;
       const date = get(row, 'date').trim();
       let notes = get(row, 'notes').trim();
-      if (isFallback && name) notes = notes ? `${notes} — نام اصلی: ${name}` : `نام اصلی: ${name}`;
+      if (isFallback && name) notes = notes ? t('{notes} — نام اصلی: {name}', { notes, name }) : t('نام اصلی: {name}', { name });
       // Paid / swapped with another asset: carried as it is
       const referenceAssetIdRaw = get(row, 'referenceAssetId').trim();
       const referenceQuantityRaw = parseInputNumber(get(row, 'referenceQuantity'));

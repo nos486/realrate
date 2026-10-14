@@ -8,10 +8,11 @@ import React from 'react';
 import { ChevronRight, ChevronLeft, CalendarDays, CalendarRange } from 'lucide-react';
 import { Button, FilterPills } from '../ui/index.js';
 import { formatShamsiMonth, formatShamsiYear, monthIndex, shiftShamsiMonth } from './flowYear.js';
+import { t } from '../../utils/i18n.js';
 
 const MODES = [
-  { value: 'month', label: 'ماهانه', icon: <CalendarDays size={14} /> },
-  { value: 'year', label: 'سالانه', icon: <CalendarRange size={14} /> },
+  { value: 'month', label: t('ماهانه'), icon: <CalendarDays size={14} /> },
+  { value: 'year', label: t('سالانه'), icon: <CalendarRange size={14} /> },
 ];
 
 /**
@@ -31,12 +32,12 @@ export default function PeriodSwitcher({ mode = 'month', month, thisMonth, onMod
     <div className="flow-period-bar">
       {onModeChange && <FilterPills options={MODES} activeValue={mode} onChange={onModeChange} size="sm" />}
       <div className="flow-period-nav">
-        <Button size="sm" variant="secondary" icon={<ChevronRight size={16} />} onClick={() => step(-1)} aria-label={yearly ? 'سال قبل' : 'ماه قبل'} />
-        <strong className="flow-period-label">{yearly ? `سال ${formatShamsiYear(month.jy)}` : formatShamsiMonth(month.jy, month.jm)}</strong>
-        <Button size="sm" variant="secondary" icon={<ChevronLeft size={16} />} onClick={() => step(1)} disabled={atNow} aria-label={yearly ? 'سال بعد' : 'ماه بعد'} />
+        <Button size="sm" variant="secondary" icon={<ChevronRight size={16} />} onClick={() => step(-1)} aria-label={yearly ? t('سال قبل') : t('ماه قبل')} />
+        <strong className="flow-period-label">{yearly ? t('سال {year}', { year: formatShamsiYear(month.jy) }) : formatShamsiMonth(month.jy, month.jm)}</strong>
+        <Button size="sm" variant="secondary" icon={<ChevronLeft size={16} />} onClick={() => step(1)} disabled={atNow} aria-label={yearly ? t('سال بعد') : t('ماه بعد')} />
         {!atNow && (
           <Button size="sm" variant="secondary" onClick={() => onMonthChange(thisMonth)}>
-            {yearly ? 'امسال' : 'این ماه'}
+            {yearly ? t('امسال') : t('این ماه')}
           </Button>
         )}
       </div>

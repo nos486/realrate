@@ -7,7 +7,7 @@
  * setting them.
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { intlLocale, t } from '../../../utils/i18n.js';
 import React from 'react';
 import { Target, AlertTriangle, Pencil } from 'lucide-react';
 import { CategoryIcon } from '../utils/holdingHelpers.js';
@@ -20,7 +20,7 @@ const C = SIZE / 2;
 const PIE_R = 52;
 const RING_R = 61;
 
-const faPct = (n) => `${Number(n || 0).toLocaleString(intlLocale(), { maximumFractionDigits: 1 })}٪`;
+const faPct = (n) => t('{count}٪', { count: Number(n || 0).toLocaleString(intlLocale(), { maximumFractionDigits: 1 }) });
 const signedPct = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${faPct(Math.abs(n))}`;
 /** «+۱۲ میلیون»: how many tomans above or below the target */
 const signedAmount = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${formatCompactAmount(Math.abs(n))}`;
@@ -59,7 +59,7 @@ function layoutSlices(rows) {
 function Pie({ rows }) {
   const slices = layoutSlices(rows);
   return (
-    <svg className="allocation-targets-pie" width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} role="img" aria-label="ترکیب فعلی و هدف">
+    <svg className="allocation-targets-pie" width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} role="img" aria-label={t('ترکیب فعلی و هدف')}>
       {slices.filter((s) => s.end > s.start).map((s) => (
         <path key={s.r.targetKey} d={slicePath(s.start, s.end)} fill={s.color}>
           <title>{`${s.r.name}: ${faPct(s.r.currentPct)}`}</title>
@@ -67,7 +67,7 @@ function Pie({ rows }) {
       ))}
       {slices.filter((s) => s.ringEnd > s.ringStart).map((s) => (
         <path key={`t-${s.r.targetKey}`} d={arcPath(s.ringStart, s.ringEnd)} stroke={s.color} strokeWidth="5" fill="none" strokeLinecap="butt" opacity="0.75">
-          <title>{`هدف ${s.r.name}: ${faPct(s.r.targetPct)}`}</title>
+          <title>{t('هدف {name}: {pct}', { name: s.r.name, pct: faPct(s.r.targetPct) })}</title>
         </path>
       ))}
     </svg>
@@ -82,9 +82,9 @@ export default function AllocationTargetsCard({ allocation, onEdit, readOnly = f
   return (
     <div className={`portfolio-stat-card allocation-targets-card ${drifted.length ? 'has-drift' : ''}`}>
       <div className="stat-header">
-        <span className="stat-label"><Target size={13} /> هدف ترکیب پورتفو</span>
+        <span className="stat-label"><Target size={13} />{' '}{t('هدف ترکیب پورتفو')}</span>
         {!readOnly && onEdit && (
-          <button type="button" className="btn-table-action edit" title="هدف‌گذاری" aria-label="هدف‌گذاری" onClick={onEdit}>
+          <button type="button" className="btn-table-action edit" title={t('هدف‌گذاری')} aria-label={t('هدف‌گذاری')} onClick={onEdit}>
             <Pencil size={13} />
           </button>
         )}
@@ -92,12 +92,10 @@ export default function AllocationTargetsCard({ allocation, onEdit, readOnly = f
 
       {!hasTargets ? (
         <div className="allocation-targets-empty">
-          <p className="stat-sub">
-            برای هر دسته سهم هدف بگذارید (مثلاً طلا ۳۰٪، ارز ۲۵٪)؛ اگر ترکیب پورتفو بیش از {DRIFT_THRESHOLD.toLocaleString(intlLocale())}٪ از هدف فاصله گرفت، هشدار می‌گیرید.
-          </p>
+          <p className="stat-sub">{t('برای هر دسته سهم هدف بگذارید (مثلاً طلا ۳۰٪، ارز ۲۵٪)؛ اگر ترکیب پورتفو بیش از {count}٪ از هدف فاصله گرفت، هشدار می‌گیرید.', { count: DRIFT_THRESHOLD.toLocaleString(intlLocale()) })}</p>
           {!readOnly && onEdit && (
             <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={onEdit}>
-              <Target size={14} /> هدف‌گذاری
+              <Target size={14} />{' '}{t('هدف‌گذاری')}
             </button>
           )}
         </div>
@@ -106,14 +104,12 @@ export default function AllocationTargetsCard({ allocation, onEdit, readOnly = f
           <div className="allocation-targets-body">
             <Pie rows={ordered} />
             <div className="allocation-targets-legend-note">
-              <span><i className="is-fill" /> اکنون</span>
-              <span><i className="is-ring" /> هدف</span>
+              <span><i className="is-fill" />{' '}{t('اکنون')}</span>
+              <span><i className="is-ring" />{' '}{t('هدف')}</span>
             </div>
           </div>
           {!complete && (
-            <div className="allocation-targets-note">
-              جمع اهداف {faPct(targetsTotal)} است؛ تا ۱۰۰٪ نشود فاصله‌ها بررسی نمی‌شوند.
-            </div>
+            <div className="allocation-targets-note">{t('جمع اهداف {pct} است؛ تا ۱۰۰٪ نشود فاصله‌ها بررسی نمی‌شوند.', { pct: faPct(targetsTotal) })}</div>
           )}
           <ul className="allocation-targets-list">
             {ordered.map((r, i) => (
@@ -123,12 +119,12 @@ export default function AllocationTargetsCard({ allocation, onEdit, readOnly = f
                   <CategoryIcon category={r.icon} size={12} /> {r.name}
                 </span>
                 <span className="allocation-targets-now">{faPct(r.currentPct)}</span>
-                <span className="allocation-targets-goal">هدف {faPct(r.targetPct)}</span>
+                <span className="allocation-targets-goal">{t('هدف {pct}', { pct: faPct(r.targetPct) })}</span>
                 <span className={`allocation-targets-diff ${r.drifted ? 'is-off' : ''}`}>
                   <span className="allocation-targets-diff-pct">{r.drifted && <AlertTriangle size={12} />} {signedPct(r.diff)}</span>
                   {r.diffValue !== null && r.diffValue !== 0 && (
-                    <small className="allocation-targets-diff-amount" title={r.diffValue > 0 ? 'بیشتر از هدف (تومان)' : 'کمتر از هدف (تومان)'}>
-                      {hideValues ? '****' : `${signedAmount(r.diffValue)} تومان`}
+                    <small className="allocation-targets-diff-amount" title={r.diffValue > 0 ? t('بیشتر از هدف (تومان)') : t('کمتر از هدف (تومان)')}>
+                      {hideValues ? '****' : t('{amount} تومان', { amount: signedAmount(r.diffValue) })}
                     </small>
                   )}
                 </span>

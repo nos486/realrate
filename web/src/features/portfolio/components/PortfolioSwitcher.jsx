@@ -1,5 +1,6 @@
 import React from 'react';
 import { Star, Lock, Folder, Share2, Plus } from 'lucide-react';
+import { t } from '../../../utils/i18n.js';
 
 export default function PortfolioSwitcher({
   portfolios = [],
@@ -10,7 +11,7 @@ export default function PortfolioSwitcher({
   return (
     <div className="portfolio-nav-bar">
       <div className="portfolio-tabs-scroll">
-        <span className="portfolio-nav-label">پورتفوها:</span>
+        <span className="portfolio-nav-label">{t('پورتفوها:')}</span>
         {portfolios.map((p) => {
           const isActive = p.id === activePortfolioId;
           return (
@@ -31,12 +32,12 @@ export default function PortfolioSwitcher({
               </span>
               <span className="tab-pill-name">{p.name}</span>
               {p.isE2ee && (
-                <span className="tab-pill-e2ee" title="گاوصندوق E2EE">
+                <span className="tab-pill-e2ee" title={t('گاوصندوق E2EE')}>
                   <Lock size={10} style={{ verticalAlign: 'middle' }} />
                 </span>
               )}
               {p.shareEnabled && (
-                <span className="tab-pill-shared" title="لینک اشتراک‌گذاری فعال است">
+                <span className="tab-pill-shared" title={t('لینک اشتراک‌گذاری فعال است')}>
                   <Share2 size={10} style={{ verticalAlign: 'middle' }} />
                 </span>
               )}
@@ -47,10 +48,10 @@ export default function PortfolioSwitcher({
           type="button"
           className="btn-new-portfolio-tab"
           onClick={onNewPortfolio}
-          title="ایجاد پورتفوی جدید"
+          title={t('ایجاد پورتفوی جدید')}
         >
           <Plus size={13} style={{ verticalAlign: 'middle', marginInlineEnd: '3px' }} />
-          <span>پورتفو</span>
+          <span>{t('پورتفو')}</span>
         </button>
       </div>
     </div>
