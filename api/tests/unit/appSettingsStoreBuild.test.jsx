@@ -28,6 +28,7 @@ describe('AppSettingsView in the store build', () => {
     expect(screen.getByText(/این نسخه بدون پیامک است/)).toBeTruthy();
     expect(screen.getByText('github.com/nos486/realrate').getAttribute('href')).toBe('https://github.com/nos486/realrate');
     expect(screen.getByText('github.com/nos486/realrate/releases/latest').getAttribute('href')).toBe('https://github.com/nos486/realrate/releases/latest');
+    expect(screen.getByText('realrate.geekio.org/privacy').getAttribute('href')).toBe('https://realrate.geekio.org/privacy');
     expect(screen.queryByText('پیامک‌های بانکی')).toBeNull();
   });
 });

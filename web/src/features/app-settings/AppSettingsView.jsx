@@ -680,6 +680,8 @@ export default function AppSettingsView({ onOpenSms }) {
         <dl className="app-setting-facts">
           <dt>نسخه</dt>
           <dd dir="ltr">{version || '—'}</dd>
+          <dt>حریم خصوصی</dt>
+          <dd dir="ltr"><a href="https://realrate.geekio.org/privacy" target="_blank" rel="noopener noreferrer">realrate.geekio.org/privacy</a></dd>
           {packageId && (
             <>
               <dt>نام پکیج</dt>
