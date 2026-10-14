@@ -11,8 +11,8 @@ import { intlLocale, getLocale, t } from '../../utils/i18n.js';
  */
 export function toEnglishDigits(str) {
   if (str === null || str === undefined || str === '') return '';
-  const pers = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
-  const arab = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+  const pers = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']; // i18n-ignore
+  const arab = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩']; // i18n-ignore
   let s = String(str);
   for (let i = 0; i < 10; i++) {
     s = s.replace(new RegExp(pers[i], 'g'), String(i));
@@ -77,7 +77,7 @@ export function formatThousands(val, allowDecimals = false) {
 export function toPersianDigits(n) {
   if (n === null || n === undefined) return '';
   if (getLocale() !== 'fa') return String(n);
-  const pers = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+  const pers = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']; // i18n-ignore
   return String(n).replace(/[0-9]/g, (w) => pers[+w]);
 }
 

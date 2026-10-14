@@ -6,7 +6,7 @@
  * left to right, as on every price chart.
  */
 
-import { intlLocale, getDir } from '../../utils/i18n.js';
+import { intlLocale, getDir, t } from '../../utils/i18n.js';
 import React, { useMemo, useState } from 'react';
 import { formatPrice } from '../market/assetPrice.js';
 
@@ -61,7 +61,7 @@ export default function TrendCandles({ candles, days, unit = '', currency = 'tom
 
   const at = hover !== null ? geometry.items[hover] : null;
   const c = hover !== null ? candles[hover] : null;
-  const dayLabel = (i) => (i === n - 1 ? 'امروز' : dayFormat.format(new Date(`${days[i]}T12:00:00+03:30`)));
+  const dayLabel = (i) => (i === n - 1 ? t('امروز') : dayFormat.format(new Date(`${days[i]}T12:00:00+03:30`)));
 
   return (
     <div
@@ -89,7 +89,7 @@ export default function TrendCandles({ candles, days, unit = '', currency = 'tom
             {unit && <small> {unit}</small>}
           </strong>
           <span className="trend-candle-ohlc">
-            باز {formatValue(c[0], currency)} · بیشترین {formatValue(c[1], currency)} · کمترین {formatValue(c[2], currency)}
+            {t('باز {open} · بیشترین {high} · کمترین {low}', { open: formatValue(c[0], currency), high: formatValue(c[1], currency), low: formatValue(c[2], currency) })}
           </span>
           <span className="trend-spark-tip-time">{dayLabel(hover)}</span>
         </span>

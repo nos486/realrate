@@ -21,7 +21,7 @@ export default {
   دارایی: 'Asset',
   'بورس اوراق بهادار تهران (صندوق)': 'Tehran Stock Exchange (fund)',
   'بورس اوراق بهادار تهران (سهام)': "Tehran Stock Exchange (stocks)",
-  صندوق: 'Fund',
+  صندوق: "Fund",
   سهام: 'Stock',
   'صندوق‌های سرمایه‌گذاری بورس': 'Exchange investment funds',
   'سهام بورس ایران': 'Iranian exchange stocks',

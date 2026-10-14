@@ -3,7 +3,7 @@
  * (usePrivacyMode): tomans in full or compact, dollars, percentages
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
 import { formatCompactAmount } from '../../shared/utils/formatters.js';
 import { formatUsd } from '../../shared/ui/DollarValue.jsx';
 import { formatAmountMasked } from '../../shared/flow/flowFormat.js';
@@ -11,7 +11,7 @@ import { formatAmountMasked } from '../../shared/flow/flowFormat.js';
 export const MASK = '****';
 
 /** A signed percentage: «۲۵٪», «−۳٫۵٪» */
-export const formatPct = (v) => `${v < 0 ? '−' : ''}${Math.abs(v).toLocaleString(intlLocale(), { maximumFractionDigits: Math.abs(v) < 10 ? 1 : 0 })}٪`;
+export const formatPct = (v) => `${v < 0 ? '−' : ''}${Math.abs(v).toLocaleString(intlLocale(), { maximumFractionDigits: Math.abs(v) < 10 ? 1 : 0 })}${t('٪')}`;
 
 /** The page's formatters for the privacy mode */
 export function reportFormatters(hideValues) {

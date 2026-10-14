@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 import Modal from './Modal.jsx';
@@ -44,7 +45,7 @@ export function FeedbackProvider({ children }) {
   }, []);
 
   const dismissToast = useCallback((id) => {
-    setToasts((list) => list.filter((t) => t.id !== id));
+    setToasts((list) => list.filter((item) => item.id !== id));
   }, []);
 
   // `action`: optional { label, onClick } button inside the toast (e.g. "undo")
@@ -81,7 +82,7 @@ export function FeedbackProvider({ children }) {
       <Modal
         isOpen={Boolean(dialog)}
         onClose={() => closeDialog(false)}
-        title={dialog?.title || (isConfirm ? 'تأیید' : 'پیام')}
+        title={dialog?.title || (isConfirm ? t('تأیید') : t('پیام'))}
         icon={dialog?.danger ? <AlertTriangle size={18} /> : <Info size={18} />}
         maxWidth="420px"
         className={`feedback-dialog ${dialog?.danger ? 'is-danger' : ''}`}
@@ -89,7 +90,7 @@ export function FeedbackProvider({ children }) {
           <div className="feedback-dialog-actions">
             {isConfirm && (
               <Button variant="secondary" onClick={() => closeDialog(false)}>
-                {dialog?.cancelLabel || 'انصراف'}
+                {dialog?.cancelLabel || t('انصراف')}
               </Button>
             )}
             <Button
@@ -97,7 +98,7 @@ export function FeedbackProvider({ children }) {
               onClick={() => closeDialog(true)}
               autoFocus
             >
-              {dialog?.confirmLabel || (isConfirm ? 'تأیید' : 'متوجه شدم')}
+              {dialog?.confirmLabel || (isConfirm ? t('تأیید') : t('متوجه شدم'))}
             </Button>
           </div>
         }
@@ -106,29 +107,29 @@ export function FeedbackProvider({ children }) {
       </Modal>
 
       <div className="toast-stack" role="status" aria-live="polite">
-        {toasts.map((t) => {
-          const Icon = TOAST_ICONS[t.type] || Info;
+        {toasts.map((toast) => {
+          const Icon = TOAST_ICONS[toast.type] || Info;
           return (
-            <div key={t.id} className={`toast-item ${t.type}`}>
+            <div key={toast.id} className={`toast-item ${toast.type}`}>
               <Icon size={17} className="toast-icon" />
-              <span className="toast-message">{t.message}</span>
-              {t.action && (
+              <span className="toast-message">{toast.message}</span>
+              {toast.action && (
                 <button
                   type="button"
                   className="toast-action"
                   onClick={() => {
-                    dismissToast(t.id);
-                    t.action.onClick();
+                    dismissToast(toast.id);
+                    toast.action.onClick();
                   }}
                 >
-                  {t.action.label}
+                  {toast.action.label}
                 </button>
               )}
               <button
                 type="button"
                 className="toast-close"
-                onClick={() => dismissToast(t.id)}
-                aria-label="بستن پیام"
+                onClick={() => dismissToast(toast.id)}
+                aria-label={t('بستن پیام')}
               >
                 <X size={14} />
               </button>

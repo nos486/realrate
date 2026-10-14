@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 import React from 'react';
 
 /**
@@ -21,7 +22,7 @@ export default function Skeleton({ width = '100%', height = 12, radius = 6, clas
   );
 }
 
-export function SkeletonGroup({ label = 'در حال بارگذاری…', className = '', children }) {
+export function SkeletonGroup({ label = t('در حال بارگذاری…'), className = '', children }) {
   return (
     <div className={`ui-skeleton-group ${className}`} role="status" aria-busy="true" aria-label={label}>
       {children}

@@ -8,6 +8,7 @@
  *   useNewsToday()                                — the analyst's card, today's and the week's top news
  */
 
+import { t } from '../../utils/i18n.js';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getNews, getNewsToday } from './newsApi.js';
 import { useRefreshHandler } from '../../shared/refresh/pageRefresh.js';
@@ -36,7 +37,7 @@ function useNewsQuery(key, load) {
       cache.set(forKey, data);
       if (keyRef.current === forKey) setState({ data, loading: false, error: '' });
     } catch (err) {
-      if (keyRef.current === forKey) setState((s) => ({ ...s, loading: false, error: err?.message || 'خبرها خوانده نشد.' }));
+      if (keyRef.current === forKey) setState((s) => ({ ...s, loading: false, error: err?.message || t('خبرها خوانده نشد.') }));
     }
     // `load` is built from the same values as `key`
     // eslint-disable-next-line react-hooks/exhaustive-deps

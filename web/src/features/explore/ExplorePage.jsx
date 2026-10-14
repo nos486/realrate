@@ -11,7 +11,7 @@
  * Pro only (feature `market`: its chart route is gated by it too).
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import UniversalAssetSearch from '../../components/UniversalAssetSearch.jsx';
@@ -78,7 +78,7 @@ function ExploreChart({ asset }) {
         days={shown.days}
         unit={asset.unit}
         currency={asset.currency}
-        label={`نمودار کندلی ${asset.name}`}
+        label={t('نمودار کندلی {name}', { name: asset.name })}
         onNeedOlder={more}
         header={top}
       />
@@ -89,16 +89,16 @@ function ExploreChart({ asset }) {
       <div className="xchart-bar">{top}</div>
       <div className={`explore-chart-state ${loading ? 'is-loading' : ''}`} role={loading ? 'status' : undefined}>
         {loading || status === 'idle'
-          ? 'در حال دریافت نمودار…'
+          ? t('در حال دریافت نمودار…')
           : status === 'error'
-            ? 'نمودار فعلاً در دسترس نیست'
-            : 'تاریخچه‌ای برای این دارایی ثبت نشده'}
+            ? t('نمودار فعلاً در دسترس نیست')
+            : t('تاریخچه‌ای برای این دارایی ثبت نشده')}
       </div>
     </>
   );
 }
 
-const changeOf = (pct) => (pct ? { up: pct > 0, text: `${pct > 0 ? '▲' : '▼'} ${Math.abs(pct).toLocaleString(intlLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}٪` } : null);
+const changeOf = (pct) => (pct ? { up: pct > 0, text: `${pct > 0 ? '▲' : '▼'} ${Math.abs(pct).toLocaleString(intlLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${t('٪')}` } : null);
 
 /** The chart's title line: who the asset is, its live price and change, and when it last moved */
 function ChartTitle({ asset, loading }) {
@@ -117,12 +117,12 @@ function ChartTitle({ asset, loading }) {
         {price ? (
           <strong><bdi>{asset.currency === 'usd' && '$'}{price}</bdi> <small>{asset.unit}</small></strong>
         ) : (
-          <strong className="price-unavailable">نرخ در دسترس نیست</strong>
+          <strong className="price-unavailable">{t('نرخ در دسترس نیست')}</strong>
         )}
         <span className="explore-title-sub">
           {change && <span className={`explore-change ${change.up ? 'is-up' : 'is-down'}`}><bdi>{change.text}</bdi></span>}
-          {asset.stale ? <span className="home-stale-mark">قدیمی</span> : asset.updatedAt && <span>{timeAgo(asset.updatedAt)}</span>}
-          {loading && <span role="status">در حال دریافت تاریخچه…</span>}
+          {asset.stale ? <span className="home-stale-mark">{t('قدیمی')}</span> : asset.updatedAt && <span>{timeAgo(asset.updatedAt)}</span>}
+          {loading && <span role="status">{t('در حال دریافت تاریخچه…')}</span>}
         </span>
       </div>
     </div>
@@ -157,7 +157,7 @@ export default function ExplorePage() {
         mode="picker"
         selectedAssetId={asset.found ? asset.id : null}
         onSelect={select}
-        placeholder="جستجوی نماد: دلار، سکه، BTC، فولاد…"
+        placeholder={t('جستجوی نماد: دلار، سکه، BTC، فولاد…')}
         showCategories={false}
       />
     </div>
@@ -167,7 +167,7 @@ export default function ExplorePage() {
     <section
       ref={panelRef}
       className="explore-panel"
-      aria-label={asset.found ? `نمودار ${asset.name}` : 'نمودار'}
+      aria-label={asset.found ? t('نمودار {name}', { name: asset.name }) : t('نمودار')}
       style={height ? { height: `${height}px` } : undefined}
     >
       {search}
@@ -175,7 +175,7 @@ export default function ExplorePage() {
         <ExploreChart key={asset.id} asset={asset} />
       ) : (
         <div className="explore-chart-state">
-          {pricing?.loading ? 'در حال دریافت قیمت‌ها…' : 'این مورد فعلاً در بازار نرخی ندارد؛ نماد دیگری را جستجو کنید.'}
+          {pricing?.loading ? t('در حال دریافت قیمت‌ها…') : t('این مورد فعلاً در بازار نرخی ندارد؛ نماد دیگری را جستجو کنید.')}
         </div>
       )}
     </section>

@@ -47,7 +47,7 @@ export default function AccountSettingsView() {
         }
       })
       .catch((err) => {
-        setMsg({ text: 'خطا در دریافت اطلاعات: ' + err.message, type: 'error' });
+        setMsg({ text: t('خطا در دریافت اطلاعات: {error}', { error: err.message }), type: 'error' });
       })
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -61,9 +61,9 @@ export default function AccountSettingsView() {
     try {
       await updateUserSettings({ customName: customName.trim() });
       updateUser({ customName: customName.trim() });
-      setMsg({ text: 'تنظیمات حساب کاربری با موفقیت ذخیره شد.', type: 'success' });
+      setMsg({ text: t('تنظیمات حساب کاربری با موفقیت ذخیره شد.'), type: 'success' });
     } catch (err) {
-      setMsg({ text: err.message || 'خطای سرور', type: 'error' });
+      setMsg({ text: err.message || t('خطای سرور'), type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -76,10 +76,10 @@ export default function AccountSettingsView() {
           <User size={44} style={{ color: 'var(--accent-blue, #38bdf8)' }} />
         </div>
         <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '8px' }}>
-          ورود به حساب کاربری
+          {t('ورود به حساب کاربری')}
         </h3>
         <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px', lineHeight: '1.7' }}>
-          جهت مشاهده و مدیریت تنظیمات حساب، لطفاً ابتدا وارد حساب کاربری خود شوید.
+          {t('جهت مشاهده و مدیریت تنظیمات حساب، لطفاً ابتدا وارد حساب کاربری خود شوید.')}
         </p>
         <Button
           variant="secondary"
@@ -95,7 +95,7 @@ export default function AccountSettingsView() {
             </svg>
           }
         >
-          ورود یا ثبت‌نام
+          {t('ورود یا ثبت‌نام')}
         </Button>
       </Card>
     );
@@ -104,12 +104,12 @@ export default function AccountSettingsView() {
   return (
     <div className="account-settings-page">
     {/* Same page header as every other page */}
-    <FeaturePageHeader icon={<Settings size={24} />} title="تنظیمات" subtitle="حساب کاربری، ورود و رمزنگاری" />
+    <FeaturePageHeader icon={<Settings size={24} />} title={t('تنظیمات')} subtitle={t('حساب کاربری، ورود و رمزنگاری')} />
     <Card className="admin-container account-settings-fullscreen-card" padding="lg" style={{ width: '100%', maxWidth: '100%', margin: '0 0 32px 0' }}>
       <div className="section-title" style={{ marginTop: 0 }}>
         <span>
           <User size={18} style={{ verticalAlign: 'middle', marginInlineEnd: '6px', display: 'inline', color: 'var(--accent-blue)' }} />
-          پروفایل
+          {t('پروفایل')}
         </span>
       </div>
 
@@ -139,16 +139,16 @@ export default function AccountSettingsView() {
         <div className="account-user-meta">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <strong className="account-user-name" style={{ fontSize: '15px' }}>
-              {user.name || 'کاربر'}
+              {user.name || t('کاربر')}
             </strong>
             {user.role === 'admin' ? (
               <span className="admin-role-badge" style={{ fontSize: '10.5px' }}>
                 <ShieldCheck size={11} style={{ verticalAlign: 'middle', marginInlineEnd: '3px' }} />
-                مدیر کل
+                {t('مدیر کل')}
               </span>
             ) : (
               <span style={{ fontSize: '11px', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: '10px' }}>
-                {user.emailVerified === false ? 'ایمیل تأییدنشده' : 'کاربر تأییدشده'}
+                {user.emailVerified === false ? t('ایمیل تأییدنشده') : t('کاربر تأییدشده')}
               </span>
             )}
           </div>
@@ -161,14 +161,14 @@ export default function AccountSettingsView() {
       <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
         {/* Nickname / Display Name Input */}
         <Input
-          label="نام مستعار نمایشی (Nickname)"
+          label={t('نام مستعار نمایشی (Nickname)')}
           id="userCustomNickname"
-          placeholder="مثلاً: آریا، سرمایه‌گذار..."
+          placeholder={t('مثلاً: آریا، سرمایه‌گذار...')}
           value={customName}
           onChange={(e) => setCustomName(e.target.value)}
           maxLength={40}
           disabled={loading || saving}
-          hint="این نام در هدر، بخش پورتفوی شما و پورتفوهای به اشتراک‌گذاشته‌شده به عنوان نام مالک نمایش داده می‌شود."
+          hint={t('این نام در هدر، بخش پورتفوی شما و پورتفوهای به اشتراک‌گذاشته‌شده به عنوان نام مالک نمایش داده می‌شود.')}
         />
 
         {/* Action Button */}
@@ -181,7 +181,7 @@ export default function AccountSettingsView() {
           block
           style={{ marginTop: '8px' }}
         >
-          ذخیره تنظیمات حساب
+          {t('ذخیره تنظیمات حساب')}
         </Button>
       </form>
 
@@ -195,7 +195,7 @@ export default function AccountSettingsView() {
       <VaultSettingsSection />
 
       {hasEmailReminders ? <EmailRemindersSection /> : (
-        <ProLockedCard title="یادآوری ایمیلی" text="ایمیل روزانه‌ی سررسید اقساط، چک‌ها و اشتراک‌ها در پلن رایگان بسته است." />
+        <ProLockedCard title={t('یادآوری ایمیلی')} text={t('ایمیل روزانه‌ی سررسید اقساط، چک‌ها و اشتراک‌ها در پلن رایگان بسته است.')} />
       )}
 
       <WebPushRemindersSection />

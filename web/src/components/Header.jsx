@@ -1,3 +1,4 @@
+import { t } from '../utils/i18n.js';
 import React from 'react';
 import AlertCenterButton from '../shared/alerts/AlertCenter.jsx';
 import { Link } from 'react-router-dom';
@@ -51,7 +52,7 @@ export default function Header({ activeTab, navItems = null }) {
       <LogoMark />
       <div className="brand-texts">
         <span className="brand-name">RealRate</span>
-        <span className="brand-tagline">سامانه تحلیل زنده طلا، سکه و ارز</span>
+        <span className="brand-tagline">{t('سامانه تحلیل زنده طلا، سکه و ارز')}</span>
       </div>
     </Link>
   );
@@ -73,8 +74,8 @@ export default function Header({ activeTab, navItems = null }) {
               type="button"
               className={`btn-privacy-toggle icon-only ${hideValues ? 'active' : ''}`}
               onClick={togglePrivacy}
-              title={hideValues ? 'نمایش مجدد مقادیر مالی' : 'مخفی‌سازی مبالغ دارایی (حالت محرمانگی)'}
-              aria-label={hideValues ? 'نمایش مجدد مقادیر مالی' : 'مخفی‌سازی مبالغ دارایی (حالت محرمانگی)'}
+              title={hideValues ? t('نمایش مجدد مقادیر مالی') : t('مخفی‌سازی مبالغ دارایی (حالت محرمانگی)')}
+              aria-label={hideValues ? t('نمایش مجدد مقادیر مالی') : t('مخفی‌سازی مبالغ دارایی (حالت محرمانگی)')}
             >
               {hideValues ? <Eye size={15} strokeWidth={2.2} /> : <EyeOff size={15} strokeWidth={2.2} />}
             </button>
@@ -88,8 +89,8 @@ export default function Header({ activeTab, navItems = null }) {
               type="button"
               className="btn-privacy-toggle icon-only btn-vault-lock-all"
               onClick={lockAll}
-              title="قفل کردن اطلاعات رمزنگاری‌شده"
-              aria-label="قفل کردن اطلاعات رمزنگاری‌شده"
+              title={t('قفل کردن اطلاعات رمزنگاری‌شده')}
+              aria-label={t('قفل کردن اطلاعات رمزنگاری‌شده')}
             >
               <Lock size={15} strokeWidth={2.2} />
             </button>
@@ -102,7 +103,7 @@ export default function Header({ activeTab, navItems = null }) {
                 {user.picture ? (
                   <img
                     src={user.picture}
-                    alt={user.name || 'کاربر'}
+                    alt={user.name || t('کاربر')}
                     className="user-avatar header-avatar-direct"
                     title={`${user.customName || user.name} (${user.email})`}
                     onError={(e) => { e.target.style.display = 'none'; }}
@@ -119,8 +120,8 @@ export default function Header({ activeTab, navItems = null }) {
                   type="button"
                   className="btn-header-logout"
                   onClick={logout}
-                  title="خروج از حساب کاربری"
-                  aria-label="خروج"
+                  title={t('خروج از حساب کاربری')}
+                  aria-label={t('خروج')}
                 >
                   <LogOut size={16} strokeWidth={2.2} />
                 </button>
@@ -128,7 +129,7 @@ export default function Header({ activeTab, navItems = null }) {
             ) : (
               <button className="btn-google-login" onClick={triggerLogin}>
                 <LogIn size={15} />
-                <span>ورود / ثبت‌نام</span>
+                <span>{t('ورود / ثبت‌نام')}</span>
               </button>
             )}
           </div>

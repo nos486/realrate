@@ -1,4 +1,4 @@
-import { intlLocale } from '../utils/i18n.js';
+import { intlLocale, t } from '../utils/i18n.js';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Search,
@@ -32,20 +32,20 @@ export function normalizeSearchText(str) {
     .toLowerCase()
     .replace(/\u200C/g, ' ')
     .replace(/\u200B|\u200D|\uFEFF/g, '')
-    .replace(/[ي]/g, 'ی')
-    .replace(/[ك]/g, 'ک')
-    .replace(/[آأإ]/g, 'ا')
-    .replace(/[ة]/g, 'ه')
-    .replace(/[۰٠]/g, '0')
-    .replace(/[۱١]/g, '1')
-    .replace(/[۲٢]/g, '2')
-    .replace(/[۳٣]/g, '3')
-    .replace(/[۴٤]/g, '4')
-    .replace(/[۵٥]/g, '5')
-    .replace(/[۶٦]/g, '6')
-    .replace(/[۷٧]/g, '7')
-    .replace(/[۸٨]/g, '8')
-    .replace(/[۹٩]/g, '9')
+    .replace(/[ي]/g, 'ی') // i18n-ignore
+    .replace(/[ك]/g, 'ک') // i18n-ignore
+    .replace(/[آأإ]/g, 'ا') // i18n-ignore
+    .replace(/[ة]/g, 'ه') // i18n-ignore
+    .replace(/[۰٠]/g, '0') // i18n-ignore
+    .replace(/[۱١]/g, '1') // i18n-ignore
+    .replace(/[۲٢]/g, '2') // i18n-ignore
+    .replace(/[۳٣]/g, '3') // i18n-ignore
+    .replace(/[۴٤]/g, '4') // i18n-ignore
+    .replace(/[۵٥]/g, '5') // i18n-ignore
+    .replace(/[۶٦]/g, '6') // i18n-ignore
+    .replace(/[۷٧]/g, '7') // i18n-ignore
+    .replace(/[۸٨]/g, '8') // i18n-ignore
+    .replace(/[۹٩]/g, '9') // i18n-ignore
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -77,7 +77,7 @@ export default function UniversalAssetSearch({
   selectedAsset = null,
   selectedAssetId = null,
   onSelect = () => {},
-  placeholder = 'جستجو در تمامی دارایی‌ها و سورس‌ها...',
+  placeholder = t('جستجو در تمامی دارایی‌ها و سورس‌ها...'),
   title = '',
   subtitle = '',
   autoFocus = false,
@@ -246,13 +246,13 @@ export default function UniversalAssetSearch({
           {/* Active Asset Banner in Explorer Mode */}
           {mode === 'explorer' && selectedAsset && (
             <div className="universal-active-asset-banner">
-              <div className="universal-active-badge">دارایی فعال</div>
+              <div className="universal-active-badge">{t('دارایی فعال')}</div>
               <div className="universal-active-details">
                 <div className="universal-active-icon">
                   {getAssetIcon(selectedAsset)}
                 </div>
                 <strong className="universal-active-name">
-                  {selectedAsset?.name || 'انتخاب نشده'}
+                  {selectedAsset?.name || t('انتخاب نشده')}
                 </strong>
               </div>
             </div>
@@ -282,7 +282,7 @@ export default function UniversalAssetSearch({
             type="button"
             className="universal-search-clear"
             onClick={() => setQuery('')}
-            title="پاک کردن"
+            title={t('پاک کردن')}
           >
             <X size={14} />
           </button>
@@ -300,7 +300,7 @@ export default function UniversalAssetSearch({
               if (mode === 'picker') setIsDropdownOpen(true);
             }}
           >
-            <span>همه</span>
+            <span>{t('همه')}</span>
           </button>
           {PORTFOLIO_CATEGORIES.map((cat) => (
             <button
@@ -325,7 +325,7 @@ export default function UniversalAssetSearch({
           <div className="universal-results-picker-dropdown">
             {filteredItems.length === 0 ? (
               <div className="universal-empty-results">
-                هیچ دارایی یا سورسی یافت نشد.
+                {t('هیچ دارایی یا سورسی یافت نشد.')}
               </div>
             ) : (
               filteredItems.slice(0, 50).map((item) => {
@@ -361,11 +361,11 @@ export default function UniversalAssetSearch({
                                 ? Number(item.price).toLocaleString(intlLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 4 })
                                 : Math.round(item.price).toLocaleString(intlLocale())}
                           </span>
-                          <span className="universal-result-unit">{item.shown?.currency === 'usd' ? 'دلار' : item.unit || 'تومان'}</span>
+                          <span className="universal-result-unit">{item.shown?.currency === 'usd' ? t('دلار') : item.unit || t('تومان')}</span>
                         </>
                       ) : (
                         <span className="universal-result-badge" style={{ color: 'var(--color-primary-text)' }}>
-                          {active ? <Check size={12} /> : 'انتخاب'}
+                          {active ? <Check size={12} /> : t('انتخاب')}
                         </span>
                       )}
                     </div>
@@ -381,7 +381,7 @@ export default function UniversalAssetSearch({
           <div className="universal-results-explorer">
             {filteredItems.length === 0 ? (
               <div className="universal-empty-results" style={{ gridColumn: '1 / -1' }}>
-                موردی با این مشخصات یافت نشد.
+                {t('موردی با این مشخصات یافت نشد.')}
               </div>
             ) : (
               filteredItems.slice(0, 50).map((item) => {
@@ -417,11 +417,11 @@ export default function UniversalAssetSearch({
                                 ? Number(item.price).toLocaleString(intlLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 4 })
                                 : Math.round(item.price).toLocaleString(intlLocale())}
                           </span>
-                          <span className="universal-result-unit">{item.shown?.currency === 'usd' ? 'دلار' : item.unit || 'تومان'}</span>
+                          <span className="universal-result-unit">{item.shown?.currency === 'usd' ? t('دلار') : item.unit || t('تومان')}</span>
                         </>
                       ) : (
                         <span className="universal-result-badge" style={{ color: 'var(--color-primary-text)' }}>
-                          {active ? <Check size={12} /> : 'انتخاب'}
+                          {active ? <Check size={12} /> : t('انتخاب')}
                         </span>
                       )}
                     </div>

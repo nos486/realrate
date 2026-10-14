@@ -1,4 +1,4 @@
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
 import React, { useState, useRef } from 'react';
 import { Upload, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
 import Modal from './Modal.jsx';
@@ -19,7 +19,7 @@ import { parseCsvText } from '../utils/csv.js';
 export default function GenericCsvImportButton({
   parseRow,
   onImportRow,
-  itemLabel = 'قلم',
+  itemLabel = t('قلم'),
   onFinished,
   disabled = false,
 }) {
@@ -46,7 +46,7 @@ export default function GenericCsvImportButton({
         (r) => r.length > 0 && !(r.length === 1 && !r[0].trim())
       );
       if (table.length < 2) {
-        setParseError('فایل خالی است یا هیچ ردیف داده‌ای ندارد.');
+        setParseError(t('فایل خالی است یا هیچ ردیف داده‌ای ندارد.'));
         setStep('preview');
         return;
       }
@@ -64,7 +64,7 @@ export default function GenericCsvImportButton({
       setParsedRows(rows);
       setStep('preview');
     } catch (err) {
-      setParseError('خطا در خواندن فایل: ' + (err.message || ''));
+      setParseError(t('خطا در خواندن فایل: {error}', { error: err.message || '' }));
       setStep('preview');
     }
   };
@@ -114,8 +114,8 @@ export default function GenericCsvImportButton({
         type="button"
         className="btn-import-csv icon-only"
         onClick={handleButtonClick}
-        title={`درون‌ریزی ${itemLabel} از فایل CSV`}
-        aria-label="ورودی CSV"
+        title={t('درون‌ریزی {item} از فایل CSV', { item: t(itemLabel) })}
+        aria-label={t('ورودی CSV')}
         disabled={disabled}
       >
         <Upload size={15} strokeWidth={2} />
@@ -124,14 +124,14 @@ export default function GenericCsvImportButton({
       <Modal
         isOpen={step !== null}
         onClose={step === 'importing' ? undefined : handleClose}
-        title="درون‌ریزی از فایل CSV"
+        title={t('درون‌ریزی از فایل CSV')}
         icon={<Upload size={18} />}
         maxWidth="480px"
         footer={
           step === 'preview' ? (
             <div className="modal-actions">
               <button type="button" className="btn-cancel" onClick={handleClose}>
-                انصراف
+                {t('انصراف')}
               </button>
               <button
                 type="button"
@@ -139,13 +139,13 @@ export default function GenericCsvImportButton({
                 disabled={importable.length === 0}
                 onClick={handleStartImport}
               >
-                درون‌ریزی {importable.length.toLocaleString(intlLocale())} {itemLabel}
+                {t('درون‌ریزی {n} {item}', { n: importable.length.toLocaleString(intlLocale()), item: t(itemLabel) })}
               </button>
             </div>
           ) : step === 'done' ? (
             <div className="modal-actions">
               <button type="button" className="btn-primary" onClick={handleClose}>
-                بستن
+                {t('بستن')}
               </button>
             </div>
           ) : null
@@ -160,28 +160,28 @@ export default function GenericCsvImportButton({
               </div>
             ) : (
               <>
-                <p>خلاصه فایل انتخاب‌شده:</p>
+                <p>{t('خلاصه فایل انتخاب‌شده:')}</p>
                 <ul className="csv-import-summary-list">
                   <li>
                     <CheckCircle2 size={14} className="ok-icon" />
-                    <span>{importable.length.toLocaleString(intlLocale())} {itemLabel} آماده درون‌ریزی</span>
+                    <span>{t('{n} {item} آماده درون‌ریزی', { n: importable.length.toLocaleString(intlLocale()), item: t(itemLabel) })}</span>
                   </li>
                   {skippedCount > 0 && (
                     <li>
                       <XCircle size={14} className="skip-icon" />
-                      <span>{skippedCount.toLocaleString(intlLocale())} مورد نادیده گرفته شد</span>
+                      <span>{t('{n} مورد نادیده گرفته شد', { n: skippedCount.toLocaleString(intlLocale()) })}</span>
                     </li>
                   )}
                   {invalidCount > 0 && (
                     <li>
                       <XCircle size={14} className="skip-icon" />
-                      <span>{invalidCount.toLocaleString(intlLocale())} ردیف نامعتبر نادیده گرفته شد</span>
+                      <span>{t('{n} ردیف نامعتبر نادیده گرفته شد', { n: invalidCount.toLocaleString(intlLocale()) })}</span>
                     </li>
                   )}
                 </ul>
                 {importable.length === 0 && (
                   <div className="csv-import-warning-note">
-                    هیچ {itemLabel} قابل درون‌ریزی‌ای در این فایل یافت نشد.
+                    {t('هیچ {item} قابل درون‌ریزی‌ای در این فایل یافت نشد.', { item: t(itemLabel) })}
                   </div>
                 )}
               </>
@@ -193,8 +193,7 @@ export default function GenericCsvImportButton({
           <div className="csv-import-progress">
             <div className="spinner-glow"></div>
             <p>
-              در حال درون‌ریزی... ({progress.done.toLocaleString(intlLocale())} از{' '}
-              {progress.total.toLocaleString(intlLocale())})
+              {t('در حال درون‌ریزی... ({done} از {total})', { done: progress.done.toLocaleString(intlLocale()), total: progress.total.toLocaleString(intlLocale()) })}
             </p>
           </div>
         )}
@@ -203,13 +202,13 @@ export default function GenericCsvImportButton({
           <div className="csv-import-result">
             <p>
               <CheckCircle2 size={16} className="ok-icon" />
-              <span>{result.success.toLocaleString(intlLocale())} {itemLabel} با موفقیت اضافه شد.</span>
+              <span>{t('{n} {item} با موفقیت اضافه شد.', { n: result.success.toLocaleString(intlLocale()), item: t(itemLabel) })}</span>
             </p>
             {result.failed > 0 && (
               <>
                 <p>
                   <AlertTriangle size={16} className="warn-icon" />
-                  <span>{result.failed.toLocaleString(intlLocale())} مورد با خطا مواجه شد:</span>
+                  <span>{t('{n} مورد با خطا مواجه شد:', { n: result.failed.toLocaleString(intlLocale()) })}</span>
                 </p>
                 <ul className="csv-import-fail-list">
                   {result.failedNames.map((n, i) => (

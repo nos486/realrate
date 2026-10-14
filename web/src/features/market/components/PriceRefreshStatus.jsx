@@ -1,4 +1,4 @@
-import { intlLocale } from '../../../utils/i18n.js';
+import { intlLocale, t } from '../../../utils/i18n.js';
 import React, { useEffect, useState } from 'react';
 import { RefreshCw, WifiOff } from 'lucide-react';
 import { usePricing } from '../context/PricingContext.jsx';
@@ -13,10 +13,10 @@ import { AlertBanner } from '../../../shared/ui/index.js';
 function formatUpdatedAgo(timestamp, now = Date.now()) {
   if (!timestamp) return '';
   const diffMins = Math.floor((now - timestamp) / 60000);
-  if (diffMins < 1) return 'لحظاتی پیش';
-  if (diffMins < 60) return `${diffMins.toLocaleString(intlLocale())} دقیقه پیش`;
+  if (diffMins < 1) return t('لحظاتی پیش');
+  if (diffMins < 60) return t('{n} دقیقه پیش', { n: diffMins.toLocaleString(intlLocale()) });
   const diffHours = Math.floor(diffMins / 60);
-  return `${diffHours.toLocaleString(intlLocale())} ساعت پیش`;
+  return t('{n} ساعت پیش', { n: diffHours.toLocaleString(intlLocale()) });
 }
 
 /**
@@ -44,11 +44,11 @@ export default function PriceRefreshStatus() {
       className="price-refresh-btn"
       onClick={refresh}
       disabled={refreshing}
-      aria-label="به‌روزرسانی قیمت‌ها"
-      title="به‌روزرسانی قیمت‌ها"
+      aria-label={t('به‌روزرسانی قیمت‌ها')}
+      title={t('به‌روزرسانی قیمت‌ها')}
     >
       <RefreshCw size={13} className={refreshing ? 'is-spinning' : ''} />
-      {error && <span>تلاش مجدد</span>}
+      {error && <span>{t('تلاش مجدد')}</span>}
     </button>
   );
 
@@ -60,8 +60,8 @@ export default function PriceRefreshStatus() {
         className="price-refresh-alert"
         message={
           lastUpdatedAt
-            ? `اتصال اینترنت برقرار نیست — قیمت‌های ذخیره‌شده (${updatedAgo}) نمایش داده می‌شود.`
-            : 'اتصال اینترنت برقرار نیست — آخرین قیمت‌های ذخیره‌شده نمایش داده می‌شود.'
+            ? t('اتصال اینترنت برقرار نیست — قیمت‌های ذخیره‌شده ({ago}) نمایش داده می‌شود.', { ago: updatedAgo })
+            : t('اتصال اینترنت برقرار نیست — آخرین قیمت‌های ذخیره‌شده نمایش داده می‌شود.')
         }
       />
     );
@@ -75,8 +75,8 @@ export default function PriceRefreshStatus() {
         className="price-refresh-alert"
         message={
           lastUpdatedAt
-            ? `آخرین به‌روزرسانی قیمت‌ها ناموفق بود — قیمت‌های ${updatedAgo} نمایش داده می‌شود.`
-            : 'دریافت قیمت‌ها از سرور ناموفق بود.'
+            ? t('آخرین به‌روزرسانی قیمت‌ها ناموفق بود — قیمت‌های {ago} نمایش داده می‌شود.', { ago: updatedAgo })
+            : t('دریافت قیمت‌ها از سرور ناموفق بود.')
         }
         action={refreshButton}
       />

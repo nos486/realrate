@@ -30,7 +30,7 @@ export default {
   ارز: 'Currency',
   رمزارز: 'Crypto',
   'سهام بورس': "Stocks",
-  صندوق: 'Fund',
+  صندوق: "Fund",
   کالا: 'Commodity',
   حباب: 'Bubble',
   سفارشی: 'Custom',
@@ -285,7 +285,7 @@ export default {
   'طلا و سکه': 'Gold and coins',
   فلزات: 'Metals',
   'نفت و انرژی': 'Oil and energy',
-  'بورس و شاخص': 'Stock market and index',
+  'بورس و شاخص': "Stock market and index",
   اقتصاد: 'Economy',
   'سیاسی و امنیتی': 'Politics and security',
 

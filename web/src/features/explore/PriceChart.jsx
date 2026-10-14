@@ -10,7 +10,7 @@
  * price history, so there is none. Colors are read from the design tokens (styles/tokens.css).
  */
 
-import { intlLocale, getDir } from '../../utils/i18n.js';
+import { intlLocale, getDir, t } from '../../utils/i18n.js';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createChart, createSeriesMarkers, CandlestickSeries, LineSeries, CrosshairMode } from 'lightweight-charts';
 import { formatPrice } from '../market/assetPrice.js';
@@ -23,8 +23,8 @@ const dayLongFormat = new Intl.DateTimeFormat(`${intlLocale()}-u-ca-persian`, { 
 const AXIS_FONT_PX = { wide: 13, phone: 12 };
 
 const AVERAGES = [
-  { period: 7, label: 'میانگین ۷ روزه', short: 'MA ۷', className: 'is-fast', token: '--color-warning-text' },
-  { period: 20, label: 'میانگین ۲۰ روزه', short: 'MA ۲۰', className: 'is-slow', token: '--color-primary-text' },
+  { period: 7, label: t('میانگین ۷ روزه'), short: t('MA ۷'), className: 'is-fast', token: '--color-warning-text' },
+  { period: 20, label: t('میانگین ۲۰ روزه'), short: t('MA ۲۰'), className: 'is-slow', token: '--color-primary-text' },
 ];
 
 const pad = (v) => String(v).padStart(2, '0');
@@ -34,7 +34,7 @@ const dayKey = (time) => (typeof time === 'string' ? time : time && time.year ? 
 
 const dateOf = (day, long = false) => (long ? dayLongFormat : dayFormat).format(new Date(`${day}T12:00:00+03:30`));
 
-const signedPct = (v) => (v === null || v === undefined ? '—' : `${v < 0 ? '−' : v > 0 ? '+' : ''}${Math.abs(v).toLocaleString(intlLocale(), { maximumFractionDigits: 2 })}٪`);
+const signedPct = (v) => (v === null || v === undefined ? '—' : `${v < 0 ? '−' : v > 0 ? '+' : ''}${Math.abs(v).toLocaleString(intlLocale(), { maximumFractionDigits: 2 })}${t('٪')}`);
 
 /**
  * @param {{ candles: number[][], days: string[], currency?: string, unit?: string, label: string,
@@ -180,18 +180,18 @@ export default function PriceChart({ candles, days, currency = 'toman', unit = '
   const dayChange = h && (prevClose || h[0]) ? ((h[3] - (prevClose || h[0])) / (prevClose || h[0])) * 100 : null;
 
   const cells = [
-    { key: 'change', label: 'تغییر دوره', value: signedPct(stats.changePct), tone: stats.changePct > 0 ? 'up-val' : stats.changePct < 0 ? 'down-val' : '' },
-    { key: 'high', label: 'بیشترین', value: fmt(stats.high) },
-    { key: 'low', label: 'کمترین', value: fmt(stats.low) },
-    { key: 'avg', label: 'میانگین', value: fmt(stats.average) },
-    { key: 'range', label: 'دامنه‌ی نوسان', value: signedPct(stats.rangePct).replace('+', '') },
+    { key: 'change', label: t('تغییر دوره'), value: signedPct(stats.changePct), tone: stats.changePct > 0 ? 'up-val' : stats.changePct < 0 ? 'down-val' : '' },
+    { key: 'high', label: t('بیشترین'), value: fmt(stats.high) },
+    { key: 'low', label: t('کمترین'), value: fmt(stats.low) },
+    { key: 'avg', label: t('میانگین'), value: fmt(stats.average) },
+    { key: 'range', label: t('دامنه‌ی نوسان'), value: signedPct(stats.rangePct).replace('+', '') },
   ];
 
   return (
     <div className="xchart-wrap">
       <div className="xchart-bar">
         {header}
-        <div className="xchart-tools" role="group" aria-label="میانگین متحرک">
+        <div className="xchart-tools" role="group" aria-label={t('میانگین متحرک')}>
           {averages.map((a) => (
             <button
               key={a.period}
@@ -200,7 +200,7 @@ export default function PriceChart({ candles, days, currency = 'toman', unit = '
               aria-pressed={shownAverages.has(a.period)}
               aria-label={a.label}
               disabled={n < a.period}
-              title={n < a.period ? 'برای این بازه داده‌ی کافی نیست' : a.label}
+              title={n < a.period ? t('برای این بازه داده‌ی کافی نیست') : a.label}
               onClick={() => toggle(a.period)}
             >
               <i aria-hidden="true" /> {a.short}
@@ -224,11 +224,11 @@ export default function PriceChart({ candles, days, currency = 'toman', unit = '
           <div className={`xchart-tip ${hover.x > 0.5 ? 'is-start' : 'is-end'}`} dir={getDir()}>
             <strong>{dateOf(days[hover.index], true)}</strong>
             <dl>
-              <div><dt>باز</dt><dd><bdi>{fmt(h[0])}</bdi></dd></div>
-              <div><dt>بیشترین</dt><dd><bdi>{fmt(h[1])}</bdi></dd></div>
-              <div><dt>کمترین</dt><dd><bdi>{fmt(h[2])}</bdi></dd></div>
-              <div><dt>پایانی</dt><dd><bdi>{fmt(h[3])}{unit && ` ${unit}`}</bdi></dd></div>
-              <div><dt>تغییر</dt><dd className={dayChange > 0 ? 'up-val' : dayChange < 0 ? 'down-val' : ''}><bdi>{signedPct(dayChange)}</bdi></dd></div>
+              <div><dt>{t('باز')}</dt><dd><bdi>{fmt(h[0])}</bdi></dd></div>
+              <div><dt>{t('بیشترین')}</dt><dd><bdi>{fmt(h[1])}</bdi></dd></div>
+              <div><dt>{t('کمترین')}</dt><dd><bdi>{fmt(h[2])}</bdi></dd></div>
+              <div><dt>{t('پایانی')}</dt><dd><bdi>{fmt(h[3])}{unit && ` ${unit}`}</bdi></dd></div>
+              <div><dt>{t('تغییر')}</dt><dd className={dayChange > 0 ? 'up-val' : dayChange < 0 ? 'down-val' : ''}><bdi>{signedPct(dayChange)}</bdi></dd></div>
               {averages.filter((a) => shownAverages.has(a.period) && a.values[hover.index] !== null).map((a) => (
                 <div key={a.period}><dt>{a.label}</dt><dd><bdi>{fmt(a.values[hover.index])}</bdi></dd></div>
               ))}

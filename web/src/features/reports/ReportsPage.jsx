@@ -9,7 +9,8 @@
  * app's web view can't print).
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { t } from '../../utils/i18n.js';
+import { calendarLocale } from '../../shared/utils/dates.js';
 import React, { useMemo, useRef, useState } from 'react';
 import { ChartColumn, FileDown } from 'lucide-react';
 import { AlertBanner, Button, FeaturePageHeader } from '../../shared/ui/index.js';
@@ -28,9 +29,9 @@ import { isNativeApp } from '../../shared/native/nativeApp.js';
 
 const HEADER = {
   icon: <ChartColumn size={24} />,
-  title: 'گزارش‌ها',
+  title: t('گزارش‌ها'),
   help: 'reports',
-  subtitle: 'سال شما در یک نگاه: درآمد و هزینه، پس‌انداز، سرمایه‌گذاری و ارزش دلاری',
+  subtitle: t('سال شما در یک نگاه: درآمد و هزینه، پس‌انداز، سرمایه‌گذاری و ارزش دلاری'),
 };
 
 function ReportBody({ jy, throughMonth, hideValues }) {
@@ -38,7 +39,7 @@ function ReportBody({ jy, throughMonth, hideValues }) {
   const f = useMemo(() => reportFormatters(hideValues), [hideValues]);
   if (data.loading) {
     return (
-      <div className="reports-loading" role="status" aria-label="در حال ساختن گزارش">
+      <div className="reports-loading" role="status" aria-label={t('در حال ساختن گزارش')}>
         <Skeleton height={96} radius={16} />
         <Skeleton height={260} radius={16} />
         <Skeleton height={260} radius={16} />
@@ -68,7 +69,7 @@ export default function ReportsPage() {
     return (
       <div className="incomes-page-container">
         <FeaturePageHeader {...HEADER} />
-        <VaultUnlockCard title="گزارش‌ها از داده‌های رمزنگاری‌شده‌ی شما ساخته می‌شوند" />
+        <VaultUnlockCard title={t('گزارش‌ها از داده‌های رمزنگاری‌شده‌ی شما ساخته می‌شوند')} />
       </div>
     );
   }
@@ -78,12 +79,12 @@ export default function ReportsPage() {
       <FeaturePageHeader
         {...HEADER}
         actions={canPrint && (
-          <Button variant="secondary" icon={<FileDown size={16} />} onClick={() => printReport(pageRef.current, `گزارش ${yearLabel} — RealRate`)}>
-            خروجی PDF
+          <Button variant="secondary" icon={<FileDown size={16} />} onClick={() => printReport(pageRef.current, t('گزارش {year} — RealRate', { year: yearLabel }))}>
+            {t('خروجی PDF')}
           </Button>
         )}
       />
-      <p className="report-print-meta">گزارش سال {yearLabel} · ساخته‌شده در {new Date().toLocaleDateString(intlLocale())} · RealRate</p>
+      <p className="report-print-meta">{t('گزارش سال {year} · ساخته‌شده در {date} · RealRate', { year: yearLabel, date: new Date().toLocaleDateString(calendarLocale()) })}</p>
       <PeriodSwitcher mode="year" month={month} thisMonth={thisMonth} onMonthChange={setMonth} />
       <ReportBody jy={month.jy} throughMonth={throughMonth} hideValues={hideValues} />
     </div>

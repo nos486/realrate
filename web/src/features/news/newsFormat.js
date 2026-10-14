@@ -2,17 +2,18 @@
  * newsFormat.js — How a news item's time, category and source read
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
+import { calendarLocale } from '../../shared/utils/dates.js';
 
 export const NEWS_CATEGORIES = {
-  currency: 'ارز',
-  gold: 'طلا و سکه',
-  metals: 'فلزات',
-  oil: 'نفت و انرژی',
-  bourse: 'بورس و شاخص',
-  economy: 'اقتصاد',
-  crypto: 'رمزارز',
-  politics: 'سیاسی و امنیتی',
+  currency: t('ارز'),
+  gold: t('طلا و سکه'),
+  metals: t('فلزات'),
+  oil: t('نفت و انرژی'),
+  bourse: t('بورس و شاخص'),
+  economy: t('اقتصاد'),
+  crypto: t('رمزارز'),
+  politics: t('سیاسی و امنیتی'),
 };
 
 const TEHRAN = 'Asia/Tehran';
@@ -25,20 +26,20 @@ export function newsClock(ts) {
 
 /** "۱۲ مهر، ۱۴:۳۰" */
 export function newsFullTime(ts) {
-  const day = new Date(ts).toLocaleDateString(intlLocale(), { day: 'numeric', month: 'long', timeZone: TEHRAN });
-  return `${day}، ${newsClock(ts)}`;
+  const day = new Date(ts).toLocaleDateString(calendarLocale(), { day: 'numeric', month: 'long', timeZone: TEHRAN });
+  return t('{day}، {time}', { day, time: newsClock(ts) });
 }
 
 /** "لحظاتی پیش", "۵ دقیقه پیش", "۳ ساعت پیش", then "دیروز ۱۴:۳۰" or "۱۲ مهر، ۱۴:۳۰" */
 export function newsTimeAgo(ts, now = Date.now()) {
   const minutes = Math.floor((now - ts) / 60000);
-  if (minutes < 1) return 'لحظاتی پیش';
-  if (minutes < 60) return `${fa(minutes)} دقیقه پیش`;
+  if (minutes < 1) return t('لحظاتی پیش');
+  if (minutes < 60) return t('{n} دقیقه پیش', { n: fa(minutes) });
   const hours = Math.floor(minutes / 60);
-  if (hours < 12) return `${fa(hours)} ساعت پیش`;
-  const dayOf = (t) => new Date(t).toLocaleDateString('en-CA', { timeZone: TEHRAN });
-  if (dayOf(ts) === dayOf(now)) return `امروز ${newsClock(ts)}`;
-  if (dayOf(ts) === dayOf(now - 86400000)) return `دیروز ${newsClock(ts)}`;
+  if (hours < 12) return t('{n} ساعت پیش', { n: fa(hours) });
+  const dayOf = (at) => new Date(at).toLocaleDateString('en-CA', { timeZone: TEHRAN });
+  if (dayOf(ts) === dayOf(now)) return t('امروز {time}', { time: newsClock(ts) });
+  if (dayOf(ts) === dayOf(now - 86400000)) return t('دیروز {time}', { time: newsClock(ts) });
   return newsFullTime(ts);
 }
 

@@ -10,6 +10,7 @@
  * `required={false}`.
  */
 
+import { t } from '../../utils/i18n.js';
 import React from 'react';
 import { NumericInput } from '../ui/index.js';
 import { CURRENCIES, allowsDecimals, currencyLabel } from '../../utils/currencies.js';
@@ -27,7 +28,7 @@ const CURRENCY_OPTIONS = CURRENCIES.map(({ code, label }) => ({ value: code, lab
  */
 export default function AmountField({
   id, value, onValueChange, currency = 'IRT', onCurrencyChange, unit: ownUnit = '', allowDecimals, required = true,
-  label = 'مبلغ', placeholder = '', autoFocus = false, children = null,
+  label = t('مبلغ'), placeholder = '', autoFocus = false, children = null,
 }) {
   const unit = ownUnit || currencyLabel(currency);
   const amount = parseInputNumber(value);
@@ -41,7 +42,7 @@ export default function AmountField({
           value={value}
           onValueChange={onValueChange}
           allowDecimals={allowDecimals ?? (ownUnit ? true : allowsDecimals(currency))}
-          placeholder={placeholder || '۰'}
+          placeholder={placeholder || t('۰')}
           className="amount-field-input"
           autoFocus={autoFocus}
           required={required}
@@ -49,7 +50,7 @@ export default function AmountField({
         {onCurrencyChange && !ownUnit ? (
           <select
             className="amount-field-currency"
-            aria-label="ارز"
+            aria-label={t('ارز')}
             value={currency}
             onChange={(e) => onCurrencyChange(e.target.value)}
           >

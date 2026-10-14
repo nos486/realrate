@@ -21,7 +21,7 @@ function describe(item) {
   if (p.usdCross !== undefined) return t('بر مبنای دلار ({rate} $)', { rate: fa(p.usdCross, 4) });
   // A dollar-priced asset shows its dollar price; the line under it is the toman equivalent
   if (currencyOf(item) === 'usd') return t('≈ {price} تومان', { price: fa(item.price) });
-  if (p.usd !== undefined) return t('{n} دلار', { n: fa(p.usd, 2) });
+  if (p.usd !== undefined) return t('{price} دلار', { price: fa(p.usd, 2) });
   // A coin's bubble (tgju): its percent of the coin's gold value
   if (p.bubbleOf && p.bubblePct !== undefined) return t('{pct}٪ بالاتر از ارزش طلای سکه', { pct: fa(p.bubblePct, 1) });
   if (p.derived === 'intrinsic') return t('ارزش ذاتی (محاسبه از انس و دلار)');

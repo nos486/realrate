@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -105,7 +106,7 @@ export default function Modal({
           type="button"
           className="modal-close-btn"
           onClick={onClose}
-          aria-label="بستن"
+          aria-label={t('بستن')}
         >
           <X size={18} />
         </button>

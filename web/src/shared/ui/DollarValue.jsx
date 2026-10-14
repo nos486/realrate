@@ -10,18 +10,24 @@
  * or 'pnl' (an investment: more is a profit).
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
 import React from 'react';
 
 const MASK = '****';
 const toman = (v) => Math.round(Number(v) || 0).toLocaleString(intlLocale());
 export const formatUsd = (v) => (Number(v) || 0).toLocaleString(intlLocale(), { maximumFractionDigits: v >= 100 ? 0 : 2 });
 
+/** «به نرخ امروز <strong>X</strong> تومان» with the amount emphasised wherever the translation puts it */
+function atTodayRate(amount) {
+  const [before, after] = t('به نرخ امروز {amount} تومان', { amount: '\u0000' }).split('\u0000');
+  return <>{before}<strong>{amount}</strong>{after}</>;
+}
+
 function Change({ pct, tone }) {
   if (pct === null || pct === undefined || !Number.isFinite(pct)) return null;
   const up = pct >= 0;
   const cls = tone === 'pnl' ? (up ? 'is-profit' : 'is-loss') : up ? 'is-up' : 'is-down';
-  return <b className={cls}> ({up ? '+' : '−'}{Math.abs(pct).toLocaleString(intlLocale(), { maximumFractionDigits: 0 })}٪)</b>;
+  return <b className={cls}> ({up ? '+' : '−'}{Math.abs(pct).toLocaleString(intlLocale(), { maximumFractionDigits: 0 })}{t('٪')})</b>;
 }
 
 /**
@@ -32,10 +38,10 @@ export function DollarValueLine({ value, hideValues = false, tone = 'rate', titl
   if (!value) return null;
   return (
     <span className="dollar-value-line" title={title}>
-      ≈ {hideValues ? MASK : formatUsd(value.usd)} دلار
+      {t('≈ {amount} دلار', { amount: hideValues ? MASK : formatUsd(value.usd) })}
       {value.todayToman !== null && value.todayToman !== undefined && (
         <>
-          {' · امروز '}{hideValues ? MASK : toman(value.todayToman)} تومان
+          {' · '}{t('امروز {amount} تومان', { amount: hideValues ? MASK : toman(value.todayToman) })}
           <Change pct={value.changePct} tone={tone} />
         </>
       )}
@@ -52,11 +58,11 @@ export function DollarValueFoot({ view, noun, hideValues = false, tone = 'rate' 
     <span className="dollar-value-foot">
       {view.todayToman !== null && (
         <>
-          به نرخ امروز <strong>{hideValues ? MASK : toman(view.todayToman)}</strong> تومان
+          {atTodayRate(hideValues ? MASK : toman(view.todayToman))}
           <Change pct={view.changePct} tone={tone} />
         </>
       )}
-      {view.missing > 0 && <small> · {view.missing.toLocaleString(intlLocale())} {noun} بدون نرخ دلار آن روز حساب نشده</small>}
+      {view.missing > 0 && <small> · {t('{n} {noun} بدون نرخ دلار آن روز حساب نشده', { n: view.missing.toLocaleString(intlLocale()), noun: t(noun) })}</small>}
     </span>
   );
 }
@@ -70,14 +76,14 @@ export function DollarPnl({ pnl, hideValues = false }) {
   const up = pnl.pnlUsd >= 0;
   const partial = pnl.partial || pnl.missingQty > 1e-9;
   return (
-    <span className="dollar-value-foot" title="بهای هر خرید به نرخ دلار روز خودش، ارزش به نرخ دلار امروز">
-      به دلار:{' '}
+    <span className="dollar-value-foot" title={t('بهای هر خرید به نرخ دلار روز خودش، ارزش به نرخ دلار امروز')}>
+      {t('به دلار:')}{' '}
       <b className={up ? 'is-profit' : 'is-loss'}>
         {hideValues ? MASK : `${up ? '+' : '−'}${formatUsd(Math.abs(pnl.pnlUsd))}`}
       </b>{' '}
-      دلار
+      {t('دلار')}
       {pnl.pnlPct !== null && <Change pct={pnl.pnlPct} tone="pnl" />}
-      {partial && <small> · خریدهای بدون تاریخ یا نرخ دلار حساب نشده</small>}
+      {partial && <small> · {t('خریدهای بدون تاریخ یا نرخ دلار حساب نشده')}</small>}
     </span>
   );
 }

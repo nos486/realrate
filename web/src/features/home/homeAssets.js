@@ -11,6 +11,7 @@
  * a linked asset (a coin's bubble), all read off the price book.
  */
 
+import { t } from '../../utils/i18n.js';
 import { assetOf } from '../market/priceBookAssets.js';
 import { ownPriceOf, formatPrice } from '../market/assetPrice.js';
 import { usdSeriesKey } from '../../utils/priceBook.js';
@@ -161,9 +162,9 @@ export function resolveHomeAsset(id, index, display, card = null) {
     display: 'toman',
     price: own.toman,
     currency: 'toman',
-    unit: 'تومان',
+    unit: t('تومان'),
     seriesId: asset.id,
-    note: `≈ ${formatPrice(own.value, 'usd')} دلار`,
+    note: t('≈ {price} دلار', { price: formatPrice(own.value, 'usd') }),
     changePercent: num(toman?.changePercent),
     dayRange: dayRangeOf(asset.params, toman),
   };
