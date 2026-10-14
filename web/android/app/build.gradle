@@ -18,12 +18,21 @@ android {
         }
     }
     // "full" reads bank SMS; "nosms" has no SMS permission or receiver (src/nosms/AndroidManifest.xml)
-    // and is built from a web bundle with VITE_NO_SMS=1 (SMS screens hidden). Same application id and
-    // signing key: either installs over the other.
+    // and is built from a web bundle with VITE_NO_SMS=1 (SMS screens hidden). Its application id is
+    // ir.realrate.app.store, so it installs next to the full app (Google Play needs it to differ).
     flavorDimensions 'sms'
     productFlavors {
-        full { dimension 'sms' }
-        nosms { dimension 'sms' }
+        // Each build has its own application id and sign-in link scheme (the API accepts both), so a
+        // phone can have the full app and the store app together (the store app signs differently)
+        full {
+            dimension 'sms'
+            manifestPlaceholders = [authScheme: 'ir.realrate.app']
+        }
+        nosms {
+            dimension 'sms'
+            applicationIdSuffix '.store'
+            manifestPlaceholders = [authScheme: 'ir.realrate.store']
+        }
     }
     // Release signing from the environment (GitHub Actions secrets, see docs/ANDROID.md); without
     // it a release build is left unsigned

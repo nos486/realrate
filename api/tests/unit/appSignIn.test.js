@@ -51,6 +51,22 @@ describe('Android app Google sign-in', () => {
     expect(appAuthRedirect({ auth_error: 'لغو شد' })).toMatch(/^ir\.realrate\.app:\/\/auth\?auth_error=/);
   });
 
+  it('answers on the scheme of the build that started the sign-in, never an unknown one', async () => {
+    expect(appAuthRedirect({ code: 'abc' }, 'ir.realrate.store')).toBe('ir.realrate.store://auth?code=abc');
+    expect(appAuthRedirect({ code: 'abc' }, 'evil.app')).toBe('ir.realrate.app://auth?code=abc');
+    const login = await handleGoogleLogin(
+      new Request(`https://api.realrate.ir/api/auth/google/login?app_challenge=${CHALLENGE}&app_scheme=ir.realrate.store`),
+      { GOOGLE_CLIENT_ID: 'cid' },
+    );
+    const raw = new URL(login.headers.get('Location')).searchParams.get('state');
+    const state = btoa(JSON.stringify(JSON.parse(atob(raw.replace(/-/g, '+').replace(/_/g, '/')))));
+    const res = await handleGoogleCallback(
+      new Request(`https://api.realrate.ir/api/auth/google/callback?error=access_denied&state=${encodeURIComponent(state)}`),
+      {},
+    );
+    expect(res.headers.get('Location')).toMatch(/^ir\.realrate\.store:\/\/auth\?auth_error=/);
+  });
+
   it('carries the challenge through the Google state', async () => {
     const res = await handleGoogleLogin(
       new Request(`https://api.realrate.ir/api/auth/google/login?app_challenge=${CHALLENGE}&return_to=%2F`),

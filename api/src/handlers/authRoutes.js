@@ -28,7 +28,7 @@ import { getMaintenance } from "../lib/maintenance.js";
 import { jsonResponse, errorResponse, getCorsHeaders, safeWaitUntil } from "../lib/helpers.js";
 import { logger } from "../lib/logger.js";
 import { isTrustedOrigin } from "../lib/security.js";
-import { isAppChallenge, appAuthRedirect, appSignInPurpose, APP_SIGNIN_CODE_TTL } from "../lib/appAuth.js";
+import { isAppChallenge, appSchemeOf, appAuthRedirect, appSignInPurpose, APP_SIGNIN_CODE_TTL } from "../lib/appAuth.js";
 import {
   SESSION_TTL_SECONDS,
   SESSION_COOKIE_MAX_AGE,
@@ -151,7 +151,7 @@ export async function handleGoogleLogin(request, env) {
     frontendOrigin,
     redirectUri,
     nonce,
-    ...(isAppChallenge(appChallenge) ? { app: appChallenge } : {}),
+    ...(isAppChallenge(appChallenge) ? { app: appChallenge, appScheme: appSchemeOf(url.searchParams.get("app_scheme")) } : {}),
   };
   const stateStr = base64UrlEncode(new TextEncoder().encode(JSON.stringify(statePayload)));
 
@@ -202,9 +202,10 @@ export async function handleGoogleCallback(request, env) {
   const returnTo = stateData.returnTo || "/";
   const redirectUri = stateData.redirectUri || resolveRedirectUri(request, env);
   const appChallenge = isAppChallenge(stateData.app) ? stateData.app : null;
+  const appScheme = appSchemeOf(stateData.appScheme);
   // Where the browser goes when sign-in ends: the web app, or back into the Android app
   const finishTarget = (params) =>
-    appChallenge ? appAuthRedirect(params) : buildFrontendRedirect(frontendOrigin, returnTo, params);
+    appChallenge ? appAuthRedirect(params, appScheme) : buildFrontendRedirect(frontendOrigin, returnTo, params);
 
   // If user cancelled or Google returned an error
   if (errorParam) {
@@ -335,7 +336,7 @@ export async function handleGoogleCallback(request, env) {
     // (POST /api/auth/app/signin); the session itself is created there
     if (appChallenge) {
       const appCode = await dbCreateAuthToken(env, userData.id, appSignInPurpose(appChallenge), APP_SIGNIN_CODE_TTL);
-      return Response.redirect(appAuthRedirect({ code: appCode }), 302);
+      return Response.redirect(appAuthRedirect({ code: appCode }, appScheme), 302);
     }
 
     // 2. Create 30-day session
