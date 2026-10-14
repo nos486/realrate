@@ -8,16 +8,18 @@
  * Creations are serialized, so two messages arriving together make one account, not two.
  */
 
+import { t } from '../../utils/i18n.js';
+import { toPersianDigits } from '../../shared/utils/formatters.js';
 import { resolveBank } from '../../shared/banks/resolveBank.js';
 import { matchSmsAccount } from '../../utils/bankSms.js';
 import { saveAccount } from '../../shared/vault/vaultAccounts.js';
 
-const faDigits = (v) => String(v).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+const faDigits = (v) => toPersianDigits(v);
 
 /** The account a message describes, as AccountForm saves it (a toman bank account) */
 export function smsAccountInput(tx) {
   const bank = resolveBank({ bankId: tx.bankId });
-  const base = bank.shortName || 'حساب بانکی';
+  const base = bank.shortName || t('حساب بانکی');
   return {
     type: 'bank',
     // A card's digits show beside the name already (accountLabel); an account's do not
@@ -27,7 +29,7 @@ export function smsAccountInput(tx) {
     cardLast4: tx.cardLast4 || '',
     accountNumber: tx.accountLast4 || '',
     currencies: ['IRT'],
-    notes: 'ساخته‌شده خودکار از پیامک بانک',
+    notes: t('ساخته‌شده خودکار از پیامک بانک'),
   };
 }
 

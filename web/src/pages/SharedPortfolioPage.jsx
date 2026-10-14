@@ -1,4 +1,4 @@
-import { intlLocale } from '../utils/i18n.js';
+import { intlLocale, t } from '../utils/i18n.js';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { saveTextFile } from '../shared/utils/fileExport.js';
 import { useParams, Link } from 'react-router-dom';
@@ -91,10 +91,10 @@ export default function SharedPortfolioPage() {
         setRequirePassword(false);
         setPortfolioData(res);
       } else {
-        setErrorMsg(res.message || 'خطا در دریافت پورتفو');
+        setErrorMsg(res.message || t('خطا در دریافت پورتفو'));
       }
     } catch (err) {
-      setErrorMsg(err.message || 'خطای سرور در بارگذاری پورتفو');
+      setErrorMsg(err.message || t('خطای سرور در بارگذاری پورتفو'));
     } finally {
       setLoading(false);
       setUnlocking(false);
@@ -111,7 +111,7 @@ export default function SharedPortfolioPage() {
   const handleUnlock = (e) => {
     e.preventDefault();
     if (!password.trim()) {
-      setErrorMsg('لطفاً رمز عبور را وارد فرمایید.');
+      setErrorMsg(t('لطفاً رمز عبور را وارد فرمایید.'));
       return;
     }
     setUnlocking(true);
@@ -224,12 +224,12 @@ export default function SharedPortfolioPage() {
   const handleUnlockVault = async (passphrase) => {
     if (!portfolioData?.portfolio?.isE2ee) return false;
     if (!portfolioData.portfolio.e2eeSalt) {
-      setVaultError('این پورتفو فقط با لینک کامل (همراه با کلید) که مالک ارسال کرده باز می‌شود.');
+      setVaultError(t('این پورتفو فقط با لینک کامل (همراه با کلید) که مالک ارسال کرده باز می‌شود.'));
       return false;
     }
     const pass = (passphrase || '').trim();
     if (!pass) {
-      setVaultError('لطفاً رمز عبور شخصی گاوصندوق را وارد فرمایید.');
+      setVaultError(t('لطفاً رمز عبور شخصی گاوصندوق را وارد فرمایید.'));
       return false;
     }
     setDecryptingVault(true);
@@ -238,14 +238,14 @@ export default function SharedPortfolioPage() {
       const key = await deriveE2eeKey(pass, portfolioData.portfolio.e2eeSalt);
       const valid = await verifyE2eeKey(key, portfolioData.portfolio.e2eeVerifier);
       if (!valid) {
-        setVaultError('رمز عبور وارد شده نادرست است.');
+        setVaultError(t('رمز عبور وارد شده نادرست است.'));
         return false;
       }
       await applyVaultKey(key);
       return true;
     } catch (err) {
       console.error('Shared vault unlock error:', err);
-      setVaultError('خطا در رمزگشایی گاوصندوق: ' + (err.message || 'نامعتبر'));
+      setVaultError(t('خطا در رمزگشایی گاوصندوق: {error}', { error: err.message || t('نامعتبر') }));
       return false;
     } finally {
       setDecryptingVault(false);
@@ -281,24 +281,24 @@ export default function SharedPortfolioPage() {
   // Export Shared Portfolio to CSV with UTF-8 BOM
   const handleExportCSV = () => {
     if (!portfolioMetrics.items.length) {
-      toast.info('دارایی برای دریافت خروجی در این پورتفو وجود ندارد.');
+      toast.info(t('دارایی برای دریافت خروجی در این پورتفو وجود ندارد.'));
       return;
     }
 
     const headers = [
-      'نام دارایی',
-      'دسته‌بندی',
-      'نوع دارایی',
-      'مقدار / وزن',
-      'واحد',
-      'قیمت خرید واحد (تومان)',
-      'بهای تمام‌شده کل (تومان)',
-      'قیمت واقعی روز واحد (تومان)',
-      'ارزش واقعی روز کل (تومان)',
-      'سود / زیان کل (تومان)',
-      'درصد سود / زیان',
-      'تاریخ خرید',
-      'یادداشت / توضیحات'
+      t('نام دارایی'),
+      t('دسته‌بندی'),
+      t('نوع دارایی'),
+      t('مقدار / وزن'),
+      t('واحد'),
+      t('قیمت خرید واحد (تومان)'),
+      t('بهای تمام‌شده کل (تومان)'),
+      t('قیمت واقعی روز واحد (تومان)'),
+      t('ارزش واقعی روز کل (تومان)'),
+      t('سود / زیان کل (تومان)'),
+      t('درصد سود / زیان'),
+      t('تاریخ خرید'),
+      t('یادداشت / توضیحات')
     ];
 
     const escapeCSV = (val) => {
@@ -308,8 +308,8 @@ export default function SharedPortfolioPage() {
     };
 
     const rows = portfolioMetrics.items.map((item) => {
-      const assetTypeLabel = getCategoryBadge(item.category || item.assetType, 'سفارشی');
-      const catLabel = getCategoryLabel(item.category || item.assetType, 'سایر دارایی‌ها');
+      const assetTypeLabel = getCategoryBadge(item.category || item.assetType, t('سفارشی'));
+      const catLabel = getCategoryLabel(item.category || item.assetType, t('سایر دارایی‌ها'));
 
       return [
         escapeCSV(formatAssetName(item)),
@@ -344,7 +344,7 @@ export default function SharedPortfolioPage() {
       <main className="main-content">
         {loading ? (
           <div className="shared-portfolio-skeleton">
-            <SkeletonCards count={3} label="در حال بارگذاری پورتفوی اشتراکی" />
+            <SkeletonCards count={3} label={t('در حال بارگذاری پورتفوی اشتراکی')} />
             <SkeletonRows rows={5} columns={5} />
           </div>
         ) : requirePassword ? (
@@ -353,15 +353,14 @@ export default function SharedPortfolioPage() {
             <div className="auth-gate-card shared-lock-card">
               <div className="auth-gate-badge">
                 <Lock size={15} color="var(--gold-light)" />
-                <span className="badge-text">پورتفوی محافظت‌شده</span>
+                <span className="badge-text">{t('پورتفوی محافظت‌شده')}</span>
               </div>
 
               <h2 className="auth-gate-title">
-                {portfolioName ? `پورتفوی «${portfolioName}»` : 'پورتفوی سرمایه‌گذاری'} {ownerName ? `(${ownerName})` : ''}
+                {portfolioName ? t('پورتفوی «{name}»', { name: portfolioName }) : t('پورتفوی سرمایه‌گذاری')} {ownerName ? `(${ownerName})` : ''}
               </h2>
               <p className="auth-gate-desc">
-                مالک این پورتفو برای دسترسی به جزئیات دارایی‌ها، رمز عبور تعیین کرده است.
-                جهت مشاهده، لطفاً رمز عبور را وارد نمایید.
+                {t('مالک این پورتفو برای دسترسی به جزئیات دارایی‌ها، رمز عبور تعیین کرده است. جهت مشاهده، لطفاً رمز عبور را وارد نمایید.')}
               </p>
 
               {errorMsg && (
@@ -376,7 +375,7 @@ export default function SharedPortfolioPage() {
                 <div className="password-input-wrapper">
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    placeholder="رمز عبور مشاهده پورتفو..."
+                    placeholder={t('رمز عبور مشاهده پورتفو...')}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     autoFocus
@@ -385,19 +384,19 @@ export default function SharedPortfolioPage() {
                     type="button"
                     className="btn-toggle-pwd"
                     onClick={() => setShowPassword(!showPassword)}
-                    title={showPassword ? 'مخفی کردن' : 'نمایش رمز'}
+                    title={showPassword ? t('مخفی کردن') : t('نمایش رمز')}
                   >
                     {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
                 </div>
 
                 <button type="submit" className="btn-unlock-shared" disabled={unlocking}>
-                  {unlocking ? 'در حال بررسی...' : 'مشاهده'}
+                  {unlocking ? t('در حال بررسی...') : t('مشاهده')}
                 </button>
               </form>
 
               <div className="shared-gate-footer">
-                <Link to="/" className="back-home-link">← صفحه اصلی</Link>
+                <Link to="/" className="back-home-link">{t('← صفحه اصلی')}</Link>
               </div>
             </div>
           </div>
@@ -406,9 +405,9 @@ export default function SharedPortfolioPage() {
             <div className="empty-icon">
               <AlertTriangle size={42} color="#64748b" />
             </div>
-            <h4>پورتفو در دسترس نیست</h4>
+            <h4>{t('پورتفو در دسترس نیست')}</h4>
             <p>{errorMsg}</p>
-            <Link to="/" className="btn-add-asset-center">صفحه اصلی</Link>
+            <Link to="/" className="btn-add-asset-center">{t('صفحه اصلی')}</Link>
           </div>
         ) : (
           /* Unlocked Shared Portfolio View */
@@ -420,9 +419,9 @@ export default function SharedPortfolioPage() {
                   <Briefcase size={20} color="var(--gold-light)" />
                 </span>
                 <div className="owner-info">
-                  <h2>{portfolioName ? `پورتفوی «${portfolioName}»` : 'پورتفو'} • {ownerName}</h2>
+                  <h2>{portfolioName ? t('پورتفوی «{name}»', { name: portfolioName }) : t('پورتفو')} • {ownerName}</h2>
                   <span className="shared-view-tag">
-                    {portfolioMetrics.items.length.toLocaleString(intlLocale())} قلم در {categoryGroups.length.toLocaleString(intlLocale())} دسته
+                    {t('{items} قلم در {categories} دسته', { items: portfolioMetrics.items.length.toLocaleString(intlLocale()), categories: categoryGroups.length.toLocaleString(intlLocale()) })}
                   </span>
                 </div>
               </div>
@@ -438,14 +437,14 @@ export default function SharedPortfolioPage() {
                       <div className="table-title-main">
                         <h3>
                           <span className="table-title-icon"><FileText size={18} /></span>
-                          <span>سبد دارایی</span>
+                          <span>{t('سبد دارایی')}</span>
                         </h3>
                         {isE2ee && (
-                          <span className={`portfolio-encryption-tag e2ee ${isVaultLocked ? 'locked' : 'unlocked'}`} title="داده‌ها با رمزنگاری سرتاسری محافظت شده‌اند">
+                          <span className={`portfolio-encryption-tag e2ee ${isVaultLocked ? 'locked' : 'unlocked'}`} title={t('داده‌ها با رمزنگاری سرتاسری محافظت شده‌اند')}>
                             {isVaultLocked ? (
-                              <><Lock size={12} style={{ verticalAlign: 'middle', marginInlineEnd: '4px' }} /> قفل</>
+                              <><Lock size={12} style={{ verticalAlign: 'middle', marginInlineEnd: '4px' }} /> {t('قفل')}</>
                             ) : (
-                              <><Unlock size={12} style={{ verticalAlign: 'middle', marginInlineEnd: '4px' }} /> باز</>
+                              <><Unlock size={12} style={{ verticalAlign: 'middle', marginInlineEnd: '4px' }} /> {t('باز')}</>
                             )}
                           </span>
                         )}
@@ -456,8 +455,8 @@ export default function SharedPortfolioPage() {
                         type="button"
                         className="btn-export-csv icon-only"
                         onClick={handleExportCSV}
-                        title="دریافت فایل اکسل / CSV از اقلام این پورتفو"
-                        aria-label="خروجی CSV"
+                        title={t('دریافت فایل اکسل / CSV از اقلام این پورتفو')}
+                        aria-label={t('خروجی CSV')}
                         disabled={isVaultLocked || portfolioMetrics.items.length === 0}
                       >
                         <Download size={15} strokeWidth={2.2} />
@@ -468,13 +467,13 @@ export default function SharedPortfolioPage() {
                   {isVaultLocked ? (
                     linkKeyRequired && !portfolioData?.portfolio?.e2eeSalt ? (
                       <div className="portfolio-empty-state">
-                        <h4>این پورتفو رمزنگاری سرتاسری دارد</h4>
+                        <h4>{t('این پورتفو رمزنگاری سرتاسری دارد')}</h4>
                         <p>
                           {linkKeyState.invalid && readLinkKeyToken()
-                            ? 'کلید داخل این لینک معتبر نیست. لینک کامل را دوباره از مالک پورتفو بگیرید.'
+                            ? t('کلید داخل این لینک معتبر نیست. لینک کامل را دوباره از مالک پورتفو بگیرید.')
                             : linkKeyState.tried
-                            ? 'برای مشاهده، لینک کامل (همراه با بخش #k=…) که مالک پورتفو ارسال کرده لازم است.'
-                            : 'در حال رمزگشایی…'}
+                            ? t('برای مشاهده، لینک کامل (همراه با بخش #k=…) که مالک پورتفو ارسال کرده لازم است.')
+                            : t('در حال رمزگشایی…')}
                         </p>
                       </div>
                     ) : (
@@ -490,7 +489,7 @@ export default function SharedPortfolioPage() {
                       <div className="empty-icon">
                         <Briefcase size={40} strokeWidth={1.5} color="#64748b" />
                       </div>
-                      <h4>پورتفو خالی است</h4>
+                      <h4>{t('پورتفو خالی است')}</h4>
                     </div>
                   ) : (
                     <HoldingsTable
@@ -519,47 +518,47 @@ export default function SharedPortfolioPage() {
                   {/* Card 1: Total Real Value */}
                   <div className="portfolio-stat-card main-val">
                     <div className="stat-header">
-                      <span className="stat-label">ارزش کل</span>
-                      <span className="real-pill">ارزش روز</span>
+                      <span className="stat-label">{t('ارزش کل')}</span>
+                      <span className="real-pill">{t('ارزش روز')}</span>
                     </div>
                     <div className={`stat-number gold-gradient-text ${hideValues ? 'is-masked' : ''}`}>
                       {isVaultLocked ? (
-                        <><Lock size={16} style={{ verticalAlign: 'middle', marginInlineEnd: '4px' }} /> قفل</>
+                        <><Lock size={16} style={{ verticalAlign: 'middle', marginInlineEnd: '4px' }} /> {t('قفل')}</>
                       ) : hideValues ? '****' : formatNum(portfolioMetrics.totalRealValue)}
-                      {!isVaultLocked && <span className="stat-unit">تومان</span>}
+                      {!isVaultLocked && <span className="stat-unit">{t('تومان')}</span>}
                     </div>
                     <div className="stat-sub">
-                      {isVaultLocked ? 'گاوصندوق قفل است' : 'ارزش روز دارایی‌ها'}
+                      {isVaultLocked ? t('گاوصندوق قفل است') : t('ارزش روز دارایی‌ها')}
                     </div>
                   </div>
 
                   {/* Card 2: Initial Investment Cost */}
                   <div className="portfolio-stat-card">
                     <div className="stat-header">
-                      <span className="stat-label">سرمایه اولیه</span>
+                      <span className="stat-label">{t('سرمایه اولیه')}</span>
                       <span className="count-pill">
                         {isVaultLocked ? (
-                          <><Lock size={11} style={{ verticalAlign: 'middle', marginInlineEnd: '3px' }} /> قفل</>
-                        ) : `${portfolioMetrics.items.length.toLocaleString(intlLocale())} قلم`}
+                          <><Lock size={11} style={{ verticalAlign: 'middle', marginInlineEnd: '3px' }} /> {t('قفل')}</>
+                        ) : t('{n} قلم', { n: portfolioMetrics.items.length.toLocaleString(intlLocale()) })}
                       </span>
                     </div>
                     <div className={`stat-number ${hideValues ? 'is-masked' : ''}`}>
                       {isVaultLocked ? (
                         <span className="stat-sub" style={{ fontSize: '15px' }}>
                           <Lock size={13} style={{ verticalAlign: 'middle', marginInlineEnd: '4px' }} />
-                          قفل است
+                          {t('قفل است')}
                         </span>
                       ) : portfolioMetrics.hasAnyCost ? (
                         <>
                           {hideValues ? '****' : formatNum(portfolioMetrics.totalCost)}
-                          <span className="stat-unit">تومان</span>
+                          <span className="stat-unit">{t('تومان')}</span>
                         </>
                       ) : (
-                        <span className="stat-sub" style={{ fontSize: '15px' }}>ثبت‌نشده</span>
+                        <span className="stat-sub" style={{ fontSize: '15px' }}>{t('ثبت‌نشده')}</span>
                       )}
                     </div>
                     <div className="stat-sub">
-                      {isVaultLocked ? 'گاوصندوق قفل است' : portfolioMetrics.hasAnyCost ? 'بهای تمام‌شده' : 'محاسبه به نرخ روز'}
+                      {isVaultLocked ? t('گاوصندوق قفل است') : portfolioMetrics.hasAnyCost ? t('بهای تمام‌شده') : t('محاسبه به نرخ روز')}
                     </div>
                   </div>
 
@@ -570,7 +569,7 @@ export default function SharedPortfolioPage() {
                     return (
                       <div className={`portfolio-stat-card pnl-card ${isVaultLocked ? 'neutral' : hasData ? (isProfit ? 'profit' : 'loss') : 'neutral'}`}>
                         <div className="stat-header">
-                          <span className="stat-label">سود / زیان کل</span>
+                          <span className="stat-label">{t('سود / زیان کل')}</span>
                         </div>
 
                         <div className="stat-pnl-row">
@@ -578,32 +577,32 @@ export default function SharedPortfolioPage() {
                             {isVaultLocked ? (
                               <span className="stat-sub" style={{ fontSize: '15px' }}>
                                 <Lock size={13} style={{ verticalAlign: 'middle', marginInlineEnd: '4px' }} />
-                                قفل است
+                                {t('قفل است')}
                               </span>
                             ) : hasData ? (
                               <>
                                 {hideValues ? '****' : `${isProfit ? '+' : ''}${formatNum(portfolioMetrics.totalPnl)}`}
-                                <span className="stat-unit">تومان</span>
+                                <span className="stat-unit">{t('تومان')}</span>
                               </>
                             ) : (
-                              <span className="stat-sub" style={{ fontSize: '15px' }}>بدون قیمت خرید</span>
+                              <span className="stat-sub" style={{ fontSize: '15px' }}>{t('بدون قیمت خرید')}</span>
                             )}
                           </div>
 
                           {!isVaultLocked && hasData && (
                             <span className={`pnl-badge ${isProfit ? 'profit' : 'loss'}`}>
                               {isProfit ? <ArrowUpRight size={13} style={{ verticalAlign: 'middle' }} /> : <ArrowDownRight size={13} style={{ verticalAlign: 'middle' }} />}
-                              {hideValues ? '****' : `${isProfit ? '+' : ''}${formatPct(Math.abs(portfolioMetrics.totalPnlPct))}٪`}
+                              {hideValues ? '****' : `${isProfit ? '+' : ''}${formatPct(Math.abs(portfolioMetrics.totalPnlPct))}${t('٪')}`}
                             </span>
                           )}
                         </div>
 
                         <div className="stat-sub">
                           {isVaultLocked
-                            ? 'گاوصندوق قفل است'
+                            ? t('گاوصندوق قفل است')
                             : hasData
-                            ? (isProfit ? 'سودده (از زمان خرید)' : 'زیان‌ده (از زمان خرید)')
-                            : 'محاسبه به نرخ روز'}
+                            ? (isProfit ? t('سودده (از زمان خرید)') : t('زیان‌ده (از زمان خرید)'))
+                            : t('محاسبه به نرخ روز')}
                         </div>
                       </div>
                     );
@@ -616,7 +615,7 @@ export default function SharedPortfolioPage() {
       </main>
 
       <footer className="shared-clean-footer">
-        <span>RealRate • سامانه پایش ارزش واقعی دارایی‌ها</span>
+        <span>{t('RealRate • سامانه پایش ارزش واقعی دارایی‌ها')}</span>
       </footer>
     </div>
   );

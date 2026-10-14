@@ -11,6 +11,7 @@
  * from another device, or by hand.
  */
 
+import { t } from '../../utils/i18n.js';
 import { getExpenseCategory } from '../expenses/constants/expenseCategories.js';
 import * as expensesApi from '../../shared/vault/vaultExpenses.js';
 import { createIncome } from '../incomes/api/incomeApi.js';
@@ -62,7 +63,7 @@ export async function recordSmsLoanDeposit(item, loan) {
     ...smsIncomeDraft(item.tx, accounts || []),
     accountId,
     category: 'loan_received',
-    title: `دریافت وام ${loan.title}`.slice(0, 120),
+    title: t('دریافت وام {title}', { title: loan.title }).slice(0, 120),
   });
   markSmsHandled(item.fingerprint);
   return income;
