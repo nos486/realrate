@@ -2,7 +2,7 @@
  * chequeDisplay.js — How cheque statuses and directions look in the UI
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { t, intlLocale } from '../../../utils/i18n.js';
 import { ArrowDownLeft, ArrowUpRight, Clock, Landmark, CheckCircle2, XCircle, Repeat, Ban } from 'lucide-react';
 import { getChequeStatus, getChequeDirection } from '../../../utils/chequeDocument.js';
 
@@ -18,22 +18,23 @@ const STATUS_LOOK = {
 
 export function getStatusDisplay(status) {
   const def = getChequeStatus(status);
-  return { ...def, ...(STATUS_LOOK[def.value] || STATUS_LOOK.pending) };
+  return { ...def, label: t(def.label), ...(STATUS_LOOK[def.value] || STATUS_LOOK.pending) };
 }
 
 export function getDirectionDisplay(direction) {
   const def = getChequeDirection(direction);
   return {
     ...def,
+    label: t(def.label),
     Icon: def.value === 'issued' ? ArrowUpRight : ArrowDownLeft,
     tone: def.value === 'issued' ? 'payable' : 'receivable',
-    counterpartyLabel: def.value === 'issued' ? 'در وجه' : 'صادرکننده',
+    counterpartyLabel: def.value === 'issued' ? t('در وجه') : t('صادرکننده'),
   };
 }
 
 /** e.g. "۳ روز دیگر", "امروز", "۲ روز گذشته" */
 export function describeDueDays(days) {
-  if (days === 0) return 'امروز';
+  if (days === 0) return t('امروز');
   const n = Math.abs(days).toLocaleString(intlLocale());
-  return days > 0 ? `${n} روز دیگر` : `${n} روز گذشته`;
+  return days > 0 ? t('{n} روز دیگر', { n }) : t('{n} روز گذشته', { n });
 }

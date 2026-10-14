@@ -2,7 +2,7 @@
  * ChequeSummaryCards.jsx — Headline figures: money to collect, money to pay, bounced cheques
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { t, intlLocale } from '../../../utils/i18n.js';
 import React from 'react';
 import { ArrowDownLeft, ArrowUpRight, CalendarClock, XCircle } from 'lucide-react';
 import { MiniCard } from '../../../shared/ui/index.js';
@@ -20,42 +20,42 @@ export default function ChequeSummaryCards({ summary, hideValues = false }) {
     <div className="incomes-summary-grid">
       <MiniCard
         icon={<ArrowDownLeft size={14} />}
-        title="چک‌های دریافتی در جریان"
+        title={t('چک‌های دریافتی در جریان')}
         value={money(receivable.total)}
-        unit="تومان"
+        unit={t('تومان')}
         color="green"
         className="incomes-summary-card"
-        footer={<span>{faCount(receivable.count)} چک، ۳۰ روز آینده: {money(next30.receivable)}</span>}
+        footer={<span>{t('{count} چک، ۳۰ روز آینده: {amount}', { count: faCount(receivable.count), amount: money(next30.receivable) })}</span>}
       />
       <MiniCard
         icon={<ArrowUpRight size={14} />}
-        title="چک‌های صادره در جریان"
+        title={t('چک‌های صادره در جریان')}
         value={money(payable.total)}
-        unit="تومان"
+        unit={t('تومان')}
         color="gold"
         className="incomes-summary-card"
-        footer={<span>{faCount(payable.count)} چک، ۳۰ روز آینده: {money(next30.payable)}</span>}
+        footer={<span>{t('{count} چک، ۳۰ روز آینده: {amount}', { count: faCount(payable.count), amount: money(next30.payable) })}</span>}
       />
       <MiniCard
         icon={<CalendarClock size={14} />}
-        title="نزدیک‌ترین سررسید"
+        title={t('نزدیک‌ترین سررسید')}
         value={nextDue ? formatShamsiDisplay(`${nextDue.dueDate}T00:00:00`) : '—'}
         className="incomes-summary-card"
         footer={nextDue && (
           <span className="incomes-summary-foot-text">
-            {getDirectionDisplay(nextDue.direction).label}، {nextDue.counterparty}، {money(nextDue.amount)} تومان
+            {t('{direction}، {name}، {amount} تومان', { direction: getDirectionDisplay(nextDue.direction).label, name: nextDue.counterparty, amount: money(nextDue.amount) })}
           </span>
         )}
       />
       {bounced.count > 0 && (
         <MiniCard
           icon={<XCircle size={14} />}
-          title="چک‌های برگشتی"
+          title={t('چک‌های برگشتی')}
           value={money(bounced.total)}
-          unit="تومان"
+          unit={t('تومان')}
           color="rose"
           className="incomes-summary-card"
-          footer={<span>{faCount(bounced.count)} چک نیازمند پیگیری</span>}
+          footer={<span>{t('{count} چک نیازمند پیگیری', { count: faCount(bounced.count) })}</span>}
         />
       )}
     </div>

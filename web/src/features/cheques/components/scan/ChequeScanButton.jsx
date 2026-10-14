@@ -1,4 +1,5 @@
 import React from 'react';
+import { t } from '../../../../utils/i18n.js';
 import { Camera } from 'lucide-react';
 import { Button } from '../../../../shared/ui/index.js';
 import { Feature } from '../../../../shared/features/index.js';
@@ -16,9 +17,9 @@ export function ChequeScanButton({ onClick, disabled = false, className = '' }) 
         onClick={onClick}
         disabled={disabled}
         className={`cheque-scan-trigger-btn ${className}`.trim()}
-        title="اسکن چک با هوش مصنوعی"
+        title={t('اسکن چک با هوش مصنوعی')}
       >
-        اسکن چک
+        {t('اسکن چک')}
       </Button>
     </Feature>
   );

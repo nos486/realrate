@@ -8,7 +8,7 @@
  * - Filters by direction and state, and search
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { t, intlLocale } from '../../../utils/i18n.js';
 import React, { useMemo, useState } from 'react';
 import { ReceiptText, Plus } from 'lucide-react';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
@@ -38,23 +38,23 @@ import { useDemo } from '../../demo/index.js';
 import { useQuickAddParam } from '../../../shared/hooks/useQuickAddParam.js';
 
 const DIRECTION_FILTERS = [
-  { value: 'all', label: 'همه' },
-  { value: 'received', label: 'دریافتی' },
-  { value: 'issued', label: 'صادره' },
+  { value: 'all', label: t('همه') },
+  { value: 'received', label: t('دریافتی') },
+  { value: 'issued', label: t('صادره') },
 ];
 
 const STATE_FILTERS = [
-  { value: 'open', label: 'در جریان', match: isChequeOpen },
-  { value: 'bounced', label: 'برگشتی', match: (c) => c.status === 'bounced' },
-  { value: 'done', label: 'تسویه‌شده', match: (c) => !isChequeOpen(c) && c.status !== 'bounced' },
-  { value: 'all', label: 'همه', match: () => true },
+  { value: 'open', label: t('در جریان'), match: isChequeOpen },
+  { value: 'bounced', label: t('برگشتی'), match: (c) => c.status === 'bounced' },
+  { value: 'done', label: t('تسویه‌شده'), match: (c) => !isChequeOpen(c) && c.status !== 'bounced' },
+  { value: 'all', label: t('همه'), match: () => true },
 ];
 
 const HEADER = {
   icon: <ReceiptText size={24} />,
-  title: 'چک‌ها',
+  title: t('چک‌ها'),
   help: 'cheques',
-  subtitle: 'چک‌های دریافتی و صادره، سررسیدها و پیگیری وضعیت',
+  subtitle: t('چک‌های دریافتی و صادره، سررسیدها و پیگیری وضعیت'),
 };
 
 export default function ChequesPage() {
@@ -115,15 +115,15 @@ export default function ChequesPage() {
     setClearingId(cheque.id);
     try {
       await changeStatus(cheque, 'cleared', todayIso(), '');
-      toast.success(`چک «${cheque.counterparty}» پاس شد.`, {
+      toast.success(t('چک «{name}» پاس شد.', { name: cheque.counterparty }), {
         duration: 7000,
         action: {
-          label: 'بازگردانی',
-          onClick: () => restoreCheque(cheque).catch((err) => toast.error(err.message || 'بازگردانی ناموفق بود.')),
+          label: t('بازگردانی'),
+          onClick: () => restoreCheque(cheque).catch((err) => toast.error(err.message || t('بازگردانی ناموفق بود.'))),
         },
       });
     } catch (err) {
-      toast.error(err.message || 'ثبت پاس شدن چک ناموفق بود.');
+      toast.error(err.message || t('ثبت پاس شدن چک ناموفق بود.'));
     } finally {
       setClearingId(null);
     }
@@ -131,9 +131,9 @@ export default function ChequesPage() {
 
   const handleDelete = async (cheque) => {
     const ok = await confirm({
-      title: 'حذف چک',
-      message: `چک ${getDirectionDisplay(cheque.direction).label} «${cheque.counterparty}» و سوابق پیگیری آن حذف شود؟`,
-      confirmLabel: 'حذف',
+      title: t('حذف چک'),
+      message: t('چک {kind} «{name}» و سوابق پیگیری آن حذف شود؟', { kind: getDirectionDisplay(cheque.direction).label, name: cheque.counterparty }),
+      confirmLabel: t('حذف'),
       danger: true,
     });
     if (!ok) return;
@@ -148,7 +148,7 @@ export default function ChequesPage() {
     return (
       <div className="incomes-page-container">
         <FeaturePageHeader {...HEADER} />
-        <VaultUnlockCard title="چک‌های شما رمزنگاری شده‌اند" />
+        <VaultUnlockCard title={t('چک‌های شما رمزنگاری شده‌اند')} />
       </div>
     );
   }
@@ -170,9 +170,9 @@ export default function ChequesPage() {
               icon={<Plus size={16} />}
               onClick={() => setFormState({ cheque: null })}
               disabled={readOnly}
-              title={readOnly ? 'در نسخه دمو غیرفعال است' : undefined}
+              title={readOnly ? t('در نسخه دمو غیرفعال است') : undefined}
             >
-              ثبت چک
+              {t('ثبت چک')}
             </Button>
           </>
         }
@@ -186,7 +186,7 @@ export default function ChequesPage() {
           message={error}
           action={
             <Button size="sm" variant="secondary" onClick={fetchCheques}>
-              تلاش مجدد
+              {t('تلاش مجدد')}
             </Button>
           }
         />
@@ -196,15 +196,15 @@ export default function ChequesPage() {
             <div className="portfolio-table-header">
               <div className="table-title">
                 <div className="table-title-main">
-                  <h3>لیست چک‌ها</h3>
+                  <h3>{t('لیست چک‌ها')}</h3>
                 </div>
               </div>
               {hasCheques && (
                 <SearchBar
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="جستجو در نام، شماره، شناسه صیادی یا یادداشت..."
-                  badge={`${visibleCheques.length.toLocaleString(intlLocale())} مورد`}
+                  placeholder={t('جستجو در نام، شماره، شناسه صیادی یا یادداشت...')}
+                  badge={t('{n} مورد', { n: visibleCheques.length.toLocaleString(intlLocale()) })}
                   className="incomes-search"
                 />
               )}
@@ -213,7 +213,7 @@ export default function ChequesPage() {
             <div className="table-card-body">
               {hasCheques && (
                 <div className="cheque-filters">
-                  <div className="tx-filter-pills-bar" role="group" aria-label="نوع چک">
+                  <div className="tx-filter-pills-bar" role="group" aria-label={t('نوع چک')}>
                     {DIRECTION_FILTERS.map((opt) => (
                       <button
                         key={opt.value}
@@ -226,7 +226,7 @@ export default function ChequesPage() {
                       </button>
                     ))}
                   </div>
-                  <div className="tx-filter-pills-bar" role="group" aria-label="وضعیت">
+                  <div className="tx-filter-pills-bar" role="group" aria-label={t('وضعیت')}>
                     {STATE_FILTERS.map((opt) => (
                       <button
                         key={opt.value}
@@ -244,22 +244,22 @@ export default function ChequesPage() {
               )}
 
               {loadingCheques && !hasCheques ? (
-                <SkeletonRows rows={5} columns={4} label="در حال دریافت لیست چک‌ها" />
+                <SkeletonRows rows={5} columns={4} label={t('در حال دریافت لیست چک‌ها')} />
               ) : !hasCheques ? (
                 <EmptyState
                   icon={<ReceiptText size={44} strokeWidth={1.5} />}
-                  title="هنوز چکی ثبت نشده است"
-                  description="چک‌های دریافتی و صادره را ثبت کنید تا سررسیدشان یادآوری شود و وضعیتشان را پیگیری کنید."
+                  title={t('هنوز چکی ثبت نشده است')}
+                  description={t('چک‌های دریافتی و صادره را ثبت کنید تا سررسیدشان یادآوری شود و وضعیتشان را پیگیری کنید.')}
                   action={
                     <Button icon={<Plus size={16} />} onClick={() => setFormState({ cheque: null })}>
-                      ثبت اولین چک
+                      {t('ثبت اولین چک')}
                     </Button>
                   }
                 />
               ) : visibleCheques.length === 0 ? (
                 <EmptyState
-                  title="موردی یافت نشد"
-                  description={searchQuery ? 'هیچ چکی با عبارت جستجو شده مطابقت ندارد.' : 'در این دسته چکی وجود ندارد.'}
+                  title={t('موردی یافت نشد')}
+                  description={searchQuery ? t('هیچ چکی با عبارت جستجو شده مطابقت ندارد.') : t('در این دسته چکی وجود ندارد.')}
                 />
               ) : (
                 <ChequesTable

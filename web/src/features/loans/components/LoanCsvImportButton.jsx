@@ -1,4 +1,5 @@
 import React from 'react';
+import { t } from '../../../utils/i18n.js';
 import { GenericCsvImportButton } from '../../../shared/ui/index.js';
 import { parseInputNumber } from '../../portfolio/utils/holdingHelpers.js';
 
@@ -8,15 +9,15 @@ import { parseInputNumber } from '../../portfolio/utils/holdingHelpers.js';
 // part of a loan's creation payload; "مانده بدهی فعلی" and "تعداد اقساط پرداخت‌شده" are exported
 // for reference only and ignored on import.
 const HEADERS = {
-  title: 'نام یا عنوان وام',
-  lenderName: 'نام وام‌دهنده / بانک',
-  principalAmount: 'مبلغ اصل وام (تومان)',
-  annualInterestRate: 'نرخ سود سالانه (٪)',
-  installmentCount: 'تعداد کل اقساط',
-  intervalMonths: 'دوره پرداخت (ماه)',
-  startDate: 'تاریخ دریافت وام',
-  annualFeeAmount: 'کارمزد سالانه (تومان)',
-  notes: 'یادداشت',
+  title: t('نام یا عنوان وام'),
+  lenderName: t('نام وام‌دهنده / بانک'),
+  principalAmount: t('مبلغ اصل وام (تومان)'),
+  annualInterestRate: t('نرخ سود سالانه (٪)'),
+  installmentCount: t('تعداد کل اقساط'),
+  intervalMonths: t('دوره پرداخت (ماه)'),
+  startDate: t('تاریخ دریافت وام'),
+  annualFeeAmount: t('کارمزد سالانه (تومان)'),
+  notes: t('یادداشت'),
 };
 
 function parseLoanRow(row, headerIndex, i) {
@@ -31,7 +32,7 @@ function parseLoanRow(row, headerIndex, i) {
   const startDate = get('startDate').trim();
 
   if (!title || !principalAmount || principalAmount <= 0 || !installmentCount || installmentCount <= 0 || !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
-    return { status: 'invalid', name: title || `ردیف ${i + 2}` };
+    return { status: 'invalid', name: title || t('ردیف {n}', { n: i + 2 }) };
   }
 
   const annualInterestRate = parseInputNumber(get('annualInterestRate')) || 0;
@@ -63,7 +64,7 @@ export default function LoanCsvImportButton({ addLoan, disabled = false }) {
     <GenericCsvImportButton
       parseRow={parseLoanRow}
       onImportRow={(data) => addLoan(data)}
-      itemLabel="وام"
+      itemLabel={t('وام')}
       disabled={disabled}
     />
   );

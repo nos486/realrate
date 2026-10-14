@@ -4,7 +4,7 @@
  * one due; a tap opens the loan
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { t, intlLocale } from '../../../utils/i18n.js';
 import React from 'react';
 import { Landmark, Edit2, Trash2, CheckCircle2, Clock } from 'lucide-react';
 import { RowCard, RowCardAction, RowCardBadge, RowCardBlock, RowCardProgress } from '../../../shared/ui/index.js';
@@ -41,48 +41,48 @@ export default function LoansTable({
             iconTone={isCompleted ? 'positive' : 'warning'}
             title={loan.title}
             subtitle={loan.lenderName || '—'}
-            badge={<RowCardBadge tone={displayRatePct === 0 ? 'positive' : 'warning'}>{displayRatePct}٪</RowCardBadge>}
+            badge={<RowCardBadge tone={displayRatePct === 0 ? 'positive' : 'warning'}>{displayRatePct}{t('٪')}</RowCardBadge>}
             onClick={() => onSelectLoan?.(loan)}
             chevron
             actions={!readOnly && (
               <>
-                <RowCardAction onClick={() => onEditLoan?.(loan)} title="ویرایش وام" aria-label="ویرایش وام">
+                <RowCardAction onClick={() => onEditLoan?.(loan)} title={t('ویرایش وام')} aria-label={t('ویرایش وام')}>
                   <Edit2 size={14} />
                 </RowCardAction>
-                <RowCardAction danger onClick={() => onDeleteLoan?.(loan.id)} title="حذف وام" aria-label="حذف وام">
+                <RowCardAction danger onClick={() => onDeleteLoan?.(loan.id)} title={t('حذف وام')} aria-label={t('حذف وام')}>
                   <Trash2 size={14} />
                 </RowCardAction>
               </>
             )}
           >
             <RowCardBlock
-              label="مانده بدهی"
-              value={isCompleted ? 'تسویه شده' : `${money(loan.remainingBalance)} تومان`}
+              label={t('مانده بدهی')}
+              value={isCompleted ? t('تسویه شده') : t('{amount} تومان', { amount: money(loan.remainingBalance) })}
               valueTone={isCompleted ? 'positive' : 'warning'}
-              sub={`اصل: ${money(loan.principalAmount)} تومان`}
+              sub={t('اصل: {amount} تومان', { amount: money(loan.principalAmount) })}
             />
             <RowCardProgress
-              label={`${paidCount} از ${totalCount} قسط`}
-              figure={`${formatNum(progressPct)}٪`}
+              label={t('{paid} از {total} قسط', { paid: paidCount, total: totalCount })}
+              figure={`${formatNum(progressPct)}${t('٪')}`}
               pct={progressPct}
               tone={isCompleted ? 'positive' : 'warning'}
-              ariaLabel={`${formatNum(progressPct)}٪ اقساط پرداخت شده`}
+              ariaLabel={t('{pct}٪ اقساط پرداخت شده', { pct: formatNum(progressPct) })}
             />
             {isCompleted ? (
               <RowCardBlock
-                label={<><CheckCircle2 size={12} /> اقساط</>}
-                value="بدون قسط باقیمانده"
+                label={<><CheckCircle2 size={12} /> {t('اقساط')}</>}
+                value={t('بدون قسط باقیمانده')}
                 valueTone="positive"
               />
             ) : next ? (
               <RowCardBlock
-                label={<><Clock size={12} /> قسط بعدی: #{next.installmentNumber}</>}
-                value={`${money(next.totalAmount)} تومان`}
+                label={<><Clock size={12} /> {t('قسط بعدی: #{n}', { n: next.installmentNumber })}</>}
+                value={t('{amount} تومان', { amount: money(next.totalAmount) })}
                 valueTone="primary"
                 sub={formatShamsiDisplay(next.dueDate)}
               />
             ) : (
-              <RowCardBlock label="قسط بعدی" value="سررسید معوقی نیست" valueTone="muted" />
+              <RowCardBlock label={t('قسط بعدی')} value={t('سررسید معوقی نیست')} valueTone="muted" />
             )}
           </RowCard>
         );

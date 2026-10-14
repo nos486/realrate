@@ -10,6 +10,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { t } from '../../../utils/i18n.js';
 import { useFeature } from '../../../shared/features/useFeature.js';
 import { settleCheque, unsettleCheque } from '../../../shared/vault/recordLinks.js';
 import { useRefreshHandler } from '../../../shared/refresh/pageRefresh.js';
@@ -58,7 +59,7 @@ export function useCheques() {
       const res = await getCheques();
       setCheques(Array.isArray(res?.cheques) ? res.cheques : []);
     } catch (err) {
-      setError(err.message || 'خطا در بارگذاری لیست چک‌ها');
+      setError(err.message || t('خطا در بارگذاری لیست چک‌ها'));
       setCheques([]);
     } finally {
       setLoadingCheques(false);
@@ -87,7 +88,7 @@ export function useCheques() {
     setSubmitting(true);
     try {
       const res = chequeId ? await apiUpdateCheque(chequeId, chequeData) : await apiCreateCheque(chequeData);
-      if (!res?.success || !res.cheque) throw new Error(res?.message || 'خطا در ذخیره چک');
+      if (!res?.success || !res.cheque) throw new Error(res?.message || t('خطا در ذخیره چک'));
       return store(res.cheque);
     } finally {
       setSubmitting(false);
@@ -127,7 +128,10 @@ export function useCheques() {
       else if (!isCleared && saved.settlement) await unsettleCheque(saved);
       else return;
     } catch (err) {
-      setError(`وضعیت چک ذخیره شد، ولی ${isCleared ? 'ثبت' : 'حذف'} درآمد یا هزینه‌اش ممکن نشد: ${err.message || ''}`.trim());
+      const reason = err.message || '';
+      setError((isCleared
+        ? t('وضعیت چک ذخیره شد، ولی ثبت درآمد یا هزینه‌اش ممکن نشد: {reason}', { reason })
+        : t('وضعیت چک ذخیره شد، ولی حذف درآمد یا هزینه‌اش ممکن نشد: {reason}', { reason })).trim());
     }
     await fetchCheques();
   }
@@ -137,10 +141,10 @@ export function useCheques() {
     setError(null);
     try {
       const res = await apiDeleteCheque(chequeId);
-      if (!res?.success) throw new Error(res?.message || 'خطا در حذف چک');
+      if (!res?.success) throw new Error(res?.message || t('خطا در حذف چک'));
       setCheques((prev) => prev.filter((c) => c.id !== chequeId));
     } catch (err) {
-      setError(err.message || 'خطا در حذف چک');
+      setError(err.message || t('خطا در حذف چک'));
       throw err;
     } finally {
       setDeletingId(null);
