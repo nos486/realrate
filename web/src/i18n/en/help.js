@@ -15,7 +15,7 @@ export default {
     'Bank credit: enter the limit, the current debt and the "start day of each month\'s cycle". Record purchases on credit like any expense, with "Paid from" set to that credit.',
   'پرداخت بدهی اعتبار را یک بار ثبت کنید: یا انتقال از حساب خودتان، یا درآمد «تسویه بدهی اعتباری» اگر پول از بیرون می‌آید؛ هر دو برای یک پرداخت بدهی را دو بار کم می‌کنند.':
     'Record a credit debt payment once: either a transfer from your own account, or a "Credit debt settlement" income if the money comes from outside. Recording both for one payment reduces the debt twice.',
-  'هزینه‌ها': 'Expenses',
+  'هزینه‌ها': "Expenses",
   'هزینه‌های روزمره با دسته، بودجه و مقایسه با ماه قبل.': 'Everyday expenses with categories, budgets and a comparison with last month.',
   'مبلغ را بزنید، دسته را انتخاب کنید و ثبت کنید؛ «ثبت و بعدی» برای ثبت پشت‌سرهم است.':
     'Enter the amount, pick a category and save; "Save and next" is for recording several in a row.',
@@ -29,7 +29,7 @@ export default {
     'The expenses of one specific job (such as a trip or a build), kept apart from everyday expenses, with its own budget.',
   'پروژه بسازید و بودجه و ارز آن را تعیین کنید.': 'Create a project and set its budget and currency.',
   'هنگام ثبت هزینه، پروژه را انتخاب کنید تا به همان پروژه برود.': 'Pick the project when you record an expense so it goes to that project.',
-  'درآمدها': 'Incomes',
+  'درآمدها': "Incomes",
   'ورودی‌های شما ماه‌به‌ماه و به تفکیک منبع.': 'Your income month by month, broken down by source.',
   'درآمد را با دسته، مبلغ و تاریخ ثبت کنید؛ درآمد به هر ارز هم ممکن است.':
     'Record an income with a category, amount and date; income in any currency is possible too.',
@@ -37,7 +37,7 @@ export default {
     'Categories such as "Asset sale" and "Credit debt settlement" are left out of the total by default (the money was moved, it is not income).',
   'اگر برای پرداخت بدهی اعتبار انتقال هم ثبت کرده‌اید، درآمد «تسویه» را برای همان پرداخت دوباره نزنید.':
     'If you already recorded a transfer for a credit debt payment, do not enter a "Settlement" income for the same payment again.',
-  'وام‌ها': 'Loans',
+  'وام‌ها': "Loans",
   'برنامه‌ی اقساط هر وام و وضعیت پرداخت آن‌ها.': 'The installment schedule of each loan and its payment status.',
   'وام را با مبلغ، نرخ، تعداد اقساط و تاریخ شروع اضافه کنید تا جدول اقساط ساخته شود.':
     'Add a loan with its amount, rate, number of installments and start date to build the installment table.',
@@ -45,7 +45,7 @@ export default {
     'Mark each installment when you pay it; the payment is also recorded as an expense.',
   'پرداخت اضافه را جدا ثبت کنید تا برنامه‌ی باقی‌مانده دوباره حساب شود.':
     'Record an extra payment separately so the remaining schedule is recalculated.',
-  'چک‌ها': 'Cheques',
+  'چک‌ها': "Cheques",
   'چک‌های دریافتی و صادره با سررسید و وضعیت.': 'Received and issued cheques with due dates and status.',
   'چک را با مبلغ، سررسید و طرف حساب اضافه کنید؛ سررسیدها یادآوری می‌شوند.':
     'Add a cheque with its amount, due date and counterparty; due dates are reminded.',

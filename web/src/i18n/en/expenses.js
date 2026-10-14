@@ -40,7 +40,7 @@ export default {
   'برای کل ماه یا هر دسته سقف خرج بگذارید تا نزدیک شدن به آن را ببینید.': 'Set a spending limit for the whole month or for each category to see when you are getting close.',
   'از بودجه کل': 'Of the total budget',
   // everyday expenses page
-  'هزینه‌ها': 'Expenses',
+  'هزینه‌ها': "Expenses",
   'هزینه‌های روزمره با دسته‌بندی، بودجه و مقایسه با ماه قبل': 'Everyday expenses by category, with budgets and a comparison with last month',
   'هزینه‌های شما رمزنگاری شده‌اند': 'Your expenses are encrypted',
   'انتخاب «{title}»': 'Select "{title}"',
@@ -83,7 +83,7 @@ export default {
   'سهم من': 'My share',
   'برچسب‌ها': 'Tags',
   تاریخ: 'Date',
-  هزینه: 'expenses',
+  هزینه: "Expense",
   // category totals and summary
   'بدون دسته‌بندی': 'No category',
   'دسته‌بندی‌ها': 'Categories',
@@ -91,7 +91,7 @@ export default {
   'جمع کل (تومان)': 'Total (toman)',
   'هزینه‌های تومانی': 'Toman expenses',
   'هزینه‌های دلاری': 'Dollar expenses',
-  دلار: 'USD',
+  دلار: "Dollar",
   'هزینه‌های {currency}': '{currency} expenses',
   'تعداد هزینه‌ها': 'Number of expenses',
   مورد: 'items',

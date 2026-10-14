@@ -12,13 +12,13 @@ export default {
   'کیف پول الکترونیک': 'E-wallet',
   سایر: 'Other',
   'اقساط وام': 'Loan installments',
-  'چک‌ها': 'Cheques',
+  'چک‌ها': "Cheques",
   'اشتراک‌ها': 'Subscriptions',
   بودجه: 'Budget',
   پورتفو: 'Portfolio',
   برنامه: 'App',
   'اطلاعیه‌ها': 'Announcements',
-  'وام‌ها': 'Loans',
+  'وام‌ها': "Loans",
   'تمدید اشتراک‌ها': 'Subscription renewals',
 
   // Built-in expense and income categories
@@ -84,7 +84,7 @@ export default {
   لغوشده: 'Cancelled',
 
   // Card metrics, formula cards, price averages
-  عدد: 'Number',
+  عدد: "piece",
   درصد: 'Percent',
   '۳۰ روز': '30 days',
   'یک سال': '1 year',
@@ -102,15 +102,15 @@ export default {
   تومانی: 'In toman',
 
   // Currencies and price sources
-  دلار: 'Dollar',
+  دلار: "Dollar",
   یورو: 'Euro',
-  لیر: 'Lira',
-  درهم: 'Dirham',
+  لیر: "Lira",
+  درهم: "Dirham",
   یورویی: 'In euros',
   'لیری': 'In lira',
   'درهمی': 'In dirhams',
   'د.إ': 'AED',
-  ریال: 'Rial',
+  ریال: "Rial",
   'نرخ در برابر دلار': 'Rate against the dollar',
   'تک‌نرخی': 'Single rate',
   'چندخروجی': 'Multi-output',

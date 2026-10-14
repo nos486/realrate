@@ -21,7 +21,7 @@ export default {
   یادداشت: 'Note',
   'دریافت خروجی اکسل / CSV از درآمدها': 'Export incomes to Excel / CSV',
   'ردیف {n}': 'Row {n}',
-  درآمد: 'incomes',
+  درآمد: "Income",
   // table
   'در جمع درآمدها حساب نمی‌شود': 'Not counted in income totals',
   '≈ {amount} تومان': '≈ {amount} toman',
@@ -54,7 +54,7 @@ export default {
   'دریافت با': 'Received by',
   'توضیحات تکمیلی، نام کارفرما، شماره فاکتور و...': 'Extra details, client name, invoice number, etc.',
   // page
-  درآمدها: 'Incomes',
+  درآمدها: "Incomes",
   'ورودی‌ها ماه‌به‌ماه، به تفکیک منبع': 'Money in, month by month, by source',
   'آیا از حذف درآمد «{title}» اطمینان دارید؟': 'Delete the income "{title}"?',
   'درآمدهای شما رمزنگاری شده‌اند': 'Your incomes are encrypted',
