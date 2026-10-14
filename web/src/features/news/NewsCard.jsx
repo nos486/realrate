@@ -5,7 +5,7 @@
  * headline of the day's AI analysis.
  */
 
-import { t } from '../../utils/i18n.js';
+import { hasNews as localeHasNews, t } from '../../utils/i18n.js';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Newspaper, Sparkles } from 'lucide-react';
@@ -18,7 +18,7 @@ import { newsTimeAgo, newsSource, newsFullTime } from './newsFormat.js';
 /** The latest news are a Pro feature: users without it get no card */
 export default function NewsCard(props) {
   const hasNews = useFeature('news');
-  return hasNews ? <NewsCardContent {...props} /> : null;
+  return hasNews && localeHasNews() ? <NewsCardContent {...props} /> : null;
 }
 
 function NewsCardContent({ count = 4, className = '' }) {

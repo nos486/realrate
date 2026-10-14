@@ -62,6 +62,7 @@ export async function enableBiometric() {
   await BiometricVault.store({
     data: JSON.stringify(secret),
     title: t('فعال کردن اثر انگشت'),
+    cancel: t('انصراف'),
     subtitle: t('از این پس اطلاعات رمزنگاری‌شده با اثر انگشت باز می‌شود'),
   });
   writeOwner(secret.userId);
@@ -85,7 +86,7 @@ export async function disableBiometric() {
 export async function unlockWithBiometric() {
   let data;
   try {
-    ({ data } = await BiometricVault.retrieve({ title: t('باز کردن با اثر انگشت') }));
+    ({ data } = await BiometricVault.retrieve({ title: t('باز کردن با اثر انگشت'), cancel: t('انصراف') }));
   } catch (err) {
     if (err?.code === 'CANCELED') return false;
     if (err?.code === 'INVALIDATED' || err?.code === 'NOT_STORED') writeOwner('');

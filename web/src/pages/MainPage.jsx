@@ -1,4 +1,4 @@
-import { t } from '../utils/i18n.js';
+import { hasNews as localeHasNews, t } from '../utils/i18n.js';
 import React, { useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import ErrorBoundary from '../shared/ui/ErrorBoundary.jsx';
@@ -125,7 +125,8 @@ export default function MainPage() {
   }, []);
   useEffect(() => initDueNotificationClicks((path) => navigateRef.current(appPath(path))), []);
   // Android app: a notification for important news while the app runs (when turned on)
-  const hasNews = useFeature('news');
+  // The news and the daily analysis are Persian-only (their sources are), so other languages leave them out
+  const hasNews = useFeature('news') && localeHasNews();
   useEffect(() => (hasNews ? startNewsAlerts() : undefined), [hasNews]);
   // Small withdrawals recorded by themselves, when turned on in the app settings
   useSmsAutoRecord(smsEnabled() && hasExpenses && !isDemo);
@@ -372,7 +373,7 @@ export default function MainPage() {
       { value: 'market', label: t('نرخ و حباب'), icon: <TrendingUp size={16} strokeWidth={2} /> },
       // App frame: «خانه» is the dashboard, the market is one of the other sections
       ...(appLayout ? [{ value: 'rates', label: t('نرخ و حباب'), icon: <TrendingUp size={16} strokeWidth={2} /> }] : []),
-      { value: 'news', label: t('اخبار'), icon: <Newspaper size={16} strokeWidth={2} /> },
+      ...(localeHasNews() ? [{ value: 'news', label: t('اخبار'), icon: <Newspaper size={16} strokeWidth={2} /> }] : []),
       { value: 'explore', label: t('کاوش بازار'), icon: <Compass size={16} strokeWidth={2} /> },
       { value: 'incomes', label: t('درآمدها'), icon: <Wallet size={16} strokeWidth={2} /> },
       // Beta (admins): expenses right after incomes, then the accounts they are paid from

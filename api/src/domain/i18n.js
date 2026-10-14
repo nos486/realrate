@@ -10,10 +10,10 @@
  * synchronous call that is safe at module level. Outside the browser (the Worker) it is `fa`.
  */
 
-/** One row per UI language: a new language is a row here plus a dictionary in `web/src/i18n/` */
+/** One row per UI language: a new language is a row here plus a dictionary in `web/src/i18n/`; `news` says whether the AI-curated news and daily analysis (Persian sources) are offered in that language */
 export const LOCALES = {
-  fa: { code: 'fa', label: 'فارسی', dir: 'rtl', intl: 'fa-IR', calendar: 'persian' },
-  en: { code: 'en', label: 'English', dir: 'ltr', intl: 'en-US', calendar: 'persian' },
+  fa: { code: 'fa', label: 'فارسی', dir: 'rtl', intl: 'fa-IR', calendar: 'persian', news: true },
+  en: { code: 'en', label: 'English', dir: 'ltr', intl: 'en-US', calendar: 'persian', news: false },
 };
 export const DEFAULT_LOCALE = 'fa';
 export const LOCALE_STORAGE_KEY = 'realrate_locale';
@@ -32,8 +32,11 @@ export function setActiveLocale(code) {
 /** @returns {string} the active language code */
 export const getLocale = () => current;
 
-/** @returns {{ code: string, label: string, dir: string, intl: string, calendar: string }} the active language row */
+/** @returns {{ code: string, label: string, dir: string, intl: string, calendar: string, news: boolean }} the active language row */
 export const getLocaleInfo = () => LOCALES[current];
+
+/** @returns {boolean} whether the news and the daily analysis are offered in the active language */
+export const hasNews = () => LOCALES[current].news === true;
 
 /** @returns {boolean} whether the active language reads right to left */
 export const isRtl = () => LOCALES[current].dir === 'rtl';

@@ -6,7 +6,7 @@
 ```text
 realrate/
 ├── package.json                  # اسکریپت‌های مشترک (dev، test، deploy)
-├── README.md / README.en.md      # معرفی (فارسی / انگلیسی)
+├── README.md / README.fa.md      # معرفی (انگلیسی / فارسی)
 ├── CHANGELOG.md                  # یادداشت‌های تغییرات نسخه‌ها جهت درج در Release
 ├── .github/workflows/ci.yml      # تست کامل، lint و build روی هر PR به main
 ├── .github/workflows/android.yml # ساخت و انتشار APK امضاشده اندروید (main → Releases)

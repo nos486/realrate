@@ -93,6 +93,7 @@ public class BiometricVaultPlugin extends Plugin {
     private void authenticate(PluginCall call, Cipher cipher, CipherAction onSuccess) {
         String title = call.getString("title", "تأیید با اثر انگشت");
         String subtitle = call.getString("subtitle", "باز کردن اطلاعات رمزنگاری‌شده RealRate");
+        String cancel = call.getString("cancel", "انصراف");
         getActivity().runOnUiThread(() -> {
             BiometricPrompt prompt = new BiometricPrompt(getActivity(), ContextCompat.getMainExecutor(getContext()),
                 new BiometricPrompt.AuthenticationCallback() {
@@ -117,7 +118,7 @@ public class BiometricVaultPlugin extends Plugin {
             BiometricPrompt.PromptInfo info = new BiometricPrompt.PromptInfo.Builder()
                 .setTitle(title)
                 .setSubtitle(subtitle)
-                .setNegativeButtonText("انصراف")
+                .setNegativeButtonText(cancel)
                 .setAllowedAuthenticators(AUTHENTICATORS)
                 .build();
             prompt.authenticate(info, new BiometricPrompt.CryptoObject(cipher));
