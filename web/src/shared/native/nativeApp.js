@@ -14,6 +14,7 @@
 
 import { Capacitor } from '@capacitor/core';
 import { API_BASE } from '../api/httpClient.js';
+import { t } from '../../utils/i18n.js';
 
 export const PUBLIC_SITE_ORIGIN = 'https://realrate.geekio.org';
 // The store ("nosms") build has its own application id and link scheme, so it installs next to the full one
@@ -114,7 +115,7 @@ export function parseNativeAuthLink(link) {
     const params = new URL(link).searchParams;
     const code = params.get('code');
     if (code) return { code };
-    return { error: params.get('auth_error') || 'ورود با گوگل کامل نشد.' };
+    return { error: params.get('auth_error') || t('ورود با گوگل کامل نشد.') };
   } catch {
     return null;
   }

@@ -7,7 +7,7 @@
  * shows on phones too (the other header buttons move into the menu there).
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
@@ -30,7 +30,7 @@ function AlertRow({ alert, hideValues, onAction }) {
       <div className="alert-center-body">
         <div className="alert-center-head">
           <strong>{alert.title}</strong>
-          <small>{ALERT_SOURCES[alert.source]?.label}{alert.dismissed ? ' · پنهان‌شده' : ''}</small>
+          <small>{ALERT_SOURCES[alert.source]?.label}{alert.dismissed ? ` · ${t('پنهان‌شده')}` : ''}</small>
         </div>
         {alert.message && <p>{alert.message}</p>}
         {alert.items?.length > 0 && (
@@ -38,7 +38,7 @@ function AlertRow({ alert, hideValues, onAction }) {
             {alert.items.map((item) => (
               <li key={item.key}>
                 <span><b>{item.title}</b>{item.detail ? ` — ${item.detail}` : ''}</span>
-                {item.amount !== undefined && <span className="alert-center-amount">{money(item.amount)} تومان</span>}
+                {item.amount !== undefined && <span className="alert-center-amount">{money(item.amount)} {t('تومان')}</span>}
               </li>
             ))}
           </ul>
@@ -51,7 +51,7 @@ function AlertRow({ alert, hideValues, onAction }) {
           )}
           {!alert.dismissed && (
             <button type="button" className="ui-btn ui-btn-ghost ui-btn-sm" onClick={() => dismissAlert(alert)}>
-              <EyeOff size={14} /> پنهان کردن
+              <EyeOff size={14} /> {t('پنهان کردن')}
             </button>
           )}
         </div>
@@ -69,11 +69,11 @@ export function AlertCenterPanel({ onClose }) {
     runAlertAction(alert, navigate);
   };
   return (
-    <Modal isOpen onClose={onClose} title="هشدارها" subtitle="اقساط، چک‌ها، پورتفو و اطلاعیه‌ها" icon={<Bell size={18} />} maxWidth="520px">
+    <Modal isOpen onClose={onClose} title={t('هشدارها')} subtitle={t('اقساط، چک‌ها، پورتفو و اطلاعیه‌ها')} icon={<Bell size={18} />} maxWidth="520px">
       {alerts.length === 0 ? (
         <div className="alert-center-empty">
           <BellOff size={32} strokeWidth={1.5} />
-          <p>هشداری ندارید.</p>
+          <p>{t('هشداری ندارید.')}</p>
         </div>
       ) : (
         <ul className="alert-center-list">
@@ -89,14 +89,14 @@ export default function AlertCenterButton({ className = 'btn-privacy-toggle icon
   const [open, setOpen] = useState(false);
   const counts = summarizeAlerts(useAlerts());
   const count = counts.critical + counts.warning;
-  const label = count ? `هشدارها (${faNum(count)})` : 'هشدارها';
+  const label = count ? `${t('هشدارها')} (${faNum(count)})` : t('هشدارها');
   return (
     <>
       <button type="button" className={`${className} alert-center-button`} onClick={() => setOpen(true)} title={label} aria-label={label}>
         <Bell size={iconSize} strokeWidth={2.2} />
         {count > 0 && (
           <span className={`alert-center-badge ${counts.critical ? 'is-critical' : ''}`} aria-hidden="true">
-            {count > 9 ? '۹+' : faNum(count)}
+            {count > 9 ? `${faNum(9)}+` : faNum(count)}
           </span>
         )}
       </button>
