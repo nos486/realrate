@@ -542,6 +542,7 @@ export default function AppSettingsView({ onOpenSms }) {
   const [permission, setPermission] = useState('prompt');
   const [bio, setBio] = useState({ available: false, enabled: false, busy: false });
   const [version, setVersion] = useState('');
+  const [packageId, setPackageId] = useState('');
 
   useEffect(() => {
     smsPermission().then(setPermission);
@@ -549,7 +550,10 @@ export default function AppSettingsView({ onOpenSms }) {
       .then(([available, enabled]) => setBio((b) => ({ ...b, available, enabled })));
     import('@capacitor/app')
       .then(({ App }) => App.getInfo())
-      .then((info) => setVersion(`${info.version} (${info.build})`))
+      .then((info) => {
+        setVersion(`${info.version} (${info.build})`);
+        setPackageId(info.id || '');
+      })
       .catch(() => {});
   }, [vault.userId]);
 
@@ -674,7 +678,20 @@ export default function AppSettingsView({ onOpenSms }) {
         <dl className="app-setting-facts">
           <dt>نسخه</dt>
           <dd dir="ltr">{version || '—'}</dd>
+          {packageId && (
+            <>
+              <dt>نام پکیج</dt>
+              <dd dir="ltr">{packageId}</dd>
+            </>
+          )}
         </dl>
+        {/* The store build has no SMS permission: point to the full build for the rest */}
+        {!smsEnabled() && (
+          <AlertBanner
+            type="info"
+            message="این نسخه بدون پیامک است. برای داشتن ویژگی‌های بیشتر (مثل خواندن خودکار پیامک بانک) نسخه‌ی گیت‌هاب را نصب کنید: realrate.geekio.org/android"
+          />
+        )}
       </Card>
     </div>
   );
