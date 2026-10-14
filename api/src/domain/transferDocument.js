@@ -17,6 +17,8 @@
  * Shared by the browser and the API, like the other domain modules.
  */
 
+import { t } from './i18n.js';
+
 export const TRANSFER_LIMITS = {
   notesLength: 300,
   maxAmount: 1e13,
@@ -35,22 +37,22 @@ const text = (v) => String(v ?? '').trim();
 export function validateTransfer(body = {}) {
   const fromAccountId = text(body.fromAccountId);
   const toAccountId = text(body.toAccountId);
-  if (!fromAccountId || !toAccountId) return { error: 'حساب مبدأ و مقصد را انتخاب کنید.' };
-  if (!ID_RE.test(fromAccountId) || !ID_RE.test(toAccountId)) return { error: 'حساب انتخاب‌شده نامعتبر است.' };
-  if (fromAccountId === toAccountId) return { error: 'حساب مبدأ و مقصد نمی‌توانند یکی باشند.' };
+  if (!fromAccountId || !toAccountId) return { error: t('حساب مبدأ و مقصد را انتخاب کنید.') };
+  if (!ID_RE.test(fromAccountId) || !ID_RE.test(toAccountId)) return { error: t('حساب انتخاب‌شده نامعتبر است.') };
+  if (fromAccountId === toAccountId) return { error: t('حساب مبدأ و مقصد نمی‌توانند یکی باشند.') };
 
   const amount = Math.round(Number(body.amount));
-  if (!Number.isFinite(amount) || amount <= 0) return { error: 'مبلغ انتقال باید بیشتر از صفر باشد.' };
-  if (amount > TRANSFER_LIMITS.maxAmount) return { error: 'مبلغ انتقال بیش از حد مجاز است.' };
+  if (!Number.isFinite(amount) || amount <= 0) return { error: t('مبلغ انتقال باید بیشتر از صفر باشد.') };
+  if (amount > TRANSFER_LIMITS.maxAmount) return { error: t('مبلغ انتقال بیش از حد مجاز است.') };
 
   const fee = Math.round(Number(body.fee) || 0);
-  if (fee < 0 || fee > amount) return { error: 'کارمزد نامعتبر است.' };
+  if (fee < 0 || fee > amount) return { error: t('کارمزد نامعتبر است.') };
 
   const date = text(body.date);
-  if (!DATE_RE.test(date) || Number.isNaN(Date.parse(`${date}T00:00:00Z`))) return { error: 'تاریخ انتقال نامعتبر است.' };
+  if (!DATE_RE.test(date) || Number.isNaN(Date.parse(`${date}T00:00:00Z`))) return { error: t('تاریخ انتقال نامعتبر است.') };
 
   const notes = text(body.notes);
-  if (notes.length > TRANSFER_LIMITS.notesLength) return { error: `یادداشت نباید بیشتر از ${TRANSFER_LIMITS.notesLength} کاراکتر باشد.` };
+  if (notes.length > TRANSFER_LIMITS.notesLength) return { error: t('یادداشت نباید بیشتر از {notesLength} کاراکتر باشد.', { notesLength: TRANSFER_LIMITS.notesLength }) };
 
   const smsKeys = [...new Set((Array.isArray(body.smsKeys) ? body.smsKeys : []).map((k) => text(k).slice(0, 120)).filter(Boolean))]
     .slice(0, TRANSFER_LIMITS.smsKeys);

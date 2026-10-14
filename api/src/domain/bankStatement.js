@@ -32,9 +32,10 @@ import { linkFieldsOf } from './statementLinks.js';
 import {
   STATEMENT_BANK_BY_ID, STATEMENT_KINDS, STATEMENT_KEYWORD_RULES, STATEMENT_DIACRITICS, STATEMENT_SMALL_DEFAULT,
 } from './bankStatementTemplates.js';
+import { t } from './i18n.js';
 
-const PERSIAN_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
-const ARABIC_DIGITS = '٠١٢٣٤٥٦٧٨٩';
+const PERSIAN_DIGITS = '۰۱۲۳۴۵۶۷۸۹'; // i18n-ignore
+const ARABIC_DIGITS = '٠١٢٣٤٥٦٧٨٩'; // i18n-ignore
 const pad = (n) => String(n).padStart(2, '0');
 const lastDigits = (raw, count = 4) => {
   const digits = String(raw ?? '').replace(/\D/g, '');
@@ -51,14 +52,14 @@ export const STATEMENT_MAX_ROWS = 20000;
  */
 export function normalizeStatementText(text) {
   return String(text ?? '')
-    .replace(/[۰-۹]/g, (d) => String(PERSIAN_DIGITS.indexOf(d)))
-    .replace(/[٠-٩]/g, (d) => String(ARABIC_DIGITS.indexOf(d)))
-    .replace(/ي/g, 'ی')
-    .replace(/ك/g, 'ک')
-    .replace(/ە|ۀ/g, 'ه')
+    .replace(/[۰-۹]/g, (d) => String(PERSIAN_DIGITS.indexOf(d))) // i18n-ignore
+    .replace(/[٠-٩]/g, (d) => String(ARABIC_DIGITS.indexOf(d))) // i18n-ignore
+    .replace(/ي/g, 'ی') // i18n-ignore
+    .replace(/ك/g, 'ک') // i18n-ignore
+    .replace(/ە|ۀ/g, 'ه') // i18n-ignore
     .replace(STATEMENT_DIACRITICS, '')
     .replace(/[​‎‏‪-‮⁦-⁩﻿]/g, '')
-    .replace(/[٬،]/g, ',')
+    .replace(/[٬،]/g, ',') // i18n-ignore
     .replace(/[−‒–—]/g, '-')
     .replace(/\s+/g, ' ')
     .trim();
@@ -176,15 +177,15 @@ function partyOf(rule, fields, direction, description) {
     const type = partyTypeOf(key);
     // The other side's own fields: a card transfer names a person next to each card
     const label = {
-      terminal: `${fields.merchant ? `${fields.merchant} · ` : ''}پایانه ${value}`,
-      card: `کارت ${maskCard(value)}${name ? ` · ${name}` : ''}`,
-      account: `حساب ${value}${name ? ` · ${name}` : ''}`,
-      sheba: `${name || 'شبا'} · ${value.slice(0, 4)}…${value.slice(-4)}`,
+      terminal: `${fields.merchant ? `${fields.merchant} · ` : ''}${t('پایانه {value}', { value })}`,
+      card: `${t('کارت {value}', { value: maskCard(value) })}${name ? ` · ${name}` : ''}`,
+      account: `${t('حساب {value}', { value })}${name ? ` · ${name}` : ''}`,
+      sheba: `${name || t('شبا')} · ${value.slice(0, 4)}…${value.slice(-4)}`,
       name: value,
-      billId: `شناسه‌ی ${value}`,
-      chequeNo: `چک ${value}`,
+      billId: t('شناسه‌ی {value}', { value }),
+      chequeNo: t('چک {value}', { value }),
     }[type] || value;
-    const short = name || { card: `کارت ${value.slice(-4)}`, account: `حساب ${value.slice(-4)}`, sheba: `شبا ${value.slice(-4)}`, terminal: fields.merchant || `پایانه ${value}` }[type] || value;
+    const short = name || { card: t('کارت {value}', { value: value.slice(-4) }), account: t('حساب {value}', { value: value.slice(-4) }), sheba: t('شبا {value}', { value: value.slice(-4) }), terminal: fields.merchant || t('پایانه {value}', { value }) }[type] || value;
     return { type, value, key: `${type}:${value}`, name, label, short };
   }
   // A row no rule describes: grouped by the first words of its text, digits aside
@@ -204,9 +205,9 @@ function partyOf(rule, fields, direction, description) {
  */
 export function readStatement(rows, bankId) {
   const bank = STATEMENT_BANK_BY_ID[bankId];
-  if (!bank) return { ok: false, error: 'این بانک هنوز پشتیبانی نمی‌شود.' };
+  if (!bank) return { ok: false, error: t('این بانک هنوز پشتیبانی نمی‌شود.') };
   const table = findStatementColumns(rows || [], bank);
-  if (!table) return { ok: false, error: `ستون‌های فایل «${bank.label}» پیدا نشد؛ مطمئن شوید فایل همان خروجی همراه بانک است و ویرایش نشده.` };
+  if (!table) return { ok: false, error: t('ستون‌های فایل «{label}» پیدا نشد؛ مطمئن شوید فایل همان خروجی همراه بانک است و ویرایش نشده.', { label: bank.label }) };
   const { headerRow, cols } = table;
   const transactions = [];
   const skipped = [];
@@ -220,15 +221,15 @@ export function readStatement(rows, bankId) {
     if (![rawDate, rawAmount, rawDescription].some((v) => String(v ?? '').trim())) continue;
     const when = parseStatementDateTime(rawDate);
     const amount = parseStatementAmount(rawAmount);
-    if (!when) { skipped.push({ row: r + 1, reason: 'تاریخ خوانده نشد.' }); continue; }
-    if (!amount || amount.value <= 0) { skipped.push({ row: r + 1, reason: 'مبلغ خوانده نشد.' }); continue; }
+    if (!when) { skipped.push({ row: r + 1, reason: t('تاریخ خوانده نشد.') }); continue; }
+    if (!amount || amount.value <= 0) { skipped.push({ row: r + 1, reason: t('مبلغ خوانده نشد.') }); continue; }
 
     const directionText = normalizeStatementText(cell('direction'));
     let direction = null;
     if (bank.directionWords.debit.some((w) => directionText.includes(w))) direction = 'debit';
     else if (bank.directionWords.credit.some((w) => directionText.includes(w))) direction = 'credit';
     else if (amount.sign) direction = amount.sign === '-' ? 'debit' : 'credit';
-    if (!direction) { skipped.push({ row: r + 1, reason: 'واریز یا برداشت بودن مشخص نیست.' }); continue; }
+    if (!direction) { skipped.push({ row: r + 1, reason: t('واریز یا برداشت بودن مشخص نیست.') }); continue; }
 
     const toToman = (v) => (bank.unit === 'toman' ? v : v / 10);
     const balance = cols.balance === undefined ? null : parseStatementAmount(cell('balance'));
@@ -253,12 +254,12 @@ export function readStatement(rows, bankId) {
       party,
       groupKey: [direction, kind, party?.key || ''].join('|'),
     };
-    if (tx.amount <= 0) { skipped.push({ row: r + 1, reason: 'مبلغ خوانده نشد.' }); continue; }
+    if (tx.amount <= 0) { skipped.push({ row: r + 1, reason: t('مبلغ خوانده نشد.') }); continue; }
     tx.importKey = statementImportKey(tx);
     tx.smsKey = smsTransactionKey({ bankId, direction, amount: tx.amount, date: tx.date, time: tx.time.slice(0, 5) });
     transactions.push(tx);
   }
-  if (!transactions.length) return { ok: false, error: 'هیچ تراکنشی در فایل پیدا نشد.', skipped };
+  if (!transactions.length) return { ok: false, error: t('هیچ تراکنشی در فایل پیدا نشد.'), skipped };
   const dates = transactions.map((t) => t.date).sort();
   return {
     ok: true,
@@ -450,7 +451,7 @@ export function analyzeStatement(transactions, { accounts = [], accountId = '', 
         direction: tx.direction,
         kind: tx.kind,
         kindLabel: STATEMENT_KINDS[tx.kind]?.label || STATEMENT_KINDS.other.label,
-        label: tx.party?.label || STATEMENT_KINDS[tx.kind]?.label || 'سایر',
+        label: tx.party?.label || STATEMENT_KINDS[tx.kind]?.label || t('سایر'),
         partyName: tx.party?.name || '',
         ids: [],
         count: 0,
@@ -558,8 +559,8 @@ export function resolvePlan(analysis, {
     if (decision.action === 'transfer') decision.accountId = decision.accountId || '';
     else decision.category = decision.action === 'skip' ? '' : (decision.category || 'other');
     const issue = decision.action === 'transfer' && !decision.accountId
-      ? 'حساب مقابل انتقال را انتخاب کنید.'
-      : decision.action === 'transfer' && decision.accountId === accountId ? 'حساب مقابل نمی‌تواند همین حساب باشد.' : '';
+      ? t('حساب مقابل انتقال را انتخاب کنید.')
+      : decision.action === 'transfer' && decision.accountId === accountId ? t('حساب مقابل نمی‌تواند همین حساب باشد.') : '';
 
     let status = 'new';
     if (tx.reversed) status = 'reversed';
@@ -590,11 +591,11 @@ export function recordTitle(tx, decision, label) {
     const preset = STATEMENT_KINDS[tx.kind]?.[tx.direction];
     if (preset?.title) {
       // «انتقال به» / «واریز از» take the other side's name; with none they are «انتقال» / «واریز»
-      title = / (?:به|از)$/.test(preset.title)
-        ? (tx.party?.short ? `${preset.title} ${tx.party.short}` : preset.title.replace(/ (?:به|از)$/, ''))
+      title = / (?:به|از|to|from)$/.test(preset.title) // i18n-ignore
+        ? (tx.party?.short ? `${preset.title} ${tx.party.short}` : preset.title.replace(/ (?:به|از|to|from)$/, '')) // i18n-ignore
         : preset.title;
     } else if (decision.action === 'transfer') {
-      title = tx.direction === 'debit' ? 'انتقال بین حساب‌ها' : 'دریافت از حساب خودم';
+      title = tx.direction === 'debit' ? t('انتقال بین حساب‌ها') : t('دریافت از حساب خودم');
     } else {
       title = label(decision.action === 'income' ? 'income' : 'expense', decision.category);
     }
@@ -604,7 +605,7 @@ export function recordTitle(tx, decision, label) {
 
 /** The note on a record: where it came from, the time, and the bank's own description */
 function recordNotes(tx, bankLabel) {
-  const head = [`ورودی از فایل ${bankLabel}`, tx.time && `ساعت ${tx.time.slice(0, 5)}`].filter(Boolean).join(' · ');
+  const head = [t('ورودی از فایل {bankLabel}', { bankLabel }), tx.time && t('ساعت {time}', { time: tx.time.slice(0, 5) })].filter(Boolean).join(' · ');
   return `${head}\n${tx.description}`.slice(0, 500);
 }
 

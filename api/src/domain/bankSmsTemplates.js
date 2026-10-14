@@ -36,7 +36,7 @@ const re = (source) => new RegExp(source, 'u');
  */
 export const SMS_DESCRIPTION_CATEGORIES = [
   // The bank's interest on a deposit account
-  { direction: 'credit', words: ['سود'], category: 'investment' },
+  { direction: 'credit', words: ['سود'], category: 'investment' }, // i18n-ignore
 ];
 
 /** @type {import('./bankSms.js').BankSmsBank[]} */
@@ -54,7 +54,7 @@ export const BANK_SMS_TEMPLATES = [
         id: 'parsian-balance',
         unit: 'rial',
         direction: 'sign',
-        pattern: re(String.raw`^(?<account>${P.digits})\nمبلغ\s?:\s?(?<amount>${P.amount})\nمانده\s?:\s?(?<balance>${P.balance})\n(?<date>${P.date})\n(?<time>${P.time})$`),
+        pattern: re(String.raw`^(?<account>${P.digits})\nمبلغ\s?:\s?(?<amount>${P.amount})\nمانده\s?:\s?(?<balance>${P.balance})\n(?<date>${P.date})\n(?<time>${P.time})$`), // i18n-ignore
       },
     ],
   },
@@ -73,8 +73,8 @@ export const BANK_SMS_TEMPLATES = [
         // (a deposit: «واریز مبلغ … ریال به موجودی اوانوکارت»; the closing lines may be missing)
         id: 'ewano-balance',
         unit: 'rial',
-        direction: { debit: ['برداشت', 'خرید', 'پرداخت', 'انتقال'], credit: ['واریز'] },
-        pattern: re(String.raw`^(?<kind>[^\d\n]+?)\s?مبلغ\s?(?<amount>${P.amount})\s?ریال\s?(?:از|به)\s?موجودی\s?اوانو[\s\u200c]?کارت\nمانده کارت\s?:\s?(?<balance>${P.balance})\s?ریال\nزمان\s?:\s?(?<date>${P.date})-(?<time>${P.time})(?::\d{2})?(?:\n[A-Za-z][A-Za-z ]*)*$`),
+        direction: { debit: ['برداشت', 'خرید', 'پرداخت', 'انتقال'], credit: ['واریز'] }, // i18n-ignore
+        pattern: re(String.raw`^(?<kind>[^\d\n]+?)\s?مبلغ\s?(?<amount>${P.amount})\s?ریال\s?(?:از|به)\s?موجودی\s?اوانو[\s\u200c]?کارت\nمانده کارت\s?:\s?(?<balance>${P.balance})\s?ریال\nزمان\s?:\s?(?<date>${P.date})-(?<time>${P.time})(?::\d{2})?(?:\n[A-Za-z][A-Za-z ]*)*$`), // i18n-ignore
       },
     ],
   },
@@ -93,8 +93,8 @@ export const BANK_SMS_TEMPLATES = [
         // missing: «3,000,000ریال»)
         id: 'blu-balance',
         unit: 'rial',
-        direction: { debit: ['برداشت', 'خرید', 'پرداخت', 'انتقال'], credit: ['واریز'] },
-        pattern: re(String.raw`^بلو\n(?<kind>[^\n]+)\n[^\n]*?(?<amount>${P.amount})\s?ریال[^\n]*\nموجودی\s?:\s?(?<balance>${P.balance})\s?ریال\n(?<time>${P.time})\n(?<date>${P.date})$`),
+        direction: { debit: ['برداشت', 'خرید', 'پرداخت', 'انتقال'], credit: ['واریز'] }, // i18n-ignore
+        pattern: re(String.raw`^بلو\n(?<kind>[^\n]+)\n[^\n]*?(?<amount>${P.amount})\s?ریال[^\n]*\nموجودی\s?:\s?(?<balance>${P.balance})\s?ریال\n(?<time>${P.time})\n(?<date>${P.date})$`), // i18n-ignore
       },
     ],
   },
@@ -110,7 +110,7 @@ export const BANK_SMS_TEMPLATES = [
         id: 'pasargad-balance',
         unit: 'rial',
         direction: 'sign',
-        pattern: re(String.raw`^(?<account>\d[\d.*]{4,30})\n(?<amount>${P.amount})\n(?<date>${P.date})_(?<time>${P.time})\nمانده\s?:\s?(?<balance>${P.balance})$`),
+        pattern: re(String.raw`^(?<account>\d[\d.*]{4,30})\n(?<amount>${P.amount})\n(?<date>${P.date})_(?<time>${P.time})\nمانده\s?:\s?(?<balance>${P.balance})$`), // i18n-ignore
       },
     ],
   },
@@ -129,8 +129,8 @@ export const BANK_SMS_TEMPLATES = [
         // (the second line names the transaction and may be missing; a withdrawal: «برداشت از:»)
         id: 'shahr-balance',
         unit: 'rial',
-        direction: { debit: ['برداشت', 'خرید', 'پرداخت', 'انتقال'], credit: ['واریز'] },
-        pattern: re(String.raw`^\*?\s?بانک شهر\s?\*?\n(?:(?<desc>[^\n:]+)\n)?(?<kind>[^\n:]+?)\s?(?:به|از)?\s?:\s?(?<account>${P.digits})\nمبلغ\s?:\s?(?<amount>${P.amount})\s?ریال\nموجودی\s?:\s?(?<balance>${P.balance})\s?ریال\n(?<date>${P.date})\s(?<time>${P.time})(?::\d{2})?$`),
+        direction: { debit: ['برداشت', 'خرید', 'پرداخت', 'انتقال'], credit: ['واریز'] }, // i18n-ignore
+        pattern: re(String.raw`^\*?\s?بانک شهر\s?\*?\n(?:(?<desc>[^\n:]+)\n)?(?<kind>[^\n:]+?)\s?(?:به|از)?\s?:\s?(?<account>${P.digits})\nمبلغ\s?:\s?(?<amount>${P.amount})\s?ریال\nموجودی\s?:\s?(?<balance>${P.balance})\s?ریال\n(?<date>${P.date})\s(?<time>${P.time})(?::\d{2})?$`), // i18n-ignore
       },
     ],
   },
@@ -145,8 +145,8 @@ export const BANK_SMS_TEMPLATES = [
         // 05/06/28-13:57
         id: 'mellat-balance',
         unit: 'rial',
-        direction: { debit: ['برداشت', 'خرید', 'پرداخت', 'انتقال'], credit: ['واریز'] },
-        pattern: re(String.raw`^حساب\s?:?\s?(?<account>${P.digits})\n(?<kind>[^\d\n+-]+?)\s?:?\s?(?<amount>${P.amount})\nمانده\s?:?\s?(?<balance>${P.balance})\n(?<date>${P.date})-(?<time>${P.time})$`),
+        direction: { debit: ['برداشت', 'خرید', 'پرداخت', 'انتقال'], credit: ['واریز'] }, // i18n-ignore
+        pattern: re(String.raw`^حساب\s?:?\s?(?<account>${P.digits})\n(?<kind>[^\d\n+-]+?)\s?:?\s?(?<amount>${P.amount})\nمانده\s?:?\s?(?<balance>${P.balance})\n(?<date>${P.date})-(?<time>${P.time})$`), // i18n-ignore
       },
     ],
   },
@@ -163,7 +163,7 @@ export const BANK_SMS_TEMPLATES = [
         id: 'resalat-balance',
         unit: 'rial',
         direction: 'sign',
-        pattern: re(String.raw`^(?<account>\d[\d.*]{4,30})\n(?<amount>${P.amount})\n(?<date>${P.date})_(?<time>${P.time})\nمانده\s?:\s?(?<balance>${P.balance})$`),
+        pattern: re(String.raw`^(?<account>\d[\d.*]{4,30})\n(?<amount>${P.amount})\n(?<date>${P.date})_(?<time>${P.time})\nمانده\s?:\s?(?<balance>${P.balance})$`), // i18n-ignore
       },
     ],
   },
@@ -179,7 +179,7 @@ export const BANK_SMS_TEMPLATES = [
         id: 'mehr-iran-balance',
         unit: 'rial',
         direction: 'sign',
-        pattern: re(String.raw`^(?<account>${P.digits})\n(?<amount>${P.amount})\n(?<date>${P.date})-(?<time>${P.time})\nمانده\s?:\s?(?<balance>${P.balance})$`),
+        pattern: re(String.raw`^(?<account>${P.digits})\n(?<amount>${P.amount})\n(?<date>${P.date})-(?<time>${P.time})\nمانده\s?:\s?(?<balance>${P.balance})$`), // i18n-ignore
       },
     ],
   },
@@ -199,8 +199,8 @@ export const BANK_SMS_TEMPLATES = [
         // a «کدشعبه: 2080» line may follow it)
         id: 'tejarat-balance',
         unit: 'rial',
-        direction: { debit: ['برداشت', 'خرید', 'پرداخت', 'انتقال'], credit: ['واریز'] },
-        pattern: re(String.raw`^\*?\s?بانک تجارت\s?\*?\nحساب\s?:\s?(?<account>${P.digits})\n(?<kind>[^\d\n:+-]+?)\s?:\s?(?<amount>${P.amount})\s?ریال\n(?:از طریق\s?:\s?(?<desc>[^\n]+)\n)?(?:کد\s?شعبه\s?:\s?\d+\n)?مانده\s?:\s?(?<balance>${P.balance})\s?ریال\n(?<date>${P.date})\s(?<time>${P.time})$`),
+        direction: { debit: ['برداشت', 'خرید', 'پرداخت', 'انتقال'], credit: ['واریز'] }, // i18n-ignore
+        pattern: re(String.raw`^\*?\s?بانک تجارت\s?\*?\nحساب\s?:\s?(?<account>${P.digits})\n(?<kind>[^\d\n:+-]+?)\s?:\s?(?<amount>${P.amount})\s?ریال\n(?:از طریق\s?:\s?(?<desc>[^\n]+)\n)?(?:کد\s?شعبه\s?:\s?\d+\n)?مانده\s?:\s?(?<balance>${P.balance})\s?ریال\n(?<date>${P.date})\s(?<time>${P.time})$`), // i18n-ignore
       },
     ],
   },
@@ -219,7 +219,7 @@ export const BANK_SMS_TEMPLATES = [
         id: 'melli-balance',
         unit: 'rial',
         direction: 'sign',
-        pattern: re(String.raw`^بانک ملی ایران\n(?<desc>[^\d\n:+-]+?)\s?:\s?(?<amount>${P.amount})\nحساب\s?:\s?(?<account>${P.digits})\nمانده\s?:\s?(?<balance>${P.balance})\n(?<date>\d{4})-(?<time>${P.time})$`),
+        pattern: re(String.raw`^بانک ملی ایران\n(?<desc>[^\d\n:+-]+?)\s?:\s?(?<amount>${P.amount})\nحساب\s?:\s?(?<account>${P.digits})\nمانده\s?:\s?(?<balance>${P.balance})\n(?<date>\d{4})-(?<time>${P.time})$`), // i18n-ignore
       },
     ],
   },
@@ -239,7 +239,7 @@ export const BANK_SMS_TEMPLATES = [
         id: 'khavarmianeh-balance',
         unit: 'rial',
         direction: 'sign',
-        pattern: re(String.raw`^بانک خاورمیانه\n(?<account>\d[\d/*]{4,30})\n(?<amount>${P.amount})\n(?<date>${P.date})\s(?<time>${P.time})\nمانده\s?:?\s?(?<balance>${P.balance})(?:\n(?<desc>[^\n]+))?$`),
+        pattern: re(String.raw`^بانک خاورمیانه\n(?<account>\d[\d/*]{4,30})\n(?<amount>${P.amount})\n(?<date>${P.date})\s(?<time>${P.time})\nمانده\s?:?\s?(?<balance>${P.balance})(?:\n(?<desc>[^\n]+))?$`), // i18n-ignore
       },
     ],
   },
@@ -260,7 +260,7 @@ export const BANK_SMS_TEMPLATES = [
         id: 'post-balance',
         unit: 'rial',
         direction: 'sign',
-        pattern: re(String.raw`^پست بانک\n(?:[^\d\n+-][^\n]*\n)*?(?<desc>[^\d\n:+-]+?)\s?:\s?(?:\d+\s?)?\n?(?<amount>${P.amount})\n(?<date>${P.date})\n(?<time>${P.time})\nمانده\s?:\s?(?<balance>${P.balance})\s?ریال$`),
+        pattern: re(String.raw`^پست بانک\n(?:[^\d\n+-][^\n]*\n)*?(?<desc>[^\d\n:+-]+?)\s?:\s?(?:\d+\s?)?\n?(?<amount>${P.amount})\n(?<date>${P.date})\n(?<time>${P.time})\nمانده\s?:\s?(?<balance>${P.balance})\s?ریال$`), // i18n-ignore
       },
     ],
   },

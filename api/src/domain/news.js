@@ -84,21 +84,21 @@ export function parseTelegramPosts(html) {
   return { title, posts };
 }
 
-/** Persian text for matching: one form of ی and ک, Persian digits to ASCII, no half-spaces */
+/** Persian text for matching: one form of ی and ک, Persian digits to ASCII, no half-spaces */ // i18n-ignore
 export function normalizeNewsText(text) {
   return String(text || "")
-    .replace(/[يى]/g, "ی")
-    .replace(/ك/g, "ک")
-    .replace(/[ۀة]/g, "ه")
-    .replace(/[أإآ]/g, "ا")
-    .replace(/[ً-ٰٟ]/g, "")
-    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
-    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+    .replace(/[يى]/g, "ی") // i18n-ignore
+    .replace(/ك/g, "ک") // i18n-ignore
+    .replace(/[ۀة]/g, "ه") // i18n-ignore
+    .replace(/[أإآ]/g, "ا") // i18n-ignore
+    .replace(/[ً-ٰٟ]/g, "") // i18n-ignore
+    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0)) // i18n-ignore
+    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660)) // i18n-ignore
     .replace(/[‌‍]/g, " ")
     .toLowerCase();
 }
 
-/** Whole-word match: a Persian word inside a longer one ("مس" in "مسکن") isn't the word */
+/** Whole-word match: a Persian word inside a longer one ("مس" in "مسکن") isn't the word */ // i18n-ignore
 function hasWord(text, word) {
   let from = 0;
   for (;;) {
@@ -145,13 +145,13 @@ export const hasProfanity = (text) => {
 };
 
 const CATEGORY_WORDS = [
-  ["gold", ["طلا", "سکه", "انس", "اونس", "مثقال", "آبشده"]],
-  ["metals", ["نقره", "پلاتین", "پالادیوم", "مس", "فلزات"]],
-  ["currency", ["دلار", "یورو", "درهم", "ارز", "حواله", "نیما", "ریال"]],
-  ["oil", ["نفت", "برنت", "اوپک", "بنزین", "گاز"]],
-  ["crypto", ["بیت کوین", "بیتکوین", "تتر", "رمزارز", "کریپتو"]],
-  ["politics", ["جنگ", "حمله", "آتش بس", "نظامی", "موشک", "مذاکره", "برجام", "آژانس", "شورای امنیت", "اسنپ بک"]],
-  ["bourse", ["شاخص کل", "شاخص بورس", "شاخص هم وزن", "بورس", "فرابورس", "پول حقیقی", "ارزش معاملات", "صندوق تثبیت"]],
+  ["gold", ["طلا", "سکه", "انس", "اونس", "مثقال", "آبشده"]], // i18n-ignore
+  ["metals", ["نقره", "پلاتین", "پالادیوم", "مس", "فلزات"]], // i18n-ignore
+  ["currency", ["دلار", "یورو", "درهم", "ارز", "حواله", "نیما", "ریال"]], // i18n-ignore
+  ["oil", ["نفت", "برنت", "اوپک", "بنزین", "گاز"]], // i18n-ignore
+  ["crypto", ["بیت کوین", "بیتکوین", "تتر", "رمزارز", "کریپتو"]], // i18n-ignore
+  ["politics", ["جنگ", "حمله", "آتش بس", "نظامی", "موشک", "مذاکره", "برجام", "آژانس", "شورای امنیت", "اسنپ بک"]], // i18n-ignore
+  ["bourse", ["شاخص کل", "شاخص بورس", "شاخص هم وزن", "بورس", "فرابورس", "پول حقیقی", "ارزش معاملات", "صندوق تثبیت"]], // i18n-ignore
 ].map(([cat, words]) => [cat, words.map(normalizeNewsText)]);
 
 /** The category whose words come first in the text ("economy" when none) */
@@ -216,12 +216,12 @@ IMPORTANCE p (market impact):
 3 = can move the dollar or gold directly: sanctions or talks, war or military escalation, the central bank's FX or rate decisions, the Fed's decisions, OPEC decisions, a sharp move in world gold or oil, an official change in the FX regime.
 2 = a meaningful but limited factor: official economic data (inflation, growth, trade), government rules on FX, budget, wages or prices, notable statements by senior officials, the stock market's total index and money flows.
 1 = minor, local or indirect: a sector's news, a minor official's statement, a follow-up of earlier news.
-A report or rumour (unnamed sources, «گفته می‌شود», «شنیده‌ها», «احتمالاً») rather than an official or confirmed fact is one level lower, and never above 2.
+A report or rumour (unnamed sources, «گفته می‌شود», «شنیده‌ها», «احتمالاً») rather than an official or confirmed fact is one level lower, and never above 2.${/* i18n-ignore */ ''}
 
 CATEGORY c: currency (the dollar and other currencies, remittances, the exchange center) | gold (gold and coins) | metals (silver, platinum, copper, steel) | oil (oil, gas, energy, OPEC) | bourse (the Tehran stock market as a whole) | crypto | politics (war, military and security events, ceasefires, sanctions decisions, nuclear talks and agreements) | economy (anything else economic).
 
 WRITING, in fluent Persian only (no words of another language; write names like the Fed or OPEC in Persian):
-t = a neutral, factual headline of at most 12 words: who did or said what. No emoji, no channel name, no hype or clickbait («فوری»، «مهم»، «ببینید»), no exclamation marks.
+t = a neutral, factual headline of at most 12 words: who did or said what. No emoji, no channel name, no hype or clickbait («فوری»، «مهم»، «ببینید»), no exclamation marks.${/* i18n-ignore */ ''}
 s = 1 or 2 sentences, at most 40 words: the essential facts of the post (who, what, numbers, when). Never add facts, numbers or opinions that are not in the post.
 
 ANSWER: only a JSON array, one item per post, in order:
@@ -381,7 +381,7 @@ METHOD:
    1 = minor, local, opinion, or a rumour.
    Confirmed and official news weighs more than reports and rumours. The same news repeated by several channels weighs more. Newer news weighs more than older news on the same subject.
 3. Write what happened today, how the items connect, and why they matter to the markets.
-4. Only when an item scored 3 clearly makes a move in a market more likely, you may say so in the analysis text — once, cautiously, as a raised likelihood ("می‌تواند احتمال … را بالا ببرد"), naming the news. Never otherwise, never as a certainty.
+4. Only when an item scored 3 clearly makes a move in a market more likely, you may say so in the analysis text — once, cautiously, as a raised likelihood ("می‌تواند احتمال … را بالا ببرد"), naming the news. Never otherwise, never as a certainty.${/* i18n-ignore */ ''}
 5. Never invent facts, numbers or events that are not in the news.
 
 ANSWER: only one JSON object, no markdown, every text in fluent, plain Persian (no words of another language):

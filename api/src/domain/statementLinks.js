@@ -20,6 +20,8 @@
  * Shared by the browser and the tests, like the other domain modules.
  */
 
+import { t } from './i18n.js';
+
 /** How far (days) an installment's due day may be from the row's day */
 export const LINK_DAYS = 45;
 /** Amounts closer than this (a fraction) are the same */
@@ -60,7 +62,7 @@ export function suggestLinks(plan, { cheques = [], installments = [], subscripti
       const cheque = cheques.find((c) => !usedCheques.has(c.id) && c.direction === wanted && ['pending', 'deposited'].includes(c.status) && digits(c.chequeNumber) === number);
       if (cheque) {
         usedCheques.add(cheque.id);
-        out[tx.id] = { kind: 'cheque', field: 'chequeId', value: cheque.id, label: `چک شماره ${tx.fields.chequeNo}${cheque.counterparty ? ` (${cheque.counterparty})` : ''}` };
+        out[tx.id] = { kind: 'cheque', field: 'chequeId', value: cheque.id, label: `${t('چک شماره {number}', { number: tx.fields.chequeNo })}${cheque.counterparty ? ` (${cheque.counterparty})` : ''}` };
         continue;
       }
     }
@@ -76,7 +78,7 @@ export function suggestLinks(plan, { cheques = [], installments = [], subscripti
           kind: 'installment',
           field: 'loanInstallment',
           value: { loanId: match.loanId, installmentId: match.installmentId },
-          label: `قسط ${match.number} ${match.loanTitle ? `وام «${match.loanTitle}»` : 'وام'}`,
+          label: match.loanTitle ? t('قسط {number} وام «{title}»', { number: match.number, title: match.loanTitle }) : t('قسط {number} وام', { number: match.number }),
         };
       }
     } else if (decision.category === 'subscriptions') {
@@ -84,7 +86,7 @@ export function suggestLinks(plan, { cheques = [], installments = [], subscripti
       const matches = subscriptions.filter((s) => (!s.currency || s.currency === 'IRT') && s.status !== 'cancelled' && closeAmounts(s.amount, tx.amount));
       if (matches.length === 1 && !usedSubscriptionMonths.has(`${matches[0].id}|${month}`)) {
         usedSubscriptionMonths.add(`${matches[0].id}|${month}`);
-        out[tx.id] = { kind: 'subscription', field: 'subscriptionId', value: matches[0].id, label: `اشتراک «${matches[0].name}»` };
+        out[tx.id] = { kind: 'subscription', field: 'subscriptionId', value: matches[0].id, label: t('اشتراک «{name}»', { name: matches[0].name }) };
       }
     }
   }

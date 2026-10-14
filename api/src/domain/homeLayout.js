@@ -32,19 +32,20 @@
 
 import { MAIN_METRICS, CARD_SLOT_LIMIT, parseSlotKey } from "./cardMetrics.js";
 import { isFormulaId, sanitizeFormulaCard, FORMULA_ID_RE } from "./cardFormula.js";
+import { t } from "./i18n.js";
 
 export const HOME_LAYOUT_VERSION = 1;
 
 /** Card styles a section can use: the full card (with its price chart) and the compact one */
 export const HOME_SECTION_STYLES = {
-  detailed: "کارت کامل",
-  compact: "کارت فشرده",
+  detailed: t("کارت کامل"),
+  compact: t("کارت فشرده"),
 };
 
 /** How a dollar-priced asset's card shows its price: in dollars (its own, the default) or in tomans */
 export const HOME_PRICE_DISPLAYS = {
-  usd: "دلاری",
-  toman: "تومانی",
+  usd: t("دلاری"),
+  toman: t("تومانی"),
 };
 
 /** Styles of older layouts → today's */
