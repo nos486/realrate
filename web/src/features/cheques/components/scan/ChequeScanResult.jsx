@@ -1,4 +1,4 @@
-import { intlLocale } from '../../../../utils/i18n.js';
+import { t, intlLocale } from '../../../../utils/i18n.js';
 import React, { useState } from 'react';
 import {
   Check,
@@ -15,13 +15,13 @@ import { gregorianToShamsi } from '../../../portfolio/components/ShamsiDatePicke
 import { useFeature } from '../../../../shared/features/index.js';
 
 const SCAN_FIELDS_CONFIG = [
-  { key: 'amount', label: 'مبلغ چک', format: (val) => (val ? `${Number(val).toLocaleString(intlLocale())} تومان` : null) },
-  { key: 'dueDate', label: 'تاریخ سررسید', format: (val) => (val ? gregorianToShamsi(`${val}T00:00:00`) : null) },
-  { key: 'sayadId', label: 'شناسه صیادی (۱۶ رقم)', format: (val) => val },
-  { key: 'chequeNumber', label: 'شماره چک', format: (val) => val },
-  { key: 'bankName', label: 'بانک صادرکننده', format: (val) => val },
-  { key: 'counterparty', label: 'طرف حساب (در وجه/صادرکننده)', format: (val) => val },
-  { key: 'notes', label: 'شعبه و یادداشت', format: (val) => val },
+  { key: 'amount', label: t('مبلغ چک'), format: (val) => (val ? t('{amount} تومان', { amount: Number(val).toLocaleString(intlLocale()) }) : null) },
+  { key: 'dueDate', label: t('تاریخ سررسید'), format: (val) => (val ? gregorianToShamsi(`${val}T00:00:00`) : null) },
+  { key: 'sayadId', label: t('شناسه صیادی (۱۶ رقم)'), format: (val) => val },
+  { key: 'chequeNumber', label: t('شماره چک'), format: (val) => val },
+  { key: 'bankName', label: t('بانک صادرکننده'), format: (val) => val },
+  { key: 'counterparty', label: t('طرف حساب (در وجه/صادرکننده)'), format: (val) => val },
+  { key: 'notes', label: t('شعبه و یادداشت'), format: (val) => val },
 ];
 
 export function ChequeScanResult({
@@ -62,12 +62,12 @@ export function ChequeScanResult({
   const confidenceBadge = (level) => {
     switch (level) {
       case 'high':
-        return <span className="scan-confidence-badge high" title="اطمینان بالا">بالا</span>;
+        return <span className="scan-confidence-badge high" title={t('اطمینان بالا')}>{t('بالا')}</span>;
       case 'low':
-        return <span className="scan-confidence-badge low" title="اطمینان پایین — نیاز به بررسی">پایین</span>;
+        return <span className="scan-confidence-badge low" title={t('اطمینان پایین — نیاز به بررسی')}>{t('پایین')}</span>;
       case 'medium':
       default:
-        return <span className="scan-confidence-badge medium" title="اطمینان متوسط">متوسط</span>;
+        return <span className="scan-confidence-badge medium" title={t('اطمینان متوسط')}>{t('متوسط')}</span>;
     }
   };
 
@@ -77,13 +77,13 @@ export function ChequeScanResult({
       {result.notACheque ? (
         <AlertBanner
           type="error"
-          title="تصویر چک شناسایی نشد"
-          message="هوش مصنوعی نتوانست تصویر را به عنوان یک چک بانکی معتبر تشخیص دهد یا ارقام آن کاملاً ناخوانا است."
+          title={t('تصویر چک شناسایی نشد')}
+          message={t('هوش مصنوعی نتوانست تصویر را به عنوان یک چک بانکی معتبر تشخیص دهد یا ارقام آن کاملاً ناخوانا است.')}
         />
       ) : warnings.length > 0 ? (
         <AlertBanner
           type="warning"
-          title="نیاز به بررسی مقادیر"
+          title={t('نیاز به بررسی مقادیر')}
           message={warnings.join(' • ')}
         />
       ) : null}
@@ -93,13 +93,13 @@ export function ChequeScanResult({
       <div className="scan-stats-bar">
         <div className="scan-stat-item">
           <Clock size={14} />
-          <span>زمان پاسخ: <strong>{(result.durationMs / 1000).toFixed(1)} ثانیه</strong></span>
+          <span>{t('زمان پاسخ:')} <strong>{t('{n} ثانیه', { n: (result.durationMs / 1000).toFixed(1) })}</strong></span>
         </div>
         {imageMeta && (
           <div className="scan-stat-item">
             <HardDrive size={14} />
             <span>
-              حجم تصویر: {(imageMeta.originalBytes / 1024).toFixed(0)}KB ← <strong>{(imageMeta.bytes / 1024).toFixed(0)}KB</strong>
+              {t('حجم تصویر:')} {(imageMeta.originalBytes / 1024).toFixed(0)}KB ← <strong>{(imageMeta.bytes / 1024).toFixed(0)}KB</strong>
             </span>
           </div>
         )}
@@ -112,16 +112,16 @@ export function ChequeScanResult({
         <div className="accuracy-header">
           <div className="accuracy-title-wrap">
             <Sparkles size={16} className="accuracy-icon" />
-            <span className="accuracy-title">سنجش دقت استخراج (مخصوص مدیر)</span>
+            <span className="accuracy-title">{t('سنجش دقت استخراج (مخصوص مدیر)')}</span>
           </div>
           <span className="accuracy-score-pill">
             {totalRated === 0
-              ? 'دقت فیلدها را بررسی و تأیید کنید'
-              : `${confirmedCount} از ${SCAN_FIELDS_CONFIG.length} فیلد تأیید شد`}
+              ? t('دقت فیلدها را بررسی و تأیید کنید')
+              : t('{confirmed} از {total} فیلد تأیید شد', { confirmed: confirmedCount, total: SCAN_FIELDS_CONFIG.length })}
           </span>
         </div>
         <p className="accuracy-hint">
-          جهت ارزیابی کیفیت مدل، درستی هر فیلد را با زدن تیک یا ضربدر مشخص کنید.
+          {t('جهت ارزیابی کیفیت مدل، درستی هر فیلد را با زدن تیک یا ضربدر مشخص کنید.')}
         </p>
       </div>
       )}
@@ -131,10 +131,10 @@ export function ChequeScanResult({
         <table className="scan-fields-table">
           <thead>
             <tr>
-              <th>فیلد</th>
-              <th>مقدار استخراج‌شده</th>
-              <th>اطمینان</th>
-              {debug && <th className="th-accuracy">درست است؟</th>}
+              <th>{t('فیلد')}</th>
+              <th>{t('مقدار استخراج‌شده')}</th>
+              <th>{t('اطمینان')}</th>
+              {debug && <th className="th-accuracy">{t('درست است؟')}</th>}
             </tr>
           </thead>
           <tbody>
@@ -153,7 +153,7 @@ export function ChequeScanResult({
                         {displayVal}
                       </span>
                     ) : (
-                      <span className="val-empty">خوانده نشد</span>
+                      <span className="val-empty">{t('خوانده نشد')}</span>
                     )}
                   </td>
                   <td className="field-confidence-cell">
@@ -165,7 +165,7 @@ export function ChequeScanResult({
                       type="button"
                       className={`accuracy-check-btn ${rating === true ? 'active-yes' : ''}`}
                       onClick={() => handleRate(key, true)}
-                      title="درست است"
+                      title={t('درست است')}
                     >
                       <Check size={14} strokeWidth={2.5} />
                     </button>
@@ -173,7 +173,7 @@ export function ChequeScanResult({
                       type="button"
                       className={`accuracy-cross-btn ${rating === false ? 'active-no' : ''}`}
                       onClick={() => handleRate(key, false)}
-                      title="نادرست است"
+                      title={t('نادرست است')}
                     >
                       <X size={14} strokeWidth={2.5} />
                     </button>
@@ -190,7 +190,7 @@ export function ChequeScanResult({
       {debug && result.raw && (
         <details className="scan-raw-output-details">
           <summary className="scan-raw-output-summary">
-            <span>مشاهده خروجی خام مدل هوش مصنوعی</span>
+            <span>{t('مشاهده خروجی خام مدل هوش مصنوعی')}</span>
             <Button
               size="sm"
               variant="ghost"
@@ -200,7 +200,7 @@ export function ChequeScanResult({
                 handleCopyRaw();
               }}
             >
-              {copied ? 'کپی شد' : 'کپی خروجی خام'}
+              {copied ? t('کپی شد') : t('کپی خروجی خام')}
             </Button>
           </summary>
           <pre className="scan-raw-output-pre" dir="ltr">
@@ -215,7 +215,7 @@ export function ChequeScanResult({
           variant="secondary"
           onClick={onNewPhoto}
         >
-          عکس جدید
+          {t('عکس جدید')}
         </Button>
         <Button
           variant="primary"
@@ -223,7 +223,7 @@ export function ChequeScanResult({
           disabled={result.notACheque}
           onClick={() => onFillForm(fields, confidence)}
         >
-          پر کردن فرم چک
+          {t('پر کردن فرم چک')}
         </Button>
       </div>
     </div>

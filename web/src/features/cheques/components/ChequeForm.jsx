@@ -19,6 +19,7 @@
  */
 
 import React, { useState } from 'react';
+import { t } from '../../../utils/i18n.js';
 import { CircleDashed, ReceiptText } from 'lucide-react';
 import { AlertBanner, FilterPills, Input, Modal } from '../../../shared/ui/index.js';
 import { AmountField, CategoryGrid, EntryFormActions, MoreDetails, PickerRow } from '../../../shared/form/index.js';
@@ -37,23 +38,23 @@ import { useAccounts } from '../../accounts/hooks/useAccounts.js';
 import { accountLabel } from '../../accounts/constants/accountDisplay.js';
 import { accountsForCurrency } from '../../../utils/accountDocument.js';
 
-const DIRECTION_OPTIONS = CHEQUE_DIRECTIONS.map(({ value, label }) => {
-  const { Icon } = getDirectionDisplay(value);
-  return { value, label: `چک ${label}`, icon: <Icon size={14} strokeWidth={2} /> };
+const DIRECTION_OPTIONS = CHEQUE_DIRECTIONS.map(({ value }) => {
+  const { Icon, label } = getDirectionDisplay(value);
+  return { value, label: t('چک {kind}', { kind: label }), icon: <Icon size={14} strokeWidth={2} /> };
 });
 
 const statusOptions = (direction) =>
-  statusesFor(direction).map(({ value, label }) => {
-    const { Icon } = getStatusDisplay(value);
+  statusesFor(direction).map(({ value }) => {
+    const { Icon, label } = getStatusDisplay(value);
     return { value, label, icon: <Icon size={13} strokeWidth={2} /> };
   });
 
 /** «بابت» left open: the cheque pays for / brings in nothing in particular */
-const NO_CATEGORY = { value: '', label: 'نامشخص', Icon: CircleDashed };
+const NO_CATEGORY = { value: '', label: t('نامشخص'), Icon: CircleDashed };
 
 const digitsOnly = (v) => toAsciiDigits(v).replace(/[^\d]/g, '');
 
-const SCAN_HINT = 'از اسکن — لطفاً بررسی کنید';
+const SCAN_HINT = t('از اسکن — لطفاً بررسی کنید');
 
 export default function ChequeForm({
   onClose,
@@ -175,29 +176,29 @@ export default function ChequeForm({
       if (next) startNext(payload.counterparty);
       else onClose();
     } catch (err) {
-      setSubmitError(err.message || 'خطا در ذخیره چک');
+      setSubmitError(err.message || t('خطا در ذخیره چک'));
     }
   };
 
   const detailsFilled = [
-    ...(bank.bankId || bank.lenderName ? ['بانک'] : []),
-    ...(chequeNumber.trim() ? ['شماره چک'] : []),
-    ...(sayadId.trim() ? ['شناسه صیادی'] : []),
-    ...(notes.trim() ? ['یادداشت'] : []),
+    ...(bank.bankId || bank.lenderName ? [t('بانک')] : []),
+    ...(chequeNumber.trim() ? [t('شماره چک')] : []),
+    ...(sayadId.trim() ? [t('شناسه صیادی')] : []),
+    ...(notes.trim() ? [t('یادداشت')] : []),
   ];
 
   return (
     <Modal
       isOpen
       onClose={onClose}
-      title={editingCheque ? 'ویرایش چک' : 'ثبت چک جدید'}
-      subtitle="مبالغ به تومان ثبت می‌شوند"
+      title={editingCheque ? t('ویرایش چک') : t('ثبت چک جدید')}
+      subtitle={t('مبالغ به تومان ثبت می‌شوند')}
       icon={<ReceiptText size={18} />}
       maxWidth="560px"
       onSubmit={handleSubmit}
       footer={
         <EntryFormActions
-          submitLabel={editingCheque ? 'ذخیره تغییرات' : 'ثبت چک'}
+          submitLabel={editingCheque ? t('ذخیره تغییرات') : t('ثبت چک')}
           valid={isFormValid}
           submitting={submitting}
           onCancel={onClose}
@@ -207,11 +208,11 @@ export default function ChequeForm({
     >
       <div className="entry-form-body cheque-entry-form">
         {submitError && <AlertBanner type="error" message={submitError} />}
-        {saved && <p className="entry-form-saved" role="status">چک «{saved}» ثبت شد؛ چک بعدی را وارد کنید.</p>}
+        {saved && <p className="entry-form-saved" role="status">{t('چک «{name}» ثبت شد؛ چک بعدی را وارد کنید.', { name: saved })}</p>}
         {initialValues && !editingCheque && (
           <AlertBanner
             type="info"
-            message="اطلاعات فرم از اسکن چک با هوش مصنوعی استخراج شده است. لطفاً پیش از ثبت، فیلدها را بازبینی فرمایید."
+            message={t('اطلاعات فرم از اسکن چک با هوش مصنوعی استخراج شده است. لطفاً پیش از ثبت، فیلدها را بازبینی فرمایید.')}
           />
         )}
 
@@ -222,7 +223,7 @@ export default function ChequeForm({
             value={amount}
             onValueChange={setAmount}
             currency="IRT"
-            placeholder="مثلاً ۵۰,۰۰۰,۰۰۰"
+            placeholder={t('مثلاً ۵۰,۰۰۰,۰۰۰')}
             autoFocus={!editingCheque && !initialValues}
           >
             {isLow('amount') && <span className="scan-confidence-hint">{SCAN_HINT}</span>}
@@ -230,14 +231,14 @@ export default function ChequeForm({
         </div>
 
         <div className="ui-input-group">
-          <span className="ui-input-label">نوع چک</span>
+          <span className="ui-input-label">{t('نوع چک')}</span>
           <FilterPills variant="segmented" size="sm" options={DIRECTION_OPTIONS} activeValue={direction} onChange={changeDirection} />
         </div>
 
         <Input
           id="cheque-counterparty"
           label={`${directionDisplay.counterpartyLabel} *`}
-          placeholder={direction === 'issued' ? 'چک در وجه چه کسی است؟' : 'چک را چه کسی صادر کرده است؟'}
+          placeholder={direction === 'issued' ? t('چک در وجه چه کسی است؟') : t('چک را چه کسی صادر کرده است؟')}
           value={counterparty}
           onChange={(e) => setCounterparty(e.target.value)}
           maxLength={CHEQUE_LIMITS.counterpartyLength}
@@ -248,7 +249,7 @@ export default function ChequeForm({
 
         {/* Usually ahead: the full picker, not «امروز / دیروز» */}
         <div className={`scan-date-group ${isLow('dueDate') ? 'has-scan-warning' : ''}`}>
-          <ShamsiDatePicker label="تاریخ سررسید *" value={dueShamsi} onChange={setDueShamsi} />
+          <ShamsiDatePicker label={t('تاریخ سررسید *')} value={dueShamsi} onChange={setDueShamsi} />
           {isLow('dueDate') && <span className="scan-confidence-hint">{SCAN_HINT}</span>}
         </div>
 
@@ -256,42 +257,42 @@ export default function ChequeForm({
           <CategoryGrid
             key={direction}
             kind={direction === 'issued' ? 'expense' : 'income'}
-            label="بابت (اختیاری)"
+            label={t('بابت (اختیاری)')}
             options={categoryOptions}
             value={category}
             onChange={setCategory}
           />
-          <p className="expense-form-hint">با پاس شدن، {direction === 'issued' ? 'هزینه‌ای' : 'درآمدی'} با همین دسته ثبت می‌شود.</p>
+          <p className="expense-form-hint">{direction === 'issued' ? t('با پاس شدن، هزینه‌ای با همین دسته ثبت می‌شود.') : t('با پاس شدن، درآمدی با همین دسته ثبت می‌شود.')}</p>
         </div>
 
         {chequeAccounts.length > 0 && (
           <PickerRow
-            label={direction === 'issued' ? 'از حساب' : 'واریز به حساب'}
+            label={direction === 'issued' ? t('از حساب') : t('واریز به حساب')}
             value={accountId}
-            options={[{ value: '', label: 'نامشخص' }, ...chequeAccounts.map((a) => ({ value: a.id, label: accountLabel(a) }))]}
+            options={[{ value: '', label: t('نامشخص') }, ...chequeAccounts.map((a) => ({ value: a.id, label: accountLabel(a) }))]}
             onChange={setAccountId}
-            placeholder="نامشخص"
+            placeholder={t('نامشخص')}
           />
         )}
 
         {!editingCheque && (
           <div className="ui-input-group">
-            <span className="ui-input-label">وضعیت فعلی</span>
+            <span className="ui-input-label">{t('وضعیت فعلی')}</span>
             <FilterPills options={statusOptions(direction)} activeValue={status} onChange={setStatus} size="sm" />
           </div>
         )}
 
         <MoreDetails filled={detailsFilled}>
           <div className={`scan-bank-group ${isLow('bankName') ? 'has-scan-warning' : ''}`}>
-            <BankPicker id="cheque-bank" value={bank} onChange={setBank} label="بانک" />
+            <BankPicker id="cheque-bank" value={bank} onChange={setBank} label={t('بانک')} />
             {isLow('bankName') && <span className="scan-confidence-hint">{SCAN_HINT}</span>}
           </div>
 
           <div className="cheque-form-row">
             <Input
               id="cheque-number"
-              label="شماره چک"
-              placeholder="اختیاری"
+              label={t('شماره چک')}
+              placeholder={t('اختیاری')}
               value={chequeNumber}
               onChange={(e) => setChequeNumber(e.target.value)}
               maxLength={CHEQUE_LIMITS.chequeNumberLength}
@@ -302,14 +303,14 @@ export default function ChequeForm({
             />
             <Input
               id="cheque-sayad"
-              label="شناسه صیادی (۱۶ رقم)"
-              placeholder="اختیاری"
+              label={t('شناسه صیادی (۱۶ رقم)')}
+              placeholder={t('اختیاری')}
               value={sayadId}
               onChange={(e) => setSayadId(e.target.value)}
               maxLength={24}
               inputMode="numeric"
               dir="ltr"
-              error={sayadInvalid ? 'شناسه صیادی باید ۱۶ رقم باشد.' : undefined}
+              error={sayadInvalid ? t('شناسه صیادی باید ۱۶ رقم باشد.') : undefined}
               className={isLow('sayadId') ? 'scan-low-confidence-group' : ''}
               hint={!sayadInvalid && isLow('sayadId') ? SCAN_HINT : undefined}
             />
@@ -318,8 +319,8 @@ export default function ChequeForm({
           <Input
             id="cheque-notes"
             as="textarea"
-            label="یادداشت"
-            placeholder="بابت چه چیزی، شرایط، شماره حساب و..."
+            label={t('یادداشت')}
+            placeholder={t('بابت چه چیزی، شرایط، شماره حساب و...')}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             maxLength={CHEQUE_LIMITS.notesLength}
@@ -334,8 +335,8 @@ export default function ChequeForm({
             onChange={(e) => setRemindersEnabled(e.target.checked)}
           />
           <span>
-            <strong>یادآوری برای این مورد</strong>
-            <small>در صورت فعال بودن، در زمان سررسید چک اعلان یا ایمیل یادآوری ارسال می‌شود.</small>
+            <strong>{t('یادآوری برای این مورد')}</strong>
+            <small>{t('در صورت فعال بودن، در زمان سررسید چک اعلان یا ایمیل یادآوری ارسال می‌شود.')}</small>
           </span>
         </label>
       </div>

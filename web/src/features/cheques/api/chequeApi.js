@@ -5,6 +5,7 @@
  * encrypted vault records handled in the browser (same signatures and response shapes).
  */
 
+import { t } from '../../../utils/i18n.js';
 import { httpClient } from '../../../shared/api/httpClient.js';
 import { routeThroughVault } from '../../../shared/vault/vaultRouting.js';
 import * as vaultCheques from '../../../shared/vault/vaultCheques.js';
@@ -32,13 +33,13 @@ const createChequeRest = (chequeData) => httpClient.post('/api/cheques', chequeD
 
 /** @param {string} chequeId @param {ChequeInput} chequeData */
 function updateChequeRest(chequeId, chequeData) {
-  if (!chequeId) throw new Error('شناسه چک الزامی است');
+  if (!chequeId) throw new Error(t('شناسه چک الزامی است'));
   return httpClient.put(`/api/cheques/${encodeURIComponent(chequeId)}`, chequeData);
 }
 
 /** @param {string} chequeId */
 function deleteChequeRest(chequeId) {
-  if (!chequeId) throw new Error('شناسه چک الزامی است');
+  if (!chequeId) throw new Error(t('شناسه چک الزامی است'));
   return httpClient.delete(`/api/cheques/${encodeURIComponent(chequeId)}`);
 }
 

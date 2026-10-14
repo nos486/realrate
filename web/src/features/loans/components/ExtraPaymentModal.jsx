@@ -10,7 +10,7 @@
  * segmented choice with what it does under it, and the note under «جزئیات بیشتر».
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { t, intlLocale } from '../../../utils/i18n.js';
 import React, { useState } from 'react';
 import { DollarSign, Sparkles, CheckCircle2 } from 'lucide-react';
 import { AlertBanner, Button, FilterPills, Input, Modal } from '../../../shared/ui/index.js';
@@ -28,13 +28,13 @@ const formatNum = (v) => Number(v || 0).toLocaleString(intlLocale());
 const REDUCTION_MODES = [
   {
     value: 'reduce_amount',
-    label: 'کاهش مبلغ اقساط',
-    hint: 'تعداد اقساط باقیمانده بدون تغییر می‌ماند، ولی مبلغ پرداختی هر قسط سبک‌تر و کمتر می‌شود.',
+    label: t('کاهش مبلغ اقساط'),
+    hint: t('تعداد اقساط باقیمانده بدون تغییر می‌ماند، ولی مبلغ پرداختی هر قسط سبک‌تر و کمتر می‌شود.'),
   },
   {
     value: 'reduce_term',
-    label: 'کاهش تعداد اقساط',
-    hint: 'مبلغ هر قسط ثابت می‌ماند، ولی مدت زمان وام کوتاه‌تر شده و وام زودتر تسویه می‌شود.',
+    label: t('کاهش تعداد اقساط'),
+    hint: t('مبلغ هر قسط ثابت می‌ماند، ولی مدت زمان وام کوتاه‌تر شده و وام زودتر تسویه می‌شود.'),
   },
 ];
 
@@ -68,7 +68,7 @@ export default function ExtraPaymentModal({
     setPayoffSuccessInfo(null);
 
     if (cleanAmount <= 0) {
-      setFormError('لطفاً مبلغ معتبری برای پرداخت اضافه وارد نمایید.');
+      setFormError(t('لطفاً مبلغ معتبری برای پرداخت اضافه وارد نمایید.'));
       return;
     }
 
@@ -86,7 +86,7 @@ export default function ExtraPaymentModal({
         onClose();
       }
     } catch (err) {
-      setFormError(err.message || 'خطا در ثبت پرداخت اضافه');
+      setFormError(err.message || t('خطا در ثبت پرداخت اضافه'));
     }
   };
 
@@ -106,20 +106,20 @@ export default function ExtraPaymentModal({
       <Modal
         isOpen={isOpen}
         onClose={handleClose}
-        title="تبریک! وام تسویه شد"
-        subtitle="با این پرداخت مازاد، کل بدهی این وام تسویه گردید."
+        title={t('تبریک! وام تسویه شد')}
+        subtitle={t('با این پرداخت مازاد، کل بدهی این وام تسویه گردید.')}
         icon={<Sparkles size={22} />}
         maxWidth="480px"
         footer={
           <div className="modal-actions">
-            <Button block onClick={handleClose}>متوجه شدم، مشاهده وام</Button>
+            <Button block onClick={handleClose}>{t('متوجه شدم، مشاهده وام')}</Button>
           </div>
         }
       >
         <div className="loan-payoff-done">
           <span className="loan-payoff-done-icon"><CheckCircle2 size={36} /></span>
-          <h3>وام با موفقیت تسویه شد!</h3>
-          <p>تمام اقساط باقیمانده حذف شدند و مانده بدهی شما برای این وام به صفر رسید.</p>
+          <h3>{t('وام با موفقیت تسویه شد!')}</h3>
+          <p>{t('تمام اقساط باقیمانده حذف شدند و مانده بدهی شما برای این وام به صفر رسید.')}</p>
         </div>
       </Modal>
     );
@@ -131,16 +131,16 @@ export default function ExtraPaymentModal({
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="پرداخت اضافه / یکجا"
+      title={t('پرداخت اضافه / یکجا')}
       subtitle={
         loan
-          ? `وام: ${loan.title} • مانده فعلی: ${formatNum(remainingBalance)} تومان`
-          : 'ثبت مبلغ مازاد برای کاهش اقساط یا مدت بازپرداخت'
+          ? t('وام: {title} • مانده فعلی: {amount} تومان', { title: loan.title, amount: formatNum(remainingBalance) })
+          : t('ثبت مبلغ مازاد برای کاهش اقساط یا مدت بازپرداخت')
       }
       icon={<DollarSign size={20} />}
       footer={
         <EntryFormActions
-          submitLabel="ثبت پرداخت اضافه"
+          submitLabel={t('ثبت پرداخت اضافه')}
           valid={cleanAmount > 0}
           submitting={submitting}
           onCancel={handleClose}
@@ -155,20 +155,20 @@ export default function ExtraPaymentModal({
 
         <AmountField
           id="extra-payment-amount"
-          label="مبلغ پرداخت"
+          label={t('مبلغ پرداخت')}
           value={amount}
           onValueChange={setAmount}
           currency={BASE_CURRENCY}
-          placeholder="مثلاً ۲۰,۰۰۰,۰۰۰"
+          placeholder={t('مثلاً ۲۰,۰۰۰,۰۰۰')}
           autoFocus
         >
           {cleanAmount > 0 && remainingBalance > 0 && cleanAmount >= remainingBalance && (
-            <p className="loan-form-payoff-hint">✓ این مبلغ کل مانده را تسویه خواهد کرد.</p>
+            <p className="loan-form-payoff-hint">{t('✓ این مبلغ کل مانده را تسویه خواهد کرد.')}</p>
           )}
         </AmountField>
 
         <DateField
-          label="تاریخ واریز وجه *"
+          label={t('تاریخ واریز وجه *')}
           value={paymentDateShamsi}
           onChange={(val) => {
             setPaymentDateShamsi(val);
@@ -178,7 +178,7 @@ export default function ExtraPaymentModal({
         />
 
         <div className="ui-input-group">
-          <span className="ui-input-label">نحوه اعمال بر اقساط باقیمانده</span>
+          <span className="ui-input-label">{t('نحوه اعمال بر اقساط باقیمانده')}</span>
           <FilterPills
             variant="segmented"
             size="sm"
@@ -189,11 +189,11 @@ export default function ExtraPaymentModal({
           <p className="expense-form-hint">{mode.hint}</p>
         </div>
 
-        <MoreDetails filled={notes.trim() ? ['یادداشت'] : []}>
+        <MoreDetails filled={notes.trim() ? [t('یادداشت')] : []}>
           <Input
             id="extra-payment-notes"
-            label="توضیحات یا منبع واریزی"
-            placeholder="مثلاً: پاداش، فروش طلا، تسویه پیش از موعد..."
+            label={t('توضیحات یا منبع واریزی')}
+            placeholder={t('مثلاً: پاداش، فروش طلا، تسویه پیش از موعد...')}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
           />

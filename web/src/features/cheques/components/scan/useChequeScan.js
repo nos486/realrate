@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { t } from '../../../../utils/i18n.js';
 import { resizeImage } from '../../../../shared/utils/imageResize.js';
 import { scanCheque, getScanQuota } from '../../api/chequeApi.js';
 
@@ -41,7 +42,7 @@ export function useChequeScan() {
       setPreviewUrl(url);
       setStatus('ready');
     } catch (err) {
-      setError(err.message || 'خطا در پردازش تصویر');
+      setError(err.message || t('خطا در پردازش تصویر'));
       setStatus('error');
     }
   }, []);
@@ -64,7 +65,7 @@ export function useChequeScan() {
       if (err.name === 'AbortError') {
         setStatus('ready');
       } else {
-        setError(err.message || 'پردازش تصویر ناموفق بود.');
+        setError(err.message || t('پردازش تصویر ناموفق بود.'));
         setStatus('error');
         // Out of scans for today (a busy service is a 429 too, but only for a moment)
         if (err.code === 'QUOTA_EXCEEDED') {

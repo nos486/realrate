@@ -13,7 +13,7 @@
  * Its error banner and footer are the entry forms' own (AlertBanner, EntryFormActions).
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { t, intlLocale } from '../../../utils/i18n.js';
 import React, { useState, useEffect, useMemo } from 'react';
 import { ListChecks } from 'lucide-react';
 import { AlertBanner, Modal, NumericInput } from '../../../shared/ui/index.js';
@@ -82,7 +82,7 @@ export default function BulkEditInstallmentsModal({
         error: null,
       };
     } catch (err) {
-      return { schedule: [], error: err.message || 'محاسبه ممکن نشد.' };
+      return { schedule: [], error: err.message || t('محاسبه ممکن نشد.') };
     }
   }, [loan, paidInstallments, customAmounts, currentTotalPool, currentPrincipalPool]);
 
@@ -116,7 +116,7 @@ export default function BulkEditInstallmentsModal({
       return;
     }
     if (pendingRows.length === 0) {
-      setFormError('هیچ قسط در‌انتظاری برای ویرایش وجود ندارد.');
+      setFormError(t('هیچ قسط در‌انتظاری برای ویرایش وجود ندارد.'));
       return;
     }
 
@@ -130,7 +130,7 @@ export default function BulkEditInstallmentsModal({
       await onSubmit?.(knownAmounts, currentTotalPool);
       onClose();
     } catch (err) {
-      setFormError(err.message || 'خطا در ثبت ویرایش گروهی اقساط');
+      setFormError(err.message || t('خطا در ثبت ویرایش گروهی اقساط'));
     }
   };
 
@@ -140,12 +140,12 @@ export default function BulkEditInstallmentsModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="ویرایش گروهی اقساط"
-      subtitle="مبلغ هر قسطی که می‌خواهید را تغییر دهید — بقیه‌ی اقساط دست‌نخورده (چه قبل چه بعد) به‌طور خودکار و مساوی از باقیمانده سهم می‌گیرند"
+      title={t('ویرایش گروهی اقساط')}
+      subtitle={t('مبلغ هر قسطی که می‌خواهید را تغییر دهید — بقیه‌ی اقساط دست‌نخورده (چه قبل چه بعد) به‌طور خودکار و مساوی از باقیمانده سهم می‌گیرند')}
       icon={<ListChecks size={20} />}
       footer={
         <EntryFormActions
-          submitLabel="ذخیره‌ی برنامه‌ی جدید اقساط"
+          submitLabel={t('ذخیره‌ی برنامه‌ی جدید اقساط')}
           valid={!result.error && pendingRows.length > 0}
           submitting={submitting}
           onCancel={onClose}
@@ -162,9 +162,9 @@ export default function BulkEditInstallmentsModal({
           <table className="loan-bulk-table">
             <thead>
               <tr>
-                <th>قسط</th>
-                <th>سررسید</th>
-                <th>مبلغ (تومان)</th>
+                <th>{t('قسط')}</th>
+                <th>{t('سررسید')}</th>
+                <th>{t('مبلغ (تومان)')}</th>
               </tr>
             </thead>
             <tbody>
@@ -173,7 +173,7 @@ export default function BulkEditInstallmentsModal({
                   <td>{formatNum(inst.installmentNumber)}</td>
                   <td className="is-date">{formatShamsiDisplay(inst.dueDate)}</td>
                   <td className="is-muted">
-                    {formatNum(inst.totalAmount)} <small>(پرداخت‌شده)</small>
+                    {formatNum(inst.totalAmount)} <small>{t('(پرداخت‌شده)')}</small>
                   </td>
                 </tr>
               ))}
@@ -183,7 +183,7 @@ export default function BulkEditInstallmentsModal({
                   <td className="is-date">{formatShamsiDisplay(inst.dueDate)}</td>
                   <td className="is-input">
                     <NumericInput
-                      aria-label={`مبلغ قسط ${formatNum(inst.installmentNumber)}`}
+                      aria-label={t('مبلغ قسط {n}', { n: formatNum(inst.installmentNumber) })}
                       value={customAmounts[inst.installmentNumber] ?? String(inst.totalAmount)}
                       onValueChange={(val) =>
                         setCustomAmounts((prev) => {
@@ -203,7 +203,7 @@ export default function BulkEditInstallmentsModal({
         </div>
 
         {pendingRows.length === 0 && !result.error && (
-          <p className="expense-form-hint">هیچ قسط در‌انتظاری برای ویرایش وجود ندارد.</p>
+          <p className="expense-form-hint">{t('هیچ قسط در‌انتظاری برای ویرایش وجود ندارد.')}</p>
         )}
       </div>
     </Modal>

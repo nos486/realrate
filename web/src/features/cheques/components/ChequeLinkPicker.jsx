@@ -9,7 +9,7 @@
  * (shared/vault/recordLinks.js).
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { t, intlLocale } from '../../../utils/i18n.js';
 import React from 'react';
 import { PickerRow } from '../../../shared/form/index.js';
 import { CHEQUE_DIRECTION_OF } from '../../../utils/categoryLinks.js';
@@ -22,12 +22,12 @@ const fa = (n) => Math.round(Number(n) || 0).toLocaleString(intlLocale());
 /** «علی رضایی — ۵٬۰۰۰٬۰۰۰ تومان», due «سررسید ۱۴۰۵/۰۸/۰۱» under it */
 const chequeChoice = (cheque) => ({
   value: cheque.id,
-  label: `${cheque.counterparty} — ${fa(cheque.amount)} تومان`,
-  hint: `سررسید ${formatShamsiDisplay(`${cheque.dueDate}T00:00:00`)}`,
+  label: t('{name} — {amount} تومان', { name: cheque.counterparty, amount: fa(cheque.amount) }),
+  hint: t('سررسید {date}', { date: formatShamsiDisplay(`${cheque.dueDate}T00:00:00`) }),
 });
 
 /** The title a record of this cheque's money gets */
-const chequeRecordTitle = (cheque) => `چک ${cheque.counterparty}`;
+const chequeRecordTitle = (cheque) => t('چک {name}', { name: cheque.counterparty });
 
 /**
  * @param {{ side: 'expense'|'income', value: string, onChange: (id: string) => void,
@@ -50,15 +50,15 @@ export default function ChequeLinkPicker({ side, value, onChange, onFill, record
   return (
     choices.length > 0 ? (
       <PickerRow
-        label={side === 'income' ? 'کدام چک دریافتی' : 'کدام چک صادره'}
+        label={side === 'income' ? t('کدام چک دریافتی') : t('کدام چک صادره')}
         value={value || ''}
-        options={[{ value: '', label: 'هیچ‌کدام' }, ...choices.map(chequeChoice)]}
+        options={[{ value: '', label: t('هیچ‌کدام') }, ...choices.map(chequeChoice)]}
         onChange={pick}
       >
-        {value && <p className="expense-form-hint">با ثبت، این چک «پاس شده» می‌شود و به همین {side === 'income' ? 'درآمد' : 'هزینه'} وصل می‌ماند.</p>}
+        {value && <p className="expense-form-hint">{side === 'income' ? t('با ثبت، این چک «پاس شده» می‌شود و به همین درآمد وصل می‌ماند.') : t('با ثبت، این چک «پاس شده» می‌شود و به همین هزینه وصل می‌ماند.')}</p>}
       </PickerRow>
     ) : (
-      <p className="expense-form-hint">چک {side === 'income' ? 'دریافتی' : 'صادره'}ِ پاس‌نشده‌ای ندارید؛ چک را در صفحه‌ی «چک‌ها» ثبت کنید.</p>
+      <p className="expense-form-hint">{side === 'income' ? t('چک دریافتیِ پاس‌نشده‌ای ندارید؛ چک را در صفحه‌ی «چک‌ها» ثبت کنید.') : t('چک صادرهِ پاس‌نشده‌ای ندارید؛ چک را در صفحه‌ی «چک‌ها» ثبت کنید.')}</p>
     )
   );
 }

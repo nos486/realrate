@@ -1,4 +1,4 @@
-import { intlLocale } from '../../../../utils/i18n.js';
+import { t, intlLocale } from '../../../../utils/i18n.js';
 import React, { useRef, useState } from 'react';
 import {
   Camera,
@@ -22,8 +22,8 @@ function QuotaLine({ quota }) {
   return (
     <p className={`scan-quota-line ${out ? 'is-empty' : ''}`}>
       {out
-        ? `سهمیه امروز شما (${faNum(quota.limit)} اسکن) تمام شده است؛ فردا دوباره می‌توانید اسکن کنید.`
-        : `${faNum(quota.remaining)} اسکن از ${faNum(quota.limit)} اسکن امروز باقی مانده است.`}
+        ? t('سهمیه امروز شما ({limit} اسکن) تمام شده است؛ فردا دوباره می‌توانید اسکن کنید.', { limit: faNum(quota.limit) })
+        : t('{remaining} اسکن از {limit} اسکن امروز باقی مانده است.', { remaining: faNum(quota.remaining), limit: faNum(quota.limit) })}
     </p>
   );
 }
@@ -89,8 +89,8 @@ export function ChequeScanModal({ isOpen, onClose, onFillForm }) {
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="اسکن چک با هوش مصنوعی"
-      subtitle="استخراج هوشمند اطلاعات چک بانکی از تصویر"
+      title={t('اسکن چک با هوش مصنوعی')}
+      subtitle={t('استخراج هوشمند اطلاعات چک بانکی از تصویر')}
       icon={<Camera size={18} />}
       maxWidth="640px"
     >
@@ -120,7 +120,7 @@ export function ChequeScanModal({ isOpen, onClose, onFillForm }) {
             action={
               status === 'error' && resized && !outOfScans ? (
                 <Button size="sm" variant="secondary" onClick={() => startScan()}>
-                  تلاش مجدد
+                  {t('تلاش مجدد')}
                 </Button>
               ) : null
             }
@@ -133,7 +133,7 @@ export function ChequeScanModal({ isOpen, onClose, onFillForm }) {
             {/* Helpful Guide Notice */}
             <div className="scan-tip-card">
               <Info size={15} className="scan-tip-icon" />
-              <span>چک را روی یک سطح صاف با نور یکنواخت و بدون سایه قرار دهید و عکس را مستقیماً از روبه‌رو بگیرید.</span>
+              <span>{t('چک را روی یک سطح صاف با نور یکنواخت و بدون سایه قرار دهید و عکس را مستقیماً از روبه‌رو بگیرید.')}</span>
             </div>
 
             {/* Desktop Drag and Drop Box */}
@@ -147,8 +147,8 @@ export function ChequeScanModal({ isOpen, onClose, onFillForm }) {
               <div className="dropzone-icon-wrap">
                 <UploadCloud size={32} />
               </div>
-              <p className="dropzone-primary-text">تصویر چک را اینجا بکشید یا کلیک کنید</p>
-              <span className="dropzone-secondary-text">پشتیبانی از فرمت‌های JPEG، PNG و WebP (حداکثر ۲ مگابایت)</span>
+              <p className="dropzone-primary-text">{t('تصویر چک را اینجا بکشید یا کلیک کنید')}</p>
+              <span className="dropzone-secondary-text">{t('پشتیبانی از فرمت‌های JPEG، PNG و WebP (حداکثر ۲ مگابایت)')}</span>
             </div>
 
             {/* Two Prominent Action Buttons */}
@@ -162,8 +162,8 @@ export function ChequeScanModal({ isOpen, onClose, onFillForm }) {
                   <Camera size={22} />
                 </div>
                 <div className="btn-text-wrap">
-                  <strong className="btn-title">گرفتن عکس با دوربین</strong>
-                  <span className="btn-sub">عکاسی مستقیم از چک فیزیکی</span>
+                  <strong className="btn-title">{t('گرفتن عکس با دوربین')}</strong>
+                  <span className="btn-sub">{t('عکاسی مستقیم از چک فیزیکی')}</span>
                 </div>
               </button>
 
@@ -176,8 +176,8 @@ export function ChequeScanModal({ isOpen, onClose, onFillForm }) {
                   <ImageIcon size={22} />
                 </div>
                 <div className="btn-text-wrap">
-                  <strong className="btn-title">انتخاب از گالری / فایل</strong>
-                  <span className="btn-sub">انتخاب تصویر از دستگاه</span>
+                  <strong className="btn-title">{t('انتخاب از گالری / فایل')}</strong>
+                  <span className="btn-sub">{t('انتخاب تصویر از دستگاه')}</span>
                 </div>
               </button>
             </div>
@@ -186,8 +186,8 @@ export function ChequeScanModal({ isOpen, onClose, onFillForm }) {
             <div className="scan-tip-card is-muted">
               <ShieldCheck size={15} className="scan-tip-icon" />
               <span>
-                برای خواندن اطلاعات، تصویر یک‌بار برای سرویس هوش مصنوعی Gemini (گوگل) فرستاده می‌شود و در سرور ما ذخیره نمی‌شود.
-                چک ثبت‌شده مثل بقیه اطلاعات شما رمزنگاری‌شده ذخیره می‌شود.
+                {t('برای خواندن اطلاعات، تصویر یک‌بار برای سرویس هوش مصنوعی Gemini (گوگل) فرستاده می‌شود و در سرور ما ذخیره نمی‌شود.')}{' '}
+                {t('چک ثبت‌شده مثل بقیه اطلاعات شما رمزنگاری‌شده ذخیره می‌شود.')}
               </span>
             </div>
             <QuotaLine quota={quota} />
@@ -198,8 +198,8 @@ export function ChequeScanModal({ isOpen, onClose, onFillForm }) {
         {status === 'resizing' && (
           <div className="scan-processing-box">
             <Loader2 size={32} className="spin-anim text-primary" />
-            <p className="processing-title">در حال آماده‌سازی و بهینه‌سازی تصویر...</p>
-            <span className="processing-subtitle">تصحیح چرخش EXIF و کاهش حجم تصویر جهت ارسال سریع‌تر</span>
+            <p className="processing-title">{t('در حال آماده‌سازی و بهینه‌سازی تصویر...')}</p>
+            <span className="processing-subtitle">{t('تصحیح چرخش EXIF و کاهش حجم تصویر جهت ارسال سریع‌تر')}</span>
           </div>
         )}
 
@@ -207,12 +207,12 @@ export function ChequeScanModal({ isOpen, onClose, onFillForm }) {
         {(status === 'ready' || status === 'uploading') && (
           <div className="scan-step-preview">
             <div className="preview-image-card">
-              <img src={previewUrl} alt="پیش‌نمایش چک" className="preview-cheque-img" />
+              <img src={previewUrl} alt={t('پیش‌نمایش چک')} className="preview-cheque-img" />
               {resized && (
                 <div className="preview-size-badge">
-                  <span>{(resized.originalBytes / 1024).toFixed(0)} کیلوبایت</span>
+                  <span>{t('{n} کیلوبایت', { n: (resized.originalBytes / 1024).toFixed(0) })}</span>
                   <span className="arrow">←</span>
-                  <strong>{(resized.bytes / 1024).toFixed(0)} کیلوبایت (آماده ارسال)</strong>
+                  <strong>{t('{n} کیلوبایت (آماده ارسال)', { n: (resized.bytes / 1024).toFixed(0) })}</strong>
                 </div>
               )}
             </div>
@@ -224,16 +224,16 @@ export function ChequeScanModal({ isOpen, onClose, onFillForm }) {
               <div className="uploading-state-container">
                 <div className="uploading-spinner-row">
                   <Loader2 size={20} className="spin-anim text-primary" />
-                  <span className="uploading-text">هوش مصنوعی در حال تحلیل چک و استخراج فیلدهاست...</span>
+                  <span className="uploading-text">{t('هوش مصنوعی در حال تحلیل چک و استخراج فیلدهاست...')}</span>
                 </div>
                 <Button variant="secondary" size="sm" onClick={cancelScan}>
-                  لغو پردازش
+                  {t('لغو پردازش')}
                 </Button>
               </div>
             ) : (
               <div className="preview-actions-row">
                 <Button variant="secondary" onClick={reset}>
-                  تغییر تصویر
+                  {t('تغییر تصویر')}
                 </Button>
                 <Button
                   variant="primary"
@@ -241,7 +241,7 @@ export function ChequeScanModal({ isOpen, onClose, onFillForm }) {
                   disabled={outOfScans}
                   onClick={() => startScan()}
                 >
-                  استخراج اطلاعات چک
+                  {t('استخراج اطلاعات چک')}
                 </Button>
               </div>
             )}

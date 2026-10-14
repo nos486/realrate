@@ -1,19 +1,20 @@
 import React from 'react';
+import { t } from '../../../utils/i18n.js';
 import { GenericCsvExportButton } from '../../../shared/ui/index.js';
 import { getDisplayRatePct } from '../../../utils/loanCalculator.js';
 
 const HEADERS = [
-  'نام یا عنوان وام',
-  'نام وام‌دهنده / بانک',
-  'مبلغ اصل وام (تومان)',
-  'نرخ سود سالانه (٪)',
-  'تعداد کل اقساط',
-  'دوره پرداخت (ماه)',
-  'تاریخ دریافت وام',
-  'کارمزد سالانه (تومان)',
-  'مانده بدهی فعلی (تومان)',
-  'تعداد اقساط پرداخت‌شده',
-  'یادداشت',
+  t('نام یا عنوان وام'),
+  t('نام وام‌دهنده / بانک'),
+  t('مبلغ اصل وام (تومان)'),
+  t('نرخ سود سالانه (٪)'),
+  t('تعداد کل اقساط'),
+  t('دوره پرداخت (ماه)'),
+  t('تاریخ دریافت وام'),
+  t('کارمزد سالانه (تومان)'),
+  t('مانده بدهی فعلی (تومان)'),
+  t('تعداد اقساط پرداخت‌شده'),
+  t('یادداشت'),
 ];
 
 export default function LoanCsvExportButton({ loans = [], disabled = false }) {
@@ -36,7 +37,7 @@ export default function LoanCsvExportButton({ loans = [], disabled = false }) {
       ]}
       fileBaseName="loans"
       disabled={disabled}
-      title="دریافت خروجی اکسل / CSV از وام‌ها"
+      title={t('دریافت خروجی اکسل / CSV از وام‌ها')}
     />
   );
 }

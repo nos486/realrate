@@ -2,17 +2,17 @@
  * LoanBankShareChart.jsx — How the loans split across banks
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { t, intlLocale } from '../../../utils/i18n.js';
 import React, { useMemo, useState } from 'react';
 import { BankLogo } from '../../../shared/banks/index.js';
 import DonutChart, { ChartToggle } from '../../../shared/ui/DonutChart.jsx';
 
 const MEASURES = [
-  { id: 'principal', label: 'مبلغ وام', field: 'totalPrincipal', centerLabel: 'کل وام‌ها' },
-  { id: 'remaining', label: 'مانده بدهی', field: 'totalRemaining', centerLabel: 'کل بدهی' },
+  { id: 'principal', label: t('مبلغ وام'), field: 'totalPrincipal', centerLabel: t('کل وام‌ها') },
+  { id: 'remaining', label: t('مانده بدهی'), field: 'totalRemaining', centerLabel: t('کل بدهی') },
 ];
 
-const otherBanksLabel = (count) => `سایر (${count.toLocaleString(intlLocale())} بانک)`;
+const otherBanksLabel = (count) => t('سایر ({count} بانک)', { count: count.toLocaleString(intlLocale()) });
 
 /**
  * @param {{ groups: Array<{ key: string, name: string, bank: object,
@@ -38,13 +38,13 @@ export default function LoanBankShareChart({ groups = [], hideValues = false }) 
 
   return (
     <DonutChart
-      title="سهم بانک‌ها از وام‌ها"
+      title={t('سهم بانک‌ها از وام‌ها')}
       items={items}
       masked={hideValues}
       centerLabel={measure.centerLabel}
       otherLabel={otherBanksLabel}
-      emptyMessage="همه وام‌ها تسویه شده‌اند — بدهی باقیمانده‌ای وجود ندارد."
-      headerExtra={<ChartToggle options={MEASURES} value={measureId} onChange={setMeasureId} label="معیار نمودار" />}
+      emptyMessage={t('همه وام‌ها تسویه شده‌اند — بدهی باقیمانده‌ای وجود ندارد.')}
+      headerExtra={<ChartToggle options={MEASURES} value={measureId} onChange={setMeasureId} label={t('معیار نمودار')} />}
     />
   );
 }

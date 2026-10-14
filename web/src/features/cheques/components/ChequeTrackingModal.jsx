@@ -8,6 +8,7 @@
  */
 
 import React, { useState } from 'react';
+import { t } from '../../../utils/i18n.js';
 import { ClipboardList, Pencil } from 'lucide-react';
 import { AlertBanner, Button, FilterPills, Input, Modal } from '../../../shared/ui/index.js';
 import {
@@ -40,8 +41,8 @@ export default function ChequeTrackingModal({ cheque, onClose, onChangeStatus, o
   const canSubmit = !readOnly && Boolean(dateIso) && (!sameStatus || note.trim().length > 0) && !submitting;
   const history = [...(cheque.history || [])].reverse();
 
-  const statusOptions = statusesFor(cheque.direction).map(({ value, label }) => {
-    const { Icon } = getStatusDisplay(value);
+  const statusOptions = statusesFor(cheque.direction).map(({ value }) => {
+    const { Icon, label } = getStatusDisplay(value);
     return { value, label, icon: <Icon size={13} strokeWidth={2} /> };
   });
 
@@ -53,7 +54,7 @@ export default function ChequeTrackingModal({ cheque, onClose, onChangeStatus, o
       await onChangeStatus(cheque, status, dateIso, note.trim());
       setNote('');
     } catch (err) {
-      setSubmitError(err.message || 'خطا در ثبت وضعیت چک');
+      setSubmitError(err.message || t('خطا در ثبت وضعیت چک'));
     }
   };
 
@@ -61,7 +62,7 @@ export default function ChequeTrackingModal({ cheque, onClose, onChangeStatus, o
     <Modal
       isOpen
       onClose={onClose}
-      title={`پیگیری چک ${direction.label}`}
+      title={t('پیگیری چک {kind}', { kind: direction.label })}
       subtitle={cheque.counterparty}
       icon={<ClipboardList size={18} />}
       maxWidth="600px"
@@ -70,10 +71,10 @@ export default function ChequeTrackingModal({ cheque, onClose, onChangeStatus, o
         !readOnly ? (
           <div className="modal-actions">
             <Button variant="secondary" block icon={<Pencil size={14} />} onClick={() => onEdit(cheque)} disabled={submitting}>
-              ویرایش مشخصات
+              {t('ویرایش مشخصات')}
             </Button>
             <Button type="submit" block loading={submitting} disabled={!canSubmit}>
-              {sameStatus ? 'افزودن یادداشت پیگیری' : 'ثبت وضعیت جدید'}
+              {sameStatus ? t('افزودن یادداشت پیگیری') : t('ثبت وضعیت جدید')}
             </Button>
           </div>
         ) : null
@@ -82,9 +83,9 @@ export default function ChequeTrackingModal({ cheque, onClose, onChangeStatus, o
       <div className="cheque-tracking">
         <div className="cheque-tracking-hero">
           <div>
-            <span className="cheque-tracking-label">مبلغ</span>
+            <span className="cheque-tracking-label">{t('مبلغ')}</span>
             <strong className={`cheque-tracking-amount is-${direction.tone}`}>
-              {hideValues ? '****' : formatNum(cheque.amount)} <small>تومان</small>
+              {hideValues ? '****' : formatNum(cheque.amount)} <small>{t('تومان')}</small>
             </strong>
           </div>
           <ChequeStatusBadge status={cheque.status} />
@@ -92,7 +93,7 @@ export default function ChequeTrackingModal({ cheque, onClose, onChangeStatus, o
 
         <dl className="cheque-details">
           <div>
-            <dt>سررسید</dt>
+            <dt>{t('سررسید')}</dt>
             <dd>
               {showDate(cheque.dueDate)}
               {isChequeOpen(cheque) && <span className={`cheque-due-hint ${days < 0 ? 'is-late' : ''}`}>{describeDueDays(days)}</span>}
@@ -104,7 +105,7 @@ export default function ChequeTrackingModal({ cheque, onClose, onChangeStatus, o
           </div>
           {bank.kind !== 'none' && (
             <div>
-              <dt>بانک</dt>
+              <dt>{t('بانک')}</dt>
               <dd className="cheque-bank-cell">
                 <BankLogo bank={bank} size={18} />
                 {bank.name}
@@ -113,26 +114,26 @@ export default function ChequeTrackingModal({ cheque, onClose, onChangeStatus, o
           )}
           {cheque.chequeNumber && (
             <div>
-              <dt>شماره چک</dt>
+              <dt>{t('شماره چک')}</dt>
               <dd dir="ltr">{cheque.chequeNumber}</dd>
             </div>
           )}
           {cheque.sayadId && (
             <div>
-              <dt>شناسه صیادی</dt>
+              <dt>{t('شناسه صیادی')}</dt>
               <dd dir="ltr" className="cheque-sayad">{cheque.sayadId.replace(/(\d{4})(?=\d)/g, '$1 ')}</dd>
             </div>
           )}
           {cheque.notes && (
             <div className="is-wide">
-              <dt>یادداشت</dt>
+              <dt>{t('یادداشت')}</dt>
               <dd>{cheque.notes}</dd>
             </div>
           )}
         </dl>
 
-        <section className="cheque-timeline-section" aria-label="سوابق پیگیری">
-          <h4>سوابق پیگیری</h4>
+        <section className="cheque-timeline-section" aria-label={t('سوابق پیگیری')}>
+          <h4>{t('سوابق پیگیری')}</h4>
           <ol className="cheque-timeline">
             {history.map((entry, i) => {
               const look = getStatusDisplay(entry.status);
@@ -153,16 +154,16 @@ export default function ChequeTrackingModal({ cheque, onClose, onChangeStatus, o
         </section>
 
         {!readOnly && (
-          <section className="cheque-update-section" aria-label="ثبت پیگیری">
-            <h4>چه اتفاقی افتاد؟</h4>
+          <section className="cheque-update-section" aria-label={t('ثبت پیگیری')}>
+            <h4>{t('چه اتفاقی افتاد؟')}</h4>
             <div className="entry-form-body">
               {submitError && <AlertBanner type="error" message={submitError} />}
               <FilterPills options={statusOptions} activeValue={status} onChange={setStatus} size="sm" />
-              <DateField label="تاریخ" value={dateShamsi} onChange={setDateShamsi} />
+              <DateField label={t('تاریخ')} value={dateShamsi} onChange={setDateShamsi} />
               <Input
                 id="cheque-track-note"
-                label={sameStatus ? 'یادداشت پیگیری *' : 'یادداشت (اختیاری)'}
-                placeholder={sameStatus ? 'مثلاً: با صادرکننده تماس گرفتم' : 'مثلاً: به حساب ملت واریز شد'}
+                label={sameStatus ? t('یادداشت پیگیری *') : t('یادداشت (اختیاری)')}
+                placeholder={sameStatus ? t('مثلاً: با صادرکننده تماس گرفتم') : t('مثلاً: به حساب ملت واریز شد')}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 maxLength={CHEQUE_LIMITS.historyNoteLength}

@@ -8,7 +8,7 @@
  * - Loan details dialog with interactive full installment schedule & payment toggling
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { t, intlLocale } from '../../../utils/i18n.js';
 import React, { useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -46,6 +46,16 @@ import { useDemo } from '../../demo/index.js';
 const formatNum = (v) => Number(v || 0).toLocaleString(intlLocale());
 /** Amounts follow the app-wide "hide values" toggle; counts and percentages stay visible */
 const formatMoney = (v, hidden) => (hidden ? '****' : formatNum(v));
+
+/** The detail modal's one-line summary: lender, principal, rate and the yearly fee when there is one */
+function loanSubtitle(loan, hideValues) {
+  const parts = [];
+  if (loan.lenderName) parts.push(t('وام‌دهنده: {name}', { name: loan.lenderName }));
+  parts.push(t('اصل: {amount} تومان', { amount: formatMoney(loan.principalAmount, hideValues) }));
+  parts.push(t('سود: {rate}٪', { rate: getDisplayRatePct(loan) }));
+  if (Number(loan.annualFeeAmount) > 0) parts.push(t('کارمزد سالانه: {amount} تومان', { amount: formatMoney(loan.annualFeeAmount, hideValues) }));
+  return parts.join(' • ');
+}
 
 /**
  * Isolated Modal Wrapper for Single Loan Detail & Schedule
@@ -93,18 +103,18 @@ function LoanDetailModal({ loanId, onClose, onRefreshLoans, readOnly = false }) 
     <Modal
       isOpen={Boolean(loanId)}
       onClose={onClose}
-      title={loan ? loan.title : 'جدول اقساط وام'}
+      title={loan ? loan.title : t('جدول اقساط وام')}
       subtitle={
         loan
-          ? `${loan.lenderName ? `وام‌دهنده: ${loan.lenderName} • ` : ''}اصل: ${formatMoney(loan.principalAmount, hideValues)} تومان • سود: ${getDisplayRatePct(loan)}٪${Number(loan.annualFeeAmount) > 0 ? ` • کارمزد سالانه: ${formatMoney(loan.annualFeeAmount, hideValues)} تومان` : ''}`
-          : 'در حال دریافت اطلاعات...'
+          ? loanSubtitle(loan, hideValues)
+          : t('در حال دریافت اطلاعات...')
       }
       icon={<Landmark size={20} className="text-amber-500" />}
       maxWidth="min(1320px, 94vw)"
       className="loan-detail-modal-wide"
     >
       {loading && !loan ? (
-        <SkeletonRows rows={8} columns={5} label="در حال بارگذاری جدول اقساط" />
+        <SkeletonRows rows={8} columns={5} label={t('در حال بارگذاری جدول اقساط')} />
       ) : error ? (
         <div className="form-error-banner" style={{ margin: '20px 0' }}>
           <AlertCircle size={16} />
@@ -291,11 +301,13 @@ export default function LoansPage({ initialLoanId = null }) {
 
   const handleDeleteLoan = async (loanId) => {
     const loan = loans.find((l) => l.id === loanId);
-    const name = loan ? `«${loan.title}»` : 'این وام';
+    const message = loan
+      ? t('آیا از حذف وام «{title}» و تمام اقساط آن اطمینان دارید؟ این کار قابل بازگشت نیست.', { title: loan.title })
+      : t('آیا از حذف وام این وام و تمام اقساط آن اطمینان دارید؟ این کار قابل بازگشت نیست.');
     const confirmed = await confirm({
-      title: 'حذف وام',
-      message: `آیا از حذف وام ${name} و تمام اقساط آن اطمینان دارید؟ این کار قابل بازگشت نیست.`,
-      confirmLabel: 'حذف وام',
+      title: t('حذف وام'),
+      message,
+      confirmLabel: t('حذف وام'),
       danger: true,
     });
     if (!confirmed) return;
@@ -305,7 +317,7 @@ export default function LoansPage({ initialLoanId = null }) {
         handleCloseDetailModal();
       }
     } catch (err) {
-      toast.error(err.message || 'خطا در حذف وام');
+      toast.error(err.message || t('خطا در حذف وام'));
     }
   };
 
@@ -325,11 +337,11 @@ export default function LoansPage({ initialLoanId = null }) {
       <div className="loans-page-container">
         <FeaturePageHeader
           icon={<Landmark size={24} />}
-          title="وام‌ها و اقساط"
+          title={t('وام‌ها و اقساط')}
         help="loans"
-          subtitle="برنامه استهلاک بانکی، جدول سررسید و ثبت تسویه اقساط"
+          subtitle={t('برنامه استهلاک بانکی، جدول سررسید و ثبت تسویه اقساط')}
         />
-        <VaultUnlockCard title="وام‌های شما رمزنگاری شده‌اند" />
+        <VaultUnlockCard title={t('وام‌های شما رمزنگاری شده‌اند')} />
       </div>
     );
   }
@@ -338,8 +350,8 @@ export default function LoansPage({ initialLoanId = null }) {
     <div className="loans-page-container">
       <FeaturePageHeader
         icon={<Landmark size={24} />}
-        title="وام‌ها و اقساط"
-        subtitle="برنامه استهلاک بانکی، جدول سررسید و ثبت تسویه اقساط"
+        title={t('وام‌ها و اقساط')}
+        subtitle={t('برنامه استهلاک بانکی، جدول سررسید و ثبت تسویه اقساط')}
         actions={
           <>
             <LoanCsvExportButton loans={loans} disabled={loans.length === 0} />
@@ -348,9 +360,9 @@ export default function LoansPage({ initialLoanId = null }) {
               icon={<Plus size={16} />}
               onClick={handleOpenAddModal}
               disabled={readOnly}
-              title={readOnly ? 'در نسخه دمو غیرفعال است' : undefined}
+              title={readOnly ? t('در نسخه دمو غیرفعال است') : undefined}
             >
-              افزودن وام جدید
+              {t('افزودن وام جدید')}
             </Button>
           </>
         }
@@ -364,13 +376,13 @@ export default function LoansPage({ initialLoanId = null }) {
             {/* Card 1: Total Remaining Debt */}
             <div className="portfolio-stat-card main-val">
               <div className="stat-header">
-                <span className="stat-label">مجموع بدهی باقیمانده</span>
+                <span className="stat-label">{t('مجموع بدهی باقیمانده')}</span>
               </div>
               <div className="stat-number gold-gradient-text">
                 {formatMoney(summaryMetrics.totalDebt, hideValues)}
-                <span className="stat-unit">تومان</span>
+                <span className="stat-unit">{t('تومان')}</span>
               </div>
-              <div className="stat-sub">{summaryMetrics.activeLoans.toLocaleString(intlLocale())} وام فعال</div>
+              <div className="stat-sub">{t('{n} وام فعال', { n: summaryMetrics.activeLoans.toLocaleString(intlLocale()) })}</div>
             </div>
 
             {/* Card 2: Share of each bank in the loans */}
@@ -379,53 +391,53 @@ export default function LoansPage({ initialLoanId = null }) {
             {/* Card 2: Total Monthly Installment */}
             <div className="portfolio-stat-card">
               <div className="stat-header">
-                <span className="stat-label">مجموع قسط ماهانه</span>
+                <span className="stat-label">{t('مجموع قسط ماهانه')}</span>
               </div>
               <div className="stat-number">
                 {formatMoney(summaryMetrics.totalMonthlyInstallment, hideValues)}
-                <span className="stat-unit">تومان</span>
+                <span className="stat-unit">{t('تومان')}</span>
               </div>
             </div>
 
             {/* Card 3: Paid Installments Ratio */}
             <div className="portfolio-stat-card">
               <div className="stat-header">
-                <span className="stat-label">کل اقساط پرداخت‌شده</span>
-                <span className="count-pill">{formatNum(summaryMetrics.overallProgress)}٪</span>
+                <span className="stat-label">{t('کل اقساط پرداخت‌شده')}</span>
+                <span className="count-pill">{formatNum(summaryMetrics.overallProgress)}{t('٪')}</span>
               </div>
               <div className="stat-number">
                 {formatNum(summaryMetrics.totalPaidCount)}
-                <span className="stat-unit">از {formatNum(summaryMetrics.totalCount)} قسط</span>
+                <span className="stat-unit">{t('از {n} قسط', { n: formatNum(summaryMetrics.totalCount) })}</span>
               </div>
             </div>
 
             {/* Card 4: Next Upcoming Due */}
             <div className="portfolio-stat-card">
               <div className="stat-header">
-                <span className="stat-label">نزدیک‌ترین سررسید</span>
+                <span className="stat-label">{t('نزدیک‌ترین سررسید')}</span>
               </div>
               {summaryMetrics.nextUpcomingDue ? (
                 <>
                   <div className="stat-number">{formatShamsiDisplay(summaryMetrics.nextUpcomingDue.dueDate)}</div>
                   <div className="stat-sub">
-                    {summaryMetrics.nextUpcomingDue.loanTitle} • {formatMoney(summaryMetrics.nextUpcomingDue.totalAmount, hideValues)} تومان
+                    {summaryMetrics.nextUpcomingDue.loanTitle} • {t('{amount} تومان', { amount: formatMoney(summaryMetrics.nextUpcomingDue.totalAmount, hideValues) })}
                   </div>
                 </>
               ) : (
-                <div className="stat-sub">سررسید معوقی وجود ندارد</div>
+                <div className="stat-sub">{t('سررسید معوقی وجود ندارد')}</div>
               )}
             </div>
 
             {/* Card 5: Total Principal Received */}
             <div className="portfolio-stat-card">
               <div className="stat-header">
-                <span className="stat-label">مجموع مبلغ دریافتی وام‌ها</span>
+                <span className="stat-label">{t('مجموع مبلغ دریافتی وام‌ها')}</span>
               </div>
               <div className="stat-number">
                 {formatMoney(summaryMetrics.totalReceived, hideValues)}
-                <span className="stat-unit">تومان</span>
+                <span className="stat-unit">{t('تومان')}</span>
               </div>
-              <div className="stat-sub">مجموع اصل {loans.length.toLocaleString(intlLocale())} وام ثبت‌شده</div>
+              <div className="stat-sub">{t('مجموع اصل {n} وام ثبت‌شده', { n: loans.length.toLocaleString(intlLocale()) })}</div>
             </div>
           </div>
         }
@@ -434,23 +446,23 @@ export default function LoansPage({ initialLoanId = null }) {
         <div className="portfolio-table-card is-plain">
           <div className="table-card-body">
           {loadingLoans && loans.length === 0 ? (
-            <SkeletonRows rows={4} columns={5} label="در حال دریافت لیست وام‌ها" />
+            <SkeletonRows rows={4} columns={5} label={t('در حال دریافت لیست وام‌ها')} />
           ) : error && loans.length === 0 ? (
             <div className="loans-error-state">
               <AlertCircle size={20} />
               <span>{error}</span>
               <button type="button" onClick={fetchLoans} className="btn-retry">
-                تلاش مجدد
+                {t('تلاش مجدد')}
               </button>
             </div>
           ) : loans.length === 0 ? (
             <EmptyState
               icon={<Landmark size={48} className="text-amber-500" />}
-              title="هنوز هیچ وامی ثبت نشده است"
-              description="با ثبت اولین وام، سیستم به طور خودکار جدول اقساط را محاسبه کرده و سررسیدها را پیگیری می‌کند."
+              title={t('هنوز هیچ وامی ثبت نشده است')}
+              description={t('با ثبت اولین وام، سیستم به طور خودکار جدول اقساط را محاسبه کرده و سررسیدها را پیگیری می‌کند.')}
               action={
                 <button type="button" className="btn-primary" onClick={handleOpenAddModal}>
-                  افزودن اولین وام
+                  {t('افزودن اولین وام')}
                 </button>
               }
             />
@@ -463,12 +475,14 @@ export default function LoansPage({ initialLoanId = null }) {
                     className={`loan-inst-filter-btn ${showSettled ? 'active' : ''}`}
                     onClick={() => setShowSettled((v) => !v)}
                   >
-                    {showSettled ? 'پنهان کردن' : 'نمایش'} وام‌های تسویه‌شده ({settledCount.toLocaleString(intlLocale())})
+                    {showSettled
+                      ? t('پنهان کردن وام‌های تسویه‌شده ({n})', { n: settledCount.toLocaleString(intlLocale()) })
+                      : t('نمایش وام‌های تسویه‌شده ({n})', { n: settledCount.toLocaleString(intlLocale()) })}
                   </button>
                 </div>
               )}
               {visibleGroups.length === 0 && (
-                <div className="stat-sub">همه‌ی وام‌ها تسویه شده‌اند.</div>
+                <div className="stat-sub">{t('همه‌ی وام‌ها تسویه شده‌اند.')}</div>
               )}
               {visibleGroups.map((group) => (
                 <div key={group.key} className="category-group-card">
@@ -478,22 +492,22 @@ export default function LoansPage({ initialLoanId = null }) {
                       <div className="cat-group-titles">
                         <h4 className="cat-group-name">{group.name}</h4>
                         <span className="cat-group-count">
-                          {group.items.length.toLocaleString(intlLocale())} وام
+                          {t('{n} وام', { n: group.items.length.toLocaleString(intlLocale()) })}
                         </span>
                       </div>
                     </div>
                     <div className="cat-header-subtotals">
                       {group.nextMonthTotal > 0 && (
                         <div className="cat-subtotal-val">
-                          <span className="subtotal-label">قسط ماه بعد:</span>
+                          <span className="subtotal-label">{t('قسط ماه بعد:')}</span>
                           <strong className="subtotal-amount">{formatMoney(group.nextMonthTotal, hideValues)}</strong>
-                          <span className="subtotal-unit">تومان</span>
+                          <span className="subtotal-unit">{t('تومان')}</span>
                         </div>
                       )}
                       <div className="cat-subtotal-val">
-                        <span className="subtotal-label">باقیمانده:</span>
+                        <span className="subtotal-label">{t('باقیمانده:')}</span>
                         <strong className="subtotal-amount">{formatMoney(group.totalRemaining, hideValues)}</strong>
-                        <span className="subtotal-unit">تومان</span>
+                        <span className="subtotal-unit">{t('تومان')}</span>
                       </div>
                     </div>
                   </div>
