@@ -6,6 +6,7 @@ import {
   matchBankIdByName,
   normalizeBankName,
 } from '../../config/banks.config.js';
+import { t } from '../../utils/i18n.js';
 
 export { BANKS, BANK_TYPES, getBankById, isCustomBankId, matchBankIdByName };
 
@@ -51,7 +52,7 @@ export function resolveBank(ref, customBanks = []) {
 
   if (isCustomBankId(bankId)) {
     const custom = customBanks.find((b) => b.id === bankId);
-    const name = custom?.name || lenderName || 'بانک سفارشی';
+    const name = custom?.name || lenderName || t('بانک سفارشی');
     return { key: bankId, id: bankId, name, shortName: name, logo: null, kind: 'custom' };
   }
 
@@ -59,7 +60,7 @@ export function resolveBank(ref, customBanks = []) {
     return { key: `name:${normalizeBankName(lenderName)}`, id: '', name: lenderName, shortName: lenderName, logo: null, kind: 'text' };
   }
 
-  return { key: '__none__', id: '', name: 'بدون بانک مشخص', shortName: 'بدون بانک', logo: null, kind: 'none' };
+  return { key: '__none__', id: '', name: t('بدون بانک مشخص'), shortName: t('بدون بانک'), logo: null, kind: 'none' };
 }
 
 /** Standard banks grouped for pickers, legacy (dissolved) banks left out */

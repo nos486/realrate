@@ -13,25 +13,26 @@ import { ChevronDown, ChevronUp, Link2, AlertTriangle } from 'lucide-react';
 import { FilterPills } from '../../../shared/ui/index.js';
 import DecisionEditor from './DecisionEditor.jsx';
 import { faAmount, faDigits, shamsiDay } from './statementFormat.js';
+import { t } from '../../../utils/i18n.js';
 
 const PAGE = 60;
 
 const STATUS_NOTE = {
-  duplicate: 'قبلاً ثبت شده (همین فایل یا پیامک)',
-  maybe_duplicate: 'احتمالاً قبلاً با دست ثبت شده (همان روز و مبلغ)',
-  reversed: 'برگشت خورده؛ خرید و برگشتش همدیگر را خنثی می‌کنند',
+  duplicate: t('قبلاً ثبت شده (همین فایل یا پیامک)'),
+  maybe_duplicate: t('احتمالاً قبلاً با دست ثبت شده (همان روز و مبلغ)'),
+  reversed: t('برگشت خورده؛ خرید و برگشتش همدیگر را خنثی می‌کنند'),
 };
 
 const TABS = [
-  { value: 'all', label: 'همه' },
-  { value: 'expense', label: 'هزینه' },
-  { value: 'income', label: 'درآمد' },
-  { value: 'transfer', label: 'انتقال' },
-  { value: 'check', label: 'نیاز به بررسی' },
-  { value: 'left', label: 'کنار گذاشته' },
+  { value: 'all', label: t('همه') },
+  { value: 'expense', label: t('هزینه') },
+  { value: 'income', label: t('درآمد') },
+  { value: 'transfer', label: t('انتقال') },
+  { value: 'check', label: t('نیاز به بررسی') },
+  { value: 'left', label: t('کنار گذاشته') },
 ];
 
-const actionLabel = (row) => (row.decision.action === 'expense' ? 'هزینه' : row.decision.action === 'income' ? 'درآمد' : row.decision.action === 'transfer' ? 'انتقال' : 'نادیده');
+const actionLabel = (row) => (row.decision.action === 'expense' ? t('هزینه') : row.decision.action === 'income' ? t('درآمد') : row.decision.action === 'transfer' ? t('انتقال') : t('نادیده'));
 
 function matchesTab(row, tab) {
   if (tab === 'all') return true;
@@ -51,7 +52,7 @@ function ReviewRow({ row, onOverride, onClearOverride, onInclude, onLink, accoun
       <div className="statement-row-main">
         <input
           type="checkbox"
-          aria-label={`ثبت شود: ${row.title}`}
+          aria-label={t('ثبت شود: {title}', { title: row.title })}
           checked={row.included}
           disabled={!canSave || Boolean(row.issue)}
           onChange={(e) => onInclude(tx.id, e.target.checked)}
@@ -67,7 +68,7 @@ function ReviewRow({ row, onOverride, onClearOverride, onInclude, onLink, accoun
       {(STATUS_NOTE[row.status] || row.issue || row.link) && (
         <p className={`statement-row-note ${row.issue ? 'is-error' : ''}`}>
           {row.issue ? <><AlertTriangle size={12} /> {row.issue}</> : STATUS_NOTE[row.status]}
-          {row.link && <span className="statement-link-note"><Link2 size={12} /> وصل به {row.link.label}</span>}
+          {row.link && <span className="statement-link-note"><Link2 size={12} /> {t('وصل به {label}', { label: row.link.label })}</span>}
         </p>
       )}
       {open && (
@@ -82,11 +83,11 @@ function ReviewRow({ row, onOverride, onClearOverride, onInclude, onLink, accoun
             titlePlaceholder={row.title}
           />
           <div className="statement-row-actions">
-            {overridden && <button type="button" className="statement-link" onClick={() => onClearOverride(tx.id)}>بازگشت به حالت گروه</button>}
+            {overridden && <button type="button" className="statement-link" onClick={() => onClearOverride(tx.id)}>{t('بازگشت به حالت گروه')}</button>}
             {row.linkable && (
               <label className="statement-check">
                 <input type="checkbox" checked={Boolean(row.link)} onChange={(e) => onLink(tx.id, e.target.checked)} />
-                <span>وصل به بخش‌های برنامه (وام، چک، اشتراک)</span>
+                <span>{t('وصل به بخش‌های برنامه (وام، چک، اشتراک)')}</span>
               </label>
             )}
           </div>
@@ -105,7 +106,7 @@ export default function StatementReviewStep({ plan, summary, accounts, categorie
   const [tab, setTab] = useState('all');
   const [query, setQuery] = useState('');
   const [shown, setShown] = useState(PAGE);
-  const counts = useMemo(() => Object.fromEntries(TABS.map((t) => [t.value, plan.filter((r) => matchesTab(r, t.value)).length])), [plan]);
+  const counts = useMemo(() => Object.fromEntries(TABS.map((tabItem) => [tabItem.value, plan.filter((r) => matchesTab(r, tabItem.value)).length])), [plan]);
   const rows = useMemo(() => {
     const q = query.trim();
     return plan.filter((r) => matchesTab(r, tab) && (!q || r.title.includes(q) || r.tx.description.includes(q) || String(r.tx.amount).includes(q)));
@@ -115,14 +116,14 @@ export default function StatementReviewStep({ plan, summary, accounts, categorie
   return (
     <div className="statement-step">
       <div className="statement-tiles">
-        <div className="statement-tile"><span>هزینه</span><strong>{faAmount(summary.expense.count)}</strong><small>{faAmount(summary.expense.total)} تومان</small></div>
-        <div className="statement-tile"><span>درآمد</span><strong>{faAmount(summary.income.count)}</strong><small>{faAmount(summary.income.total)} تومان</small></div>
-        <div className="statement-tile"><span>انتقال</span><strong>{faAmount(summary.transfer.count)}</strong><small>{faAmount(summary.transfer.total)} تومان</small></div>
-        <div className="statement-tile is-muted"><span>ثبت نمی‌شود</span><strong>{faAmount(summary.duplicate + summary.maybeDuplicate + summary.reversed + summary.skipped)}</strong><small>تکراری، برگشتی یا ردشده</small></div>
+        <div className="statement-tile"><span>{t('هزینه')}</span><strong>{faAmount(summary.expense.count)}</strong><small>{faAmount(summary.expense.total)} {t('تومان')}</small></div>
+        <div className="statement-tile"><span>{t('درآمد')}</span><strong>{faAmount(summary.income.count)}</strong><small>{faAmount(summary.income.total)} {t('تومان')}</small></div>
+        <div className="statement-tile"><span>{t('انتقال')}</span><strong>{faAmount(summary.transfer.count)}</strong><small>{faAmount(summary.transfer.total)} {t('تومان')}</small></div>
+        <div className="statement-tile is-muted"><span>{t('ثبت نمی‌شود')}</span><strong>{faAmount(summary.duplicate + summary.maybeDuplicate + summary.reversed + summary.skipped)}</strong><small>{t('تکراری، برگشتی یا ردشده')}</small></div>
       </div>
-      {summary.issues > 0 && <p className="statement-row-note is-error"><AlertTriangle size={12} /> {faAmount(summary.issues)} ردیف حساب مقابل انتقال ندارد؛ در تب «نیاز به بررسی» حسابش را انتخاب کنید یا نوعش را عوض کنید.</p>}
+      {summary.issues > 0 && <p className="statement-row-note is-error"><AlertTriangle size={12} /> {t('{n} ردیف حساب مقابل انتقال ندارد؛ در تب «نیاز به بررسی» حسابش را انتخاب کنید یا نوعش را عوض کنید.', { n: faAmount(summary.issues) })}</p>}
       <FilterPills
-        options={TABS.map((t) => ({ ...t, badge: faAmount(counts[t.value]) }))}
+        options={TABS.map((tabItem) => ({ ...tabItem, badge: faAmount(counts[tabItem.value]) }))}
         activeValue={tab}
         onChange={(v) => { setTab(v); setShown(PAGE); }}
         size="sm"
@@ -130,14 +131,14 @@ export default function StatementReviewStep({ plan, summary, accounts, categorie
       <input
         className="statement-input statement-search"
         type="search"
-        placeholder="جستجو در عنوان، توضیح یا مبلغ"
+        placeholder={t('جستجو در عنوان، توضیح یا مبلغ')}
         value={query}
         onChange={(e) => { setQuery(e.target.value); setShown(PAGE); }}
-        aria-label="جستجو"
+        aria-label={t('جستجو')}
       />
       {pending.length > 0 && tab === 'check' && (
         <button type="button" className="statement-more" onClick={() => onIncludeMany(pending.map((r) => r.tx.id), true)}>
-          ثبت همه‌ی این {faAmount(pending.length)} ردیف
+          {t('ثبت همه‌ی این {n} ردیف', { n: faAmount(pending.length) })}
         </button>
       )}
       <ul className="statement-rows">
@@ -154,9 +155,9 @@ export default function StatementReviewStep({ plan, summary, accounts, categorie
           />
         ))}
       </ul>
-      {rows.length === 0 && <p className="statement-muted">ردیفی در این بخش نیست.</p>}
+      {rows.length === 0 && <p className="statement-muted">{t('ردیفی در این بخش نیست.')}</p>}
       {rows.length > shown && (
-        <button type="button" className="statement-more" onClick={() => setShown((n) => n + PAGE)}>نمایش بیشتر ({faAmount(rows.length - shown)} ردیف دیگر)</button>
+        <button type="button" className="statement-more" onClick={() => setShown((n) => n + PAGE)}>{t('نمایش بیشتر ({n} ردیف دیگر)', { n: faAmount(rows.length - shown) })}</button>
       )}
     </div>
   );

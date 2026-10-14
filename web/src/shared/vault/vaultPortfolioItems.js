@@ -22,10 +22,11 @@ import { migrateRecordPriceIds, withPriceIdVersion } from '../../utils/priceIds.
 import { getKnownPriceIds } from '../../features/market/knownPriceIds.js';
 import { isDemoReadOnly } from '../../features/demo/index.js';
 import { getPortfolioKey, isAccountVaultPortfolio } from './vaultStore.js';
+import { t } from '../../utils/i18n.js';
 
 const SILENT = { silent: true };
 const E2EE_PREFIX = 'enc:e2ee:v1:';
-const PLACEHOLDER_NAME = '[گاوصندوق E2EE]';
+const PLACEHOLDER_NAME = '[گاوصندوق E2EE]'; // i18n-ignore
 
 const newId = (prefix) => `${prefix}_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
 const num = (v) => Number(v) || 0;
@@ -170,14 +171,14 @@ async function moveHoldings(portfolio, key, onItem) {
     const encrypted = isHoldingE2eeEncrypted(row);
     const plain = encrypted ? await decryptHoldingFromApi(key, row) : row;
     if (encrypted && plain?.isE2eeEncrypted !== true) {
-      moved.failed.push(`دارایی ${row.id}`); // another key: leave the row untouched
+      moved.failed.push(t('دارایی {name}', { name: row.id })); // another key: leave the row untouched
       continue;
     }
     const record = holdingRecord(portfolio.id, plain);
     try {
       await storeHolding(portfolio.id, key, record, { replacePlain: true, ...SILENT });
     } catch {
-      moved.failed.push(`دارایی «${record.assetName || record.assetId}»`);
+      moved.failed.push(t('دارایی «{name}»', { name: record.assetName || record.assetId }));
     }
     moved.items.push(record);
     onItem?.();
@@ -197,14 +198,14 @@ async function moveTransactions(portfolio, key, onItem) {
       try { payload = JSON.parse(raw); } catch { payload = { notes: raw }; }
     } else if (raw && typeof raw === 'object') payload = raw;
     if (!payload || typeof payload !== 'object') {
-      moved.failed.push(`تراکنش ${row.id}`);
+      moved.failed.push(t('تراکنش {name}', { name: row.id }));
       continue;
     }
     const record = transactionRecord(portfolio.id, { ...payload, id: row.id, createdAt: row.createdAt });
     try {
       await storeTransaction(portfolio.id, key, record, { replacePlain: true, ...SILENT });
     } catch {
-      moved.failed.push(`تراکنش ${record.transactionDate || record.id}`);
+      moved.failed.push(t('تراکنش {name}', { name: record.transactionDate || record.id }));
     }
     moved.items.push(record);
     onItem?.();

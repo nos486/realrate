@@ -16,6 +16,7 @@ import { useVault } from '../../../shared/vault/useVault.js';
 import { useFeature } from '../../../shared/features/useFeature.js';
 import { compareAccounts } from '../../../utils/accountDocument.js';
 import * as api from '../../../shared/vault/vaultAccounts.js';
+import { t } from '../../../utils/i18n.js';
 
 /** The accounts and changes to them: the shared list when there is a provider, else its own */
 export function useAccounts() {
@@ -50,7 +51,7 @@ export function useAccountsState(active = true) {
       setError(null);
       setAccounts((await api.getAccounts()).accounts);
     } catch (err) {
-      setError(err.message || 'خطا در بارگذاری حساب‌ها');
+      setError(err.message || t('خطا در بارگذاری حساب‌ها'));
     } finally {
       setLoading(false);
     }
@@ -83,7 +84,7 @@ export function useAccountsState(active = true) {
       await api.deleteAccount(accountId);
       setAccounts((prev) => prev.filter((a) => a.id !== accountId));
     } catch (err) {
-      setError(err.message || 'خطا در حذف حساب');
+      setError(err.message || t('خطا در حذف حساب'));
       throw err;
     } finally {
       setDeletingId(null);

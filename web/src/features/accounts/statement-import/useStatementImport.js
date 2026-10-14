@@ -19,6 +19,7 @@ import { accountHolds } from '../../../utils/accountDocument.js';
 import { getCategory } from '../../../shared/categories/categoryStore.js';
 import { statementBanksFor } from './statementFormat.js';
 import { loadExistingRecords, loadLinkCandidates, saveImport, undoImport } from './statementImportData.js';
+import { t } from '../../../utils/i18n.js';
 
 const lastDigits = (value, count = 4) => {
   const digits = String(value ?? '').replace(/\D/g, '');
@@ -103,7 +104,7 @@ export function useStatementImport({ account, accounts }) {
       setLinkOff({});
     } catch (err) {
       setStatement(null);
-      setError(err?.message || 'خواندن فایل ممکن نشد.');
+      setError(err?.message || t('خواندن فایل ممکن نشد.'));
     } finally {
       setReading(false);
     }
@@ -132,7 +133,7 @@ export function useStatementImport({ account, accounts }) {
       await undoImport(result.saved);
       setUndone(true);
     } catch (err) {
-      setError(err?.message || 'بازگردانی ممکن نشد.');
+      setError(err?.message || t('بازگردانی ممکن نشد.'));
     }
   }, [result]);
 

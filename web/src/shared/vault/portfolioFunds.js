@@ -36,6 +36,7 @@ import {
   savePortfolioTransaction,
   deletePortfolioTransactionRecord,
 } from './vaultPortfolioItems.js';
+import { t } from '../../utils/i18n.js';
 
 /** The asset each foreign currency is paid with: its price book id (utils/currencies.js) */
 export const CURRENCY_ASSET = PAYABLE_ASSETS;
@@ -50,7 +51,7 @@ async function accountPortfolios() {
 
 /** The portfolios a record can be linked to: { id, name } */
 export async function listLinkablePortfolios() {
-  return (await accountPortfolios()).map((p) => ({ id: p.id, name: p.name || 'پورتفو', isDefault: Boolean(p.isDefault) }));
+  return (await accountPortfolios()).map((p) => ({ id: p.id, name: p.name || t('پورتفو'), isDefault: Boolean(p.isDefault) }));
 }
 
 /**
@@ -73,7 +74,7 @@ export async function listPortfolioPositions() {
       const { assets } = buildAssetLedgers({ holdings, transactions, priceMap: getKnownPriceIds() || {} });
       return {
         portfolioId: portfolio.id,
-        portfolioName: portfolio.name || 'پورتفو',
+        portfolioName: portfolio.name || t('پورتفو'),
         positions: assets.map((a) => ({ assetId: a.assetId, assetName: a.assetName, unit: a.unit, amount: a.amount })),
       };
     } catch (err) {
@@ -102,7 +103,7 @@ export async function listAssetFunds(assetId) {
       // The ledger counts the manual holdings too
       const { positions } = calculateComputedHoldings(transactions, getKnownPriceIds() || {}, { manualLots: holdings });
       const position = positions.get(id);
-      return { portfolioId: portfolio.id, portfolioName: portfolio.name || 'پورتفو', amount: position?.amount || 0, averageCost: position?.averageCost || 0 };
+      return { portfolioId: portfolio.id, portfolioName: portfolio.name || t('پورتفو'), amount: position?.amount || 0, averageCost: position?.averageCost || 0 };
     } catch (err) {
       console.warn('Reading a portfolio for funds failed:', err);
       return null;
@@ -122,9 +123,9 @@ export async function rateOnDay(assetId, isoDate) {
 
 async function portfolioById(portfolioId) {
   const portfolio = (await accountPortfolios()).find((p) => p.id === portfolioId);
-  if (!portfolio) throw new Error('پورتفوی انتخاب‌شده پیدا نشد (یا با رمزنگاری حساب باز نمی‌شود).');
+  if (!portfolio) throw new Error(t('پورتفوی انتخاب‌شده پیدا نشد (یا با رمزنگاری حساب باز نمی‌شود).'));
   const key = await getPortfolioKey(portfolio);
-  if (!key) throw new Error('پورتفوی انتخاب‌شده قفل است.');
+  if (!key) throw new Error(t('پورتفوی انتخاب‌شده قفل است.'));
   return { portfolio, key };
 }
 
@@ -139,7 +140,7 @@ export async function saveSpendTransaction(expense) {
     // The currency's toman rate on the expense's day (the price history)
     unitPrice: await tomanRateOn(expense.currency, expense.date),
     transactionDate: gregorianToShamsi(`${expense.date}T00:00:00`),
-    notes: 'پرداخت هزینه',
+    notes: t('پرداخت هزینه'),
     expenseId: expense.id,
   });
 }
@@ -157,7 +158,7 @@ export async function deleteSpendTransaction(paidFrom) {
 export const newLinkTxId = () => `txl_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
 
 /** Notes the linked transactions carry (never the record's title: share links show them) */
-export const LINK_NOTES = { buy: 'خرید — ثبت‌شده در هزینه‌ها', sell: 'فروش — ثبت‌شده در درآمدها' };
+export const LINK_NOTES = { buy: t('خرید — ثبت‌شده در هزینه‌ها'), sell: t('فروش — ثبت‌شده در درآمدها') };
 
 /**
  * Write the portfolio entry of a linked expense or income (utils/portfolioLink.js)

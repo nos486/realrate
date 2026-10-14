@@ -25,13 +25,14 @@ import { ensureCustomBanks } from '../banks/useCustomBanks.js';
 import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
 import { putRecord, backfillRecordDates, backfillReminders } from './vaultRecordMeta.js';
 import { encryptVaultRecord, decryptVaultRecords } from './vaultStore.js';
+import { t } from '../../utils/i18n.js';
 
 const KIND = 'loan';
 
 /** Decrypted documents by loan id, refreshed on every list */
 let docs = new Map();
 
-const notFound = (message = 'وام مورد نظر یافت نشد.') => new LoanDocumentError(message, 404);
+const notFound = (message = t('وام مورد نظر یافت نشد.')) => new LoanDocumentError(message, 404);
 
 /** Same rules as the server's resolveLoanBank */
 async function makeBankResolver() {
@@ -46,7 +47,7 @@ async function makeBankResolver() {
         const custom = customBanks.find((b) => b.id === cleanId);
         if (custom) return { bankId: custom.id, lenderName: custom.name };
       }
-      throw new LoanDocumentError('بانک انتخاب‌شده معتبر نیست.', 400);
+      throw new LoanDocumentError(t('بانک انتخاب‌شده معتبر نیست.'), 400);
     }
     const matched = matchBankIdByName(cleanName);
     if (matched) return { bankId: matched, lenderName: cleanName || getBankById(matched).name };
@@ -120,7 +121,7 @@ export async function updateLoan(loanId, loanData) {
 export async function deleteLoan(loanId) {
   await deleteVaultRecord(KIND, loanId);
   docs.delete(loanId);
-  return { success: true, message: 'وام و اقساط مربوطه با موفقیت حذف شدند.' };
+  return { success: true, message: t('وام و اقساط مربوطه با موفقیت حذف شدند.') };
 }
 
 export async function markInstallmentPaid(loanId, installmentId, details = {}) {
@@ -137,7 +138,7 @@ export async function markInstallmentPaid(loanId, installmentId, details = {}) {
     };
   }
   const res = markInstallmentPaidDoc(current, installmentId, details);
-  if (!res.installment) throw notFound('قسط مورد نظر یافت نشد.');
+  if (!res.installment) throw notFound(t('قسط مورد نظر یافت نشد.'));
   await saveDoc(res.doc);
   return { success: true, installment: res.installment, cascadedCount: 0, cascadedTotal: 0, cascadedInstallments: [] };
 }

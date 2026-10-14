@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { formatNum } from '../../features/portfolio/utils/holdingHelpers.js';
+import { t } from '../../utils/i18n.js';
 
 /**
  * @param {{ unit: string, rate: number, state: null|'loading'|'filled'|'missing', toman?: number,
@@ -15,14 +16,14 @@ export default function DayRateHint({ unit, rate, state, toman = 0, portfolio = 
   return (
     <div className="ui-input-group day-rate-hint">
       <p className={`expense-form-hint ${state === 'missing' ? 'is-warning' : ''}`}>
-        {state === 'loading' ? `در حال خواندن نرخ ${unit} آن روز…`
+        {state === 'loading' ? t('در حال خواندن نرخ {unit} آن روز…', { unit })
           : state === 'missing'
-            ? `نرخ ${unit} این روز در تاریخچه‌ی قیمت نیست؛ ${portfolio ? 'برای ثبت در پورتفو روز دیگری انتخاب کنید.' : 'به نرخ امروز حساب می‌شود.'}`
-            : <>نرخ {unit} همان روز (از تاریخچه‌ی قیمت): <strong>{formatNum(rate)}</strong> تومان</>}
+            ? `${t('نرخ {unit} این روز در تاریخچه‌ی قیمت نیست؛', { unit })} ${portfolio ? t('برای ثبت در پورتفو روز دیگری انتخاب کنید.') : t('به نرخ امروز حساب می‌شود.')}`
+            : <>{t('نرخ {unit} همان روز (از تاریخچه‌ی قیمت):', { unit })} <strong>{formatNum(rate)}</strong> {t('تومان')}</>}
       </p>
       {toman > 0 && (
         <p className="expense-form-hint">
-          معادل حدود <strong>{formatNum(toman)}</strong> تومان{state === 'missing' && ' (به نرخ امروز)'}
+          {t('معادل حدود')} <strong>{formatNum(toman)}</strong> {t('تومان')}{state === 'missing' && ` (${t('به نرخ امروز')})`}
         </p>
       )}
     </div>

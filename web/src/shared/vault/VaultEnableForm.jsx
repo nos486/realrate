@@ -3,7 +3,7 @@
  * existing record in the browser. Used by account settings and by the first-run setup screen.
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
 import React, { useState } from 'react';
 import { Lock, Eye, EyeOff } from 'lucide-react';
 import Button from '../ui/Button.jsx';
@@ -19,7 +19,7 @@ export function PassphraseInput({ show, onToggle, ...props }) {
   return (
     <div className="vault-settings-pass">
       <Input type={show ? 'text' : 'password'} dir="ltr" autoComplete="new-password" {...props} />
-      <button type="button" className="vault-settings-eye" onClick={onToggle} tabIndex={-1} aria-label={show ? 'مخفی کردن رمز' : 'نمایش رمز'}>
+      <button type="button" className="vault-settings-eye" onClick={onToggle} tabIndex={-1} aria-label={show ? t('مخفی کردن رمز') : t('نمایش رمز')}>
         {show ? <EyeOff size={15} /> : <Eye size={15} />}
       </button>
     </div>
@@ -32,8 +32,8 @@ export function ProgressBar({ progress }) {
   return (
     <div className="vault-progress" role="status" aria-live="polite">
       <div className="vault-progress-top">
-        <span>{progress.label || 'در حال پردازش…'}</span>
-        <span>{faNum(progress.done)} از {faNum(progress.total)}</span>
+        <span>{progress.label || t('در حال پردازش…')}</span>
+        <span>{t('{done} از {total}', { done: faNum(progress.done), total: faNum(progress.total) })}</span>
       </div>
       <div className="vault-progress-track">
         <div className="vault-progress-bar" style={{ width: `${pct}%` }} />
@@ -50,7 +50,7 @@ export function ReportBanner({ report, onClose }) {
     <AlertBanner
       type="warning"
       onClose={onClose}
-      message={`${faNum(failed.length)} مورد پردازش نشد (${failed.slice(0, 3).join('، ')}${failed.length > 3 ? ' و …' : ''}). هیچ داده‌ای از دست نرفته — دوباره تلاش کنید.`}
+      message={t('{n} مورد پردازش نشد ({list}). هیچ داده‌ای از دست نرفته — دوباره تلاش کنید.', { n: faNum(failed.length), list: `${failed.slice(0, 3).join(`${t('،')} `)}${failed.length > 3 ? ` ${t('و')} …` : ''}` })}
     />
   );
 }
@@ -60,7 +60,7 @@ export function ReportBanner({ report, onClose }) {
  * @param {(report: { failed: string[] }) => void} [props.onDone] called once the vault is on
  * @param {string} [props.submitLabel]
  */
-export default function VaultEnableForm({ onDone, submitLabel = 'فعال‌سازی و رمزنگاری همه داده‌ها' }) {
+export default function VaultEnableForm({ onDone, submitLabel = t('فعال‌سازی و رمزنگاری همه داده‌ها') }) {
   const [pass, setPass] = useState('');
   const [passConfirm, setPassConfirm] = useState('');
   const [acknowledged, setAcknowledged] = useState(false);
@@ -76,21 +76,21 @@ export default function VaultEnableForm({ onDone, submitLabel = 'فعال‌سا
     e.preventDefault();
     setError('');
     if (pass.length < VAULT_MIN_PASSPHRASE_LENGTH) {
-      setError(`رمز عبور باید حداقل ${faNum(VAULT_MIN_PASSPHRASE_LENGTH)} کاراکتر باشد.`);
+      setError(t('رمز عبور باید حداقل {n} کاراکتر باشد.', { n: faNum(VAULT_MIN_PASSPHRASE_LENGTH) }));
       return;
     }
     if (pass !== passConfirm) {
-      setError('تکرار رمز عبور با رمز وارد شده یکسان نیست.');
+      setError(t('تکرار رمز عبور با رمز وارد شده یکسان نیست.'));
       return;
     }
     if (!acknowledged) {
-      setError('لطفاً تأیید کنید که در صورت فراموشی رمز، داده‌ها قابل بازیابی نیستند.');
+      setError(t('لطفاً تأیید کنید که در صورت فراموشی رمز، داده‌ها قابل بازیابی نیستند.'));
       return;
     }
     setBusy(true);
     try {
       await createVault(pass);
-      setProgress({ done: 0, total: 0, label: 'در حال آماده‌سازی…' });
+      setProgress({ done: 0, total: 0, label: t('در حال آماده‌سازی…') });
       const res = await encryptAccountData({ passphrase: pass, onProgress: setProgress });
       setProgress(null);
       setReport(res);
@@ -99,7 +99,7 @@ export default function VaultEnableForm({ onDone, submitLabel = 'فعال‌سا
       setAcknowledged(false);
       onDone?.(res);
     } catch (err) {
-      setError(err.message || 'خطا در فعال‌سازی رمزنگاری');
+      setError(err.message || t('خطا در فعال‌سازی رمزنگاری'));
       setProgress(null);
     } finally {
       setBusy(false);
@@ -113,22 +113,22 @@ export default function VaultEnableForm({ onDone, submitLabel = 'فعال‌سا
       <ProgressBar progress={progress} />
       <AlertBanner
         type="warning"
-        message="رمز عبور رمزنگاری هیچ‌جا ذخیره نمی‌شود و قابل بازیابی نیست. اگر آن را فراموش کنید، داده‌های رمزنگاری‌شده برای همیشه از دست می‌روند."
+        message={t('رمز عبور رمزنگاری هیچ‌جا ذخیره نمی‌شود و قابل بازیابی نیست. اگر آن را فراموش کنید، داده‌های رمزنگاری‌شده برای همیشه از دست می‌روند.')}
       />
       <PassphraseInput
         show={showPass}
         onToggle={() => setShowPass((v) => !v)}
-        label="رمز عبور رمزنگاری"
+        label={t('رمز عبور رمزنگاری')}
         id="vault-new-pass"
         value={pass}
         onChange={(e) => setPass(e.target.value)}
         disabled={busy}
-        hint={`حداقل ${faNum(VAULT_MIN_PASSPHRASE_LENGTH)} کاراکتر؛ آن را با رمز ورود به حساب یکی نکنید. اگر قبلاً برای پورتفویی رمز گذاشته‌اید، همان رمز را وارد کنید تا آن پورتفو خودکار منتقل شود.`}
+        hint={t('حداقل {n} کاراکتر؛ آن را با رمز ورود به حساب یکی نکنید. اگر قبلاً برای پورتفویی رمز گذاشته‌اید، همان رمز را وارد کنید تا آن پورتفو خودکار منتقل شود.', { n: faNum(VAULT_MIN_PASSPHRASE_LENGTH) })}
       />
       <PassphraseInput
         show={showPass}
         onToggle={() => setShowPass((v) => !v)}
-        label="تکرار رمز عبور"
+        label={t('تکرار رمز عبور')}
         id="vault-new-pass-confirm"
         value={passConfirm}
         onChange={(e) => setPassConfirm(e.target.value)}
@@ -136,7 +136,7 @@ export default function VaultEnableForm({ onDone, submitLabel = 'فعال‌سا
       />
       <label className="vault-settings-check">
         <input type="checkbox" checked={acknowledged} onChange={(e) => setAcknowledged(e.target.checked)} disabled={busy} />
-        <span>متوجه هستم که در صورت فراموشی رمز، اطلاعاتم قابل بازیابی نیست.</span>
+        <span>{t('متوجه هستم که در صورت فراموشی رمز، اطلاعاتم قابل بازیابی نیست.')}</span>
       </label>
       <Button type="submit" variant="primary" loading={busy} icon={<Lock size={16} />} block>
         {submitLabel}
