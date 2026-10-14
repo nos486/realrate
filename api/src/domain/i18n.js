@@ -50,6 +50,64 @@ export const intlLocale = () => LOCALES[current].intl;
 /** Adds (or extends) a language's dictionary: `{ 'persian text': 'translation' }` */
 export function registerMessages(code, messages) {
   dictionaries[code] = Object.assign(dictionaries[code] || {}, messages);
+  templateCache.delete(code);
+}
+
+/** Compiled `{placeholder}` entries per language, for `tMessage` (rebuilt when messages are added) */
+const templateCache = new Map();
+
+const PERSIAN_DIGITS = '۰۱۲۳۴۵۶۷۸۹'; // i18n-ignore
+const toLatinDigits = (text) => text.replace(/[۰-۹]/g, (d) => String(PERSIAN_DIGITS.indexOf(d))); // i18n-ignore
+const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/** Placeholders that stand for one number-like token; any other placeholder may span several words */
+const TOKEN_PLACEHOLDERS = new Set(['n', 'count', 'limit', 'number', 'num', 'max', 'min', 'days', 'hours']);
+
+function templatesFor(code) {
+  let list = templateCache.get(code);
+  if (list) return list;
+  list = [];
+  for (const [key, to] of Object.entries(dictionaries[code] || {})) {
+    if (!/\{\w+\}/.test(key)) continue;
+    const names = [];
+    const source = key
+      .split(/(\{\w+\})/)
+      .map((part) => {
+        const name = /^\{(\w+)\}$/.exec(part)?.[1];
+        if (!name) return escapeRegExp(part);
+        names.push(name);
+        return TOKEN_PLACEHOLDERS.has(name) ? '(\\S+)' : '(.+?)';
+      })
+      .join('');
+    list.push({ re: new RegExp(`^${source}$`), names, to, size: key.length });
+  }
+  // The most specific (longest) template wins when several fit
+  list.sort((a, b) => b.size - a.size);
+  templateCache.set(code, list);
+  return list;
+}
+
+/**
+ * Translates a fixed message that already has its values filled in (the Worker's replies such as
+ * "رمز عبور باید حداقل ۸ کاراکتر باشد."): an exact entry first, otherwise the `{placeholder}` entry it
+ * matches, with the values translated and shown with Latin digits. Persian, or a text nothing matches, is returned unchanged.
+ * @param {string} text
+ * @returns {string}
+ */
+export function tMessage(text) {
+  if (current === DEFAULT_LOCALE || typeof text !== 'string' || !text) return text;
+  const exact = dictionaries[current]?.[text];
+  if (exact !== undefined) return exact;
+  for (const { re, names, to } of templatesFor(current)) {
+    const match = re.exec(text);
+    if (!match) continue;
+    const params = {};
+    names.forEach((name, i) => {
+      const raw = match[i + 1];
+      params[name] = toLatinDigits(/[\u0600-\u06FF]/.test(raw) ? tMessage(raw) : raw);
+    });
+    return to.replace(/\{(\w+)\}/g, (whole, name) => (params[name] === undefined ? whole : params[name]));
+  }
+  return text;
 }
 
 /**

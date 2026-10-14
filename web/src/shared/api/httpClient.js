@@ -15,7 +15,7 @@
 
 import { Capacitor } from '@capacitor/core';
 import { CLIENT_HEADER, formatClientHeader } from '../../utils/clientInfo.js';
-import { t, msg } from '../../utils/i18n.js';
+import { t, msg, tMessage } from '../../utils/i18n.js';
 
 export const API_BASE = (
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) ||
@@ -33,7 +33,7 @@ const CLIENT_HEADER_VALUE = Capacitor.getPlatform() === 'android'
 export class HttpError extends Error {
   constructor(message, status = 0, data = null, code = 'HTTP_ERROR') {
     // The server sends fixed Persian messages: the Persian text is the key (i18n/en/api-errors.js)
-    super(message ? t(message) : t('خطای شبکه در ارتباط با سرور'));
+    super(message ? tMessage(message) : t('خطای شبکه در ارتباط با سرور'));
     this.name = 'HttpError';
     this.status = status;
     this.data = data;
@@ -70,7 +70,7 @@ export const MAINTENANCE_EVENT = 'realrate:maintenance';
 
 function notifyMaintenance(message) {
   try {
-    window.dispatchEvent(new CustomEvent(MAINTENANCE_EVENT, { detail: { message: message ? t(message) : '' } }));
+    window.dispatchEvent(new CustomEvent(MAINTENANCE_EVENT, { detail: { message: message ? tMessage(message) : '' } }));
   } catch {}
 }
 
@@ -79,7 +79,7 @@ export const DEMO_READ_ONLY_EVENT = 'realrate:demo-read-only';
 
 export function notifyDemoReadOnly(message) {
   try {
-    window.dispatchEvent(new CustomEvent(DEMO_READ_ONLY_EVENT, { detail: { message: message ? t(message) : t('این نسخه دمو است و تغییرات ذخیره نمی‌شود.') } }));
+    window.dispatchEvent(new CustomEvent(DEMO_READ_ONLY_EVENT, { detail: { message: message ? tMessage(message) : t('این نسخه دمو است و تغییرات ذخیره نمی‌شود.') } }));
   } catch {}
 }
 
@@ -260,13 +260,19 @@ async function sendRequest(path, options = {}) {
         data.errorDetails = errObj;
         data.errorCode = errObj.code || 'UNKNOWN_ERROR';
         if (!data.message) {
-          data.message = t(errObj.message || errObj.code || msg('خطای سرور'));
+          data.message = tMessage(errObj.message || errObj.code || msg('خطای سرور'));
         }
-        data.error = t(errObj.message || errObj.code || msg('خطای سرور'));
+        data.error = tMessage(errObj.message || errObj.code || msg('خطای سرور'));
         if (data.success === undefined) {
           data.success = false;
         }
       }
+    }
+
+    // The Worker answers in Persian: show its fixed messages (success ones too) in the active language
+    if (data && typeof data === 'object') {
+      if (typeof data.message === 'string') data.message = tMessage(data.message);
+      if (typeof data.error === 'string') data.error = tMessage(data.error);
     }
 
     // Maintenance mode switched on while the app is open: tell the auth layer (it swaps the
@@ -284,7 +290,7 @@ async function sendRequest(path, options = {}) {
 
     // A free-plan limit refused the change: the app tells the user (PlanLimitPrompt) and points to Pro
     if (res.status === 403 && data && typeof data === 'object' && data.errorCode === 'PLAN_LIMIT' && typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('realrate:plan-limit', { detail: { message: t(data.message) } }));
+      window.dispatchEvent(new CustomEvent('realrate:plan-limit', { detail: { message: tMessage(data.message) } }));
     }
     // A record was stored or deleted: the plan's usage notes read their counts again
     if (res.ok && method !== 'GET' && typeof window !== 'undefined' && /\/api\/(vault\/records|portfolios)/.test(path)) {
