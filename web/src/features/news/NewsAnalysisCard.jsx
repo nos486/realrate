@@ -9,12 +9,12 @@
  * here (the news page), else (the landing page, where the news page is out of reach) they are text.
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
 import React from 'react';
 import { Sparkles, AlertTriangle } from 'lucide-react';
 import { newsTimeAgo, newsFullTime } from './newsFormat.js';
 
-const IMPACT = { 1: 'اثر کم', 2: 'اثر متوسط', 3: 'اثر زیاد' };
+const IMPACT = { 1: t('اثر کم'), 2: t('اثر متوسط'), 3: t('اثر زیاد') };
 /** One of the day's news: opened here when the page can, else just its headline */
 function NewsLink({ id, title, onOpenNews }) {
   const open = onOpenNews?.(id);
@@ -27,14 +27,14 @@ export default function NewsAnalysisCard({ analysis, className = '', onOpenNews 
   if (!analysis?.title) return null;
 
   return (
-    <section className={`news-analysis ${className}`} aria-label="تحلیل روز">
+    <section className={`news-analysis ${className}`} aria-label={t('تحلیل روز')}>
       <header className="news-analysis-head">
         <span className="news-analysis-badge">
           <Sparkles size={14} aria-hidden="true" />
-          تحلیل روز با هوش مصنوعی
+          {t('تحلیل روز با هوش مصنوعی')}
         </span>
         <time dateTime={new Date(analysis.at).toISOString()} title={newsFullTime(analysis.at)}>
-          {newsTimeAgo(analysis.at)}{analysis.newsCount ? ` · بر اساس ${fa(analysis.newsCount)} خبر` : ''}
+          {newsTimeAgo(analysis.at)}{analysis.newsCount ? ` · ${t('بر اساس {n} خبر', { n: fa(analysis.newsCount) })}` : ''}
         </time>
       </header>
 
@@ -43,7 +43,7 @@ export default function NewsAnalysisCard({ analysis, className = '', onOpenNews 
 
       {analysis.drivers?.length > 0 && (
         <div className="news-analysis-drivers">
-          <h3>مهم‌ترین خبرهای امروز</h3>
+          <h3>{t('مهم‌ترین خبرهای امروز')}</h3>
           <ol>
             {analysis.drivers.map((n) => (
               <li key={n.id}>
@@ -64,11 +64,11 @@ export default function NewsAnalysisCard({ analysis, className = '', onOpenNews 
       {analysis.risk && (
         <p className="news-analysis-risk">
           <AlertTriangle size={14} aria-hidden="true" />
-          <span><strong>زیر نظر بگیرید:</strong> {analysis.risk}</span>
+          <span><strong>{t('زیر نظر بگیرید:')}</strong> {analysis.risk}</span>
         </p>
       )}
 
-      <p className="news-analysis-note">این تحلیل را هوش مصنوعی از خبرهای امروز نوشته است و توصیه‌ی خرید یا فروش نیست.</p>
+      <p className="news-analysis-note">{t('این تحلیل را هوش مصنوعی از خبرهای امروز نوشته است و توصیه‌ی خرید یا فروش نیست.')}</p>
     </section>
   );
 }

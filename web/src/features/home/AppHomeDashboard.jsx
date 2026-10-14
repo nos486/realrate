@@ -14,7 +14,7 @@
  * unlock it does).
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useRefreshToken } from '../../shared/refresh/pageRefresh.js';
 import { useUsdAt } from '../market/dailyHistory.js';
@@ -144,17 +144,17 @@ export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }
     return Number.isFinite(change) ? change : null;
   };
   const rates = [
-    { key: 'usd', label: 'دلار', value: usdToman, change: changeOf('usd') },
-    { key: 'gold', label: 'طلای ۱۸', value: price('gold_18k'), change: changeOf('gold_18k') },
-    { key: 'coin', label: 'سکه امامی', value: price('full_coin'), change: changeOf('full_coin') },
+    { key: 'usd', label: t('دلار'), value: usdToman, change: changeOf('usd') },
+    { key: 'gold', label: t('طلای ۱۸'), value: price('gold_18k'), change: changeOf('gold_18k') },
+    { key: 'coin', label: t('سکه امامی'), value: price('full_coin'), change: changeOf('full_coin') },
   ].filter((r) => hasMarket && r.value > 0);
 
   // Today's rates: at the top of the home, open even while the records are locked (they aren't
   // encrypted)
   const ratesCard = rates.length > 0 && (
-    <button type="button" className="app-home-card app-home-rates" onClick={() => onOpen?.('rates')} aria-label="نرخ‌های امروز — رفتن به بازار">
+    <button type="button" className="app-home-card app-home-rates" onClick={() => onOpen?.('rates')} aria-label={t('نرخ‌های امروز — رفتن به بازار')}>
       <span className="app-home-rates-head">
-        <span>نرخ‌های امروز <small>تومان</small></span>
+        <span>{t('نرخ‌های امروز')} <small>{t('تومان')}</small></span>
         <ChevronLeft size={16} aria-hidden="true" />
       </span>
       <span className="app-home-rates-grid">
@@ -164,7 +164,7 @@ export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }
             <strong>{fa(r.value)}</strong>
             {r.change !== null && Math.abs(r.change) >= 0.01 && (
               <em className={r.change > 0 ? 'is-up' : 'is-down'}>
-                {r.change > 0 ? '▲' : '▼'} {Math.abs(r.change).toLocaleString(intlLocale(), { maximumFractionDigits: 2 })}٪
+                {r.change > 0 ? '▲' : '▼'} {Math.abs(r.change).toLocaleString(intlLocale(), { maximumFractionDigits: 2 })}{t('٪')}
               </em>
             )}
           </span>
@@ -177,7 +177,7 @@ export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }
     return (
       <div className="app-home">
         {ratesCard}
-        <VaultUnlockCard title="برای دیدن خلاصه‌ی ماه، اطلاعات را باز کنید" />
+        <VaultUnlockCard title={t('برای دیدن خلاصه‌ی ماه، اطلاعات را باز کنید')} />
         <PlanHomeCard />
         <NewsCard count={3} />
       </div>
@@ -192,40 +192,40 @@ export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }
       {ratesCard}
 
       {/* This month */}
-      <section className="app-home-hero" aria-label={`خلاصه‌ی ${formatShamsiMonth(month.jy, month.jm)}`}>
+      <section className="app-home-hero" aria-label={t('خلاصه‌ی {month}', { month: formatShamsiMonth(month.jy, month.jm) })}>
         <div className="app-home-hero-top">
           <span className="app-home-month-nav">
-            <button type="button" className="app-home-month-btn" onClick={() => setMonth(shiftShamsiMonth(month, -1))} aria-label="ماه قبل">
+            <button type="button" className="app-home-month-btn" onClick={() => setMonth(shiftShamsiMonth(month, -1))} aria-label={t('ماه قبل')}>
               <ChevronRight size={16} />
             </button>
             <span className="app-home-month">{formatShamsiMonth(month.jy, month.jm)}</span>
-            <button type="button" className="app-home-month-btn" onClick={() => setMonth(shiftShamsiMonth(month, 1))} disabled={!canGoNext} aria-label="ماه بعد">
+            <button type="button" className="app-home-month-btn" onClick={() => setMonth(shiftShamsiMonth(month, 1))} disabled={!canGoNext} aria-label={t('ماه بعد')}>
               <ChevronLeft size={16} />
             </button>
           </span>
           {change !== null && !loading && (
             <span className={`app-home-change ${change > 0 ? 'is-up' : 'is-down'}`}>
               {change > 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-              {fa(Math.abs(change))}٪ {change > 0 ? 'بیشتر' : 'کمتر'} از ماه قبل
+              {change > 0 ? t('{n}٪ بیشتر از ماه قبل', { n: fa(Math.abs(change)) }) : t('{n}٪ کمتر از ماه قبل', { n: fa(Math.abs(change)) })}
             </span>
           )}
         </div>
-        <div className="app-home-hero-label">{isCurrentMonth ? 'خرج این ماه' : 'خرج ماه'}</div>
+        <div className="app-home-hero-label">{isCurrentMonth ? t('خرج این ماه') : t('خرج ماه')}</div>
         <div className="app-home-hero-value">
-          {loading ? <Skeleton width="60%" height={36} radius={10} /> : <>{money(spent)} <small>تومان</small></>}
+          {loading ? <Skeleton width="60%" height={36} radius={10} /> : <>{money(spent)} <small>{t('تومان')}</small></>}
         </div>
         <div className="app-home-hero-split">
           <button type="button" className="app-home-stat" onClick={() => onOpen?.('incomes')}>
             <span className="app-home-stat-icon is-in"><ArrowDownLeft size={16} /></span>
             <span className="app-home-stat-text">
-              <small>درآمد</small>
+              <small>{t('درآمد')}</small>
               <strong>{loading ? '…' : money(incomes.total)}</strong>
             </span>
           </button>
           <button type="button" className="app-home-stat" onClick={() => onOpen?.('expenses')}>
             <span className="app-home-stat-icon is-left"><ArrowUpRight size={16} /></span>
             <span className="app-home-stat-text">
-              <small>{left >= 0 ? 'باقی‌مانده' : 'کسری'}</small>
+              <small>{left >= 0 ? t('باقی‌مانده') : t('کسری')}</small>
               <strong className={left < 0 ? 'is-negative' : ''}>{loading ? '…' : money(Math.abs(left))}</strong>
             </span>
           </button>
@@ -237,8 +237,8 @@ export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }
         <button type="button" className="app-home-card app-home-sms" onClick={() => onOpen?.('sms')}>
           <span className="app-home-sms-icon"><MessageSquareText size={20} /></span>
           <span className="app-home-sms-text">
-            <strong>{fa(pendingSms.length)} پیامک بانکی منتظر ثبت</strong>
-            <small>با یک ضربه دسته را انتخاب کنید</small>
+            <strong>{t('{n} پیامک بانکی منتظر ثبت', { n: fa(pendingSms.length) })}</strong>
+            <small>{t('با یک ضربه دسته را انتخاب کنید')}</small>
           </span>
           <ChevronLeft size={18} />
         </button>
@@ -254,9 +254,9 @@ export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }
       {hasExpenses && (
         <section className="app-home-card">
           <header className="app-home-card-head">
-            <h2>آخرین هزینه‌ها</h2>
+            <h2>{t('آخرین هزینه‌ها')}</h2>
             <button type="button" className="app-home-link" onClick={() => onOpen?.('expenses')}>
-              همه <ChevronLeft size={16} />
+              {t('همه')} <ChevronLeft size={16} />
             </button>
           </header>
           {loading ? (
@@ -283,7 +283,7 @@ export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }
           ) : (
             <button type="button" className="app-home-empty" onClick={() => onOpen?.('add-expense')}>
               <Plus size={18} />
-              هنوز هزینه‌ای برای این ماه ثبت نشده؛ اولین را ثبت کنید
+              {t('هنوز هزینه‌ای برای این ماه ثبت نشده؛ اولین را ثبت کنید')}
             </button>
           )}
         </section>

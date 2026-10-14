@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 import React from 'react';
 
 /**
@@ -46,7 +47,7 @@ export default function MiniCard({
             )}
             {status && (
               <span className={`mini-card-status-dot ${status}`}>
-                {statusLabel || (status === 'active' ? 'فعال' : 'غیرفعال')}
+                {statusLabel || (status === 'active' ? t('فعال') : t('غیرفعال'))}
               </span>
             )}
           </div>

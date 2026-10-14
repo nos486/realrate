@@ -1,21 +1,21 @@
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
 import React from 'react';
 
 /**
  * Format timestamp into human-readable Persian relative time
  */
 export function formatRelativeTime(isoStr) {
-  if (!isoStr) return 'ثبت نشده';
+  if (!isoStr) return t('ثبت نشده');
   try {
     const d = new Date(isoStr);
     const diffMins = Math.floor((new Date() - d) / 60000);
-    if (diffMins < 1) return 'لحظاتی پیش';
-    if (diffMins < 60) return `${diffMins.toLocaleString(intlLocale())} دقیقه پیش`;
+    if (diffMins < 1) return t('لحظاتی پیش');
+    if (diffMins < 60) return t('{n} دقیقه پیش', { n: diffMins.toLocaleString(intlLocale()) });
     const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours.toLocaleString(intlLocale())} ساعت پیش`;
+    if (diffHours < 24) return t('{n} ساعت پیش', { n: diffHours.toLocaleString(intlLocale()) });
     return d.toLocaleTimeString(intlLocale(), { hour: '2-digit', minute: '2-digit' });
   } catch {
-    return 'ثبت نشده';
+    return t('ثبت نشده');
   }
 }
 
@@ -25,8 +25,8 @@ export function formatRelativeTime(isoStr) {
 export default function TimeAgoBadge({
   timestamp = null,
   isLive = false,
-  liveLabel = 'زنده',
-  manualLabel = 'دستی',
+  liveLabel = t('زنده'),
+  manualLabel = t('دستی'),
   showPulse = true,
   className = '',
   style = {},

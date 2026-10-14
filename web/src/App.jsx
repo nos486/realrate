@@ -1,3 +1,4 @@
+import { t } from './utils/i18n.js';
 import { lazy, Suspense, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import FullscreenLoader from './shared/ui/FullscreenLoader.jsx';
@@ -30,7 +31,7 @@ const SharedPortfolioPage = lazy(() => import('./pages/SharedPortfolioPage.jsx')
 
 function RouteLoader() {
   return (
-    <div className="require-auth-loading" role="status" aria-label="در حال بارگذاری">
+    <div className="require-auth-loading" role="status" aria-label={t('در حال بارگذاری')}>
       <div className="spinner-glow" />
     </div>
   );

@@ -5,6 +5,7 @@
  * bank SMS): «انصراف» and save.
  */
 
+import { t } from '../../utils/i18n.js';
 import React from 'react';
 import { Button } from '../ui/index.js';
 
@@ -16,9 +17,9 @@ export default function EntryFormActions({ submitLabel, valid, submitting, onCan
   return (
     <div className="modal-actions">
       {onNext ? (
-        <Button variant="secondary" block disabled={!valid || submitting} onClick={onNext}>ثبت و بعدی</Button>
+        <Button variant="secondary" block disabled={!valid || submitting} onClick={onNext}>{t('ثبت و بعدی')}</Button>
       ) : (
-        <Button variant="secondary" block disabled={submitting} onClick={onCancel}>انصراف</Button>
+        <Button variant="secondary" block disabled={submitting} onClick={onCancel}>{t('انصراف')}</Button>
       )}
       <Button type="submit" block loading={submitting} disabled={!valid}>{submitLabel}</Button>
     </div>

@@ -2,7 +2,7 @@
  * AssetPickerModal.jsx — Search every market asset and add/remove it from a home section
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
 import React, { useMemo, useState } from 'react';
 import { Plus, Check, Search } from 'lucide-react';
 import Modal from '../../shared/ui/Modal.jsx';
@@ -18,13 +18,13 @@ function OwnPrice({ asset }) {
 }
 
 const CATEGORY_FILTERS = [
-  { key: '', label: 'همه' },
-  { key: 'gold_coin', label: 'طلا و سکه' },
-  { key: 'silver', label: 'نقره' },
-  { key: 'currency', label: 'ارز' },
-  { key: 'crypto', label: 'رمزارز' },
-  { key: 'bourse', label: 'بورس' },
-  { key: 'bourse_fund', label: 'صندوق' },
+  { key: '', label: t('همه') },
+  { key: 'gold_coin', label: t('طلا و سکه') },
+  { key: 'silver', label: t('نقره') },
+  { key: 'currency', label: t('ارز') },
+  { key: 'crypto', label: t('رمزارز') },
+  { key: 'bourse', label: t('بورس') },
+  { key: 'bourse_fund', label: t('صندوق') },
 ];
 
 const RESULT_LIMIT = 60;
@@ -48,14 +48,14 @@ export default function AssetPickerModal({ isOpen, onClose, section, onToggle })
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`افزودن به «${section.title || 'بخش'}»`}
-      subtitle="هر دارایی بازار — طلا، سکه، ارز، رمزارز، نماد بورس یا صندوق — را می‌توانید اضافه کنید."
+      title={t('افزودن به «{title}»', { title: section.title || t('بخش') })}
+      subtitle={t('هر دارایی بازار — طلا، سکه، ارز، رمزارز، نماد بورس یا صندوق — را می‌توانید اضافه کنید.')}
       icon={<Plus size={18} />}
       maxWidth="560px"
       footer={
         <div className="modal-actions-right">
           <button type="button" className="btn-primary" onClick={onClose}>
-            تأیید ({selected.size.toLocaleString(intlLocale())} مورد)
+            {t('تأیید ({n} مورد)', { n: selected.size.toLocaleString(intlLocale()) })}
           </button>
         </div>
       }
@@ -67,13 +67,13 @@ export default function AssetPickerModal({ isOpen, onClose, section, onToggle })
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="جستجوی نام یا نماد (مثلاً دلار، BTC، فولاد، عیار)…"
-            aria-label="جستجوی دارایی"
+            placeholder={t('جستجوی نام یا نماد (مثلاً دلار، BTC، فولاد، عیار)…')}
+            aria-label={t('جستجوی دارایی')}
             autoFocus
           />
         </div>
 
-        <div className="asset-picker-filters" role="group" aria-label="دسته‌بندی">
+        <div className="asset-picker-filters" role="group" aria-label={t('دسته‌بندی')}>
           {CATEGORY_FILTERS.map((f) => (
             <button
               key={f.key || 'all'}
@@ -87,7 +87,7 @@ export default function AssetPickerModal({ isOpen, onClose, section, onToggle })
         </div>
 
         {results.length === 0 ? (
-          <p className="asset-picker-empty">موردی پیدا نشد.</p>
+          <p className="asset-picker-empty">{t('موردی پیدا نشد.')}</p>
         ) : (
           <ul className="asset-picker-list">
             {results.map((asset) => {

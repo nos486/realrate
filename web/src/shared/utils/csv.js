@@ -84,5 +84,5 @@ export function downloadCsvFile(filename, content) {
 
 /** Sanitizes an arbitrary string into a safe CSV filename fragment. */
 export function safeFilenamePart(name, fallback = 'export') {
-  return (name || fallback).replace(/[^a-zA-Z0-9_؀-ۿ-]/g, '_');
+  return (name || fallback).replace(/[^a-zA-Z0-9_؀-ۿ-]/g, '_'); // i18n-ignore
 }

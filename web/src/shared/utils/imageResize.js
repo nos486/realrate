@@ -9,6 +9,8 @@
  * - Clear Persian error handling for unsupported formats (e.g. HEIC on unsupported browsers)
  */
 
+import { t } from '../../utils/i18n.js';
+
 const MAX_TARGET_BYTES = 1.5 * 1024 * 1024; // 1.5 MB
 
 /**
@@ -53,7 +55,7 @@ function canvasToBlob(canvas, type, quality) {
     canvas.toBlob(
       (blob) => {
         if (blob) resolve(blob);
-        else reject(new Error('تبدیل تصویر با شکست مواجه شد.'));
+        else reject(new Error(t('تبدیل تصویر با شکست مواجه شد.')));
       },
       type,
       quality
@@ -107,9 +109,9 @@ export async function resizeImage(file, options = {}) {
         img.onerror = () => {
           URL.revokeObjectURL(url);
           if (isHeic) {
-            reject(new Error('این فرمت پشتیبانی نمی‌شود؛ عکس را JPEG یا PNG بگیرید.'));
+            reject(new Error(t('این فرمت پشتیبانی نمی‌شود؛ عکس را JPEG یا PNG بگیرید.')));
           } else {
-            reject(new Error('بارگذاری و خواندن تصویر ناموفق بود.'));
+            reject(new Error(t('بارگذاری و خواندن تصویر ناموفق بود.')));
           }
         };
         img.src = url;
@@ -131,7 +133,7 @@ export async function resizeImage(file, options = {}) {
     const ctx = canvas.getContext('2d');
 
     if (!ctx) {
-      throw new Error('خطا در دسترسی به محیط گرافیکی مرورگر');
+      throw new Error(t('خطا در دسترسی به محیط گرافیکی مرورگر'));
     }
 
     // Optional fill for transparent PNG to JPEG
@@ -164,8 +166,8 @@ export async function resizeImage(file, options = {}) {
       bytes: blob.size,
     };
   } catch (err) {
-    if (isHeic && !err.message.includes('پشتیبانی نمی‌شود')) {
-      throw new Error('این فرمت پشتیبانی نمی‌شود؛ عکس را JPEG یا PNG بگیرید.');
+    if (isHeic && err.message !== t('این فرمت پشتیبانی نمی‌شود؛ عکس را JPEG یا PNG بگیرید.')) {
+      throw new Error(t('این فرمت پشتیبانی نمی‌شود؛ عکس را JPEG یا PNG بگیرید.'));
     }
     throw err;
   } finally {

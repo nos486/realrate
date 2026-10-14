@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 import React from 'react';
 import { Inbox } from 'lucide-react';
 
@@ -6,7 +7,7 @@ import { Inbox } from 'lucide-react';
  */
 export default function EmptyState({
   icon = <Inbox size={38} strokeWidth={1.5} />,
-  title = 'اطلاعاتی یافت نشد',
+  title = t('اطلاعاتی یافت نشد'),
   description = null,
   action = null,
   className = '',

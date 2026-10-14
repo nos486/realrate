@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 import React from 'react';
 import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
 
@@ -61,7 +62,7 @@ export default function AlertBanner({
             type="button"
             className="alert-banner-close-btn"
             onClick={onClose}
-            aria-label="بستن پیام"
+            aria-label={t('بستن پیام')}
           >
             <X size={15} />
           </button>

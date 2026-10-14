@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../auth/index.js';
 import { sanitizeHomeLayout } from '../../utils/homeLayout.js';
@@ -75,7 +76,7 @@ export function useHomeLayout() {
       await saveHomeLayout(next);
       setSaveError('');
     } catch (err) {
-      setSaveError(err?.status === 404 ? '' : err.message || 'ذخیره چیدمان صفحه اصلی ناموفق بود.');
+      setSaveError(err?.status === 404 ? '' : err.message || t('ذخیره چیدمان صفحه اصلی ناموفق بود.'));
     }
   }, []);
 

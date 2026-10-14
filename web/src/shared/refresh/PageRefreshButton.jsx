@@ -4,6 +4,7 @@
  * records tab. Hidden on a tab with nothing to read again (settings).
  */
 
+import { t } from '../../utils/i18n.js';
 import React from 'react';
 import { RefreshCw } from 'lucide-react';
 import { usePageRefresh } from './pageRefresh.js';
@@ -27,8 +28,8 @@ export default function PageRefreshButton({ className = '', iconSize = 18, onPre
       onClick={onClick}
       disabled={refreshing}
       aria-busy={refreshing}
-      aria-label="به‌روزرسانی"
-      title="به‌روزرسانی"
+      aria-label={t('به‌روزرسانی')}
+      title={t('به‌روزرسانی')}
     >
       <RefreshCw size={iconSize} className={refreshing ? 'is-spinning' : ''} />
     </button>

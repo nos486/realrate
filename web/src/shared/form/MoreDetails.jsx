@@ -5,6 +5,7 @@
  * Starts open when something in it is already filled (an edit), so nothing set is hidden.
  */
 
+import { t } from '../../utils/i18n.js';
 import React, { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 
@@ -12,7 +13,7 @@ import { ChevronDown } from 'lucide-react';
  * @param {{ filled?: string[], children: React.ReactNode, label?: string }} props — filled: the
  *   names of what is set inside
  */
-export default function MoreDetails({ filled = [], children, label = 'جزئیات بیشتر' }) {
+export default function MoreDetails({ filled = [], children, label = t('جزئیات بیشتر') }) {
   const [open, setOpen] = useState(filled.length > 0);
   return (
     <div className={`more-details ${open ? 'is-open' : ''}`}>

@@ -8,7 +8,7 @@
  * subscription …): the recent ones' key and the label's id.
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { recentCategories, RECENT_LIMIT } from './recentCategories.js';
@@ -31,7 +31,7 @@ function ordered(options, kind) {
  *   color?: string }[], value: string, onChange: (v: string) => void, onManage?: () => void,
  *   label?: string }} props
  */
-export default function CategoryGrid({ kind, options, value, onChange, onManage, label = 'دسته‌بندی' }) {
+export default function CategoryGrid({ kind, options, value, onChange, onManage, label = t('دسته‌بندی') }) {
   const [order] = useState(() => ordered(options, kind).map((o) => o.value));
   const [expanded, setExpanded] = useState(false);
   // Categories added since it opened (the manager) go last
@@ -50,7 +50,7 @@ export default function CategoryGrid({ kind, options, value, onChange, onManage,
     <div className="ui-input-group category-grid-field">
       <div className="category-grid-head">
         <span className="ui-input-label" id={`${kind}-category-label`}>{label}</span>
-        {onManage && <button type="button" className="category-picker-edit" onClick={onManage}>ویرایش و افزودن دسته</button>}
+        {onManage && <button type="button" className="category-picker-edit" onClick={onManage}>{t('ویرایش و افزودن دسته')}</button>}
       </div>
       <div className="category-grid" role="radiogroup" aria-labelledby={`${kind}-category-label`}>
         {shown.map(({ value: v, label: name, Icon, color }) => (
@@ -71,7 +71,7 @@ export default function CategoryGrid({ kind, options, value, onChange, onManage,
         {!fits && (
           <button type="button" className="category-tile is-more" aria-expanded={expanded} onClick={() => setExpanded((e) => !e)}>
             <span className="category-tile-icon">{expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}</span>
-            <span className="category-tile-label">{expanded ? 'کمتر' : `همه‌ی دسته‌ها (${all.length.toLocaleString(intlLocale())})`}</span>
+            <span className="category-tile-label">{expanded ? t('کمتر') : t('همه‌ی دسته‌ها ({n})', { n: all.length.toLocaleString(intlLocale()) })}</span>
           </button>
         )}
       </div>

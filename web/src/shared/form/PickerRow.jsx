@@ -6,6 +6,7 @@
  * cheque): the form stays short, and what is chosen is still in view.
  */
 
+import { t } from '../../utils/i18n.js';
 import React, { useId, useState } from 'react';
 import { ChevronDown, Check } from 'lucide-react';
 
@@ -14,7 +15,7 @@ import { ChevronDown, Check } from 'lucide-react';
  *   onChange: (v: string) => void, placeholder?: string, children?: React.ReactNode }} props —
  *   placeholder: shown when the value is none of the options; children: a hint under the row
  */
-export default function PickerRow({ label, value, options, onChange, placeholder = 'انتخاب کنید', children = null }) {
+export default function PickerRow({ label, value, options, onChange, placeholder = t('انتخاب کنید'), children = null }) {
   const [open, setOpen] = useState(false);
   const listId = useId();
   const chosen = options.find((o) => o.value === value) || null;

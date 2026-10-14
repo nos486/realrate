@@ -8,7 +8,7 @@
  * moved only because the dollar did. Totals (a portfolio's value) stay in tomans: `price`.
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
 
 /** Whether an asset is priced in dollars */
 export const isUsdPriced = (asset) => asset?.currency === 'usd' && Number(asset?.priceUsd) > 0;
@@ -20,8 +20,8 @@ export const isUsdPriced = (asset) => asset?.currency === 'usd' && Number(asset?
  */
 export function ownPriceOf(asset) {
   const toman = Number(asset?.price) > 0 ? Number(asset.price) : null;
-  if (isUsdPriced(asset)) return { value: Number(asset.priceUsd), currency: 'usd', unit: 'دلار', toman };
-  return { value: toman, currency: 'toman', unit: 'تومان', toman };
+  if (isUsdPriced(asset)) return { value: Number(asset.priceUsd), currency: 'usd', unit: t('دلار'), toman };
+  return { value: toman, currency: 'toman', unit: t('تومان'), toman };
 }
 
 /**
@@ -44,4 +44,4 @@ export function formatPrice(value, currency = 'toman') {
 
 /** "≈ 310,000,000 تومان": a dollar-priced asset's toman price, for the line under its price */
 export const tomanEquivalent = (asset) =>
-  (isUsdPriced(asset) && Number(asset.price) > 0 ? `≈ ${formatPrice(asset.price)} تومان` : '');
+  (isUsdPriced(asset) && Number(asset.price) > 0 ? t('≈ {price} تومان', { price: formatPrice(asset.price) }) : '');

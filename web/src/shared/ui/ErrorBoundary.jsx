@@ -8,6 +8,7 @@
  *   <ErrorBoundary resetKey={location.pathname}>…</ErrorBoundary>
  */
 
+import { t } from '../../utils/i18n.js';
 import React from 'react';
 import { AlertTriangle, RotateCcw } from 'lucide-react';
 
@@ -39,21 +40,21 @@ export default class ErrorBoundary extends React.Component {
     return (
       <div className="error-boundary" role="alert">
         <AlertTriangle size={28} aria-hidden="true" />
-        <h2>{chunk ? 'نسخه‌ی تازه‌ی برنامه آماده است' : 'این بخش درست نمایش داده نشد'}</h2>
+        <h2>{chunk ? t('نسخه‌ی تازه‌ی برنامه آماده است') : t('این بخش درست نمایش داده نشد')}</h2>
         <p>
           {chunk
-            ? 'برای ادامه، برنامه را دوباره بارگذاری کنید.'
-            : 'مشکلی پیش آمد. دوباره امتحان کنید؛ اگر تکرار شد، برنامه را دوباره باز کنید. اطلاعات شما سالم است.'}
+            ? t('برای ادامه، برنامه را دوباره بارگذاری کنید.')
+            : t('مشکلی پیش آمد. دوباره امتحان کنید؛ اگر تکرار شد، برنامه را دوباره باز کنید. اطلاعات شما سالم است.')}
         </p>
         <div className="error-boundary-actions">
           {!chunk && (
             <button type="button" className="error-boundary-retry" onClick={() => this.setState({ error: null })}>
               <RotateCcw size={16} aria-hidden="true" />
-              تلاش دوباره
+              {t('تلاش دوباره')}
             </button>
           )}
           <button type="button" className="error-boundary-reload" onClick={() => window.location.reload()}>
-            بارگذاری دوباره‌ی برنامه
+            {t('بارگذاری دوباره‌ی برنامه')}
           </button>
         </div>
       </div>

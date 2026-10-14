@@ -12,6 +12,7 @@
  * The Android app's offline copy reads from the device: no request, nothing shown.
  */
 
+import { t } from '../../utils/i18n.js';
 import React, { useEffect, useRef, useState } from 'react';
 import { subscribeRequests } from '../api/httpClient.js';
 import BlockingOverlay from '../ui/BlockingOverlay.jsx';
@@ -58,8 +59,8 @@ export default function TabLoadingGate({ tab }) {
   if (!state.blocking || state.tab !== tab) return null;
   return (
     <BlockingOverlay
-      title="در حال باز کردن صفحه"
-      subtitle="اطلاعات این صفحه در حال دریافت است..."
+      title={t('در حال باز کردن صفحه')}
+      subtitle={t('اطلاعات این صفحه در حال دریافت است...')}
     />
   );
 }

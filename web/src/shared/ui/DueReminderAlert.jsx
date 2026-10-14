@@ -5,7 +5,7 @@
  * pushes the page content down. Items: `{ key, title, detail, amount }`.
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronDown } from 'lucide-react';
 import AlertBanner from './AlertBanner.jsx';
@@ -26,14 +26,14 @@ export default function DueReminderAlert({ type = 'warning', title, items, actio
         <div className="due-alert-body">
           <div className="due-alert-summary">
             <strong>{title}</strong>
-            <span className="due-alert-total">مجموع {money(total)} تومان</span>
+            <span className="due-alert-total">{t('مجموع {amount} تومان', { amount: money(total) })}</span>
             <button
               type="button"
               className="due-alert-toggle"
               onClick={() => setExpanded((v) => !v)}
               aria-expanded={expanded}
             >
-              {expanded ? 'بستن' : 'جزئیات'}
+              {expanded ? t('بستن') : t('جزئیات')}
               <ChevronDown size={14} className={expanded ? 'is-open' : ''} />
             </button>
           </div>
@@ -43,7 +43,7 @@ export default function DueReminderAlert({ type = 'warning', title, items, actio
                 <li key={item.key}>
                   <strong>{item.title}</strong>
                   <span>{item.detail}</span>
-                  <strong className="due-alert-amount">{money(item.amount)} تومان</strong>
+                  <strong className="due-alert-amount">{t('{amount} تومان', { amount: money(item.amount) })}</strong>
                 </li>
               ))}
             </ul>

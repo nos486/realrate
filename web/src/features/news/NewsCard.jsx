@@ -5,6 +5,7 @@
  * headline of the day's AI analysis.
  */
 
+import { t } from '../../utils/i18n.js';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Newspaper, Sparkles } from 'lucide-react';
@@ -30,21 +31,21 @@ function NewsCardContent({ count = 4, className = '' }) {
   if (!loading && !items.length) return null;
 
   return (
-    <section className={`news-card ${className}`} aria-label="آخرین اخبار">
+    <section className={`news-card ${className}`} aria-label={t('آخرین اخبار')}>
       <header className="news-card-head">
         <h2>
           <Newspaper size={16} aria-hidden="true" />
-          آخرین اخبار
+          {t('آخرین اخبار')}
         </h2>
         <button type="button" className="news-card-more" onClick={() => open()}>
-          همه <ChevronLeft size={16} />
+          {t('همه')} <ChevronLeft size={16} />
         </button>
       </header>
       {/* The day's analysis in one line (the news page has all of it) */}
       {analysis?.title && (
         <button type="button" className="news-card-analysis" onClick={() => open()} title={analysis.title}>
           <Sparkles size={14} aria-hidden="true" />
-          <span className="news-card-analysis-label">تحلیل روز</span>
+          <span className="news-card-analysis-label">{t('تحلیل روز')}</span>
           <span className="news-card-analysis-text">{analysis.title}</span>
         </button>
       )}

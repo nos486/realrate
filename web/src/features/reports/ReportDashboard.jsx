@@ -16,7 +16,7 @@
  * expenses recorded as «سرمایه‌گذاری»; without the expenses feature those cards are left out.
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
 import React from 'react';
 import { Wallet, Coins, PiggyBank, TrendingUp, DollarSign, Percent, Lightbulb, ThumbsUp, AlertTriangle, Info, BookOpen, CalendarSync, EyeOff } from 'lucide-react';
 import { MiniCard, GenericCsvExportButton } from '../../shared/ui/index.js';
@@ -34,7 +34,7 @@ const TONE_ICON = { good: ThumbsUp, bad: AlertTriangle, info: Info };
 const incomeLabel = (c) => getIncomeCategory(c).label;
 const expenseLabel = (c) => getExpenseCategory(c).label;
 /** What an investment went into: its asset's name, else the expense's own title */
-const investedName = (a) => (a.assetId ? resolveAssetDisplayName(a.assetId) || a.assetId : a.title || 'بدون عنوان');
+const investedName = (a) => (a.assetId ? resolveAssetDisplayName(a.assetId) || a.assetId : a.title || t('بدون عنوان'));
 
 /** A card of the grid with a title (charts and donuts bring their own) */
 function ReportCard({ title, Icon = null, actions = null, span, className = '', children }) {
@@ -49,23 +49,42 @@ function ReportCard({ title, Icon = null, actions = null, span, className = '', 
   );
 }
 
+/**
+ * A translated sentence with its emphasis kept: `<b>…</b>` becomes <strong>, `<bdi>…</bdi>` stays
+ * an isolated run (the translator can move them, so the sentence order is free in English)
+ */
+function rich(translated, params) {
+  const parts = [];
+  let last = 0;
+  const text = translated.replace(/\{(\w+)\}/g, (whole, name) => (params[name] === undefined ? whole : String(params[name])));
+  for (const m of text.matchAll(/<(b|bdi)>(.*?)<\/\1>/g)) {
+    if (m.index > last) parts.push(text.slice(last, m.index));
+    parts.push(m[1] === 'b' ? <strong key={m.index}>{m[2]}</strong> : <bdi key={m.index}>{m[2]}</bdi>);
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return <>{parts}</>;
+}
+
 /** One insight in a sentence */
 function insightText(item, f) {
   switch (item.id) {
     case 'best-month':
-      return <>بیشترین پس‌انداز در <strong>{item.month}</strong>: <strong>{f.compact(item.net)}</strong> تومان{item.rate !== null ? <> ({f.pct(item.rate)} درآمد)</> : null}.</>;
+      return item.rate !== null
+        ? rich(t('بیشترین پس‌انداز در <b>{month}</b>: <b>{amount}</b> تومان ({pct} درآمد).'), { month: item.month, amount: f.compact(item.net), pct: f.pct(item.rate) })
+        : rich(t('بیشترین پس‌انداز در <b>{month}</b>: <b>{amount}</b> تومان.'), { month: item.month, amount: f.compact(item.net) });
     case 'negative-months':
-      return <>در <strong>{item.count.toLocaleString(intlLocale())}</strong> ماه از {item.months.toLocaleString(intlLocale())} ماه، هزینه از درآمد بیشتر بود.</>;
+      return rich(t('در <b>{count}</b> ماه از {months} ماه، هزینه از درآمد بیشتر بود.'), { count: item.count.toLocaleString(intlLocale()), months: item.months.toLocaleString(intlLocale()) });
     case 'worst-month':
-      return <>بیشترین کسری در <strong>{item.month}</strong>: <strong>{f.compact(-item.net)}</strong> تومان بیش از درآمد.</>;
+      return rich(t('بیشترین کسری در <b>{month}</b>: <b>{amount}</b> تومان بیش از درآمد.'), { month: item.month, amount: f.compact(-item.net) });
     case 'top-category':
-      return <>بزرگ‌ترین دسته‌ی هزینه <strong>{expenseLabel(item.category)}</strong>: {f.pct(item.share)} کل هزینه‌ها ({f.compact(item.total)} تومان).</>;
+      return rich(t('بزرگ‌ترین دسته‌ی هزینه <b>{category}</b>: {pct} کل هزینه‌ها ({amount} تومان).'), { category: expenseLabel(item.category), pct: f.pct(item.share), amount: f.compact(item.total) });
     case 'costly-month':
-      return <>هزینه‌ی <strong>{item.month}</strong> {f.pct(item.over)} بیشتر از میانگین ماهانه بود.</>;
+      return rich(t('هزینه‌ی <b>{month}</b> {pct} بیشتر از میانگین ماهانه بود.'), { month: item.month, pct: f.pct(item.over) });
     case 'invested-share':
-      return <><strong>{f.pct(item.share)}</strong> درآمد سال ({f.compact(item.invested)} تومان) سرمایه‌گذاری شد.</>;
+      return rich(t('<b>{pct}</b> درآمد سال ({amount} تومان) سرمایه‌گذاری شد.'), { pct: f.pct(item.share), amount: f.compact(item.invested) });
     case 'subscriptions-share':
-      return <>اشتراک‌ها <strong>{f.pct(item.share)}</strong> هزینه‌های سال بودند ({f.compact(item.total)} تومان).</>;
+      return rich(t('اشتراک‌ها <b>{pct}</b> هزینه‌های سال بودند ({amount} تومان).'), { pct: f.pct(item.share), amount: f.compact(item.total) });
     default:
       return null;
   }
@@ -76,15 +95,15 @@ const donutOf = (byCategory, metaOf) => byCategory.map((c) => {
   return { key: c.category, label: meta.label, value: c.total, icon: <meta.Icon size={12} /> };
 });
 
-const CSV_HEADERS = ['ماه', 'درآمد (تومان)', 'هزینه (تومان)', 'مانده (تومان)', 'نرخ پس‌انداز (٪)', 'سرمایه‌گذاری (تومان)', 'سهم سرمایه‌گذاری از درآمد (٪)', 'درآمد (دلار)', 'هزینه (دلار)'];
+const CSV_HEADERS = [t('ماه'), t('درآمد (تومان)'), t('هزینه (تومان)'), t('مانده (تومان)'), t('نرخ پس‌انداز (٪)'), t('سرمایه‌گذاری (تومان)'), t('سهم سرمایه‌گذاری از درآمد (٪)'), t('درآمد (دلار)'), t('هزینه (دلار)')];
 const round1 = (v) => (v === null || v === undefined ? '' : Math.round(v * 10) / 10);
 
 export default function ReportDashboard({ data, f, yearLabel, hideValues }) {
   const { hasExpenses, incomeSeries, expenseSeries, incomeYear, expenseYear, cash, cashMonths, shareMonths, shareYear, investedIn, subscriptionYear, apart, dollars, insights } = data;
   const apartRows = apart ? [
-    ...apart.expenses.map((r) => ({ key: `e:${r.key}`, kind: 'هزینه', label: expenseLabel(r.key), ...r })),
-    ...apart.projects.map((r) => ({ key: `p:${r.key}`, kind: 'پروژه', label: r.name, ...r })),
-    ...apart.incomes.map((r) => ({ key: `i:${r.key}`, kind: 'درآمد', label: incomeLabel(r.key), ...r })),
+    ...apart.expenses.map((r) => ({ key: `e:${r.key}`, kind: t('هزینه'), label: expenseLabel(r.key), ...r })),
+    ...apart.projects.map((r) => ({ key: `p:${r.key}`, kind: t('پروژه'), label: r.name, ...r })),
+    ...apart.incomes.map((r) => ({ key: `i:${r.key}`, kind: t('درآمد'), label: incomeLabel(r.key), ...r })),
   ] : [];
   const rows = cashMonths.map((m, i) => ({
     ...m,
@@ -100,21 +119,21 @@ export default function ReportDashboard({ data, f, yearLabel, hideValues }) {
     <div className="report-dash">
       {/* The year's figures */}
       <div className="incomes-summary-grid report-kpis span-12">
-        <MiniCard icon={<Wallet size={14} />} title={`درآمد ${yearLabel}`} value={f.money(incomeYear.total)} unit="تومان" color="green" className="incomes-summary-card is-primary" footer={<span>میانگین ماهانه {f.compact(incomeYear.monthlyAverage)}</span>} />
+        <MiniCard icon={<Wallet size={14} />} title={t('درآمد {year}', { year: yearLabel })} value={f.money(incomeYear.total)} unit={t('تومان')} color="green" className="incomes-summary-card is-primary" footer={<span>{t('میانگین ماهانه {value}', { value: f.compact(incomeYear.monthlyAverage) })}</span>} />
         {hasExpenses && (
-          <MiniCard icon={<Coins size={14} />} title="هزینه‌ی سال" value={f.money(expenseYear.total)} unit="تومان" color="rose" className="incomes-summary-card" footer={<span>میانگین ماهانه {f.compact(expenseYear.monthlyAverage)}</span>} />
+          <MiniCard icon={<Coins size={14} />} title={t('هزینه‌ی سال')} value={f.money(expenseYear.total)} unit={t('تومان')} color="rose" className="incomes-summary-card" footer={<span>{t('میانگین ماهانه {value}', { value: f.compact(expenseYear.monthlyAverage) })}</span>} />
         )}
         {hasExpenses && (
-          <MiniCard icon={<PiggyBank size={14} />} title="مانده (درآمد − هزینه)" value={f.money(cash.net)} unit="تومان" color={cash.net >= 0 ? 'green' : 'rose'} className="incomes-summary-card" footer={<span>میانگین ماهانه {f.compact(cash.monthlyNet)}</span>} />
+          <MiniCard icon={<PiggyBank size={14} />} title={t('مانده (درآمد − هزینه)')} value={f.money(cash.net)} unit={t('تومان')} color={cash.net >= 0 ? 'green' : 'rose'} className="incomes-summary-card" footer={<span>{t('میانگین ماهانه {value}', { value: f.compact(cash.monthlyNet) })}</span>} />
         )}
         {hasExpenses && (
-          <MiniCard icon={<Percent size={14} />} title="نرخ پس‌انداز" value={f.pct(cash.savingsRate)} color="gold" className="incomes-summary-card" footer={<span>{cash.negativeMonths ? `${cash.negativeMonths.toLocaleString(intlLocale())} ماه با کسری` : 'بدون ماه کسری'}</span>} />
+          <MiniCard icon={<Percent size={14} />} title={t('نرخ پس‌انداز')} value={f.pct(cash.savingsRate)} color="gold" className="incomes-summary-card" footer={<span>{cash.negativeMonths ? t('{n} ماه با کسری', { n: cash.negativeMonths.toLocaleString(intlLocale()) }) : t('بدون ماه کسری')}</span>} />
         )}
         {hasExpenses && (
-          <MiniCard icon={<TrendingUp size={14} />} title="سرمایه‌گذاری" value={f.money(shareYear.invested)} unit="تومان" color="blue" className="incomes-summary-card" footer={<span>{f.pct(shareYear.share)} درآمد</span>} />
+          <MiniCard icon={<TrendingUp size={14} />} title={t('سرمایه‌گذاری')} value={f.money(shareYear.invested)} unit={t('تومان')} color="blue" className="incomes-summary-card" footer={<span>{t('{pct} درآمد', { pct: f.pct(shareYear.share) })}</span>} />
         )}
         {hasExpenses && (
-          <MiniCard icon={<DollarSign size={14} />} title="مانده به دلار" value={f.usd(dollars.net)} color={dollars.net >= 0 ? 'green' : 'rose'} className="incomes-summary-card" footer={<span>درآمد {f.usd(dollars.income)} · هزینه {f.usd(dollars.expense)}</span>} />
+          <MiniCard icon={<DollarSign size={14} />} title={t('مانده به دلار')} value={f.usd(dollars.net)} color={dollars.net >= 0 ? 'green' : 'rose'} className="incomes-summary-card" footer={<span>{t('درآمد {income} · هزینه {expense}', { income: f.usd(dollars.income), expense: f.usd(dollars.expense) })}</span>} />
         )}
       </div>
 
@@ -123,27 +142,27 @@ export default function ReportDashboard({ data, f, yearLabel, hideValues }) {
         <div className="span-7">
           <MonthBarChart
             compact
-            title={`درآمد و هزینه — ${yearLabel}`}
+            title={t('درآمد و هزینه — {year}', { year: yearLabel })}
             months={cashMonths}
             series={[
-              { key: 'income', label: 'درآمد', color: INCOME_COLOR, value: (m) => m.income },
-              { key: 'expense', label: 'هزینه', color: EXPENSE_COLOR, value: (m) => m.expense },
+              { key: 'income', label: t('درآمد'), color: INCOME_COLOR, value: (m) => m.income },
+              { key: 'expense', label: t('هزینه'), color: EXPENSE_COLOR, value: (m) => m.expense },
             ]}
             format={f.compact}
-            ariaValue={(m) => `درآمد ${f.compact(m.income)}، هزینه ${f.compact(m.expense)}`}
+            ariaValue={(m) => t('درآمد {income}، هزینه {expense}', { income: f.compact(m.income), expense: f.compact(m.expense) })}
             readout={(m) => (
               <>
                 <div>
                   <strong className={m.net < 0 ? 'text-loss' : ''}>{f.compact(m.net)}</strong>
-                  <span><bdi>{m.label}</bdi>، مانده</span>
+                  <span>{rich(t('<bdi>{month}</bdi>، مانده'), { month: m.label })}</span>
                 </div>
-                <span className="report-readout-detail">نرخ پس‌انداز {f.pct(m.savingsRate)}</span>
+                <span className="report-readout-detail">{t('نرخ پس‌انداز {pct}', { pct: f.pct(m.savingsRate) })}</span>
               </>
             )}
           />
         </div>
       )}
-      <ReportCard title="نکته‌های سال" Icon={Lightbulb} span={hasExpenses ? 'span-5' : 'span-12'} className="report-insights">
+      <ReportCard title={t('نکته‌های سال')} Icon={Lightbulb} span={hasExpenses ? 'span-5' : 'span-12'} className="report-insights">
         {insights.length ? (
           <ul>
             {insights.map((item) => {
@@ -157,7 +176,7 @@ export default function ReportDashboard({ data, f, yearLabel, hideValues }) {
             })}
           </ul>
         ) : (
-          <p className="report-empty">با ثبت درآمد و هزینه‌های سال، نکته‌های مهم آن این‌جا می‌آید.</p>
+          <p className="report-empty">{t('با ثبت درآمد و هزینه‌های سال، نکته‌های مهم آن این‌جا می‌آید.')}</p>
         )}
       </ReportCard>
 
@@ -173,16 +192,16 @@ export default function ReportDashboard({ data, f, yearLabel, hideValues }) {
 
       {/* Where it came from and where it went */}
       <div className="span-4">
-        <DonutChart title="منابع درآمد" items={donutOf(incomeYear.byCategory, getIncomeCategory)} centerLabel={`درآمد ${yearLabel}`} masked={hideValues} emptyMessage="درآمدی در این سال ثبت نشده است." />
+        <DonutChart title={t('منابع درآمد')} items={donutOf(incomeYear.byCategory, getIncomeCategory)} centerLabel={t('درآمد {year}', { year: yearLabel })} masked={hideValues} emptyMessage={t('درآمدی در این سال ثبت نشده است.')} />
       </div>
       {hasExpenses && (
         <div className="span-4">
-          <DonutChart title="دسته‌های هزینه" items={donutOf(expenseYear.byCategory, getExpenseCategory)} centerLabel={`هزینه ${yearLabel}`} masked={hideValues} emptyMessage="هزینه‌ای در این سال ثبت نشده است." />
+          <DonutChart title={t('دسته‌های هزینه')} items={donutOf(expenseYear.byCategory, getExpenseCategory)} centerLabel={t('هزینه {year}', { year: yearLabel })} masked={hideValues} emptyMessage={t('هزینه‌ای در این سال ثبت نشده است.')} />
         </div>
       )}
       {hasExpenses && (
         <div className="span-4">
-          <DonutChart title="سرمایه‌گذاری در" items={investDonut} centerLabel={`سرمایه‌گذاری ${yearLabel}`} masked={hideValues} emptyMessage="هزینه‌ای با دسته‌ی «سرمایه‌گذاری» ثبت نشده است." />
+          <DonutChart title={t('سرمایه‌گذاری در')} items={investDonut} centerLabel={t('سرمایه‌گذاری {year}', { year: yearLabel })} masked={hideValues} emptyMessage={t('هزینه‌ای با دسته‌ی «سرمایه‌گذاری» ثبت نشده است.')} />
         </div>
       )}
 
@@ -191,21 +210,21 @@ export default function ReportDashboard({ data, f, yearLabel, hideValues }) {
       <div className="span-6">
         <MonthBarChart
           compact
-          title="سهم سرمایه‌گذاری از درآمد"
+          title={t('سهم سرمایه‌گذاری از درآمد')}
           months={shareMonths}
-          series={[{ key: 'share', label: 'سهم از درآمد', color: CHART_COLORS[2], value: (m) => m.share ?? 0 }]}
+          series={[{ key: 'share', label: t('سهم از درآمد'), color: CHART_COLORS[2], value: (m) => m.share ?? 0 }]}
           negativeColor={EXPENSE_COLOR}
           format={f.pct}
           average={shareYear.share}
-          averageLabel="کل سال"
-          ariaValue={(m) => (m.share === null ? 'بدون درآمد' : `${f.pct(m.share)} از درآمد`)}
+          averageLabel={t('کل سال')}
+          ariaValue={(m) => (m.share === null ? t('بدون درآمد') : t('{pct} از درآمد', { pct: f.pct(m.share) }))}
           readout={(m) => (
             <>
               <div>
                 <strong>{f.pct(m.share)}</strong>
                 <span><bdi>{m.label}</bdi></span>
               </div>
-              <span className="report-readout-detail">سرمایه‌گذاری {f.compact(m.invested)} از درآمد {f.compact(m.income)}</span>
+              <span className="report-readout-detail">{t('سرمایه‌گذاری {invested} از درآمد {income}', { invested: f.compact(m.invested), income: f.compact(m.income) })}</span>
             </>
           )}
         />
@@ -215,21 +234,21 @@ export default function ReportDashboard({ data, f, yearLabel, hideValues }) {
         <div className="span-6">
           <MonthBarChart
             compact
-            title="درآمد و هزینه به دلار"
+            title={t('درآمد و هزینه به دلار')}
             months={dollars.months}
             series={[
-              { key: 'income', label: 'درآمد', color: INCOME_COLOR, value: (m) => m.income },
-              { key: 'expense', label: 'هزینه', color: EXPENSE_COLOR, value: (m) => m.expense },
+              { key: 'income', label: t('درآمد'), color: INCOME_COLOR, value: (m) => m.income },
+              { key: 'expense', label: t('هزینه'), color: EXPENSE_COLOR, value: (m) => m.expense },
             ]}
             format={f.usd}
-            ariaValue={(m) => `درآمد ${f.usd(m.income)}، هزینه ${f.usd(m.expense)}`}
+            ariaValue={(m) => t('درآمد {income}، هزینه {expense}', { income: f.usd(m.income), expense: f.usd(m.expense) })}
             readout={(m) => (
               <>
                 <div>
                   <strong className={m.net < 0 ? 'text-loss' : ''}>{f.usd(m.net)}</strong>
-                  <span><bdi>{m.label}</bdi>، مانده</span>
+                  <span>{rich(t('<bdi>{month}</bdi>، مانده'), { month: m.label })}</span>
                 </div>
-                {m.unpriced > 0 && <span className="report-readout-detail">{m.unpriced.toLocaleString(intlLocale())} مورد بدون نرخ دلار</span>}
+                {m.unpriced > 0 && <span className="report-readout-detail">{t('{n} مورد بدون نرخ دلار', { n: m.unpriced.toLocaleString(intlLocale()) })}</span>}
               </>
             )}
           />
@@ -238,14 +257,14 @@ export default function ReportDashboard({ data, f, yearLabel, hideValues }) {
 
       {/* Every month in one table */}
       <ReportCard
-        title="ماه‌به‌ماه"
+        title={t('ماه‌به‌ماه')}
         span="span-12"
         className="report-table-card"
         actions={(
           <GenericCsvExportButton
             items={rows}
             headers={CSV_HEADERS}
-            fileBaseName={`گزارش-${yearLabel}`}
+            fileBaseName={t('گزارش-{year}', { year: yearLabel })}
             disabled={!rows.length}
             mapRow={(r) => [r.label, Math.round(r.income), Math.round(r.expense), Math.round(r.net), round1(r.savingsRate), Math.round(r.invested), round1(r.investShare), Math.round(r.incomeUsd), Math.round(r.expenseUsd)]}
           />
@@ -253,18 +272,18 @@ export default function ReportDashboard({ data, f, yearLabel, hideValues }) {
       >
         <div className="report-table-scroll">
           <table className="flow-month-grid report-month-grid">
-            <caption className="sr-only">درآمد، هزینه، مانده، سرمایه‌گذاری و ارزش دلاری ماه‌به‌ماه</caption>
+            <caption className="sr-only">{t('درآمد، هزینه، مانده، سرمایه‌گذاری و ارزش دلاری ماه‌به‌ماه')}</caption>
             <thead>
               <tr>
-                <th scope="col">ماه</th>
-                <th scope="col">درآمد</th>
-                {hasExpenses && <th scope="col">هزینه</th>}
-                {hasExpenses && <th scope="col">مانده</th>}
-                {hasExpenses && <th scope="col">نرخ پس‌انداز</th>}
-                {hasExpenses && <th scope="col">سرمایه‌گذاری</th>}
-                {hasExpenses && <th scope="col">سهم از درآمد</th>}
-                <th scope="col">درآمد $</th>
-                {hasExpenses && <th scope="col">هزینه $</th>}
+                <th scope="col">{t('ماه')}</th>
+                <th scope="col">{t('درآمد')}</th>
+                {hasExpenses && <th scope="col">{t('هزینه')}</th>}
+                {hasExpenses && <th scope="col">{t('مانده')}</th>}
+                {hasExpenses && <th scope="col">{t('نرخ پس‌انداز')}</th>}
+                {hasExpenses && <th scope="col">{t('سرمایه‌گذاری')}</th>}
+                {hasExpenses && <th scope="col">{t('سهم از درآمد')}</th>}
+                <th scope="col">{t('درآمد $')}</th>
+                {hasExpenses && <th scope="col">{t('هزینه $')}</th>}
               </tr>
             </thead>
             <tbody>
@@ -272,7 +291,7 @@ export default function ReportDashboard({ data, f, yearLabel, hideValues }) {
                 <tr key={r.key}>
                   <th scope="row">
                     {r.monthLabel}
-                    {r.unpriced > 0 && <span className="report-unpriced-mark" title={`${r.unpriced.toLocaleString(intlLocale())} مورد بدون نرخ دلار`}>*</span>}
+                    {r.unpriced > 0 && <span className="report-unpriced-mark" title={t('{n} مورد بدون نرخ دلار', { n: r.unpriced.toLocaleString(intlLocale()) })}>*</span>}
                   </th>
                   <td>{f.compact(r.income)}</td>
                   {hasExpenses && <td>{f.compact(r.expense)}</td>}
@@ -287,7 +306,7 @@ export default function ReportDashboard({ data, f, yearLabel, hideValues }) {
             </tbody>
             <tfoot>
               <tr>
-                <th scope="row">جمع سال</th>
+                <th scope="row">{t('جمع سال')}</th>
                 <td>{f.compact(cash.income)}</td>
                 {hasExpenses && <td>{f.compact(cash.expense)}</td>}
                 {hasExpenses && <td className={cash.net < 0 ? 'text-loss' : ''}>{f.compact(cash.net)}</td>}
@@ -304,12 +323,12 @@ export default function ReportDashboard({ data, f, yearLabel, hideValues }) {
 
       {/* Invested by asset, and how the figures are worked */}
       {hasExpenses && (
-        <ReportCard title="سرمایه‌گذاری‌های سال" Icon={TrendingUp} span="span-6" className="report-table-card">
+        <ReportCard title={t('سرمایه‌گذاری‌های سال')} Icon={TrendingUp} span="span-6" className="report-table-card">
           {investedIn.length ? (
             <table className="flow-month-grid report-month-grid">
-              <caption className="sr-only">هزینه‌های سرمایه‌گذاری سال، به تفکیک آنچه در آن سرمایه‌گذاری شد</caption>
+              <caption className="sr-only">{t('هزینه‌های سرمایه‌گذاری سال، به تفکیک آنچه در آن سرمایه‌گذاری شد')}</caption>
               <thead>
-                <tr><th scope="col">در</th><th scope="col">تعداد</th><th scope="col">مبلغ</th><th scope="col">سهم</th></tr>
+                <tr><th scope="col">{t('در')}</th><th scope="col">{t('تعداد')}</th><th scope="col">{t('مبلغ')}</th><th scope="col">{t('سهم')}</th></tr>
               </thead>
               <tbody>
                 {investedIn.map((a) => (
@@ -323,17 +342,17 @@ export default function ReportDashboard({ data, f, yearLabel, hideValues }) {
               </tbody>
             </table>
           ) : (
-            <p className="report-empty">هزینه‌ای با دسته‌ی «سرمایه‌گذاری» در این سال ثبت نشده است.</p>
+            <p className="report-empty">{t('هزینه‌ای با دسته‌ی «سرمایه‌گذاری» در این سال ثبت نشده است.')}</p>
           )}
         </ReportCard>
       )}
       {hasExpenses && subscriptionYear && (
-        <ReportCard title="اشتراک‌های سال" Icon={CalendarSync} span="span-6" className="report-table-card">
+        <ReportCard title={t('اشتراک‌های سال')} Icon={CalendarSync} span="span-6" className="report-table-card">
           {subscriptionYear.count > 0 ? (
             <table className="flow-month-grid report-month-grid">
-              <caption className="sr-only">پرداخت‌های سال برای هر اشتراک</caption>
+              <caption className="sr-only">{t('پرداخت‌های سال برای هر اشتراک')}</caption>
               <thead>
-                <tr><th scope="col">اشتراک</th><th scope="col">پرداخت</th><th scope="col">مبلغ</th><th scope="col">سهم</th></tr>
+                <tr><th scope="col">{t('اشتراک')}</th><th scope="col">{t('پرداخت')}</th><th scope="col">{t('مبلغ')}</th><th scope="col">{t('سهم')}</th></tr>
               </thead>
               <tbody>
                 {subscriptionYear.rows.map((r) => (
@@ -346,7 +365,7 @@ export default function ReportDashboard({ data, f, yearLabel, hideValues }) {
                 ))}
                 {subscriptionYear.unlinked.count > 0 && (
                   <tr>
-                    <th scope="row">بدون اشتراک مشخص</th>
+                    <th scope="row">{t('بدون اشتراک مشخص')}</th>
                     <td>{subscriptionYear.unlinked.count.toLocaleString(intlLocale())}</td>
                     <td>{f.compact(subscriptionYear.unlinked.total)}</td>
                     <td>{f.pct(subscriptionYear.total > 0 ? (subscriptionYear.unlinked.total / subscriptionYear.total) * 100 : null)}</td>
@@ -355,7 +374,7 @@ export default function ReportDashboard({ data, f, yearLabel, hideValues }) {
               </tbody>
               <tfoot>
                 <tr>
-                  <th scope="row">جمع</th>
+                  <th scope="row">{t('جمع')}</th>
                   <td>{subscriptionYear.count.toLocaleString(intlLocale())}</td>
                   <td>{f.compact(subscriptionYear.total)}</td>
                   <td />
@@ -363,16 +382,16 @@ export default function ReportDashboard({ data, f, yearLabel, hideValues }) {
               </tfoot>
             </table>
           ) : (
-            <p className="report-empty">پرداختی برای اشتراک‌ها در این سال ثبت نشده است.</p>
+            <p className="report-empty">{t('پرداختی برای اشتراک‌ها در این سال ثبت نشده است.')}</p>
           )}
         </ReportCard>
       )}
-      <ReportCard title="خارج از جمع (جدا)" Icon={EyeOff} span="span-6" className="report-table-card">
+      <ReportCard title={t('خارج از جمع (جدا)')} Icon={EyeOff} span="span-6" className="report-table-card">
         {apartRows.length ? (
           <table className="flow-month-grid report-month-grid">
-            <caption className="sr-only">آنچه در جمع درآمد و هزینه حساب نمی‌شود: دسته‌های خارج از جمع و هزینه‌های پروژه‌ها</caption>
+            <caption className="sr-only">{t('آنچه در جمع درآمد و هزینه حساب نمی‌شود: دسته‌های خارج از جمع و هزینه‌های پروژه‌ها')}</caption>
             <thead>
-              <tr><th scope="col">مورد</th><th scope="col">نوع</th><th scope="col">تعداد</th><th scope="col">مبلغ</th></tr>
+              <tr><th scope="col">{t('مورد')}</th><th scope="col">{t('نوع')}</th><th scope="col">{t('تعداد')}</th><th scope="col">{t('مبلغ')}</th></tr>
             </thead>
             <tbody>
               {apartRows.map((r) => (
@@ -386,15 +405,15 @@ export default function ReportDashboard({ data, f, yearLabel, hideValues }) {
             </tbody>
           </table>
         ) : (
-          <p className="report-empty">در این سال چیزی خارج از جمع ثبت نشده است.</p>
+          <p className="report-empty">{t('در این سال چیزی خارج از جمع ثبت نشده است.')}</p>
         )}
       </ReportCard>
-      <ReportCard title="روش محاسبه" Icon={BookOpen} span="span-6" className="report-method">
+      <ReportCard title={t('روش محاسبه')} Icon={BookOpen} span="span-6" className="report-method">
         <ul>
-          <li>همه‌ی خرج‌ها در هزینه‌ها ثبت می‌شوند؛ دسته‌های «خارج از جمع» (مثل سرمایه‌گذاری) و هزینه‌های پروژه‌ها در جمع‌ها حساب نمی‌شوند و در «خارج از جمع (جدا)» آمده‌اند.</li>
-          <li>سرمایه‌گذاری: هزینه‌های روزمره‌ای که با دسته‌ی «سرمایه‌گذاری» ثبت شده‌اند (سهم خود شما، هزینه‌ی دلاری به نرخ روزش)؛ این هزینه‌ها در جمع هزینه‌ها حساب نمی‌شوند. به تفکیک دارایی‌ای که به پورتفو اضافه شده، وگرنه به عنوان هزینه.</li>
-          <li>اشتراک‌ها: هزینه‌هایی که به یک اشتراک وصل شده‌اند («ثبت پرداخت» در اشتراک‌ها، یا انتخاب اشتراک در فرم هزینه)؛ پرداخت‌های دسته‌ی «اینترنت و اشتراک‌ها» که به اشتراکی وصل نیستند جدا آمده‌اند.</li>
-          <li>دلار: هر مورد به نرخ دلار روز خودش (نرخ ثبت‌شده، وگرنه تاریخچه‌ی قیمت)؛ مورد بی‌نرخ به نرخ امروز حساب نمی‌شود{dollars.unpriced > 0 ? ` (${dollars.unpriced.toLocaleString(intlLocale())} مورد در این سال، با * کنار نام ماه در جدول)` : ''}.</li>
+          <li>{t('همه‌ی خرج‌ها در هزینه‌ها ثبت می‌شوند؛ دسته‌های «خارج از جمع» (مثل سرمایه‌گذاری) و هزینه‌های پروژه‌ها در جمع‌ها حساب نمی‌شوند و در «خارج از جمع (جدا)» آمده‌اند.')}</li>
+          <li>{t('سرمایه‌گذاری: هزینه‌های روزمره‌ای که با دسته‌ی «سرمایه‌گذاری» ثبت شده‌اند (سهم خود شما، هزینه‌ی دلاری به نرخ روزش)؛ این هزینه‌ها در جمع هزینه‌ها حساب نمی‌شوند. به تفکیک دارایی‌ای که به پورتفو اضافه شده، وگرنه به عنوان هزینه.')}</li>
+          <li>{t('اشتراک‌ها: هزینه‌هایی که به یک اشتراک وصل شده‌اند («ثبت پرداخت» در اشتراک‌ها، یا انتخاب اشتراک در فرم هزینه)؛ پرداخت‌های دسته‌ی «اینترنت و اشتراک‌ها» که به اشتراکی وصل نیستند جدا آمده‌اند.')}</li>
+          <li>{t('دلار: هر مورد به نرخ دلار روز خودش (نرخ ثبت‌شده، وگرنه تاریخچه‌ی قیمت)؛ مورد بی‌نرخ به نرخ امروز حساب نمی‌شود')}{dollars.unpriced > 0 ? ` ${t('({n} مورد در این سال، با * کنار نام ماه در جدول)', { n: dollars.unpriced.toLocaleString(intlLocale()) })}` : ''}{t('.')}</li>
         </ul>
       </ReportCard>
     </div>

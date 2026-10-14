@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { MoreVertical } from 'lucide-react';
@@ -15,7 +16,7 @@ import { MoreVertical } from 'lucide-react';
  *   disabled?: boolean, danger?: boolean, title?: string }>} items — falsy entries are skipped
  * @param {string} [label] — the button's accessible name
  */
-export default function ActionMenu({ items = [], label = 'گزینه‌های بیشتر', disabled = false, className = '' }) {
+export default function ActionMenu({ items = [], label = t('گزینه‌های بیشتر'), disabled = false, className = '' }) {
   const [open, setOpen] = useState(false);
   const [place, setPlace] = useState(null);
   const rootRef = useRef(null);

@@ -18,7 +18,8 @@
  * request, which its chart then reuses), and — turned — the formula's daily chart.
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
+import { calendarLocale } from '../../shared/utils/dates.js';
 import React, { useState } from 'react';
 import { ChartCandlestick, Sigma } from 'lucide-react';
 import { CategoryIcon } from '../portfolio/utils/holdingHelpers.js';
@@ -38,19 +39,19 @@ const formatPct = (v, digits = 1) =>
 
 function bubbleBadge(item) {
   const hasMarket = item.market !== null && item.market !== undefined;
-  if (!hasMarket) return { className: 'disabled', text: 'بدون نرخ بازار' };
+  if (!hasMarket) return { className: 'disabled', text: t('بدون نرخ بازار') };
   const pct = formatPct(item.bubble_pct);
-  if (item.bubble_pct < 0) return { className: 'badge-good', text: `حباب منفی ${pct}٪` };
-  if (item.bubble_pct <= 5) return { className: 'badge-blue', text: `حباب +${pct}٪` };
-  if (item.bubble_pct <= 15) return { className: 'badge-orange', text: `حباب +${pct}٪` };
-  return { className: 'badge-danger', text: `حباب +${pct}٪` };
+  if (item.bubble_pct < 0) return { className: 'badge-good', text: t('حباب منفی {pct}٪', { pct }) };
+  if (item.bubble_pct <= 5) return { className: 'badge-blue', text: t('حباب +{pct}٪', { pct }) };
+  if (item.bubble_pct <= 15) return { className: 'badge-orange', text: t('حباب +{pct}٪', { pct }) };
+  return { className: 'badge-danger', text: t('حباب +{pct}٪', { pct }) };
 }
 
 function changeBadge(changePercent) {
   if (changePercent === null || changePercent === undefined || changePercent === 0) return null;
   return {
     className: changePercent > 0 ? 'badge-good' : 'badge-danger',
-    text: `${changePercent > 0 ? '▲' : '▼'} ${formatPct(changePercent, 2)}٪`,
+    text: `${changePercent > 0 ? '▲' : '▼'} ${formatPct(changePercent, 2)}${t('٪')}`,
   };
 }
 
@@ -64,15 +65,15 @@ function AssetIcon({ asset }) {
   );
 }
 
-const staleTimeFormat = new Intl.DateTimeFormat(intlLocale(), { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+const staleTimeFormat = new Intl.DateTimeFormat(calendarLocale(), { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
 /** A price whose source hasn't updated for a while says so */
 function StaleMark({ asset }) {
   if (!asset?.stale) return null;
   const since = asset.staleSince ? new Date(asset.staleSince) : null;
   const when = since && !Number.isNaN(since.getTime()) ? staleTimeFormat.format(since) : '';
-  const title = when ? `این قیمت از ${when} به‌روز نشده است` : 'این قیمت مدتی است به‌روز نشده است';
-  return <span className="home-stale-mark" title={title}>قدیمی</span>;
+  const title = when ? t('این قیمت از {when} به‌روز نشده است', { when }) : t('این قیمت مدتی است به‌روز نشده است');
+  return <span className="home-stale-mark" title={title}>{t('قدیمی')}</span>;
 }
 
 function CompactCard({ asset }) {
@@ -96,7 +97,7 @@ function CompactCard({ asset }) {
         </div>
       ) : (
       <div className="curr-price-block">
-        <div className="curr-price-val" title={asset.main ? `${asset.main.label} — آخرین قیمت ${formatNum(asset.price, asset.currency)}` : undefined}>
+        <div className="curr-price-val" title={asset.main ? t('{label} — آخرین قیمت {price}', { label: t(asset.main.label), price: formatNum(asset.price, asset.currency) }) : undefined}>
           {asset.main ? formatNum(asset.main.value, asset.main.currency) : asset.price ? formatNum(asset.price, asset.currency) : '—'}
           <span className="curr-unit">{asset.unit}</span>
         </div>
@@ -119,14 +120,14 @@ function FormulaStats({ asset }) {
   if (!range || status === 'empty' || status === 'error') return null;
   const label = FORMULA_STATS[range];
   const cells = [
-    { key: 'max', label: `بیشینه ${label}` },
-    { key: 'min', label: `کمینه ${label}` },
-    { key: 'avg', label: `میانگین ${label}` },
+    { key: 'max', label: t('بیشینه {label}', { label: t(label) }) },
+    { key: 'min', label: t('کمینه {label}', { label: t(label) }) },
+    { key: 'avg', label: t('میانگین {label}', { label: t(label) }) },
   ];
   return (
     <div className="pro-metrics" aria-busy={!stats}>
       {cells.map((c) => (
-        <div key={c.key} className="pro-metric" title={stats ? `${c.label} (از ${stats.days.toLocaleString(intlLocale())} روز ثبت‌شده)` : c.label}>
+        <div key={c.key} className="pro-metric" title={stats ? t('{label} (از {days} روز ثبت‌شده)', { label: c.label, days: stats.days.toLocaleString(intlLocale()) }) : c.label}>
           <span>{c.label}</span>
           <strong><bdi>{stats ? formatFormulaShown(stats[c.key], asset.formula.format) : '…'}</bdi></strong>
         </div>
@@ -139,9 +140,9 @@ function FormulaStats({ asset }) {
 function DayRange({ range, currency }) {
   if (!range) return null;
   return (
-    <div className="pro-range-labels" title="دامنه‌ی نوسان امروز">
-      <span><small>کف امروز</small> {formatNum(range.low, currency)}</span>
-      <span><small>سقف امروز</small> {formatNum(range.high, currency)}</span>
+    <div className="pro-range-labels" title={t('دامنه‌ی نوسان امروز')}>
+      <span><small>{t('کف امروز')}</small> {formatNum(range.low, currency)}</span>
+      <span><small>{t('سقف امروز')}</small> {formatNum(range.high, currency)}</span>
     </div>
   );
 }
@@ -166,7 +167,7 @@ function CardHead({ asset, pill }) {
   );
 }
 
-const signed = (v, digits = 1) => `${v < 0 ? '−' : v > 0 ? '+' : ''}${formatPct(v, digits)}٪`;
+const signed = (v, digits = 1) => `${v < 0 ? '−' : v > 0 ? '+' : ''}${formatPct(v, digits)}${t('٪')}`;
 
 /** How a slot's value reads: its tone (a CSS class) by what it is */
 function slotTone(slot) {
@@ -180,11 +181,11 @@ function slotTone(slot) {
 }
 
 /** An average of fewer days than its window says how many («از ۲۰۰ روز») */
-const daysNote = (window, days) => (window && days && days < AVERAGE_WINDOWS[window]?.days ? `از ${Number(days).toLocaleString(intlLocale())} روز ثبت‌شده` : '');
+const daysNote = (window, days) => (window && days && days < AVERAGE_WINDOWS[window]?.days ? t('از {days} روز ثبت‌شده', { days: Number(days).toLocaleString(intlLocale()) }) : '');
 
 function slotText(slot) {
   if (slot.value === null) return '—';
-  if (slot.kind === 'pct') return slot.key.endsWith('change') || slot.key.endsWith('deviation') ? signed(slot.value) : `${formatPct(slot.value)}٪`;
+  if (slot.kind === 'pct') return slot.key.endsWith('change') || slot.key.endsWith('deviation') ? signed(slot.value) : `${formatPct(slot.value)}${t('٪')}`;
   return `${slot.currency === 'usd' ? '$' : ''}${formatNum(slot.value, slot.currency)}`;
 }
 
@@ -194,11 +195,12 @@ function CardSlots({ slots }) {
   return (
     <div className="pro-metrics">
       {slots.map((slot) => {
-        const label = slot.linkedName ? `${slot.label} · ${slot.linkedName}` : slot.label;
+        const slotLabel = t(slot.label);
+        const label = slot.linkedName ? `${slotLabel} · ${slot.linkedName}` : slotLabel;
         const note = daysNote(slot.window, slot.days);
         return (
           <div key={slot.key} className="pro-metric" title={note ? `${label} (${note})` : label}>
-            <span>{slot.label}</span>
+            <span>{slotLabel}</span>
             {slot.linkedName && <small>{slot.linkedName}</small>}
             <strong className={slotTone(slot)}><bdi>{slotText(slot)}</bdi></strong>
           </div>
@@ -214,18 +216,18 @@ function MainCaption({ asset, price, currency }) {
     const note = daysNote(asset.main.window, asset.main.days);
     return (
       <span className="home-price-caption">
-        {asset.main.label}{note ? ` (${note})` : ''} · آخرین قیمت {price ? formatNum(price, currency) : '—'}
+        {t('{label} · آخرین قیمت {price}', { label: `${t(asset.main.label)}${note ? ` (${note})` : ''}`, price: price ? formatNum(price, currency) : '—' })}
       </span>
     );
   }
-  if (asset.mainMissing) return <span className="home-price-caption">{asset.mainMissing} هنوز ثبت نشده — آخرین قیمت</span>;
+  if (asset.mainMissing) return <span className="home-price-caption">{t('{label} هنوز ثبت نشده — آخرین قیمت', { label: t(asset.mainMissing) })}</span>;
   return null;
 }
 
 const CANDLE_RANGES = [
-  { value: '30d', label: '۱ ماه' },
-  { value: '180d', label: '۶ ماه' },
-  { value: '1y', label: '۱ سال' },
+  { value: '30d', label: t('۱ ماه') },
+  { value: '180d', label: t('۶ ماه') },
+  { value: '1y', label: t('۱ سال') },
 ];
 
 /**
@@ -254,7 +256,7 @@ function FullCard({ asset, isBest = false, flippable = true }) {
   const hasMarket = item ? item.market !== null && item.market !== undefined : true;
   const price = asset.price || (item ? (hasMarket ? item.market : item.intrinsic) : null) || null;
   const formula = asset.formula || null;
-  const unit = formula ? (formula.format === 'percent' ? '٪' : '') : item ? 'تومان' : asset.unit;
+  const unit = formula ? (formula.format === 'percent' ? t('٪') : '') : item ? t('تومان') : asset.unit;
   const currency = item ? 'toman' : asset.currency;
   // The book's change of its last session (params.changePercent, set by the sync)
   const change = changeBadge(asset.changePercent);
@@ -278,7 +280,7 @@ function FullCard({ asset, isBest = false, flippable = true }) {
   };
 
   const changePill = change && (
-    <span className={`bubble-pill ${change.className}`} title="تغییر نسبت به پایانی جلسه‌ی قبل">
+    <span className={`bubble-pill ${change.className}`} title={t('تغییر نسبت به پایانی جلسه‌ی قبل')}>
       <bdi>{change.text}</bdi>
     </span>
   );
@@ -294,7 +296,7 @@ function FullCard({ asset, isBest = false, flippable = true }) {
             role: 'button',
             tabIndex: 0,
             'aria-pressed': isFlipped,
-            'aria-label': isFlipped ? `${asset.name}: بازگشت به جزئیات` : `${asset.name}: نمایش نمودار کندلی`,
+            'aria-label': isFlipped ? t('{name}: بازگشت به جزئیات', { name: asset.name }) : t('{name}: نمایش نمودار کندلی', { name: asset.name }),
             onClick: toggle,
             onKeyDown,
           }
@@ -305,7 +307,7 @@ function FullCard({ asset, isBest = false, flippable = true }) {
           <CardHead asset={asset} pill={pill} />
           <div className="pro-card-price">
             {formula ? (
-              asset.value !== null ? <span className="pro-card-price-value">{asset.valueText}</span> : <span className="price-unavailable">نرخ در دسترس نیست</span>
+              asset.value !== null ? <span className="pro-card-price-value">{asset.valueText}</span> : <span className="price-unavailable">{t('نرخ در دسترس نیست')}</span>
             ) : asset.main ? (
               <>
                 <span className="pro-card-price-value">{formatNum(asset.main.value, asset.main.currency)}</span>
@@ -317,17 +319,17 @@ function FullCard({ asset, isBest = false, flippable = true }) {
                 <span className="pro-card-price-unit">{unit}</span>
               </>
             ) : (
-              <span className="price-unavailable">نرخ در دسترس نیست</span>
+              <span className="price-unavailable">{t('نرخ در دسترس نیست')}</span>
             )}
             {item && changePill}
           </div>
           {!formula && <MainCaption asset={asset} price={price} currency={currency} />}
           {asset.display === 'toman' && asset.note && <span className="home-price-caption">{asset.note}</span>}
-          {item && !hasMarket && <span className="home-price-caption">ارزش ذاتی — نرخ بازار فعلاً در دسترس نیست</span>}
+          {item && !hasMarket && <span className="home-price-caption">{t('ارزش ذاتی — نرخ بازار فعلاً در دسترس نیست')}</span>}
           <StaleMark asset={asset} />
           {asset.updatedAt && (
-            <span className="pro-card-updated" title={new Date(asset.updatedAt).toLocaleString(intlLocale())}>
-              آخرین تغییر {timeAgo(asset.updatedAt)}
+            <span className="pro-card-updated" title={new Date(asset.updatedAt).toLocaleString(calendarLocale())}>
+              {t('آخرین تغییر {when}', { when: timeAgo(asset.updatedAt) })}
             </span>
           )}
           {formula ? <FormulaStats asset={asset} /> : <CardSlots slots={asset.slots} />}
@@ -342,7 +344,7 @@ function FullCard({ asset, isBest = false, flippable = true }) {
         </div>
         {flippable && opened && (
           <div className="pro-card-face is-back" aria-hidden={!isFlipped}>
-            <div className="pro-card-ranges" role="group" aria-label="بازه‌ی نمودار">
+            <div className="pro-card-ranges" role="group" aria-label={t('بازه‌ی نمودار')}>
               {CANDLE_RANGES.map((r) => (
                 <button
                   key={r.value}
@@ -353,18 +355,18 @@ function FullCard({ asset, isBest = false, flippable = true }) {
                   onClick={(e) => pickRange(e, r.value)}
                   onKeyDown={(e) => e.stopPropagation()}
                 >
-                  {r.label}
+                  {t(r.label)}
                 </button>
               ))}
             </div>
             {backSeries?.candles?.length ? (
               <div className={`pro-card-chart ${loading ? 'is-loading' : ''}`}>
-                <TrendCandles candles={backSeries.candles} days={backSeries.days} unit={unit} currency={currency} label={`نمودار کندلی ${asset.name}`} />
+                <TrendCandles candles={backSeries.candles} days={backSeries.days} unit={unit} currency={currency} label={t('نمودار کندلی {name}', { name: asset.name })} />
               </div>
             ) : loading ? (
-              <div className="pro-card-back-state is-loading" aria-label="در حال دریافت نمودار" role="status" />
+              <div className="pro-card-back-state is-loading" aria-label={t('در حال دریافت نمودار')} role="status" />
             ) : (
-              <div className="pro-card-back-state">{status === 'error' ? 'نمودار فعلاً در دسترس نیست' : 'تاریخچه‌ای برای این بازه ثبت نشده'}</div>
+              <div className="pro-card-back-state">{status === 'error' ? t('نمودار فعلاً در دسترس نیست') : t('تاریخچه‌ای برای این بازه ثبت نشده')}</div>
             )}
           </div>
         )}
@@ -377,7 +379,7 @@ function MissingCard({ asset, style }) {
   return (
     <div className={`${style === 'compact' ? 'currency-item-card' : 'home-pro-card'} home-card-missing`}>
       <span className="curr-persian-name">{asset.id}</span>
-      <span className="curr-desc">این مورد فعلاً در بازار نرخی ندارد.</span>
+      <span className="curr-desc">{t('این مورد فعلاً در بازار نرخی ندارد.')}</span>
     </div>
   );
 }
