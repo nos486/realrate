@@ -122,3 +122,4 @@ export const SMS_DESCRIPTION_CATEGORIES = [
 | Tejarat | Sender `TejaratBank`; `tejarat-balance` — «*بانک تجارت*», «حساب:», «برداشت/واریز:» amount in rials, optional «از طریق:» (the description), «مانده:» in rials, `YYYY/MM/DD` and the time on the next line |
 | Melli | Sender `700717`; `melli-balance` — «بانک ملی ایران», the transaction kind (برداشت/انتقال/پایا/خریداینترنتی …, the description) with a signed amount (rials), «حساب:», «مانده:», `MMDD-HH:MM` |
 | Khavarmianeh | Sender `KH M BANK`; `khavarmianeh-balance` — «بانک خاورمیانه», account `branch/account`, signed amount (rials), `MM/DD` and the time on the next line, «مانده», optional description on the last line |
+| Post Bank | Sender `POSTBANK`; `post-balance` — «پست بانک», «شماره تسهیلات:» (the number is optional), signed amount (rials), `YYYY/MM/DD` and the time on separate lines, «مانده: … ریال» |
