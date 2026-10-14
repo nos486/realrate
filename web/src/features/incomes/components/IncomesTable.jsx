@@ -5,6 +5,7 @@
  */
 
 import React from 'react';
+import { t } from '../../../utils/i18n.js';
 import { Calendar, MessageSquare, Pencil, Trash2 } from 'lucide-react';
 import { ResponsiveDataTable } from '../../../shared/ui/index.js';
 import OwnedRecordLink from '../../../shared/ui/OwnedRecordLink.jsx';
@@ -25,7 +26,7 @@ export default function IncomesTable({ incomes, onEdit, onDelete, deletingId = n
   const columns = [
     {
       key: 'title',
-      header: 'عنوان',
+      header: t('عنوان'),
       mobile: 'title',
       render: (income) => (
         <span className="income-title-text">
@@ -36,7 +37,7 @@ export default function IncomesTable({ incomes, onEdit, onDelete, deletingId = n
     },
     {
       key: 'category',
-      header: 'دسته‌بندی',
+      header: t('دسته‌بندی'),
       mobile: 'meta',
       render: (income) => {
         const { label, Icon, color, excluded } = getIncomeCategory(income.category);
@@ -44,14 +45,14 @@ export default function IncomesTable({ incomes, onEdit, onDelete, deletingId = n
           <span className="income-category-badge" style={{ '--income-cat-color': color }}>
             <Icon size={12} />
             {label}
-            {excluded && <span className="excluded-badge" title="در جمع درآمدها حساب نمی‌شود">خارج از جمع</span>}
+            {excluded && <span className="excluded-badge" title={t('در جمع درآمدها حساب نمی‌شود')}>{t('خارج از جمع')}</span>}
           </span>
         );
       },
     },
     {
       key: 'date',
-      header: 'تاریخ دریافت',
+      header: t('تاریخ دریافت'),
       // Sorted on the server (by the plaintext date), newest first by default
       sortKey: 'date',
       mobile: 'meta',
@@ -64,7 +65,7 @@ export default function IncomesTable({ incomes, onEdit, onDelete, deletingId = n
     },
     {
       key: 'amount',
-      header: 'مبلغ',
+      header: t('مبلغ'),
       mobile: 'stat',
       render: (income) => {
         const foreign = isForeignCurrency(income.currency);
@@ -76,7 +77,7 @@ export default function IncomesTable({ incomes, onEdit, onDelete, deletingId = n
             </strong>
             <span className="cell-unit">{currencyLabel(income.currency)}</span>
             {foreign && toman !== null && (
-              <span className="expense-toman-equiv">≈ {hideValues ? '****' : formatNum(Math.round(toman))} تومان</span>
+              <span className="expense-toman-equiv">{t('≈ {amount} تومان', { amount: hideValues ? '****' : formatNum(Math.round(toman)) })}</span>
             )}
             {income.currency !== 'USD' && <DollarValueLine value={incomeDollarValue(income, rates)} hideValues={hideValues} />}
           </div>
@@ -85,7 +86,7 @@ export default function IncomesTable({ incomes, onEdit, onDelete, deletingId = n
     },
     {
       key: 'notes',
-      header: 'یادداشت',
+      header: t('یادداشت'),
       tdClassName: 'td-notes',
       render: (income) => (
         <span className="table-notes-text" title={income.notes || ''}>
@@ -102,7 +103,7 @@ export default function IncomesTable({ incomes, onEdit, onDelete, deletingId = n
       ? [
           {
             key: 'actions',
-            header: 'عملیات',
+            header: t('عملیات'),
             mobile: 'actions',
             render: (income) => (
               <div className="row-actions-group">
@@ -112,7 +113,7 @@ export default function IncomesTable({ incomes, onEdit, onDelete, deletingId = n
                     <button
                       type="button"
                       className="btn-table-action edit"
-                      title="ویرایش درآمد"
+                      title={t('ویرایش درآمد')}
                       onClick={() => onEdit(income)}
                     >
                       <Pencil size={13} strokeWidth={2} />
@@ -120,7 +121,7 @@ export default function IncomesTable({ incomes, onEdit, onDelete, deletingId = n
                     <button
                       type="button"
                       className={`btn-table-action delete ${deletingId === income.id ? 'loading' : ''}`}
-                      title="حذف درآمد"
+                      title={t('حذف درآمد')}
                       onClick={() => onDelete(income)}
                       disabled={deletingId === income.id}
                     >

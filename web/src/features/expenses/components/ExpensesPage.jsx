@@ -7,6 +7,7 @@
 
 import React from 'react';
 import { HandCoins } from 'lucide-react';
+import { t } from '../../../utils/i18n.js';
 import { FeaturePageHeader } from '../../../shared/ui/index.js';
 import VaultUnlockCard from '../../../shared/vault/VaultUnlockCard.jsx';
 import { useVault } from '../../../shared/vault/useVault.js';
@@ -16,9 +17,9 @@ import DailyExpensesView from './DailyExpensesView.jsx';
 
 const HEADER = {
   icon: <HandCoins size={24} />,
-  title: 'هزینه‌ها',
+  title: t('هزینه‌ها'),
   help: 'expenses',
-  subtitle: 'هزینه‌های روزمره با دسته‌بندی، بودجه و مقایسه با ماه قبل',
+  subtitle: t('هزینه‌های روزمره با دسته‌بندی، بودجه و مقایسه با ماه قبل'),
 };
 
 export default function ExpensesPage() {
@@ -31,7 +32,7 @@ export default function ExpensesPage() {
     return (
       <div className="incomes-page-container">
         <FeaturePageHeader {...HEADER} />
-        <VaultUnlockCard title="هزینه‌های شما رمزنگاری شده‌اند" />
+        <VaultUnlockCard title={t('هزینه‌های شما رمزنگاری شده‌اند')} />
       </div>
     );
   }

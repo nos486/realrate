@@ -9,6 +9,7 @@
  */
 
 import { useRef, useState, useEffect, useCallback } from 'react';
+import { t } from '../../../utils/i18n.js';
 import { useRefreshHandler } from '../../../shared/refresh/pageRefresh.js';
 import { useAuth } from '../../auth/index.js';
 import { useVault } from '../../../shared/vault/useVault.js';
@@ -44,7 +45,7 @@ export function useExpenses() {
       setGroups(projects);
       setExpenses(lists.flatMap((res) => res.expenses).sort(compareExpensesByDate));
     } catch (err) {
-      setError(err.message || 'خطا در بارگذاری هزینه‌ها');
+      setError(err.message || t('خطا در بارگذاری هزینه‌ها'));
     } finally {
       setLoading(false);
     }
@@ -90,7 +91,7 @@ export function useExpenses() {
       await fn();
       onDone();
     } catch (err) {
-      setError(err.message || 'خطا در حذف');
+      setError(err.message || t('خطا در حذف'));
       throw err;
     } finally {
       setDeletingId(null);

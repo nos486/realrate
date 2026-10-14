@@ -3,7 +3,7 @@
  * (warning past 80%, over-budget past 100%)
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { intlLocale, t } from '../../../utils/i18n.js';
 import React from 'react';
 import { formatAmount } from '../utils/format.js';
 
@@ -17,7 +17,7 @@ export default function BudgetProgress({ label, icon = null, spent, budget, hide
         <span className="budget-progress-label">{icon}{label}</span>
         <span className="budget-progress-values">
           {money(spent)} / {money(budget)}
-          <strong> {(share * 100).toLocaleString(intlLocale(), { maximumFractionDigits: 0 })}٪</strong>
+          <strong> {(share * 100).toLocaleString(intlLocale(), { maximumFractionDigits: 0 })}{t('٪')}</strong>
         </span>
       </div>
       <div
@@ -30,7 +30,7 @@ export default function BudgetProgress({ label, icon = null, spent, budget, hide
       >
         <span style={{ width: `${Math.min(share, 1) * 100}%` }} />
       </div>
-      {share > 1 && <span className="budget-progress-over">{money(spent - budget)} تومان بیش از بودجه</span>}
+      {share > 1 && <span className="budget-progress-over">{t('{amount} تومان بیش از بودجه', { amount: money(spent - budget) })}</span>}
     </div>
   );
 }

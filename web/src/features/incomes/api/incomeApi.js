@@ -3,6 +3,7 @@
  * Interfaces with RealRate Cloudflare Worker API via httpClient
  */
 
+import { t } from '../../../utils/i18n.js';
 import { httpClient } from '../../../shared/api/httpClient.js';
 import { routeThroughVault } from '../../../shared/vault/vaultRouting.js';
 import * as vaultIncomes from '../../../shared/vault/vaultIncomes.js';
@@ -44,7 +45,7 @@ async function createIncomeRest(incomeData, options) {
  * @returns {Promise<{ success: boolean, income: object }>}
  */
 async function updateIncomeRest(incomeId, incomeData) {
-  if (!incomeId) throw new Error('شناسه درآمد الزامی است');
+  if (!incomeId) throw new Error(t('شناسه درآمد الزامی است'));
   return httpClient.put(`/api/incomes/${encodeURIComponent(incomeId)}`, incomeData);
 }
 
@@ -54,7 +55,7 @@ async function updateIncomeRest(incomeId, incomeData) {
  * @returns {Promise<{ success: boolean, message: string }>}
  */
 async function deleteIncomeRest(incomeId) {
-  if (!incomeId) throw new Error('شناسه درآمد الزامی است');
+  if (!incomeId) throw new Error(t('شناسه درآمد الزامی است'));
   return httpClient.delete(`/api/incomes/${encodeURIComponent(incomeId)}`);
 }
 

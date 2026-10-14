@@ -4,6 +4,7 @@
  */
 
 import React from 'react';
+import { t } from '../../../utils/i18n.js';
 import { AlertBanner, FilterPills } from '../../../shared/ui/index.js';
 import { useAccounts } from '../../accounts/hooks/useAccounts.js';
 import { isCreditAccount } from '../../../utils/accountDocument.js';
@@ -18,11 +19,11 @@ export default function CreditAccountPicker({ value, onChange }) {
   const credits = accounts.filter((a) => isCreditAccount(a) && (!a.archived || a.id === value));
   if (loading && credits.length === 0) return null;
   if (credits.length === 0) {
-    return <AlertBanner type="info" message="برای این دسته، اعتبار بانکی را در صفحه‌ی «حساب‌ها» اضافه کنید." />;
+    return <AlertBanner type="info" message={t('برای این دسته، اعتبار بانکی را در صفحه‌ی «حساب‌ها» اضافه کنید.')} />;
   }
   return (
     <div className="ui-input-group">
-      <span className="ui-input-label">برای کدام اعتبار *</span>
+      <span className="ui-input-label">{t('برای کدام اعتبار *')}</span>
       <FilterPills
         options={credits.map((a) => ({ value: a.id, label: accountLabel(a) }))}
         activeValue={value}
@@ -30,7 +31,7 @@ export default function CreditAccountPicker({ value, onChange }) {
         size="sm"
         className="income-category-picker"
       />
-      <p className="expense-form-hint">این واریز از بدهی همین اعتبار کم می‌شود و به‌طور پیش‌فرض در جمع درآمدها حساب نمی‌شود.</p>
+      <p className="expense-form-hint">{t('این واریز از بدهی همین اعتبار کم می‌شود و به‌طور پیش‌فرض در جمع درآمدها حساب نمی‌شود.')}</p>
     </div>
   );
 }

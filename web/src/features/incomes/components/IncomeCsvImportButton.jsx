@@ -1,4 +1,5 @@
 import React from 'react';
+import { t } from '../../../utils/i18n.js';
 import { GenericCsvImportButton } from '../../../shared/ui/index.js';
 import { parseInputNumber } from '../../portfolio/utils/holdingHelpers.js';
 import { DEFAULT_INCOME_CATEGORY, LEGACY_CATEGORY_LABELS } from '../constants/incomeCategories.js';
@@ -6,14 +7,15 @@ import { listCategories } from '../../../shared/categories/categoryStore.js';
 import { BASE_CURRENCY, CURRENCIES } from '../../../utils/currencies.js';
 
 // Column headers must mirror IncomeCsvExportButton.jsx exactly so the exported file round-trips;
-// an older file's «مبلغ (تومان)» (no currency column) is read as tomans
+// an older file's «مبلغ (تومان)» (no currency column) is read as tomans. A file exported in the
+// other language is read too (its Persian headers stay accepted)
 const HEADERS = {
-  title: 'عنوان',
-  category: 'دسته‌بندی',
-  amount: ['مبلغ', 'مبلغ (تومان)'],
-  currency: 'ارز',
-  date: 'تاریخ دریافت',
-  notes: 'یادداشت',
+  title: [t('عنوان'), 'عنوان'], // i18n-ignore
+  category: [t('دسته‌بندی'), 'دسته‌بندی'], // i18n-ignore
+  amount: [t('مبلغ'), 'مبلغ', 'مبلغ (تومان)'], // i18n-ignore
+  currency: [t('ارز'), 'ارز'], // i18n-ignore
+  date: [t('تاریخ دریافت'), 'تاریخ دریافت'], // i18n-ignore
+  notes: [t('یادداشت'), 'یادداشت'], // i18n-ignore
 };
 
 /** A currency's name in the file → its code (tomans when empty or unknown) */
@@ -37,7 +39,7 @@ function parseIncomeRow(row, headerIndex, i) {
   const incomeDate = /^\d{4}-\d{2}-\d{2}$/.test(dateRaw) ? dateRaw : '';
 
   if (!title || !amount || amount <= 0 || !incomeDate) {
-    return { status: 'invalid', name: title || `ردیف ${i + 2}` };
+    return { status: 'invalid', name: title || t('ردیف {n}', { n: i + 2 }) };
   }
 
   const category = categoryFromLabel(get('category').trim()) || DEFAULT_INCOME_CATEGORY;
@@ -55,7 +57,7 @@ export default function IncomeCsvImportButton({ saveIncome, onImported, disabled
       // The list reloads once at the end, not after every row
       onImportRow={(data) => saveIncome(data, null, { reload: false })}
       onFinished={onImported}
-      itemLabel="درآمد"
+      itemLabel={t('درآمد')}
       disabled={disabled}
     />
   );

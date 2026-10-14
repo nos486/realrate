@@ -13,7 +13,7 @@ export const INCOME_CATEGORIES = BUILTIN_CATEGORIES.income.map((c) => ({ ...c, I
 export const DEFAULT_INCOME_CATEGORY = 'salary';
 
 /** Labels used by earlier versions (e.g. in exported CSV files) → category key */
-export const LEGACY_CATEGORY_LABELS = { 'حقوق و دستمزد': 'salary' };
+export const LEGACY_CATEGORY_LABELS = { 'حقوق و دستمزد': 'salary' }; // i18n-ignore
 
 /**
  * Resolve a category key to its display metadata (as the user named it), falling back to "other"
