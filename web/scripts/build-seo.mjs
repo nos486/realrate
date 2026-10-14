@@ -221,7 +221,8 @@ const outDir = resolve(distDir, L.base.replace(/^\//, ''));
 const other = SEO_LOCALES[L.code === 'fa' ? 'en' : 'fa'];
 mkdirSync(resolve(outDir, 'features'), { recursive: true });
 /** A link into the app (sign-in, sign-up, demo): English visitors carry their language along */
-const appLink = (path) => (L.code === 'en' ? `${path}?lang=en` : path);
+/** Links into the app carry the page's language so the app opens in it (the app's own choice is kept otherwise) */
+const appLink = (path) => `${path}?lang=${L.code}`;
 /** hreflang links to this page's counterpart in each language ("x-default" is Persian) */
 const alternateLinks = (altPath) =>
   altPath === null

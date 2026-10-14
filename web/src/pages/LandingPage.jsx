@@ -12,8 +12,9 @@
  * No prices are shown: nothing here is stale when cached or crawled. Styles: styles/landing.css.
  */
 import LanguageSwitch from '../shared/i18n/LanguageSwitch.jsx';
+import { publicPath } from '../shared/i18n/publicPath.js';
 import { getDir, getLocale, hasNews, t } from '../utils/i18n.js';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   TrendingUp,
   ArrowLeft,
@@ -39,23 +40,36 @@ import { toPersianDigits } from '../shared/utils/formatters.js';
 import { STATIC_PAGES } from '../seo/pages.js';
 import LandingAnalysis from '../features/news/LandingAnalysis.jsx';
 
-const LANDING_FAQS = STATIC_PAGES.faq.faqs.slice(0, 5);
+const LANDING_FAQ_COUNT = 5;
+const LANDING_FAQS = STATIC_PAGES.faq.faqs.slice(0, LANDING_FAQ_COUNT);
+
+/** The landing questions in the active language: the website's FAQ page texts (the English ones load only for English) */
+function useLandingFaqs() {
+  const [faqs, setFaqs] = useState(LANDING_FAQS);
+  useEffect(() => {
+    if (getLocale() === 'fa') return undefined;
+    let live = true;
+    import('../seo/pages.en.js').then((mod) => live && setFaqs(mod.STATIC_PAGES.faq.faqs.slice(0, LANDING_FAQ_COUNT)));
+    return () => { live = false; };
+  }, []);
+  return faqs;
+}
 const GITHUB_URL = 'https://github.com/nos486/realrate';
 
 /** What the app does: one line each, each to its own page */
 const FEATURES = [
-  { Icon: Scale, tone: 'gold', title: t('بازار و حباب'), text: t('ارزش ذاتی و حباب طلا و سکه، ارزها، تتر و بورس — به‌روز و خودکار.'), href: '/features/gold-coin-bubble' },
-  { Icon: PieChart, tone: 'blue', title: t('پورتفو'), text: t('همه‌ی دارایی‌ها در یک جا، با سود و زیان زنده و میانگین خرید.'), href: '/features/portfolio' },
-  { Icon: Wallet, tone: 'green', title: t('هزینه و بودجه'), text: t('هزینه‌های روزمره با دسته و بودجه‌ی ماهانه، حساب‌ها و پروژه‌ها.'), href: '/features' },
-  { Icon: Landmark, tone: 'cyan', title: t('درآمد، وام و چک'), text: t('اقساط و سررسیدها، درآمدهای ثابت و چک‌ها با یادآوری.'), href: '/features/loans' },
-  { Icon: ChartColumn, tone: 'violet', title: t('گزارش سالانه'), text: t('درآمد و هزینه، پس‌انداز و سرمایه‌گذاری سال در یک صفحه؛ خروجی PDF.'), href: '/features' },
-  { Icon: Newspaper, tone: 'rose', title: t('اخبار و تحلیل هوش مصنوعی'), text: t('فقط خبرهایی که روی بازار اثر دارند، و تحلیل هر روز.'), href: '/features', news: true },
+  { Icon: Scale, tone: 'gold', title: t('بازار و حباب'), text: t('ارزش ذاتی و حباب طلا و سکه، ارزها، تتر و بورس — به‌روز و خودکار.'), href: publicPath('/features/gold-coin-bubble') },
+  { Icon: PieChart, tone: 'blue', title: t('پورتفو'), text: t('همه‌ی دارایی‌ها در یک جا، با سود و زیان زنده و میانگین خرید.'), href: publicPath('/features/portfolio') },
+  { Icon: Wallet, tone: 'green', title: t('هزینه و بودجه'), text: t('هزینه‌های روزمره با دسته و بودجه‌ی ماهانه، حساب‌ها و پروژه‌ها.'), href: publicPath('/features') },
+  { Icon: Landmark, tone: 'cyan', title: t('درآمد، وام و چک'), text: t('اقساط و سررسیدها، درآمدهای ثابت و چک‌ها با یادآوری.'), href: publicPath('/features/loans') },
+  { Icon: ChartColumn, tone: 'violet', title: t('گزارش سالانه'), text: t('درآمد و هزینه، پس‌انداز و سرمایه‌گذاری سال در یک صفحه؛ خروجی PDF.'), href: publicPath('/features') },
+  { Icon: Newspaper, tone: 'rose', title: t('اخبار و تحلیل هوش مصنوعی'), text: t('فقط خبرهایی که روی بازار اثر دارند، و تحلیل هر روز.'), href: publicPath('/features'), news: true },
 ];
 
 /** Why trust it with your money */
 const PILLARS = [
-  { Icon: Lock, title: t('فقط برای خودت'), text: t('داده‌های مالی روی دستگاه خودت رمز می‌شوند؛ سرور فقط متن رمزشده را می‌بیند.'), link: { href: '/features/encryption', label: t('رمزنگاری سرتاسری') } },
-  { Icon: Smartphone, title: t('اپ اندروید'), text: t('پیامک بانک را خودش می‌خواند و هزینه را ثبت می‌کند — متن پیامک از گوشی بیرون نمی‌رود.'), link: { href: '/android', label: t('دانلود اپ') } },
+  { Icon: Lock, title: t('فقط برای خودت'), text: t('داده‌های مالی روی دستگاه خودت رمز می‌شوند؛ سرور فقط متن رمزشده را می‌بیند.'), link: { href: publicPath('/features/encryption'), label: t('رمزنگاری سرتاسری') } },
+  { Icon: Smartphone, title: t('اپ اندروید'), text: t('پیامک بانک را خودش می‌خواند و هزینه را ثبت می‌کند — متن پیامک از گوشی بیرون نمی‌رود.'), link: { href: publicPath('/android'), label: t('دانلود اپ') } },
   { Icon: Code2, title: t('رایگان و متن‌باز'), text: t('بدون تبلیغ و ردیاب تجاری؛ کد کامل در گیت‌هاب است و هر کس می‌تواند بررسی‌اش کند.'), link: { href: GITHUB_URL, label: t('کد در GitHub'), external: true } },
 ];
 
@@ -120,6 +134,7 @@ export default function LandingPage() {
   const { user, triggerLogin } = useAuth();
   const { enterDemo } = useDemo();
   const [enteringDemo, setEnteringDemo] = useState(false);
+  const faqs = useLandingFaqs();
   const navigate = useNavigate();
 
   // Signed-in visitors go straight into the app; guests start the Google login
@@ -166,10 +181,10 @@ export default function LandingPage() {
             <span>RealRate</span>
           </a>
           <nav className="lp-nav" aria-label={t('منوی اصلی')}>
-            <a href="/features">{t('امکانات')}</a>
-            <a href="/android">{t('اپ اندروید')}</a>
-            <a href="/faq">{t('سؤالات')}</a>
-            <a href="/about">{t('درباره')}</a>
+            <a href={publicPath('/features')}>{t('امکانات')}</a>
+            <a href={publicPath('/android')}>{t('اپ اندروید')}</a>
+            <a href={publicPath('/faq')}>{t('سؤالات')}</a>
+            <a href={publicPath('/about')}>{t('درباره')}</a>
           </nav>
           <LanguageSwitch className="lp-language" />
           <button type="button" className="lp-btn lp-btn-small" onClick={enterApp}>
@@ -217,7 +232,7 @@ export default function LandingPage() {
                 </a>
               ))}
             </div>
-            <a href="/features" className="lp-more">
+            <a href={publicPath('/features')} className="lp-more">
               <span>{t('همه‌ی امکانات')}</span>
               <ArrowLeft size={15} />
             </a>
@@ -263,14 +278,14 @@ export default function LandingPage() {
           <div className="lp-container lp-narrow">
             <SectionHead eyebrow={t('سؤالات')} title={t('پرسش‌های پرتکرار')} />
             <div className="lp-faq">
-              {LANDING_FAQS.map((faq) => (
+              {faqs.map((faq) => (
                 <details key={faq.q} className="lp-faq-item">
                   <summary>{faq.q}</summary>
                   <p>{faq.a}</p>
                 </details>
               ))}
             </div>
-            <a href="/faq" className="lp-more">
+            <a href={publicPath('/faq')} className="lp-more">
               <span>{t('همه‌ی سؤالات')}</span>
               <ArrowLeft size={15} />
             </a>
@@ -299,11 +314,11 @@ export default function LandingPage() {
             <p>{t('ابزار رایگان و متن‌باز برای دیدن ارزش واقعی دارایی‌ها و مدیریت مالی شخصی.')}</p>
           </div>
           <nav className="lp-footer-links" aria-label={t('پیوندها')}>
-            <a href="/features">{t('امکانات')}</a>
-            <a href="/android">{t('اپ اندروید')}</a>
-            <a href="/about">{t('درباره')}</a>
-            <a href="/faq">{t('سؤالات')}</a>
-            <a href={getLocale() === 'en' ? '/en/privacy' : '/privacy'}>{t('حریم خصوصی')}</a>
+            <a href={publicPath('/features')}>{t('امکانات')}</a>
+            <a href={publicPath('/android')}>{t('اپ اندروید')}</a>
+            <a href={publicPath('/about')}>{t('درباره')}</a>
+            <a href={publicPath('/faq')}>{t('سؤالات')}</a>
+            <a href={publicPath('/privacy')}>{t('حریم خصوصی')}</a>
             {DEMO_ENABLED && <a href="/demo">{t('دمو')}</a>}
             <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">GitHub</a>
           </nav>

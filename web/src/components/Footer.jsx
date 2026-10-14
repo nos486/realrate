@@ -3,6 +3,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Smartphone, ShieldCheck } from 'lucide-react';
 import { appPath } from '../shared/routes.js';
+import { publicPath } from '../shared/i18n/publicPath.js';
 import { useFeedback } from '../shared/ui/FeedbackProvider.jsx';
 import { usePwaInstall } from '../shared/pwa/usePwaInstall.js';
 
@@ -13,7 +14,7 @@ export default function Footer() {
   const triggerPwaInstall = async () => {
     // On an Android phone, the real app: its download and install guide (a static page, /android)
     if (/android/i.test(navigator.userAgent || '')) {
-      window.location.assign('/android');
+      window.location.assign(publicPath('/android'));
       return;
     }
     if (isInstalled) {
