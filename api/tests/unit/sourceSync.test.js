@@ -243,8 +243,8 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
 
     const atMinute0 = ctxFor();
     await runCronPolling({ scheduledTime: Date.UTC(2026, 0, 1, 11, 0) }, mockEnv, atMinute0);
-    // the sync, the news, the dollar outlook, expired sessions and the other hourly cleanups
-    expect(atMinute0.waitUntil).toHaveBeenCalledTimes(5);
+    // the sync, the news, expired sessions and the other hourly cleanups
+    expect(atMinute0.waitUntil).toHaveBeenCalledTimes(4);
     await Promise.allSettled(pending);
   });
 

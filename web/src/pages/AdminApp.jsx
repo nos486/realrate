@@ -6,8 +6,6 @@
  *   /admin/sources  price sources
  *   /admin/history  the price history and its tgju backfill
  *   /admin/groups   groups of users, join requests, and who gets which feature
- *   /admin/news     the news channels and the analyst's card
- *   /admin/outlook  the dollar outlook experiment (scenarios scored against the real closes)
  *
  * Only admins get in; anyone else sees a short notice with a way back to the app.
  */
@@ -15,7 +13,7 @@
 import React, { Suspense, lazy, useEffect, useRef } from 'react';
 import { NavLink, Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import ErrorBoundary from '../shared/ui/ErrorBoundary.jsx';
-import { ShieldCheck, Users, Radio, History, ArrowRight, Ban, UsersRound, Newspaper, LineChart } from 'lucide-react';
+import { ShieldCheck, Users, Radio, History, ArrowRight, Ban, UsersRound, Newspaper } from 'lucide-react';
 import { useAuth } from '../features/auth/index.js';
 import { EmptyState } from '../shared/ui/index.js';
 import { APP_BASE } from '../shared/routes.js';
@@ -26,7 +24,6 @@ const AdminPriceSourcesPage = lazy(() => import('../features/admin/components/Ad
 const PriceHistoryAdmin = lazy(() => import('../features/admin/components/PriceHistoryAdmin.jsx'));
 const AdminGroupsPage = lazy(() => import('../features/admin/components/AdminGroupsPage.jsx'));
 const AdminNewsPage = lazy(() => import('../features/admin/components/AdminNewsPage.jsx'));
-const AdminOutlookPage = lazy(() => import('../features/admin/components/AdminOutlookPage.jsx'));
 
 const SECTIONS = [
   { path: '/admin', label: 'کاربران و تنظیمات', icon: Users, end: true },
@@ -34,7 +31,6 @@ const SECTIONS = [
   { path: '/admin/sources', label: 'سورس‌های قیمت', icon: Radio },
   { path: '/admin/history', label: 'تاریخچه‌ی قیمت', icon: History },
   { path: '/admin/news', label: 'اخبار', icon: Newspaper },
-  { path: '/admin/outlook', label: 'سناریوی دلار', icon: LineChart },
 ];
 
 function SectionLoader() {
@@ -99,7 +95,6 @@ export default function AdminApp() {
               <Route path="history" element={<PriceHistoryAdmin />} />
               <Route path="groups" element={<AdminGroupsPage />} />
               <Route path="news" element={<AdminNewsPage />} />
-              <Route path="outlook" element={<AdminOutlookPage />} />
               <Route path="*" element={<Navigate to="/admin" replace />} />
             </Routes>
           </Suspense>
