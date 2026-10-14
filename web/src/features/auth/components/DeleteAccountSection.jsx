@@ -6,6 +6,7 @@
  * server checks it too). Not shown for the demo account or an admin (the server refuses them).
  */
 
+import { t } from '../../../utils/i18n.js';
 import React, { useState } from 'react';
 import { Trash2, TriangleAlert } from 'lucide-react';
 import { AlertBanner, Button, Input } from '../../../shared/ui/index.js';
@@ -16,9 +17,9 @@ import { deleteAccount } from '../api/authApi.js';
 import PasswordInput from './PasswordInput.jsx';
 
 /** What the user types to confirm */
-export const ACCOUNT_DELETE_PHRASE = 'حذف حساب';
+export const ACCOUNT_DELETE_PHRASE = t('حذف حساب');
 
-const normalize = (text) => String(text || '').replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/\s+/g, ' ').trim();
+const normalize = (text) => String(text || '').replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/\s+/g, ' ').trim(); // i18n-ignore
 
 export default function DeleteAccountSection() {
   const { user, logout } = useAuth();
@@ -49,11 +50,11 @@ export default function DeleteAccountSection() {
     setError('');
     try {
       await deleteAccount({ password: hasPassword ? password : undefined });
-      toast.success('حساب و همه‌ی اطلاعات آن حذف شد.');
+      toast.success(t('حساب و همه‌ی اطلاعات آن حذف شد.'));
       // Signs out and clears what this device kept (the session no longer exists on the server)
       await logout();
     } catch (err) {
-      setError(err.message || 'حذف حساب انجام نشد.');
+      setError(err.message || t('حذف حساب انجام نشد.'));
       setBusy(false);
     }
   };
@@ -63,17 +64,17 @@ export default function DeleteAccountSection() {
       <div className="section-title">
         <span id="delete-account-title">
           <Trash2 size={18} className="vault-settings-title-icon" />
-          حذف حساب
+          {t('حذف حساب')}
         </span>
       </div>
       <p className="vault-settings-text">
-        با حذف حساب، ایمیل، ورود و همه‌ی اطلاعاتتان از سرور برای همیشه پاک می‌شود.
+        {t('با حذف حساب، ایمیل، ورود و همه‌ی اطلاعاتتان از سرور برای همیشه پاک می‌شود.')}
       </p>
 
       {!open ? (
         <div className="vault-settings-actions">
           <Button variant="danger" size="sm" icon={<Trash2 size={14} />} onClick={() => setOpen(true)}>
-            حذف حساب و همه اطلاعات
+            {t('حذف حساب و همه اطلاعات')}
           </Button>
         </div>
       ) : (
@@ -81,13 +82,13 @@ export default function DeleteAccountSection() {
           <div className="vault-reset-warning" role="alert">
             <TriangleAlert size={18} aria-hidden="true" />
             <div>
-              <strong>این کار برگشت‌پذیر نیست. این‌ها برای همیشه حذف می‌شوند:</strong>
+              <strong>{t('این کار برگشت‌پذیر نیست. این‌ها برای همیشه حذف می‌شوند:')}</strong>
               <ul>
-                <li>حساب کاربری، ایمیل و روش‌های ورود (گوگل و رمز عبور)</li>
-                <li>همه پورتفوها، وام‌ها، درآمدها، چک‌ها، هزینه‌ها، بودجه‌ها و حساب‌های بانکی</li>
-                <li>رمزنگاری سرتاسری، یادآوری‌ها و اشتراک اعلان‌ها</li>
+                <li>{t('حساب کاربری، ایمیل و روش‌های ورود (گوگل و رمز عبور)')}</li>
+                <li>{t('همه پورتفوها، وام‌ها، درآمدها، چک‌ها، هزینه‌ها، بودجه‌ها و حساب‌های بانکی')}</li>
+                <li>{t('رمزنگاری سرتاسری، یادآوری‌ها و اشتراک اعلان‌ها')}</li>
               </ul>
-              <span>پیش از حذف، در صورت نیاز از «پشتیبان‌گیری» خروجی بگیرید.</span>
+              <span>{t('پیش از حذف، در صورت نیاز از «پشتیبان‌گیری» خروجی بگیرید.')}</span>
             </div>
           </div>
 
@@ -95,7 +96,7 @@ export default function DeleteAccountSection() {
 
           <Input
             id="delete-account-phrase"
-            label={`برای تأیید، عبارت «${ACCOUNT_DELETE_PHRASE}» را بنویسید`}
+            label={t('برای تأیید، عبارت «{phrase}» را بنویسید', { phrase: ACCOUNT_DELETE_PHRASE })}
             value={phrase}
             onChange={(e) => setPhrase(e.target.value)}
             autoComplete="off"
@@ -104,7 +105,7 @@ export default function DeleteAccountSection() {
           {hasPassword && (
             <PasswordInput
               id="delete-account-password"
-              label="رمز عبور ورود به حساب"
+              label={t('رمز عبور ورود به حساب')}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
@@ -114,10 +115,10 @@ export default function DeleteAccountSection() {
 
           <div className="vault-settings-actions">
             <Button type="submit" variant="danger" size="sm" icon={<Trash2 size={14} />} loading={busy} disabled={!confirmed}>
-              حذف همیشگی حساب
+              {t('حذف همیشگی حساب')}
             </Button>
             <Button type="button" variant="secondary" size="sm" onClick={close} disabled={busy}>
-              انصراف
+              {t('انصراف')}
             </Button>
           </div>
         </form>

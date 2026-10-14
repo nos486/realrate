@@ -7,6 +7,7 @@
  * message is known as recorded on any device — and the message leaves the inbox.
  */
 
+import { t } from '../../utils/i18n.js';
 import React, { useState } from 'react';
 import { HandCoins } from 'lucide-react';
 import { AlertBanner, EmptyState, Modal } from '../../shared/ui/index.js';
@@ -38,10 +39,10 @@ export default function ShareDepositSheet({ item, accounts = [], onClose }) {
       await expensesApi.saveExpense({ reimbursements: [...(expense.reimbursements || []), reimbursement] }, expense);
       markSmsHandled(item.fingerprint);
       bumpVaultEpoch();
-      toast.success(`واریز به‌عنوان دنگ «${expense.title}» ثبت شد؛ درآمد حساب نشد.`);
+      toast.success(t('واریز به‌عنوان دنگ «{title}» ثبت شد؛ درآمد حساب نشد.', { title: expense.title }));
       onClose();
     } catch (err) {
-      setSaveError(err?.message || 'ثبت ممکن نشد.');
+      setSaveError(err?.message || t('ثبت ممکن نشد.'));
     } finally {
       setSaving(false);
     }
@@ -51,24 +52,24 @@ export default function ShareDepositSheet({ item, accounts = [], onClose }) {
     <Modal
       isOpen
       onClose={onClose}
-      title="این واریزِ دنگ است"
-      subtitle={`${formatAmount(tx.amount)} تومان — سهم دیگران از هزینه‌ای که پرداختید؛ درآمد نیست`}
+      title={t('این واریزِ دنگ است')}
+      subtitle={t('{amount} تومان — سهم دیگران از هزینه‌ای که پرداختید؛ درآمد نیست', { amount: formatAmount(tx.amount) })}
       icon={<HandCoins size={18} />}
       maxWidth="460px"
     >
       <div className="loan-deposit-body">
         {(error || saveError) && <AlertBanner type="error" message={error || saveError} />}
         {loading && !expenses.length ? (
-          <SkeletonRows rows={3} columns={2} label="در حال دریافت طلب‌ها" />
+          <SkeletonRows rows={3} columns={2} label={t('در حال دریافت طلب‌ها')} />
         ) : candidates.length === 0 ? (
           <EmptyState
             icon={<HandCoins size={36} strokeWidth={1.5} />}
-            title="طلب بازی نیست"
-            description="ابتدا هزینه را با «سهم: با دیگران (دنگ)» ثبت کنید (یا ویرایش کنید)، سپس این واریز را به آن بزنید."
+            title={t('طلب بازی نیست')}
+            description={t('ابتدا هزینه را با «سهم: با دیگران (دنگ)» ثبت کنید (یا ویرایش کنید)، سپس این واریز را به آن بزنید.')}
           />
         ) : (
           <>
-            <p className="loan-deposit-hint">دنگ کدام هزینه است؟</p>
+            <p className="loan-deposit-hint">{t('دنگ کدام هزینه است؟')}</p>
             <div aria-busy={saving}>
               <OpenSharesList expenses={candidates} onPick={saving ? () => {} : handlePick} amountLimit={tx.amount} />
             </div>

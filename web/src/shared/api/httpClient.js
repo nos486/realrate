@@ -15,6 +15,7 @@
 
 import { Capacitor } from '@capacitor/core';
 import { CLIENT_HEADER, formatClientHeader } from '../../utils/clientInfo.js';
+import { t, msg } from '../../utils/i18n.js';
 
 export const API_BASE = (
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) ||
@@ -31,7 +32,8 @@ const CLIENT_HEADER_VALUE = Capacitor.getPlatform() === 'android'
 
 export class HttpError extends Error {
   constructor(message, status = 0, data = null, code = 'HTTP_ERROR') {
-    super(message || 'خطای شبکه در ارتباط با سرور');
+    // The server sends fixed Persian messages: the Persian text is the key (i18n/en/api-errors.js)
+    super(message ? t(message) : t('خطای شبکه در ارتباط با سرور'));
     this.name = 'HttpError';
     this.status = status;
     this.data = data;
@@ -68,7 +70,7 @@ export const MAINTENANCE_EVENT = 'realrate:maintenance';
 
 function notifyMaintenance(message) {
   try {
-    window.dispatchEvent(new CustomEvent(MAINTENANCE_EVENT, { detail: { message: message || '' } }));
+    window.dispatchEvent(new CustomEvent(MAINTENANCE_EVENT, { detail: { message: message ? t(message) : '' } }));
   } catch {}
 }
 
@@ -77,7 +79,7 @@ export const DEMO_READ_ONLY_EVENT = 'realrate:demo-read-only';
 
 export function notifyDemoReadOnly(message) {
   try {
-    window.dispatchEvent(new CustomEvent(DEMO_READ_ONLY_EVENT, { detail: { message: message || 'این نسخه دمو است و تغییرات ذخیره نمی‌شود.' } }));
+    window.dispatchEvent(new CustomEvent(DEMO_READ_ONLY_EVENT, { detail: { message: message ? t(message) : t('این نسخه دمو است و تغییرات ذخیره نمی‌شود.') } }));
   } catch {}
 }
 
@@ -232,11 +234,11 @@ async function sendRequest(path, options = {}) {
         credentials: 'include',
       });
     } catch (err) {
-      if (timedOut) throw new HttpError('پاسخی از سرور نرسید؛ اتصال کند است.', 0, null, 'TIMEOUT');
+      if (timedOut) throw new HttpError(t('پاسخی از سرور نرسید؛ اتصال کند است.'), 0, null, 'TIMEOUT');
       // A request the caller cancelled stays a cancellation
       if (err?.name === 'AbortError') throw err;
       // No answer at all (no connection, DNS, a dropped connection): status 0, NETWORK_ERROR
-      throw new HttpError('اتصال به سرور برقرار نشد.', 0, null, 'NETWORK_ERROR');
+      throw new HttpError(t('اتصال به سرور برقرار نشد.'), 0, null, 'NETWORK_ERROR');
     }
 
     let data = null;
@@ -258,9 +260,9 @@ async function sendRequest(path, options = {}) {
         data.errorDetails = errObj;
         data.errorCode = errObj.code || 'UNKNOWN_ERROR';
         if (!data.message) {
-          data.message = errObj.message || errObj.code || 'خطای سرور';
+          data.message = t(errObj.message || errObj.code || msg('خطای سرور'));
         }
-        data.error = errObj.message || errObj.code || 'خطای سرور';
+        data.error = t(errObj.message || errObj.code || msg('خطای سرور'));
         if (data.success === undefined) {
           data.success = false;
         }
@@ -282,7 +284,7 @@ async function sendRequest(path, options = {}) {
 
     // A free-plan limit refused the change: the app tells the user (PlanLimitPrompt) and points to Pro
     if (res.status === 403 && data && typeof data === 'object' && data.errorCode === 'PLAN_LIMIT' && typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('realrate:plan-limit', { detail: { message: data.message } }));
+      window.dispatchEvent(new CustomEvent('realrate:plan-limit', { detail: { message: t(data.message) } }));
     }
     // A record was stored or deleted: the plan's usage notes read their counts again
     if (res.ok && method !== 'GET' && typeof window !== 'undefined' && /\/api\/(vault\/records|portfolios)/.test(path)) {
@@ -290,7 +292,7 @@ async function sendRequest(path, options = {}) {
     }
 
     if (!res.ok) {
-      const errorMessage = (data && typeof data === 'object' && (data.message || data.error)) || `خطای سرور: ${res.status}`;
+      const errorMessage = (data && typeof data === 'object' && (data.message || data.error)) || t('خطای سرور: {status}', { status: res.status });
       const errorCode = (data && typeof data === 'object' && data.errorCode) || `HTTP_${res.status}`;
       const error = new HttpError(errorMessage, res.status, data, errorCode);
       throw error;

@@ -7,7 +7,7 @@
  * release notes, then a download with progress and Android's installer.
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { getLocale, intlLocale, t } from '../../utils/i18n.js';
 import React, { useEffect } from 'react';
 import { Download, ShieldCheck, RefreshCw, X } from 'lucide-react';
 import { Button, Modal, AlertBanner } from '../ui/index.js';
@@ -23,7 +23,7 @@ import {
   hasUpdate,
 } from '../native/appUpdate.js';
 
-const faVersion = (v) => String(v || '').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+const faVersion = (v) => (getLocale() === 'fa' ? String(v || '').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]) : String(v || '')); // i18n-ignore
 const faMb = (bytes) => (Number(bytes) / 1024 / 1024).toLocaleString(intlLocale(), { maximumFractionDigits: 1 });
 
 /** «نسخه‌ی … آماده است»: shown while a newer version is known, until its × (or the update) */
@@ -34,10 +34,10 @@ export function AppUpdateBanner() {
     <div className="app-update-banner" role="status">
       <Download size={16} aria-hidden="true" />
       <button type="button" className="app-update-banner-text" onClick={openUpdatePrompt}>
-        <strong>نسخه‌ی {faVersion(update.release.version)} آماده است</strong>
-        <span>برای به‌روزرسانی بزنید</span>
+        <strong>{t('نسخه‌ی {version} آماده است', { version: faVersion(update.release.version) })}</strong>
+        <span>{t('برای به‌روزرسانی بزنید')}</span>
       </button>
-      <button type="button" className="app-update-banner-close" onClick={hideUpdateBanner} aria-label="بستن">
+      <button type="button" className="app-update-banner-close" onClick={hideUpdateBanner} aria-label={t('بستن')}>
         <X size={16} />
       </button>
     </div>
@@ -58,20 +58,20 @@ export default function AppUpdatePrompt() {
   if (status === 'permission') {
     footer = (
       <>
-        <Button variant="ghost" onClick={snoozeUpdate}>بعداً</Button>
-        <Button icon={<ShieldCheck size={16} />} onClick={openInstallPermission}>اجازه‌ی نصب</Button>
+        <Button variant="ghost" onClick={snoozeUpdate}>{t('بعداً')}</Button>
+        <Button icon={<ShieldCheck size={16} />} onClick={openInstallPermission}>{t('اجازه‌ی نصب')}</Button>
       </>
     );
   } else {
     footer = (
       <>
-        <Button variant="ghost" onClick={snoozeUpdate}>{downloading ? 'لغو' : 'بعداً'}</Button>
+        <Button variant="ghost" onClick={snoozeUpdate}>{downloading ? t('لغو') : t('بعداً')}</Button>
         <Button
           icon={status === 'error' ? <RefreshCw size={16} /> : <Download size={16} />}
           loading={downloading || status === 'ready'}
           onClick={downloadAndInstall}
         >
-          {status === 'error' ? 'تلاش دوباره' : 'به‌روزرسانی'}
+          {status === 'error' ? t('تلاش دوباره') : t('به‌روزرسانی')}
         </Button>
       </>
     );
@@ -82,29 +82,29 @@ export default function AppUpdatePrompt() {
       isOpen={update.open}
       onClose={snoozeUpdate}
       icon={<Download size={20} />}
-      title="نسخه‌ی جدید RealRate"
-      subtitle={`نسخه‌ی ${faVersion(release.version)}${installedVersion ? ` · نسخه‌ی فعلی ${faVersion(installedVersion)}` : ''}${release.size ? ` · ${faMb(release.size)} مگابایت` : ''}`}
+      title={t('نسخه‌ی جدید RealRate')}
+      subtitle={[t('نسخه‌ی {version}', { version: faVersion(release.version) }), installedVersion && t('نسخه‌ی فعلی {version}', { version: faVersion(installedVersion) }), release.size && t('{size} مگابایت', { size: faMb(release.size) })].filter(Boolean).join(' · ')}
       footer={footer}
       className="app-update-modal"
     >
-      {notes ? <p className="app-update-notes">{notes}</p> : <p className="app-update-notes">نسخه‌ی جدید اپ آماده‌ی نصب است.</p>}
+      {notes ? <p className="app-update-notes">{notes}</p> : <p className="app-update-notes">{t('نسخه‌ی جدید اپ آماده‌ی نصب است.')}</p>}
 
       {downloading && (
         <div className="app-update-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}>
           <div className="app-update-progress-track"><span style={{ width: `${percent}%` }} /></div>
-          <small>در حال دانلود… {percent.toLocaleString(intlLocale())}٪</small>
+          <small>{t('در حال دانلود… {percent}٪', { percent: percent.toLocaleString(intlLocale()) })}</small>
         </div>
       )}
       {status === 'ready' && (
-        <AlertBanner type="info" message="دانلود تمام شد؛ نصب‌کننده‌ی اندروید با بازگشت به اپ باز می‌شود." />
+        <AlertBanner type="info" message={t('دانلود تمام شد؛ نصب‌کننده‌ی اندروید با بازگشت به اپ باز می‌شود.')} />
       )}
       {status === 'installing' && (
-        <AlertBanner type="info" message="نصب‌کننده‌ی اندروید باز شد؛ «نصب» یا «به‌روزرسانی» را بزنید. اطلاعات شما سر جایش می‌ماند." />
+        <AlertBanner type="info" message={t('نصب‌کننده‌ی اندروید باز شد؛ «نصب» یا «به‌روزرسانی» را بزنید. اطلاعات شما سر جایش می‌ماند.')} />
       )}
       {status === 'permission' && (
         <AlertBanner
           type="info"
-          message="برای نصب به‌روزرسانی، اندروید یک بار اجازه‌ی «نصب برنامه‌های ناشناس» را برای RealRate می‌خواهد. آن را روشن کنید و به اپ برگردید."
+          message={t('برای نصب به‌روزرسانی، اندروید یک بار اجازه‌ی «نصب برنامه‌های ناشناس» را برای RealRate می‌خواهد. آن را روشن کنید و به اپ برگردید.')}
         />
       )}
       {status === 'error' && error && <AlertBanner type="error" message={error} />}

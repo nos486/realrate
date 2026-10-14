@@ -8,15 +8,17 @@
  * user only picks the category.
  */
 
+import { t } from '../../utils/i18n.js';
+import { toPersianDigits } from '../../shared/utils/formatters.js';
 import { resolveBank } from '../../shared/banks/resolveBank.js';
 import { matchSmsAccount, smsCategoryOf } from '../../utils/bankSms.js';
 import { SMS_DESCRIPTION_CATEGORIES } from '../../utils/bankSmsTemplates.js';
 
-const faTime = (time) => time.replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+const faTime = (v) => toPersianDigits(v);
 
 function smsNote(tx) {
   const bank = resolveBank({ bankId: tx.bankId });
-  return [`پیامک ${bank.shortName}`, tx.time && `ساعت ${faTime(tx.time)}`].filter(Boolean).join(' · ');
+  return [t('پیامک {bank}', { bank: bank.shortName }), tx.time && t('ساعت {time}', { time: faTime(tx.time) })].filter(Boolean).join(' · ');
 }
 
 /** The category a message starts in, from its own description (a rule of SMS_DESCRIPTION_CATEGORIES) */
@@ -42,7 +44,7 @@ export function smsExpenseDraft(tx, accounts = []) {
 
 /** A withdrawal going to a project: its title is required there, so it starts as «برداشت <bank>» */
 export function smsProjectExpenseDraft(tx, accounts = []) {
-  return { ...smsExpenseDraft(tx, accounts), title: `برداشت ${resolveBank({ bankId: tx.bankId }).shortName}` };
+  return { ...smsExpenseDraft(tx, accounts), title: t('برداشت {bank}', { bank: resolveBank({ bankId: tx.bankId }).shortName }) };
 }
 
 /**
@@ -54,7 +56,7 @@ export function smsIncomeDraft(tx, accounts = []) {
   const bank = resolveBank({ bankId: tx.bankId });
   const desc = String(tx.description || '').trim();
   return {
-    title: desc ? `${desc} ${bank.shortName}`.slice(0, 80) : `واریز ${bank.shortName}`,
+    title: desc ? `${desc} ${bank.shortName}`.slice(0, 80) : t('واریز {bank}', { bank: bank.shortName }),
     ...categoryOf(tx),
     amount: Math.round(tx.amount),
     incomeDate: tx.date,

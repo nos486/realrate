@@ -12,7 +12,7 @@
  * A form opened from "+" is reached with `?add=…` on the section's page (useQuickAddParam).
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -36,12 +36,12 @@ import { APP_PRIVATE_VALUE_TABS } from './privacyTabs.js';
 /** The bottom bar's own sections; everything else is under «بیشتر» */
 function mainTabs(items) {
   const has = (value) => items.some((i) => i.value === value);
-  const expenses = { value: 'expenses', label: 'هزینه‌ها', Icon: HandCoins };
-  const incomes = { value: 'incomes', label: 'درآمدها', Icon: Wallet };
-  const portfolio = { value: 'portfolio', label: 'پورتفو', Icon: Briefcase };
+  const expenses = { value: 'expenses', label: t('هزینه‌ها'), Icon: HandCoins };
+  const incomes = { value: 'incomes', label: t('درآمدها'), Icon: Wallet };
+  const portfolio = { value: 'portfolio', label: t('پورتفو'), Icon: Briefcase };
   // Expenses and incomes; without expenses, incomes and the portfolio (it moves to «بیشتر»
   // otherwise)
-  return [{ value: 'market', label: 'خانه', Icon: Home }, ...(has('expenses') ? [expenses, incomes] : [incomes, portfolio])];
+  return [{ value: 'market', label: t('خانه'), Icon: Home }, ...(has('expenses') ? [expenses, incomes] : [incomes, portfolio])];
 }
 
 function usePendingSmsCount() {
@@ -87,14 +87,14 @@ export function AppTopBar({ activeTab, navItems = [] }) {
               setPrivacyMode(!hideValues);
             }}
             aria-pressed={hideValues}
-            aria-label={hideValues ? 'نمایش مبالغ' : 'پنهان کردن مبالغ'}
+            aria-label={hideValues ? t('نمایش مبالغ') : t('پنهان کردن مبالغ')}
           >
             {hideValues ? <Eye size={20} /> : <EyeOff size={20} />}
           </button>
         )}
         {user && <AlertCenterButton className="app-icon-btn" iconSize={20} />}
         {canLock && (
-          <button type="button" className="app-icon-btn" onClick={() => { tap(); lockAll(); }} aria-label="قفل کردن اطلاعات رمزنگاری‌شده">
+          <button type="button" className="app-icon-btn" onClick={() => { tap(); lockAll(); }} aria-label={t('قفل کردن اطلاعات رمزنگاری‌شده')}>
             <Lock size={20} />
           </button>
         )}
@@ -131,15 +131,15 @@ export function AppBottomNav({ activeTab, navItems = [], onSelect }) {
   };
 
   const quickAdd = [
-    has('expenses') && { key: 'expense', label: 'هزینه', hint: 'خرید، قبض، رفت‌وآمد…', Icon: HandCoins, tone: 'rose', path: '/expenses?add=expense' },
-    has('incomes') && { key: 'income', label: 'درآمد', hint: 'حقوق، فروش، سود…', Icon: Wallet, tone: 'green', path: '/incomes?add=income' },
-    has('portfolio') && { key: 'holding', label: 'پورتفو', hint: 'طلا، سکه، ارز…', Icon: Briefcase, tone: 'amber', path: '/portfolio?add=holding' },
-    has('accounts') && { key: 'transfer', label: 'انتقال', hint: 'بین حساب‌های خودم', Icon: ArrowLeftRight, tone: 'blue', path: '/accounts?add=transfer' },
+    has('expenses') && { key: 'expense', label: t('هزینه'), hint: t('خرید، قبض، رفت‌وآمد…'), Icon: HandCoins, tone: 'rose', path: '/expenses?add=expense' },
+    has('incomes') && { key: 'income', label: t('درآمد'), hint: t('حقوق، فروش، سود…'), Icon: Wallet, tone: 'green', path: '/incomes?add=income' },
+    has('portfolio') && { key: 'holding', label: t('پورتفو'), hint: t('طلا، سکه، ارز…'), Icon: Briefcase, tone: 'amber', path: '/portfolio?add=holding' },
+    has('accounts') && { key: 'transfer', label: t('انتقال'), hint: t('بین حساب‌های خودم'), Icon: ArrowLeftRight, tone: 'blue', path: '/accounts?add=transfer' },
   ].filter(Boolean);
 
   return (
     <>
-      <nav className="app-bottom-nav" aria-label="بخش‌های اصلی">
+      <nav className="app-bottom-nav" aria-label={t('بخش‌های اصلی')}>
         {tabs.slice(0, 2).map((t) => (
           <NavButton key={t.value} tab={t} active={activeTab === t.value} onClick={() => go(t.value)} />
         ))}
@@ -151,7 +151,7 @@ export function AppBottomNav({ activeTab, navItems = [], onSelect }) {
               impact();
               setSheet((s) => (s === 'add' ? null : 'add'));
             }}
-            aria-label="ثبت سریع"
+            aria-label={t('ثبت سریع')}
             aria-expanded={sheet === 'add'}
           >
             <Plus size={26} strokeWidth={2.4} />
@@ -159,7 +159,7 @@ export function AppBottomNav({ activeTab, navItems = [], onSelect }) {
         </div>
         <NavButton tab={tabs[2]} active={activeTab === tabs[2].value} onClick={() => go(tabs[2].value)} />
         <NavButton
-          tab={{ value: 'more', label: 'بیشتر', Icon: LayoutGrid }}
+          tab={{ value: 'more', label: t('بیشتر'), Icon: LayoutGrid }}
           active={inMore || sheet === 'more'}
           badge={pendingSms}
           onClick={() => {
@@ -169,7 +169,7 @@ export function AppBottomNav({ activeTab, navItems = [], onSelect }) {
         />
       </nav>
 
-      <AppSheet open={sheet === 'add'} onClose={closeSheet} title="ثبت سریع">
+      <AppSheet open={sheet === 'add'} onClose={closeSheet} title={t('ثبت سریع')}>
         <div className="app-quick-add">
           {quickAdd.map((q) => (
             <button key={q.key} type="button" className={`app-quick-add-item tone-${q.tone}`} onClick={() => open(q.path)}>
@@ -182,13 +182,13 @@ export function AppBottomNav({ activeTab, navItems = [], onSelect }) {
         {has('sms') && pendingSms > 0 && (
           <button type="button" className="app-sheet-row is-highlight" onClick={() => open('/sms')}>
             <MessageSquareText size={20} />
-            <span>{faNum(pendingSms)} پیامک بانکی منتظر ثبت</span>
+            <span>{t('{n} پیامک بانکی منتظر ثبت', { n: faNum(pendingSms) })}</span>
             <ChevronLeft size={18} className="app-sheet-row-chevron" />
           </button>
         )}
       </AppSheet>
 
-      <AppSheet open={sheet === 'more'} onClose={closeSheet} title="بیشتر">
+      <AppSheet open={sheet === 'more'} onClose={closeSheet} title={t('بیشتر')}>
         {user && (
           <div className="app-more-user">
             {user.picture ? (
@@ -220,17 +220,17 @@ export function AppBottomNav({ activeTab, navItems = [], onSelect }) {
           <div className="app-sheet-rows">
             <button type="button" className="app-sheet-row" onClick={() => { tap(); setPrivacyMode(!hideValues); }} aria-pressed={hideValues}>
               {hideValues ? <Eye size={20} /> : <EyeOff size={20} />}
-              <span>{hideValues ? 'نمایش مبالغ' : 'پنهان کردن مبالغ'}</span>
+              <span>{hideValues ? t('نمایش مبالغ') : t('پنهان کردن مبالغ')}</span>
             </button>
             {canLock && (
               <button type="button" className="app-sheet-row" onClick={() => { tap(); setSheet(null); lockAll(); }}>
                 <Lock size={20} />
-                <span>قفل کردن اطلاعات رمزنگاری‌شده</span>
+                <span>{t('قفل کردن اطلاعات رمزنگاری‌شده')}</span>
               </button>
             )}
             <button type="button" className="app-sheet-row is-danger" onClick={() => { setSheet(null); logout(); }}>
               <LogOut size={20} />
-              <span>خروج از حساب</span>
+              <span>{t('خروج از حساب')}</span>
             </button>
           </div>
         )}
@@ -250,7 +250,7 @@ function NavButton({ tab, active, onClick, badge = 0 }) {
     >
       <span className="app-bottom-nav-icon">
         <Icon size={22} strokeWidth={active ? 2.4 : 2} />
-        {badge > 0 && <span className="app-badge is-dot" aria-label={`${faNum(badge)} مورد جدید`} />}
+        {badge > 0 && <span className="app-badge is-dot" aria-label={t('{n} مورد جدید', { n: faNum(badge) })} />}
       </span>
       <span className="app-bottom-nav-label">{tab.label}</span>
     </button>

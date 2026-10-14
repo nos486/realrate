@@ -7,7 +7,7 @@
  */
 
 import LanguageSwitch from '../../../shared/i18n/LanguageSwitch.jsx';
-import { intlLocale, getDir } from '../../../utils/i18n.js';
+import { intlLocale, getDir, t } from '../../../utils/i18n.js';
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Mail, MailCheck, KeyRound, UserPlus, LogIn, ArrowRight } from 'lucide-react';
@@ -62,7 +62,7 @@ function GoogleButton({ label }) {
         <GoogleIcon size={18} />
         <span>{label}</span>
       </button>
-      <div className="auth-divider"><span>یا با ایمیل</span></div>
+      <div className="auth-divider"><span>{t('یا با ایمیل')}</span></div>
     </>
   );
 }
@@ -84,10 +84,10 @@ function ResendButton({ onResend }) {
     setMessage('');
     try {
       await onResend();
-      setMessage('لینک دوباره ارسال شد.');
+      setMessage(t('لینک دوباره ارسال شد.'));
       setSeconds(RESEND_COOLDOWN_SECONDS);
     } catch (err) {
-      setMessage(err.message || 'ارسال دوباره ناموفق بود.');
+      setMessage(err.message || t('ارسال دوباره ناموفق بود.'));
     } finally {
       setBusy(false);
     }
@@ -96,7 +96,7 @@ function ResendButton({ onResend }) {
   return (
     <div className="auth-resend">
       <Button variant="secondary" block onClick={resend} disabled={seconds > 0 || busy} loading={busy}>
-        {seconds > 0 ? `ارسال دوباره (${seconds.toLocaleString(intlLocale())} ثانیه)` : 'ارسال دوباره لینک'}
+        {seconds > 0 ? t('ارسال دوباره ({seconds} ثانیه)', { seconds: seconds.toLocaleString(intlLocale()) }) : t('ارسال دوباره لینک')}
       </Button>
       {message && <span className="auth-muted" role="status">{message}</span>}
     </div>
@@ -107,11 +107,11 @@ function CheckEmail({ email, title, text, onResend, onBack }) {
   return (
     <Card icon={<MailCheck size={22} />} title={title} subtitle={email}>
       <p className="auth-text">{text}</p>
-      <p className="auth-muted">ایمیل را پیدا نمی‌کنید؟ پوشه اسپم را هم ببینید.</p>
+      <p className="auth-muted">{t('ایمیل را پیدا نمی‌کنید؟ پوشه اسپم را هم ببینید.')}</p>
       {onResend && <ResendButton onResend={onResend} />}
       {onBack && (
         <button type="button" className="auth-link-btn" onClick={onBack}>
-          ایمیل را اشتباه وارد کرده‌ام
+          {t('ایمیل را اشتباه وارد کرده‌ام')}
         </button>
       )}
     </Card>
@@ -137,27 +137,27 @@ function LoginForm() {
       completeLogin(await loginWithPassword(email.trim(), password));
     } catch (err) {
       if (err.code === 'EMAIL_NOT_VERIFIED') setUnverified(true);
-      setError(err.message || 'ورود ناموفق بود.');
+      setError(err.message || t('ورود ناموفق بود.'));
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <Card icon={<LogIn size={22} />} title="ورود به RealRate" subtitle="با گوگل یا ایمیل و رمز عبور">
-      <GoogleButton label="ورود با گوگل" />
+    <Card icon={<LogIn size={22} />} title={t('ورود به RealRate')} subtitle={t('با گوگل یا ایمیل و رمز عبور')}>
+      <GoogleButton label={t('ورود با گوگل')} />
       <form className="auth-form" onSubmit={submit} noValidate>
         {error && <AlertBanner type={unverified ? 'warning' : 'error'} message={error} />}
         {unverified && <ResendButton onResend={() => resendVerification(email.trim())} />}
-        <Input id="auth-email" type="email" label="ایمیل" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" dir="ltr" required />
-        <PasswordInput id="auth-password" label="رمز عبور" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required />
+        <Input id="auth-email" type="email" label={t('ایمیل')} value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" dir="ltr" required />
+        <PasswordInput id="auth-password" label={t('رمز عبور')} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required />
         <div className="auth-row-end">
-          <Link replace to={AUTH_PATHS.forgot} className="auth-link">رمز عبور را فراموش کرده‌اید؟</Link>
+          <Link replace to={AUTH_PATHS.forgot} className="auth-link">{t('رمز عبور را فراموش کرده‌اید؟')}</Link>
         </div>
-        <Button type="submit" block loading={busy} disabled={!email.trim() || !password}>ورود</Button>
+        <Button type="submit" block loading={busy} disabled={!email.trim() || !password}>{t('ورود')}</Button>
       </form>
       <p className="auth-switch">
-        حساب ندارید؟ <Link replace to={AUTH_PATHS.register} className="auth-link">ثبت‌نام کنید</Link>
+        {t('حساب ندارید؟')} <Link replace to={AUTH_PATHS.register} className="auth-link">{t('ثبت‌نام کنید')}</Link>
       </p>
     </Card>
   );
@@ -185,7 +185,7 @@ function RegisterForm() {
       const res = await register({ name: name.trim(), email: email.trim(), password });
       setSentTo(res.email || email.trim());
     } catch (err) {
-      setError(err.message || 'ثبت‌نام ناموفق بود.');
+      setError(err.message || t('ثبت‌نام ناموفق بود.'));
     } finally {
       setBusy(false);
     }
@@ -195,8 +195,8 @@ function RegisterForm() {
     return (
       <CheckEmail
         email={sentTo}
-        title="ایمیل خود را تأیید کنید"
-        text="لینک تأیید به این ایمیل ارسال شد. با باز کردن لینک (تا ۲۴ ساعت)، حساب شما فعال می‌شود و وارد برنامه می‌شوید."
+        title={t('ایمیل خود را تأیید کنید')}
+        text={t('لینک تأیید به این ایمیل ارسال شد. با باز کردن لینک (تا ۲۴ ساعت)، حساب شما فعال می‌شود و وارد برنامه می‌شوید.')}
         onResend={() => resendVerification(sentTo)}
         onBack={() => setSentTo('')}
       />
@@ -204,18 +204,18 @@ function RegisterForm() {
   }
 
   return (
-    <Card icon={<UserPlus size={22} />} title="ساخت حساب RealRate" subtitle="رایگان؛ ایمیل شما با یک لینک تأیید می‌شود">
-      <GoogleButton label="ثبت‌نام با گوگل" />
+    <Card icon={<UserPlus size={22} />} title={t('ساخت حساب RealRate')} subtitle={t('رایگان؛ ایمیل شما با یک لینک تأیید می‌شود')}>
+      <GoogleButton label={t('ثبت‌نام با گوگل')} />
       <form className="auth-form" onSubmit={submit} noValidate>
         {error && <AlertBanner type="error" message={error} />}
-        <Input id="auth-name" label="نام (اختیاری)" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" maxLength={60} />
-        <Input id="auth-email" type="email" label="ایمیل" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" dir="ltr" required />
-        <PasswordInput id="auth-password" label="رمز عبور" hint={PASSWORD_HINT} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" required />
-        <PasswordInput id="auth-password-confirm" label="تکرار رمز عبور" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" error={passwordError} required />
-        <Button type="submit" block loading={busy} disabled={!email.trim() || !password || !confirm}>ساخت حساب</Button>
+        <Input id="auth-name" label={t('نام (اختیاری)')} value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" maxLength={60} />
+        <Input id="auth-email" type="email" label={t('ایمیل')} value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" dir="ltr" required />
+        <PasswordInput id="auth-password" label={t('رمز عبور')} hint={PASSWORD_HINT} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" required />
+        <PasswordInput id="auth-password-confirm" label={t('تکرار رمز عبور')} value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" error={passwordError} required />
+        <Button type="submit" block loading={busy} disabled={!email.trim() || !password || !confirm}>{t('ساخت حساب')}</Button>
       </form>
       <p className="auth-switch">
-        حساب دارید؟ <Link replace to={AUTH_PATHS.login} className="auth-link">وارد شوید</Link>
+        {t('حساب دارید؟')} <Link replace to={AUTH_PATHS.login} className="auth-link">{t('وارد شوید')}</Link>
       </p>
     </Card>
   );
@@ -239,7 +239,7 @@ function ForgotForm() {
     try {
       await send(email.trim());
     } catch (err) {
-      setError(err.message || 'ارسال لینک ناموفق بود.');
+      setError(err.message || t('ارسال لینک ناموفق بود.'));
     } finally {
       setBusy(false);
     }
@@ -249,8 +249,8 @@ function ForgotForm() {
     return (
       <CheckEmail
         email={sentTo}
-        title="لینک بازیابی ارسال شد"
-        text="اگر حسابی با این ایمیل وجود داشته باشد، لینک تعیین رمز جدید (با اعتبار یک ساعت) برایش ارسال شد. حساب‌هایی که با گوگل ساخته شده‌اند هم از همین راه رمز عبور می‌گیرند."
+        title={t('لینک بازیابی ارسال شد')}
+        text={t('اگر حسابی با این ایمیل وجود داشته باشد، لینک تعیین رمز جدید (با اعتبار یک ساعت) برایش ارسال شد. حساب‌هایی که با گوگل ساخته شده‌اند هم از همین راه رمز عبور می‌گیرند.')}
         onResend={() => requestPasswordReset(sentTo)}
         onBack={() => setSentTo('')}
       />
@@ -258,14 +258,14 @@ function ForgotForm() {
   }
 
   return (
-    <Card icon={<KeyRound size={22} />} title="فراموشی رمز عبور" subtitle="لینک تعیین رمز جدید به ایمیل شما ارسال می‌شود">
+    <Card icon={<KeyRound size={22} />} title={t('فراموشی رمز عبور')} subtitle={t('لینک تعیین رمز جدید به ایمیل شما ارسال می‌شود')}>
       <form className="auth-form" onSubmit={submit} noValidate>
         {error && <AlertBanner type="error" message={error} />}
-        <Input id="auth-email" type="email" label="ایمیل" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" dir="ltr" required />
-        <Button type="submit" block loading={busy} disabled={!email.trim()}>ارسال لینک</Button>
+        <Input id="auth-email" type="email" label={t('ایمیل')} value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" dir="ltr" required />
+        <Button type="submit" block loading={busy} disabled={!email.trim()}>{t('ارسال لینک')}</Button>
       </form>
       <p className="auth-switch">
-        <Link replace to={AUTH_PATHS.login} className="auth-link">بازگشت به ورود</Link>
+        <Link replace to={AUTH_PATHS.login} className="auth-link">{t('بازگشت به ورود')}</Link>
       </p>
     </Card>
   );
@@ -293,23 +293,23 @@ function ResetForm() {
     try {
       completeLogin(await resetPassword(token, password));
     } catch (err) {
-      setError(err.message || 'تعیین رمز ناموفق بود.');
+      setError(err.message || t('تعیین رمز ناموفق بود.'));
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <Card icon={<KeyRound size={22} />} title="تعیین رمز عبور جدید" subtitle="پس از ثبت، از دستگاه‌های دیگر خارج می‌شوید">
+    <Card icon={<KeyRound size={22} />} title={t('تعیین رمز عبور جدید')} subtitle={t('پس از ثبت، از دستگاه‌های دیگر خارج می‌شوید')}>
       <form className="auth-form" onSubmit={submit} noValidate>
         {error && <AlertBanner type="error" message={error} />}
-        <PasswordInput id="auth-password" label="رمز عبور جدید" hint={PASSWORD_HINT} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" required />
-        <PasswordInput id="auth-password-confirm" label="تکرار رمز عبور" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" error={passwordError} required />
-        <Button type="submit" block loading={busy} disabled={!password || !confirm}>ثبت رمز و ورود</Button>
+        <PasswordInput id="auth-password" label={t('رمز عبور جدید')} hint={PASSWORD_HINT} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" required />
+        <PasswordInput id="auth-password-confirm" label={t('تکرار رمز عبور')} value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" error={passwordError} required />
+        <Button type="submit" block loading={busy} disabled={!password || !confirm}>{t('ثبت رمز و ورود')}</Button>
       </form>
       {error && (
         <p className="auth-switch">
-          <Link replace to={AUTH_PATHS.forgot} className="auth-link">درخواست لینک جدید</Link>
+          <Link replace to={AUTH_PATHS.forgot} className="auth-link">{t('درخواست لینک جدید')}</Link>
         </p>
       )}
     </Card>
@@ -328,14 +328,14 @@ function VerifyEmail() {
     started.current = true;
     verifyEmail(token)
       .then(completeLogin)
-      .catch((err) => setError(err.message || 'تأیید ایمیل ناموفق بود.'));
+      .catch((err) => setError(err.message || t('تأیید ایمیل ناموفق بود.')));
   }, [token, completeLogin]);
 
   if (!token) return <InvalidLink kind="verify" />;
   if (error) return <InvalidLink kind="verify" message={error} />;
 
   return (
-    <Card icon={<Mail size={22} />} title="در حال تأیید ایمیل…" subtitle="چند لحظه صبر کنید">
+    <Card icon={<Mail size={22} />} title={t('در حال تأیید ایمیل…')} subtitle={t('چند لحظه صبر کنید')}>
       <div className="auth-spinner"><div className="spinner-glow" /></div>
     </Card>
   );
@@ -354,27 +354,27 @@ function InvalidLink({ kind, message }) {
       await (isVerify ? resendVerification(email.trim()) : requestPasswordReset(email.trim()));
       setSent(true);
     } catch (err) {
-      setError(err.message || 'ارسال ناموفق بود.');
+      setError(err.message || t('ارسال ناموفق بود.'));
     }
   };
 
   return (
     <Card
       icon={<Mail size={22} />}
-      title="لینک معتبر نیست"
-      subtitle={message || 'این لینک استفاده شده، منقضی شده یا ناقص کپی شده است.'}
+      title={t('لینک معتبر نیست')}
+      subtitle={message || t('این لینک استفاده شده، منقضی شده یا ناقص کپی شده است.')}
     >
       {sent ? (
-        <AlertBanner type="success" message="اگر این ایمیل قابل استفاده باشد، لینک جدید برایش ارسال شد." />
+        <AlertBanner type="success" message={t('اگر این ایمیل قابل استفاده باشد، لینک جدید برایش ارسال شد.')} />
       ) : (
         <form className="auth-form" onSubmit={submit} noValidate>
           {error && <AlertBanner type="error" message={error} />}
-          <Input id="auth-email" type="email" label="ایمیل" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" dir="ltr" required />
-          <Button type="submit" block disabled={!email.trim()}>{isVerify ? 'ارسال لینک تأیید جدید' : 'ارسال لینک بازیابی جدید'}</Button>
+          <Input id="auth-email" type="email" label={t('ایمیل')} value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" dir="ltr" required />
+          <Button type="submit" block disabled={!email.trim()}>{isVerify ? t('ارسال لینک تأیید جدید') : t('ارسال لینک بازیابی جدید')}</Button>
         </form>
       )}
       <p className="auth-switch">
-        <Link replace to={AUTH_PATHS.login} className="auth-link">بازگشت به ورود</Link>
+        <Link replace to={AUTH_PATHS.login} className="auth-link">{t('بازگشت به ورود')}</Link>
       </p>
     </Card>
   );
@@ -389,12 +389,12 @@ export default function AuthPage() {
   const mode = MODE_BY_PATH[pathname] || 'login';
 
   const authTitle = {
-    login: 'ورود به حساب کاربری | RealRate',
-    register: 'ثبت‌نام در ریل‌ریت | RealRate',
-    forgot: 'بازیابی رمز عبور | RealRate',
-    reset: 'تغییر رمز عبور | RealRate',
-    verify: 'تأیید نشانی ایمیل | RealRate',
-  }[mode] || 'ورود به حساب کاربری | RealRate';
+    login: t('ورود به حساب کاربری | RealRate'),
+    register: t('ثبت‌نام در ریل‌ریت | RealRate'),
+    forgot: t('بازیابی رمز عبور | RealRate'),
+    reset: t('تغییر رمز عبور | RealRate'),
+    verify: t('تأیید نشانی ایمیل | RealRate'),
+  }[mode] || t('ورود به حساب کاربری | RealRate');
 
   useDocumentTitle(authTitle);
 
