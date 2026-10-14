@@ -19,7 +19,7 @@ android {
     }
     // "full" reads bank SMS; "nosms" has no SMS permission or receiver (src/nosms/AndroidManifest.xml)
     // and is built from a web bundle with VITE_NO_SMS=1 (SMS screens hidden). Its application id is
-    // ir.realrate.app.store, so it installs next to the full app (Google Play needs it to differ).
+    // org.geekio.realrate, so it installs next to the full app (Google Play needs it to differ).
     flavorDimensions 'sms'
     productFlavors {
         // Each build has its own application id and sign-in link scheme (the API accepts both), so a
@@ -30,7 +30,7 @@ android {
         }
         nosms {
             dimension 'sms'
-            applicationIdSuffix '.store'
+            applicationId 'org.geekio.realrate'
             manifestPlaceholders = [authScheme: 'ir.realrate.store']
         }
     }
