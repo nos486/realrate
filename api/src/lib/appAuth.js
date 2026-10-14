@@ -14,7 +14,17 @@
  *     a code taken by anyone without the verifier is useless.
  */
 
-export const APP_AUTH_REDIRECT = "ir.realrate.app://auth";
+/**
+ * Link schemes of the app's builds: the full build and the store ("nosms") build have different
+ * application ids, so both can be installed, and each takes only its own link back.
+ */
+export const APP_AUTH_SCHEMES = ["ir.realrate.app", "ir.realrate.store"];
+export const APP_AUTH_REDIRECT = `${APP_AUTH_SCHEMES[0]}://auth`;
+
+/** A known scheme from the request, else the full build's */
+export function appSchemeOf(value) {
+  return APP_AUTH_SCHEMES.includes(value) ? value : APP_AUTH_SCHEMES[0];
+}
 /** Origin of the app's own pages (Capacitor's WebView on Android) */
 export const APP_WEBVIEW_ORIGIN = "https://localhost";
 export const APP_SIGNIN_CODE_TTL = 120;
@@ -44,11 +54,11 @@ export async function appChallengeOf(verifier) {
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-/** The app's link with `params` (code, or auth_error) */
-export function appAuthRedirect(params = {}) {
+/** The app's link (of the build that started the sign-in) with `params` (code, or auth_error) */
+export function appAuthRedirect(params = {}, scheme = APP_AUTH_SCHEMES[0]) {
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== null) query.set(key, String(value));
   }
-  return `${APP_AUTH_REDIRECT}?${query}`;
+  return `${appSchemeOf(scheme)}://auth?${query}`;
 }

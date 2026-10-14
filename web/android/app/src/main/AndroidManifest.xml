@@ -22,12 +22,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Google sign-in returns from the phone's browser: ir.realrate.app://auth?code=… -->
+            <!-- Google sign-in returns from the phone's browser: <scheme>://auth?code=… (the build's own scheme) -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="ir.realrate.app" android:host="auth" />
+                <data android:scheme="${authScheme}" android:host="auth" />
             </intent-filter>
 
         </activity>

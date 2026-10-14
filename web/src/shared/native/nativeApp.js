@@ -16,7 +16,9 @@ import { Capacitor } from '@capacitor/core';
 import { API_BASE } from '../api/httpClient.js';
 
 export const PUBLIC_SITE_ORIGIN = 'https://realrate.geekio.org';
-const APP_AUTH_LINK = 'ir.realrate.app://auth';
+// The store ("nosms") build has its own application id and link scheme, so it installs next to the full one
+const APP_AUTH_SCHEME = import.meta.env?.VITE_NO_SMS === '1' ? 'ir.realrate.store' : 'ir.realrate.app';
+const APP_AUTH_LINK = `${APP_AUTH_SCHEME}://auth`;
 const VERIFIER_KEY = 'realrate_app_signin_verifier';
 
 /**
@@ -91,7 +93,7 @@ export async function startNativeGoogleLogin() {
     localStorage.setItem(VERIFIER_KEY, verifier);
   } catch {}
   const { Browser } = await import('@capacitor/browser');
-  await Browser.open({ url: `${API_BASE}/api/auth/google/login?app_challenge=${challenge}`, toolbarColor: '#06080d' });
+  await Browser.open({ url: `${API_BASE}/api/auth/google/login?app_challenge=${challenge}&app_scheme=${APP_AUTH_SCHEME}`, toolbarColor: '#06080d' });
 }
 
 /** The verifier kept for the sign-in under way (used once) */
