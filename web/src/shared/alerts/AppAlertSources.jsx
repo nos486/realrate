@@ -13,6 +13,8 @@
  */
 
 import { useEffect, useMemo } from 'react';
+import { t } from '../../utils/i18n.js';
+import { toPersianDigits } from '../utils/formatters.js';
 import { useLoansContext } from '../../features/loans/context/LoansContext.jsx';
 import { useChequesContext } from '../../features/cheques/context/ChequesContext.jsx';
 import { useOptionalSubscriptions } from '../../features/subscriptions/context/SubscriptionsContext.jsx';
@@ -30,8 +32,6 @@ import { loanAlerts, chequeAlerts, subscriptionAlerts } from './alertRules.js';
 import { alertFingerprint } from '../../utils/alerts.js';
 import { useAlertSource, useAlerts, getAlerts } from './alertStore.js';
 import { deliverAlerts } from './alertChannels.js';
-
-const faVersion = (v) => String(v || '').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
 
 export default function AppAlertSources({ announcement = '' }) {
   const { loans } = useLoansContext();
@@ -51,14 +51,14 @@ export default function AppAlertSources({ announcement = '' }) {
     id: `app:update:${update.release.version}`,
     source: 'app',
     severity: 'info',
-    title: `نسخه‌ی ${faVersion(update.release.version)} برنامه آماده است`,
-    action: { label: 'به‌روزرسانی', path: '#app-update' },
+    title: t('نسخه‌ی {version} برنامه آماده است', { version: toPersianDigits(update.release.version || '') }),
+    action: { label: t('به‌روزرسانی'), path: '#app-update' },
   }] : []);
   useAlertSource('system', announcement ? [{
     id: `system:announcement:${announcement.length}:${announcement.slice(0, 24)}`,
     source: 'system',
     severity: 'info',
-    title: 'اطلاعیه',
+    title: t('اطلاعیه'),
     message: announcement,
   }] : []);
 

@@ -14,6 +14,7 @@ import {
 } from '../../utils/portfolioLayout.js';
 import { toPriceId, isCustomAssetId } from '../../utils/priceIds.js';
 import { CATEGORY_DEFINITIONS } from './utils/holdingHelpers.js';
+import { t } from '../../utils/i18n.js';
 
 export function newGroupId() {
   return `g_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -104,7 +105,7 @@ export function buildDefaultPortfolioLayout(items = [], targets = undefined) {
   if (leftoverKeys.length > 0) {
     groups.push({
       id: 'g_other',
-      title: 'سایر',
+      title: t('سایر'),
       icon: 'custom',
       items: leftoverKeys,
     });
@@ -113,9 +114,9 @@ export function buildDefaultPortfolioLayout(items = [], targets = undefined) {
   // If no items in portfolio, provide 3 clean default categories
   if (groups.length === 0) {
     groups.push(
-      { id: 'g_gold', title: 'طلا و سکه', icon: 'gold', items: [] },
-      { id: 'g_currency', title: 'ارزها', icon: 'currency', items: [] },
-      { id: 'g_bourse', title: 'بورس و سهام', icon: 'bourse', items: [] }
+      { id: 'g_gold', title: t('طلا و سکه'), icon: 'gold', items: [] },
+      { id: 'g_currency', title: t('ارزها'), icon: 'currency', items: [] },
+      { id: 'g_bourse', title: t('بورس و سهام'), icon: 'bourse', items: [] }
     );
   }
 
@@ -221,10 +222,10 @@ export function buildCustomCategoryGroups(itemsList = [], layout = null, filterQ
       groups.push({
         key: 'other',
         id: 'g_other',
-        name: 'سایر',
-        title: 'سایر',
+        name: t('سایر'),
+        title: t('سایر'),
         icon: 'custom',
-        badge: 'سایر',
+        badge: t('سایر'),
         items: uncategorizedItems,
         totalCost: otherCost,
         totalRealValue: otherRealVal,
@@ -260,7 +261,7 @@ const reorder = (list, fromIndex, toIndex) => {
   return next;
 };
 
-export function addGroup(layout, { title = 'دسته جدید', icon = 'custom' } = {}) {
+export function addGroup(layout, { title = t('دسته جدید'), icon = 'custom' } = {}) {
   const current = layoutOf(layout?.groups || [], layout?.targets);
   if (current.groups.length >= PORTFOLIO_LAYOUT_LIMITS.groups) return current;
   return layoutOf([...current.groups, { id: newGroupId(), title, icon, items: [] }], current.targets);
@@ -340,14 +341,14 @@ export function reorderAsset(layout, groupId, assetKey, overKey) {
 }
 
 export const AVAILABLE_CATEGORY_ICONS = [
-  { id: 'gold', label: 'طلا' },
-  { id: 'coin', label: 'سکه' },
-  { id: 'silver', label: 'نقره' },
-  { id: 'currency', label: 'ارز' },
-  { id: 'crypto', label: 'رمزارز' },
-  { id: 'bourse', label: 'بورس' },
-  { id: 'bourse_fund', label: 'صندوق' },
-  { id: 'wallet', label: 'کیف پول' },
-  { id: 'custom', label: 'سفارشی' },
-  { id: 'sparkles', label: 'ویژه' },
+  { id: 'gold', label: t('طلا') },
+  { id: 'coin', label: t('سکه') },
+  { id: 'silver', label: t('نقره') },
+  { id: 'currency', label: t('ارز') },
+  { id: 'crypto', label: t('رمزارز') },
+  { id: 'bourse', label: t('بورس') },
+  { id: 'bourse_fund', label: t('صندوق') },
+  { id: 'wallet', label: t('کیف پول') },
+  { id: 'custom', label: t('سفارشی') },
+  { id: 'sparkles', label: t('ویژه') },
 ];

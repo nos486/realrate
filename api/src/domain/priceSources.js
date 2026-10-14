@@ -17,15 +17,16 @@
 
 import { staleAfterSecOf, catalogItemPriceToman } from "./priceBook.js";
 import { DEFAULT_MAX_JUMP_PCT, DEFAULT_CONFIRM_TICKS } from "./priceGuard.js";
+import { t } from "./i18n.js";
 
 /** The shortest time between two fetches of a source (5 minutes: kept light on the feeds) */
 export const MIN_FETCH_INTERVAL_SEC = 300;
 
 /** What a source's numbers are in, as the admin reads it */
-export const QUOTE_LABELS = { toman: "تومان", rial: "ریال", usd: "دلار", usd_cross: "نرخ در برابر دلار" };
+export const QUOTE_LABELS = { toman: t("تومان"), rial: t("ریال"), usd: t("دلار"), usd_cross: t("نرخ در برابر دلار") };
 
 /** What a source gives, as the admin reads it */
-export const SOURCE_KIND_LABELS = { single: "تک‌نرخی", multi: "چندخروجی", catalog: "کاتالوگ" };
+export const SOURCE_KIND_LABELS = { single: t("تک‌نرخی"), multi: t("چندخروجی"), catalog: t("کاتالوگ") };
 
 /**
  * @param {object} src - a source's config
@@ -62,7 +63,7 @@ export function sourceScheduleOf(src, state, nowMs = Date.now()) {
   const synced = Date.parse(syncedAt || "") || 0;
   const failed = Date.parse(failedAt || "") || 0;
   // A failure after the last success is the source's current state
-  const error = failed > synced ? state?.error || "خطای نامشخص" : null;
+  const error = failed > synced ? state?.error || t("خطای نامشخص") : null;
   const lastTry = lastTryOf(state);
   let status = "ok";
   if (src?.isActive === false) status = "off";

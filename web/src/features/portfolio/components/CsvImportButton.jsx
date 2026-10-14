@@ -2,7 +2,7 @@
  * CsvImportButton.jsx — Read a portfolio CSV back (utils/holdingsCsv.js): purchases and holdings
  * become the buy side's records, sales become sales; expense payments are skipped.
  */
-import { intlLocale } from '../../../utils/i18n.js';
+import { intlLocale, t, plural } from '../../../utils/i18n.js';
 import React, { useState, useRef } from 'react';
 import { Upload, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
 import Modal from '../../../shared/ui/Modal.jsx';
@@ -35,7 +35,7 @@ export default function CsvImportButton({ addHolding, addTransaction, disabled =
         (r) => r.length > 0 && !(r.length === 1 && !r[0].trim())
       );
       if (table.length < 2) {
-        setParseError('فایل خالی است یا هیچ ردیف داده‌ای ندارد.');
+        setParseError(t('فایل خالی است یا هیچ ردیف داده‌ای ندارد.'));
         setStep('preview');
         return;
       }
@@ -48,7 +48,7 @@ export default function CsvImportButton({ addHolding, addTransaction, disabled =
       setParsedRows(buildRows(headerIndex, dataRows));
       setStep('preview');
     } catch (err) {
-      setParseError('خطا در خواندن فایل: ' + (err.message || ''));
+      setParseError(t('خطا در خواندن فایل: {message}', { message: err.message || '' }));
       setStep('preview');
     }
   };
@@ -102,8 +102,8 @@ export default function CsvImportButton({ addHolding, addTransaction, disabled =
         type="button"
         className="btn-import-csv icon-only"
         onClick={handleButtonClick}
-        title="درون‌ریزی اقلام پورتفو از فایل CSV"
-        aria-label="ورودی CSV"
+        title={t('درون‌ریزی اقلام پورتفو از فایل CSV')}
+        aria-label={t('ورودی CSV')}
         disabled={disabled}
       >
         <Upload size={15} strokeWidth={2} />
@@ -112,14 +112,14 @@ export default function CsvImportButton({ addHolding, addTransaction, disabled =
       <Modal
         isOpen={step !== null}
         onClose={step === 'importing' ? undefined : handleClose}
-        title="درون‌ریزی از فایل CSV"
+        title={t('درون‌ریزی از فایل CSV')}
         icon={<Upload size={18} />}
         maxWidth="480px"
         footer={
           step === 'preview' ? (
             <div className="modal-actions">
               <button type="button" className="btn-cancel" onClick={handleClose}>
-                انصراف
+                {t('انصراف')}
               </button>
               <button
                 type="button"
@@ -127,13 +127,13 @@ export default function CsvImportButton({ addHolding, addTransaction, disabled =
                 disabled={importable.length === 0}
                 onClick={handleStartImport}
               >
-                درون‌ریزی {importable.length.toLocaleString(intlLocale())} ثبت
+                {plural(importable.length, t('درون‌ریزی {count} ثبت', { count: importable.length.toLocaleString(intlLocale()) }), t('درون‌ریزی {count} ثبت‌ها', { count: importable.length.toLocaleString(intlLocale()) }))}
               </button>
             </div>
           ) : step === 'done' ? (
             <div className="modal-actions">
               <button type="button" className="btn-primary" onClick={handleClose}>
-                بستن
+                {t('بستن')}
               </button>
             </div>
           ) : null
@@ -148,53 +148,42 @@ export default function CsvImportButton({ addHolding, addTransaction, disabled =
               </div>
             ) : (
               <>
-                <p>خلاصه فایل انتخاب‌شده:</p>
+                <p>{t('خلاصه فایل انتخاب‌شده:')}</p>
                 <ul className="csv-import-summary-list">
                   <li>
                     <CheckCircle2 size={14} className="ok-icon" />
                     <span>
-                      {importable.length.toLocaleString(intlLocale())} ثبت آماده درون‌ریزی
-                      {sellCount > 0 && ` (${sellCount.toLocaleString(intlLocale())} فروش)`}
+                      {t('{count} ثبت آماده درون‌ریزی', { count: importable.length.toLocaleString(intlLocale()) })}
+                      {sellCount > 0 && plural(sellCount, t(' ({count} فروش)', { count: sellCount.toLocaleString(intlLocale()) }), t(' ({count} فروش‌ها)', { count: sellCount.toLocaleString(intlLocale()) }))}
                     </span>
                   </li>
                   {customFallbackCount > 0 && (
                     <li>
                       <AlertTriangle size={14} className="warn-icon" />
-                      <span>
-                        {customFallbackCount.toLocaleString(intlLocale())} مورد بدون شناسه سیستمی
-                        شناخته‌شده — به‌صورت دارایی «سفارشی» وارد می‌شوند (نام اصلی در یادداشت ذخیره
-                        می‌شود)
-                      </span>
+                      <span>{t('{count} مورد بدون شناسه سیستمی شناخته‌شده — به‌صورت دارایی «سفارشی» وارد می‌شوند (نام اصلی در یادداشت ذخیره می‌شود)', { count: customFallbackCount.toLocaleString(intlLocale()) })}</span>
                     </li>
                   )}
                   {skippedCount > 0 && (
                     <li>
                       <XCircle size={14} className="skip-icon" />
-                      <span>
-                        {skippedCount.toLocaleString(intlLocale())} مورد نادیده گرفته شد («پرداخت هزینه» از
-                        خود هزینه ساخته می‌شود؛ پشتیبان کامل آن را هم برمی‌گرداند)
-                      </span>
+                      <span>{t('{count} مورد نادیده گرفته شد («پرداخت هزینه» از خود هزینه ساخته می‌شود؛ پشتیبان کامل آن را هم برمی‌گرداند)', { count: skippedCount.toLocaleString(intlLocale()) })}</span>
                     </li>
                   )}
                   {invalidCount > 0 && (
                     <li>
                       <XCircle size={14} className="skip-icon" />
-                      <span>
-                        {invalidCount.toLocaleString(intlLocale())} ردیف نامعتبر (بدون مقدار) نادیده
-                        گرفته شد
-                      </span>
+                      <span>{t('{count} ردیف نامعتبر (بدون مقدار) نادیده گرفته شد', { count: invalidCount.toLocaleString(intlLocale()) })}</span>
                     </li>
                   )}
                 </ul>
                 {!hasSourceCol && (
                   <div className="csv-import-warning-note">
-                    این فایل ستون «منبع» را ندارد (خروجی نسخه‌های قدیمی‌تر). اگر اقلام محاسبه‌شده از
-                    تراکنش‌ها هم در آن بوده باشد، ممکن است پس از درون‌ریزی به‌صورت تکراری دیده شوند.
+                    {t('این فایل ستون «منبع» را ندارد (خروجی نسخه‌های قدیمی‌تر). اگر اقلام محاسبه‌شده از تراکنش‌ها هم در آن بوده باشد، ممکن است پس از درون‌ریزی به‌صورت تکراری دیده شوند.')}
                   </div>
                 )}
                 {importable.length === 0 && (
                   <div className="csv-import-warning-note">
-                    هیچ قلم قابل درون‌ریزی‌ای در این فایل یافت نشد.
+                    {t('هیچ قلم قابل درون‌ریزی‌ای در این فایل یافت نشد.')}
                   </div>
                 )}
               </>
@@ -205,10 +194,7 @@ export default function CsvImportButton({ addHolding, addTransaction, disabled =
         {step === 'importing' && (
           <div className="csv-import-progress">
             <div className="spinner-glow"></div>
-            <p>
-              در حال درون‌ریزی... ({progress.done.toLocaleString(intlLocale())} از{' '}
-              {progress.total.toLocaleString(intlLocale())})
-            </p>
+            <p>{t('در حال درون‌ریزی... ({done} از {total})', { done: progress.done.toLocaleString(intlLocale()), total: progress.total.toLocaleString(intlLocale()) })}</p>
           </div>
         )}
 
@@ -216,13 +202,13 @@ export default function CsvImportButton({ addHolding, addTransaction, disabled =
           <div className="csv-import-result">
             <p>
               <CheckCircle2 size={16} className="ok-icon" />
-              <span>{result.success.toLocaleString(intlLocale())} ثبت با موفقیت اضافه شد.</span>
+              <span>{t('{count} ثبت با موفقیت اضافه شد.', { count: result.success.toLocaleString(intlLocale()) })}</span>
             </p>
             {result.failed > 0 && (
               <>
                 <p>
                   <AlertTriangle size={16} className="warn-icon" />
-                  <span>{result.failed.toLocaleString(intlLocale())} مورد با خطا مواجه شد:</span>
+                  <span>{t('{count} مورد با خطا مواجه شد:', { count: result.failed.toLocaleString(intlLocale()) })}</span>
                 </p>
                 <ul className="csv-import-fail-list">
                   {result.failedNames.map((n, i) => (

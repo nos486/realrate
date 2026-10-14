@@ -8,7 +8,7 @@
  * A change made offline that the server then refuses is reported (it cannot be kept).
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
 import React, { useEffect } from 'react';
 import { WifiOff, RefreshCw } from 'lucide-react';
 import { useOfflineStatus } from './useOfflineStatus.js';
@@ -22,7 +22,7 @@ export default function OfflineBar() {
   const { toast } = useFeedback();
 
   useEffect(() => {
-    const onRefused = (e) => toast.error(`تغییری که آفلاین ثبت شده بود پذیرفته نشد: ${e.detail?.message || 'خطای سرور'}`, { duration: 8000 });
+    const onRefused = (e) => toast.error(t('تغییری که آفلاین ثبت شده بود پذیرفته نشد: {reason}', { reason: e.detail?.message || t('خطای سرور') }), { duration: 8000 });
     window.addEventListener(OFFLINE_SYNC_ERROR_EVENT, onRefused);
     return () => window.removeEventListener(OFFLINE_SYNC_ERROR_EVENT, onRefused);
   }, [toast]);
@@ -32,10 +32,10 @@ export default function OfflineBar() {
       <div className="offline-bar is-offline" role="status" aria-live="polite">
         <WifiOff size={15} aria-hidden="true" />
         <span>
-          <strong>آفلاین</strong>
+          <strong>{t('آفلاین')}</strong>
           {active
-            ? ` — آنچه ثبت می‌کنید روی دستگاه ذخیره و پس از اتصال همگام می‌شود${pending ? ` (${fa(pending)} تغییر در انتظار)` : ''}`
-            : ' — اتصال اینترنت برقرار نیست'}
+            ? ` — ${t('آنچه ثبت می‌کنید روی دستگاه ذخیره و پس از اتصال همگام می‌شود')}${pending ? ` (${t('{n} تغییر در انتظار', { n: fa(pending) })})` : ''}`
+            : ` — ${t('اتصال اینترنت برقرار نیست')}`}
         </span>
       </div>
     );
@@ -44,7 +44,7 @@ export default function OfflineBar() {
     return (
       <div className="offline-bar is-syncing" role="status" aria-live="polite">
         <RefreshCw size={15} className={syncing ? 'spin' : ''} aria-hidden="true" />
-        <span>در حال همگام‌سازی {fa(pending)} تغییر…</span>
+        <span>{t('در حال همگام‌سازی {n} تغییر…', { n: fa(pending) })}</span>
       </div>
     );
   }

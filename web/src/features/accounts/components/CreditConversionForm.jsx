@@ -13,7 +13,7 @@
  * are in the future: the full Shamsi picker).
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { intlLocale, t } from '../../../utils/i18n.js';
 import React, { useState } from 'react';
 import { CalendarClock, Plus, X } from 'lucide-react';
 import { AlertBanner, Button, Modal, NumericInput } from '../../../shared/ui/index.js';
@@ -70,7 +70,7 @@ export default function CreditConversionForm({ account, debt, onSave, onClose })
       await onSave(checked.value, cost);
       onClose();
     } catch (err) {
-      setError(err.message || 'ثبت قسط‌بندی ممکن نشد.');
+      setError(err.message || t('ثبت قسط‌بندی ممکن نشد.'));
       setSubmitting(false);
     }
   };
@@ -79,69 +79,69 @@ export default function CreditConversionForm({ account, debt, onSave, onClose })
     <Modal
       isOpen
       onClose={onClose}
-      title="تبدیل به قسط"
-      subtitle={`«${account.name}» — اقساط را همان‌طور که بانک تعیین کرده وارد کنید`}
+      title={t('تبدیل به قسط')}
+      subtitle={t('«{name}» — اقساط را همان‌طور که بانک تعیین کرده وارد کنید', { name: account.name })}
       icon={<CalendarClock size={18} />}
       maxWidth="560px"
       onSubmit={handleSubmit}
-      footer={<EntryFormActions submitLabel="تبدیل به قسط" valid={!checked.error} submitting={submitting} onCancel={onClose} />}
+      footer={<EntryFormActions submitLabel={t('تبدیل به قسط')} valid={!checked.error} submitting={submitting} onCancel={onClose} />}
     >
       <div className="entry-form-body">
         {error && <AlertBanner type="error" message={error} />}
 
-        <AmountField id="conversion-principal" label="مبلغی که قسط‌بندی می‌شود" value={principal} onValueChange={setPrincipal} currency="IRT">
-          <p className="expense-form-hint">بدهی خارج از اقساط: {formatAmount(debt)} تومان</p>
+        <AmountField id="conversion-principal" label={t('مبلغی که قسط‌بندی می‌شود')} value={principal} onValueChange={setPrincipal} currency="IRT">
+          <p className="expense-form-hint">{t('بدهی خارج از اقساط: {amount} تومان', { amount: formatAmount(debt) })}</p>
         </AmountField>
 
-        <DateField label="تاریخ قسط‌بندی *" value={dateShamsi} onChange={setDateShamsi} />
+        <DateField label={t('تاریخ قسط‌بندی *')} value={dateShamsi} onChange={setDateShamsi} />
 
         <fieldset className="credit-fill">
-          <legend>ساخت سریع ردیف‌ها (اختیاری)</legend>
+          <legend>{t('ساخت سریع ردیف‌ها (اختیاری)')}</legend>
           <div className="credit-terms-row">
             <div className="ui-input-group">
-              <label htmlFor="conversion-fill-count" className="ui-input-label">تعداد اقساط</label>
+              <label htmlFor="conversion-fill-count" className="ui-input-label">{t('تعداد اقساط')}</label>
               <div className="ui-input-wrapper">
                 <NumericInput id="conversion-fill-count" value={fillCount} onValueChange={setFillCount} className="ui-input-control" />
               </div>
             </div>
             <div className="ui-input-group">
-              <label htmlFor="conversion-fill-amount" className="ui-input-label">مبلغ هر قسط</label>
+              <label htmlFor="conversion-fill-amount" className="ui-input-label">{t('مبلغ هر قسط')}</label>
               <div className="ui-input-wrapper">
                 <NumericInput id="conversion-fill-amount" value={fillAmount} onValueChange={setFillAmount} className="ui-input-control" />
               </div>
             </div>
           </div>
-          <ShamsiDatePicker label="سررسید اولین قسط" value={fillFirst} onChange={setFillFirst} />
+          <ShamsiDatePicker label={t('سررسید اولین قسط')} value={fillFirst} onChange={setFillFirst} />
           <Button type="button" size="sm" variant="secondary" onClick={fillRows} disabled={!fillFirst || !(digitsOnly(fillCount) > 0)}>
-            ساخت ردیف‌ها (ماهانه)
+            {t('ساخت ردیف‌ها (ماهانه)')}
           </Button>
         </fieldset>
 
         <div className="credit-rows">
-          <span className="ui-input-label">اقساط *</span>
+          <span className="ui-input-label">{t('اقساط *')}</span>
           {rows.map((r, index) => (
             <div key={r.key} className="credit-row">
-              <ShamsiDatePicker label={`قسط ${faPct(index + 1)}`} value={r.dueShamsi} onChange={(v) => setRow(r.key, { dueShamsi: v })} />
+              <ShamsiDatePicker label={t('قسط {n}', { n: faPct(index + 1) })} value={r.dueShamsi} onChange={(v) => setRow(r.key, { dueShamsi: v })} />
               <div className="ui-input-group">
-                <label htmlFor={`conversion-row-${r.key}`} className="ui-input-label">مبلغ</label>
+                <label htmlFor={`conversion-row-${r.key}`} className="ui-input-label">{t('مبلغ')}</label>
                 <div className="ui-input-wrapper">
                   <NumericInput id={`conversion-row-${r.key}`} value={r.amount} onValueChange={(v) => setRow(r.key, { amount: v })} className="ui-input-control" />
                 </div>
               </div>
-              <button type="button" className="btn-table-action delete" title="حذف قسط" onClick={() => setRows((list) => list.filter((x) => x.key !== r.key))}>
+              <button type="button" className="btn-table-action delete" title={t('حذف قسط')} onClick={() => setRows((list) => list.filter((x) => x.key !== r.key))}>
                 <X size={13} />
               </button>
             </div>
           ))}
           <Button type="button" size="sm" variant="secondary" icon={<Plus size={14} />} onClick={() => setRows((list) => [...list, row()])}>
-            افزودن قسط
+            {t('افزودن قسط')}
           </Button>
         </div>
 
         <p className="expense-form-hint">
           {rows.length === 0
-            ? 'اقساط را وارد کنید (یا با «ساخت ردیف‌ها» بسازید و بعد تغییر دهید).'
-            : checked.error || `${faPct(rows.length)} قسط، جمع ${formatAmount(total)} تومان؛ کارمزد قسط‌بندی ${formatAmount(cost)} تومان (${faPct(pct)}٪)`}
+            ? t('اقساط را وارد کنید (یا با «ساخت ردیف‌ها» بسازید و بعد تغییر دهید).')
+            : checked.error || t('{n} قسط، جمع {total} تومان؛ کارمزد قسط‌بندی {cost} تومان ({pct})', { n: faPct(rows.length), total: formatAmount(total), cost: formatAmount(cost), pct: `${faPct(pct)}${t('٪')}` })}
         </p>
       </div>
     </Modal>

@@ -28,33 +28,34 @@
 import { computeClampedDueDate, parseDateParts } from './loanCalculator.js';
 import { isValidIsoDate } from './isoDate.js';
 import { CURRENCY_CODES, normalizeCurrency, currencyRateToday } from './currencies.js';
+import { t } from './i18n.js';
 
 /** How often a subscription renews (months between payments) */
 export const SUBSCRIPTION_CYCLES = [
-  { months: 1, label: 'ماهانه', short: 'ماه' },
-  { months: 3, label: 'سه‌ماهه', short: '۳ ماه' },
-  { months: 6, label: 'شش‌ماهه', short: '۶ ماه' },
-  { months: 12, label: 'سالانه', short: 'سال' },
+  { months: 1, label: t('ماهانه'), short: t('ماه') },
+  { months: 3, label: t('سه‌ماهه'), short: t('۳ ماه') },
+  { months: 6, label: t('شش‌ماهه'), short: t('۶ ماه') },
+  { months: 12, label: t('سالانه'), short: t('سال') },
 ];
 
 /** What a subscription is for (icon names from categoryDocument.js's CATEGORY_ICON_NAMES) */
 export const SUBSCRIPTION_CATEGORIES = [
-  { value: 'video', label: 'فیلم و سریال', icon: 'Film' },
-  { value: 'music', label: 'موسیقی و پادکست', icon: 'Music' },
-  { value: 'software', label: 'نرم‌افزار و هوش مصنوعی', icon: 'Laptop' },
-  { value: 'cloud', label: 'فضای ابری و سرور', icon: 'Zap' },
-  { value: 'internet', label: 'اینترنت و سیم‌کارت', icon: 'Wifi' },
-  { value: 'gaming', label: 'بازی', icon: 'Gamepad2' },
-  { value: 'education', label: 'آموزش و مطالعه', icon: 'Book' },
-  { value: 'fitness', label: 'ورزش و باشگاه', icon: 'Dumbbell' },
-  { value: 'membership', label: 'عضویت و خدمات', icon: 'Users' },
-  { value: 'other', label: 'سایر', icon: 'Tag' },
+  { value: 'video', label: t('فیلم و سریال'), icon: 'Film' },
+  { value: 'music', label: t('موسیقی و پادکست'), icon: 'Music' },
+  { value: 'software', label: t('نرم‌افزار و هوش مصنوعی'), icon: 'Laptop' },
+  { value: 'cloud', label: t('فضای ابری و سرور'), icon: 'Zap' },
+  { value: 'internet', label: t('اینترنت و سیم‌کارت'), icon: 'Wifi' },
+  { value: 'gaming', label: t('بازی'), icon: 'Gamepad2' },
+  { value: 'education', label: t('آموزش و مطالعه'), icon: 'Book' },
+  { value: 'fitness', label: t('ورزش و باشگاه'), icon: 'Dumbbell' },
+  { value: 'membership', label: t('عضویت و خدمات'), icon: 'Users' },
+  { value: 'other', label: t('سایر'), icon: 'Tag' },
 ];
 
 export const SUBSCRIPTION_STATUSES = [
-  { value: 'active', label: 'فعال' },
-  { value: 'paused', label: 'متوقف' },
-  { value: 'cancelled', label: 'لغوشده' },
+  { value: 'active', label: t('فعال') },
+  { value: 'paused', label: t('متوقف') },
+  { value: 'cancelled', label: t('لغوشده') },
 ];
 
 /** The expense category a subscription's payment is recorded in (categoryDocument.js) */
@@ -90,21 +91,21 @@ export const subscriptionCategoryOf = (value) =>
  */
 export function validateSubscription(body = {}) {
   const name = text(body.name);
-  if (!name) return { error: 'نام اشتراک الزامی است.' };
-  if (name.length > SUBSCRIPTION_LIMITS.nameLength) return { error: `نام اشتراک نباید بیشتر از ${SUBSCRIPTION_LIMITS.nameLength} کاراکتر باشد.` };
+  if (!name) return { error: t('نام اشتراک الزامی است.') };
+  if (name.length > SUBSCRIPTION_LIMITS.nameLength) return { error: t('نام اشتراک نباید بیشتر از {nameLength} کاراکتر باشد.', { nameLength: SUBSCRIPTION_LIMITS.nameLength }) };
 
   const amount = Math.round(num(body.amount) * 100) / 100;
-  if (!Number.isFinite(amount) || amount <= 0 || amount > SUBSCRIPTION_LIMITS.maxAmount) return { error: 'هزینه‌ی اشتراک باید عددی مثبت باشد.' };
+  if (!Number.isFinite(amount) || amount <= 0 || amount > SUBSCRIPTION_LIMITS.maxAmount) return { error: t('هزینه‌ی اشتراک باید عددی مثبت باشد.') };
   const currency = normalizeCurrency(body.currency);
 
   const cycleMonths = Number(body.cycleMonths);
-  if (!CYCLE_MONTHS.has(cycleMonths)) return { error: 'دوره‌ی تمدید نامعتبر است.' };
+  if (!CYCLE_MONTHS.has(cycleMonths)) return { error: t('دوره‌ی تمدید نامعتبر است.') };
 
   const startDate = text(body.startDate);
-  if (!isDay(startDate)) return { error: 'تاریخ شروع اشتراک نامعتبر است.' };
+  if (!isDay(startDate)) return { error: t('تاریخ شروع اشتراک نامعتبر است.') };
   const endDate = text(body.endDate);
-  if (endDate && !isDay(endDate)) return { error: 'تاریخ پایان اشتراک نامعتبر است.' };
-  if (endDate && endDate <= startDate) return { error: 'تاریخ پایان باید بعد از شروع باشد.' };
+  if (endDate && !isDay(endDate)) return { error: t('تاریخ پایان اشتراک نامعتبر است.') };
+  if (endDate && endDate <= startDate) return { error: t('تاریخ پایان باید بعد از شروع باشد.') };
 
   const autoRenew = body.autoRenew !== false;
   // Renewed by hand: the day it runs out (the first renewal after the start, unless given)
@@ -114,9 +115,9 @@ export function validateSubscription(body = {}) {
   const cancelledOn = status === 'cancelled' && isDay(text(body.cancelledOn)) ? text(body.cancelledOn) : '';
 
   const url = text(body.url);
-  if (url && (url.length > SUBSCRIPTION_LIMITS.urlLength || !/^https?:\/\/\S+$/i.test(url))) return { error: 'نشانی سایت باید با http:// یا https:// شروع شود.' };
+  if (url && (url.length > SUBSCRIPTION_LIMITS.urlLength || !/^https?:\/\/\S+$/i.test(url))) return { error: t('نشانی سایت باید با http:// یا https:// شروع شود.') };
   const notes = text(body.notes);
-  if (notes.length > SUBSCRIPTION_LIMITS.notesLength) return { error: `یادداشت نباید بیشتر از ${SUBSCRIPTION_LIMITS.notesLength} کاراکتر باشد.` };
+  if (notes.length > SUBSCRIPTION_LIMITS.notesLength) return { error: t('یادداشت نباید بیشتر از {notesLength} کاراکتر باشد.', { notesLength: SUBSCRIPTION_LIMITS.notesLength }) };
 
   return {
     value: {

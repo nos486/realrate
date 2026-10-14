@@ -7,6 +7,7 @@
  */
 
 import { REMINDER_KINDS } from './reminders.js';
+import { t } from './i18n.js';
 
 export const ALLOWED_EMAIL_SOURCES = REMINDER_KINDS;
 export const ALLOWED_LEAD_DAYS = [0, 1, 3, 7];
@@ -26,7 +27,7 @@ export const DEFAULT_ALERT_EMAIL_PREFS = {
  */
 export function validateAlertEmailPrefs(input) {
   if (!input || typeof input !== 'object') {
-    return { error: 'تنظیمات یادآوری ایمیلی نامعتبر است.' };
+    return { error: t('تنظیمات یادآوری ایمیلی نامعتبر است.') };
   }
 
   const enabled = Boolean(input.enabled);

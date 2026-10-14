@@ -12,6 +12,7 @@ import React, { useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, Check, Sparkles } from 'lucide-react';
 import DecisionEditor from './DecisionEditor.jsx';
 import { faAmount, faDigits, shamsiDay, groupDecision } from './statementFormat.js';
+import { t } from '../../../utils/i18n.js';
 
 /** Questions shown before «نمایش بیشتر» */
 const PAGE = 15;
@@ -27,15 +28,15 @@ function GroupQuestion({ group, answers, onAnswer, onClear, accounts, categories
         <div>
           <strong dir="auto">{faDigits(group.label)}</strong>
           <span className="statement-chip">{group.kindLabel}</span>
-          <span className={`statement-chip ${group.direction === 'credit' ? 'is-in' : 'is-out'}`}>{group.direction === 'credit' ? 'واریز' : 'برداشت'}</span>
+          <span className={`statement-chip ${group.direction === 'credit' ? 'is-in' : 'is-out'}`}>{group.direction === 'credit' ? t('واریز') : t('برداشت')}</span>
         </div>
         <div className="statement-question-meta">
-          <span>{faAmount(group.count)} تراکنش</span>
-          <span>جمع {faAmount(group.total)} تومان</span>
-          <span>{shamsiDay(group.firstDate)}{group.firstDate !== group.lastDate ? ` تا ${shamsiDay(group.lastDate)}` : ''}</span>
+          <span>{t('{n} تراکنش', { n: faAmount(group.count) })}</span>
+          <span>{t('جمع {amount} تومان', { amount: faAmount(group.total) })}</span>
+          <span>{shamsiDay(group.firstDate)}{group.firstDate !== group.lastDate ? ` ${t('تا {date}', { date: shamsiDay(group.lastDate) })}` : ''}</span>
         </div>
       </header>
-      {selfHint && <p className="statement-hint">نام روی این تراکنش‌ها نام خود شماست؛ اگر بین حساب‌های خودتان است، «انتقال» را بزنید و حساب مقابل را انتخاب کنید.</p>}
+      {selfHint && <p className="statement-hint">{t('نام روی این تراکنش‌ها نام خود شماست؛ اگر بین حساب‌های خودتان است، «انتقال» را بزنید و حساب مقابل را انتخاب کنید.')}</p>}
       <DecisionEditor
         id={`g-${group.key}`}
         direction={group.direction}
@@ -43,16 +44,16 @@ function GroupQuestion({ group, answers, onAnswer, onClear, accounts, categories
         onChange={(value) => onAnswer(group.key, value)}
         accounts={accounts}
         categories={categories}
-        titlePlaceholder={group.partyName ? `مثلاً: ${group.partyName}` : 'عنوان (اختیاری)'}
+        titlePlaceholder={group.partyName ? t('مثلاً: {name}', { name: group.partyName }) : t('عنوان (اختیاری)')}
       />
       <div className="statement-question-foot">
         <button type="button" className="statement-link" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-          {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />} نمونه‌ی تراکنش‌ها
+          {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />} {t('نمونه‌ی تراکنش‌ها')}
         </button>
         {answered ? (
-          <button type="button" className="statement-link" onClick={() => onClear(group.key)}><Check size={14} /> پاسخ داده شد · بازگشت به پیشنهاد</button>
+          <button type="button" className="statement-link" onClick={() => onClear(group.key)}><Check size={14} /> {t('پاسخ داده شد · بازگشت به پیشنهاد')}</button>
         ) : (
-          <span className="statement-muted">{group.suggestion.confidence === 'none' ? 'پاسخی نداده‌اید؛ طبق قاعده‌ی هزینه‌های کوچک یا «سایر» ثبت می‌شود' : 'پیشنهاد خودکار از توضیحات'}</span>
+          <span className="statement-muted">{group.suggestion.confidence === 'none' ? t('پاسخی نداده‌اید؛ طبق قاعده‌ی هزینه‌های کوچک یا «سایر» ثبت می‌شود') : t('پیشنهاد خودکار از توضیحات')}</span>
         )}
       </div>
       {open && (
@@ -82,29 +83,29 @@ export default function StatementQuestionsStep({ analysis, answers, small, onSma
   return (
     <div className="statement-step">
       <section className="statement-small-rule">
-        <h4><Sparkles size={16} /> هزینه‌های کوچک</h4>
-        <p>برداشت‌هایی که نمی‌پرسم و تا این مبلغ هستند، همه با هم در یک دسته ثبت شوند؛ بقیه را در پایین می‌پرسم.</p>
+        <h4><Sparkles size={16} /> {t('هزینه‌های کوچک')}</h4>
+        <p>{t('برداشت‌هایی که نمی‌پرسم و تا این مبلغ هستند، همه با هم در یک دسته ثبت شوند؛ بقیه را در پایین می‌پرسم.')}</p>
         <label className="statement-check">
           <input type="checkbox" checked={small.enabled} onChange={(e) => onSmall({ ...small, enabled: e.target.checked })} />
-          <span>فعال باشد</span>
+          <span>{t('فعال باشد')}</span>
         </label>
         {small.enabled && (
           <div className="statement-decision-fields">
             <label className="statement-field" htmlFor="small-max">
-              <span>تا مبلغ (تومان)</span>
+              <span>{t('تا مبلغ (تومان)')}</span>
               <input
                 id="small-max"
                 className="statement-input"
                 inputMode="numeric"
                 value={faAmount(small.maxToman)}
                 onChange={(e) => {
-                  const digits = Number(String(e.target.value).replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/\D/g, '')) || 0;
+                  const digits = Number(String(e.target.value).replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/\D/g, '')) || 0; // i18n-ignore
                   onSmall({ ...small, maxToman: digits });
                 }}
               />
             </label>
             <label className="statement-field" htmlFor="small-category">
-              <span>دسته</span>
+              <span>{t('دسته')}</span>
               <select id="small-category" className="statement-select" value={small.category} onChange={(e) => onSmall({ ...small, category: e.target.value })}>
                 {expenseList.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
@@ -114,24 +115,24 @@ export default function StatementQuestionsStep({ analysis, answers, small, onSma
       </section>
 
       <section>
-        <h4>{questions.length ? `${faAmount(questions.length)} مورد را از شما می‌پرسم` : 'چیزی برای پرسیدن نیست'}</h4>
-        <p className="statement-muted">هر مورد یک گروه تراکنش است (مثلاً همه‌ی واریزهای یک شماره حساب). جواب شما برای همه‌ی تراکنش‌های آن گروه اعمال می‌شود؛ جواب ندهید، از روی توضیحات خود تراکنش پر می‌شود.</p>
+        <h4>{questions.length ? t('{n} مورد را از شما می‌پرسم', { n: faAmount(questions.length) }) : t('چیزی برای پرسیدن نیست')}</h4>
+        <p className="statement-muted">{t('هر مورد یک گروه تراکنش است (مثلاً همه‌ی واریزهای یک شماره حساب). جواب شما برای همه‌ی تراکنش‌های آن گروه اعمال می‌شود؛ جواب ندهید، از روی توضیحات خود تراکنش پر می‌شود.')}</p>
         <div className="statement-questions">
           {questions.slice(0, shown).map((group) => (
             <GroupQuestion key={group.key} group={group} answers={answers} onAnswer={onAnswer} onClear={onClear} accounts={accounts} categories={categories} />
           ))}
         </div>
         {questions.length > shown && (
-          <button type="button" className="statement-more" onClick={() => setShown((n) => n + PAGE)}>نمایش بیشتر ({faAmount(questions.length - shown)} مورد دیگر)</button>
+          <button type="button" className="statement-more" onClick={() => setShown((n) => n + PAGE)}>{t('نمایش بیشتر ({n} مورد دیگر)', { n: faAmount(questions.length - shown) })}</button>
         )}
       </section>
 
       {automatic.length > 0 && (
         <section>
-          <h4>خودکار دسته‌بندی شد</h4>
+          <h4>{t('خودکار دسته‌بندی شد')}</h4>
           <ul className="statement-auto-list">
             {automatic.map((g) => (
-              <li key={g.key}><span>{g.kindLabel}</span><span className="statement-muted">{faAmount(g.count)} تراکنش · {faAmount(g.total)} تومان</span></li>
+              <li key={g.key}><span>{g.kindLabel}</span><span className="statement-muted">{t('{n} تراکنش', { n: faAmount(g.count) })} · {faAmount(g.total)} {t('تومان')}</span></li>
             ))}
           </ul>
         </section>

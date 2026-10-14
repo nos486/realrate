@@ -27,6 +27,7 @@ import { getIncomes } from '../../../shared/vault/vaultIncomes.js';
 import { findDuplicatePayment } from '../../../utils/creditAccount.js';
 import { formatAmount } from '../../expenses/utils/format.js';
 import { accountLabel } from '../constants/accountDisplay.js';
+import { t } from '../../../utils/i18n.js';
 
 const digitsOnly = (v) => Number(String(v || '').replace(/[^\d]/g, '')) || 0;
 
@@ -72,9 +73,9 @@ export default function TransferForm({ transfer = null, draft = null, accounts =
         const { incomes } = await getIncomes({ from: dateIso, to: dateIso }).catch(() => ({ incomes: [] }));
         if (findDuplicatePayment({ creditId: toAccountId, amount: amountNum - feeNum, date: dateIso }, { incomes })) {
           const proceed = await confirm({
-            title: 'پرداخت تکراری؟',
-            message: 'برای همین اعتبار در همین روز درآمدی با دسته‌ی «تسویه بدهی اعتباری» و همین مبلغ ثبت شده است. اگر این همان پرداخت است، ثبت دوباره بدهی را دو بار کم می‌کند. باز هم ثبت شود؟',
-            confirmLabel: 'ثبت شود',
+            title: t('پرداخت تکراری؟'),
+            message: t('برای همین اعتبار در همین روز درآمدی با دسته‌ی «تسویه بدهی اعتباری» و همین مبلغ ثبت شده است. اگر این همان پرداخت است، ثبت دوباره بدهی را دو بار کم می‌کند. باز هم ثبت شود؟'),
+            confirmLabel: t('ثبت شود'),
           });
           if (!proceed) return;
         }
@@ -91,27 +92,27 @@ export default function TransferForm({ transfer = null, draft = null, accounts =
       if (next) startNext();
       else onClose();
     } catch (err) {
-      setError(err.message || 'ذخیره‌ی انتقال ممکن نشد.');
+      setError(err.message || t('ذخیره‌ی انتقال ممکن نشد.'));
     }
   };
 
   const detailsFilled = [
-    ...(feeNum > 0 ? ['کارمزد'] : []),
-    ...(notes.trim() ? ['یادداشت'] : []),
+    ...(feeNum > 0 ? [t('کارمزد')] : []),
+    ...(notes.trim() ? [t('یادداشت')] : []),
   ];
 
   return (
     <Modal
       isOpen
       onClose={onClose}
-      title={transfer ? 'ویرایش انتقال' : 'انتقال بین حساب‌ها'}
-      subtitle="جابه‌جایی پول بین حساب‌های خودتان؛ جزو هزینه و درآمد حساب نمی‌شود"
+      title={transfer ? t('ویرایش انتقال') : t('انتقال بین حساب‌ها')}
+      subtitle={t('جابه‌جایی پول بین حساب‌های خودتان؛ جزو هزینه و درآمد حساب نمی‌شود')}
       icon={<ArrowLeftRight size={18} />}
       maxWidth="520px"
       onSubmit={handleSubmit}
       footer={(
         <EntryFormActions
-          submitLabel={transfer ? 'ذخیره تغییرات' : 'ثبت انتقال'}
+          submitLabel={transfer ? t('ذخیره تغییرات') : t('ثبت انتقال')}
           valid={isValid}
           submitting={submitting}
           onCancel={onClose}
@@ -121,7 +122,7 @@ export default function TransferForm({ transfer = null, draft = null, accounts =
     >
       <div className="entry-form-body">
         {error && <AlertBanner type="error" message={error} />}
-        {saved && <p className="entry-form-saved" role="status">انتقال {saved} تومان ثبت شد؛ انتقال بعدی را وارد کنید.</p>}
+        {saved && <p className="entry-form-saved" role="status">{t('انتقال {amount} تومان ثبت شد؛ انتقال بعدی را وارد کنید.', { amount: saved })}</p>}
         {note}
 
         <AmountField
@@ -130,16 +131,16 @@ export default function TransferForm({ transfer = null, draft = null, accounts =
           value={amount}
           onValueChange={setAmount}
           currency="IRT"
-          placeholder="مثلاً ۲۰,۰۰۰,۰۰۰"
+          placeholder={t('مثلاً ۲۰,۰۰۰,۰۰۰')}
           autoFocus={!transfer && !draft}
         />
 
         {usable.length < 2 ? (
-          <AlertBanner type="info" message="برای ثبت انتقال (به تومان)، دست‌کم دو حساب تومانی در صفحه‌ی «حساب‌ها» لازم است." />
+          <AlertBanner type="info" message={t('برای ثبت انتقال (به تومان)، دست‌کم دو حساب تومانی در صفحه‌ی «حساب‌ها» لازم است.')} />
         ) : (
           <div className="entry-form-section">
             <PickerRow
-              label="از حساب"
+              label={t('از حساب')}
               value={fromAccountId}
               options={options}
               onChange={(id) => {
@@ -148,7 +149,7 @@ export default function TransferForm({ transfer = null, draft = null, accounts =
               }}
             />
             <PickerRow
-              label="به حساب"
+              label={t('به حساب')}
               value={toAccountId}
               options={options.filter((o) => o.value !== fromAccountId)}
               onChange={setTo}
@@ -156,24 +157,24 @@ export default function TransferForm({ transfer = null, draft = null, accounts =
           </div>
         )}
         {isCreditAccount(accounts.find((x) => x.id === toAccountId)) && (
-          <p className="expense-form-hint">پرداخت بدهی اعتبار از حساب خودتان است. اگر پول از بیرون واریز شده، به‌جای انتقال درآمد «تسویه بدهی اعتباری» ثبت کنید؛ هر دو برای یک پرداخت بدهی را دو بار کم می‌کنند.</p>
+          <p className="expense-form-hint">{t('پرداخت بدهی اعتبار از حساب خودتان است. اگر پول از بیرون واریز شده، به‌جای انتقال درآمد «تسویه بدهی اعتباری» ثبت کنید؛ هر دو برای یک پرداخت بدهی را دو بار کم می‌کنند.')}</p>
         )}
 
-        <DateField label="تاریخ انتقال *" value={dateShamsi} onChange={setDateShamsi} />
+        <DateField label={t('تاریخ انتقال *')} value={dateShamsi} onChange={setDateShamsi} />
 
         <MoreDetails filled={detailsFilled}>
           <div className="ui-input-group">
-            <label htmlFor="transfer-fee" className="ui-input-label">کارمزد بانک (تومان، اختیاری)</label>
+            <label htmlFor="transfer-fee" className="ui-input-label">{t('کارمزد بانک (تومان، اختیاری)')}</label>
             <div className="ui-input-wrapper">
-              <NumericInput id="transfer-fee" value={fee} onValueChange={setFee} placeholder="۰" className="ui-input-control" />
+              <NumericInput id="transfer-fee" value={fee} onValueChange={setFee} placeholder={t('۰')} className="ui-input-control" />
             </div>
-            {feeNum > amountNum && amountNum > 0 && <p className="expense-form-hint">کارمزد از مبلغ بیشتر است.</p>}
+            {feeNum > amountNum && amountNum > 0 && <p className="expense-form-hint">{t('کارمزد از مبلغ بیشتر است.')}</p>}
           </div>
 
           <Input
             id="transfer-notes"
             as="textarea"
-            label="یادداشت (اختیاری)"
+            label={t('یادداشت (اختیاری)')}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             maxLength={TRANSFER_LIMITS.notesLength}

@@ -37,6 +37,7 @@ import { movePortfolioItemsToVault } from './vaultPortfolioItems.js';
 import { clearVaultLoansCache } from './vaultLoans.js';
 import { clearVaultIncomesCache } from './vaultIncomes.js';
 import { clearVaultChequesCache } from './vaultCheques.js';
+import { t } from '../../utils/i18n.js';
 
 const SILENT = { silent: true };
 
@@ -67,7 +68,7 @@ async function fetchList(report, label, fetcher, key) {
     const res = await fetcher();
     return Array.isArray(res?.[key]) ? res[key] : [];
   } catch {
-    report.failed.push(`دریافت فهرست ${label}`);
+    report.failed.push(t('دریافت فهرست {label}', { label }));
     return [];
   }
 }
@@ -83,13 +84,13 @@ async function encryptPortfolioItems(portfolio, key, { tick, plan, report }) {
   try {
     const moved = await movePortfolioItemsToVault(portfolio, key, {
       onItem: () => {
-        plan(1, `پورتفوی «${portfolio.name}»`);
-        tick(`پورتفوی «${portfolio.name}»`);
+        plan(1, t('پورتفوی «{name}»', { name: portfolio.name }));
+        tick(t('پورتفوی «{name}»', { name: portfolio.name }));
       },
     });
     report.failed.push(...moved.failed);
   } catch {
-    report.failed.push(`دریافت اقلام پورتفوی «${portfolio.name}»`);
+    report.failed.push(t('دریافت اقلام پورتفوی «{name}»', { name: portfolio.name }));
   }
 }
 
@@ -119,13 +120,13 @@ export async function encryptAccountData({ passphrase, onProgress } = {}) {
   const { report, tick, plan } = createReport(onProgress);
 
   // 1. Portfolios
-  const portfolios = await fetchList(report, 'پورتفوها', getPortfolios, 'portfolios');
+  const portfolios = await fetchList(report, t('پورتفوها'), getPortfolios, 'portfolios');
   for (const portfolio of portfolios) {
     try {
       if (isAccountVaultPortfolio(portfolio)) {
         const key = await getPortfolioKey(portfolio);
         if (!key) {
-          report.failed.push(`کلید پورتفوی «${portfolio.name}»`);
+          report.failed.push(t('کلید پورتفوی «{name}»', { name: portfolio.name }));
           continue;
         }
         if (!portfolio.isE2ee) await updatePortfolio({ id: portfolio.id, isE2ee: true }, SILENT);
@@ -139,47 +140,47 @@ export async function encryptAccountData({ passphrase, onProgress } = {}) {
         await encryptPortfolioItems(portfolio, key, { tick, plan, report });
       }
     } catch {
-      report.failed.push(`پورتفوی «${portfolio.name}»`);
+      report.failed.push(t('پورتفوی «{name}»', { name: portfolio.name }));
     }
   }
 
   // 2. Loans — the whole stored document (states + extra payments) becomes one record
-  const loans = await fetchList(report, 'وام‌ها', () => httpClient.get('/api/loans'), 'loans');
-  plan(loans.length, 'وام‌ها');
+  const loans = await fetchList(report, t('وام‌ها'), () => httpClient.get('/api/loans'), 'loans');
+  plan(loans.length, t('وام‌ها'));
   for (const loan of loans) {
     try {
       const { document } = await getLoanDocument(loan.id, SILENT);
       await putRecord('loan', loan.id, await encryptVaultRecord(document), document, { replacePlain: true, ...SILENT });
     } catch {
-      report.failed.push(`وام «${loan.title}»`);
+      report.failed.push(t('وام «{name}»', { name: loan.title }));
     }
-    tick('وام‌ها');
+    tick(t('وام‌ها'));
   }
 
   // 3. Incomes
-  const incomes = await fetchList(report, 'درآمدها', () => httpClient.get('/api/incomes'), 'incomes');
-  plan(incomes.length, 'درآمدها');
+  const incomes = await fetchList(report, t('درآمدها'), () => httpClient.get('/api/incomes'), 'incomes');
+  plan(incomes.length, t('درآمدها'));
   for (const income of incomes) {
     try {
       const { userId: _userId, ...record } = income;
       await putRecord('income', income.id, await encryptVaultRecord(record), record, { replacePlain: true, ...SILENT });
     } catch {
-      report.failed.push(`درآمد «${income.title}»`);
+      report.failed.push(t('درآمد «{name}»', { name: income.title }));
     }
-    tick('درآمدها');
+    tick(t('درآمدها'));
   }
 
   // 4. Cheques (with their tracking log)
-  const cheques = await fetchList(report, 'چک‌ها', () => httpClient.get('/api/cheques'), 'cheques');
-  plan(cheques.length, 'چک‌ها');
+  const cheques = await fetchList(report, t('چک‌ها'), () => httpClient.get('/api/cheques'), 'cheques');
+  plan(cheques.length, t('چک‌ها'));
   for (const cheque of cheques) {
     try {
       const { userId: _userId, ...record } = cheque;
       await putRecord('cheque', cheque.id, await encryptVaultRecord(record), record, { replacePlain: true, ...SILENT });
     } catch {
-      report.failed.push(`چک «${cheque.counterparty}»`);
+      report.failed.push(t('چک «{name}»', { name: cheque.counterparty }));
     }
-    tick('چک‌ها');
+    tick(t('چک‌ها'));
   }
 
   clearVaultLoansCache();

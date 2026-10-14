@@ -14,6 +14,7 @@
 
 import React, { useState } from 'react';
 import { HandCoins, Trash2, Plus } from 'lucide-react';
+import { t } from '../../../utils/i18n.js';
 import { AlertBanner, Button, Input, Modal } from '../../../shared/ui/index.js';
 import { AmountField, DateField, MoreDetails, PickerRow } from '../../../shared/form/index.js';
 import {
@@ -59,7 +60,7 @@ export default function ReimbursementsModal({ expense: initial, accounts = [], o
       setExpense(saved || { ...expense, reimbursements });
       return true;
     } catch (err) {
-      setError(err?.message || 'ذخیره ممکن نشد.');
+      setError(err?.message || t('ذخیره ممکن نشد.'));
       return false;
     } finally {
       setBusy(false);
@@ -81,16 +82,16 @@ export default function ReimbursementsModal({ expense: initial, accounts = [], o
     <Modal
       isOpen
       onClose={onClose}
-      title="دریافتی‌های دنگ"
-      subtitle={`«${expense.title}» — دریافتی‌ها درآمد حساب نمی‌شوند`}
+      title={t('دریافتی‌های دنگ')}
+      subtitle={t('«{title}» — دریافتی‌ها درآمد حساب نمی‌شوند', { title: expense.title })}
       icon={<HandCoins size={18} />}
       maxWidth="500px"
       onSubmit={handleAdd}
       footer={
         <div className="modal-actions">
-          <Button variant="secondary" block onClick={onClose}>بستن</Button>
+          <Button variant="secondary" block onClick={onClose}>{t('بستن')}</Button>
           {remaining > 0 && !readOnly && (
-            <Button type="submit" block icon={<Plus size={16} />} loading={busy} disabled={!canAdd}>ثبت دریافت</Button>
+            <Button type="submit" block icon={<Plus size={16} />} loading={busy} disabled={!canAdd}>{t('ثبت دریافت')}</Button>
           )}
         </div>
       }
@@ -99,18 +100,18 @@ export default function ReimbursementsModal({ expense: initial, accounts = [], o
         {error && <AlertBanner type="error" message={error} />}
 
         <dl className="expense-share-facts">
-          <div><dt>کل پرداختی</dt><dd>{money(expense.amount)} <small>{unit}</small></dd></div>
-          <div><dt>سهم شما (هزینه)</dt><dd>{money(expense.myShare)} <small>{unit}</small></dd></div>
-          <div><dt>سهم دیگران</dt><dd>{money(owed)} <small>{unit}</small></dd></div>
-          <div><dt>دریافت‌شده</dt><dd className="text-profit">{money(received)} <small>{unit}</small></dd></div>
+          <div><dt>{t('کل پرداختی')}</dt><dd>{money(expense.amount)} <small>{unit}</small></dd></div>
+          <div><dt>{t('سهم شما (هزینه)')}</dt><dd>{money(expense.myShare)} <small>{unit}</small></dd></div>
+          <div><dt>{t('سهم دیگران')}</dt><dd>{money(owed)} <small>{unit}</small></dd></div>
+          <div><dt>{t('دریافت‌شده')}</dt><dd className="text-profit">{money(received)} <small>{unit}</small></dd></div>
           <div className="is-total">
-            <dt>مانده‌ی طلب</dt>
-            <dd className={remaining > 0 ? 'text-loss' : 'text-profit'}>{remaining > 0 ? <>{money(remaining)} <small>{unit}</small></> : 'تسویه شد'}</dd>
+            <dt>{t('مانده‌ی طلب')}</dt>
+            <dd className={remaining > 0 ? 'text-loss' : 'text-profit'}>{remaining > 0 ? <>{money(remaining)} <small>{unit}</small></> : t('تسویه شد')}</dd>
           </div>
         </dl>
 
         {list.length > 0 && (
-          <ul className="expense-reimbursement-list" aria-label="دریافتی‌ها">
+          <ul className="expense-reimbursement-list" aria-label={t('دریافتی‌ها')}>
             {list.map((r) => (
               <li key={r.id}>
                 <span>
@@ -118,7 +119,7 @@ export default function ReimbursementsModal({ expense: initial, accounts = [], o
                   <small>
                     {formatShamsiDisplay(`${r.date}T00:00:00`)}
                     {r.accountId && ` · ${accountLabel(accountById.get(r.accountId))}`}
-                    {r.source === 'sms' && ' · از پیامک'}
+                    {r.source === 'sms' && ` · ${t('از پیامک')}`}
                     {r.notes && ` · ${r.notes}`}
                   </small>
                 </span>
@@ -126,7 +127,7 @@ export default function ReimbursementsModal({ expense: initial, accounts = [], o
                   <button
                     type="button"
                     className="btn-table-action delete"
-                    title="حذف این دریافتی"
+                    title={t('حذف این دریافتی')}
                     disabled={busy}
                     onClick={() => save(list.filter((x) => x.id !== r.id))}
                   >
@@ -140,26 +141,26 @@ export default function ReimbursementsModal({ expense: initial, accounts = [], o
 
         {remaining > 0 && !readOnly && (
           <>
-            <AmountField id="reimbursement-amount" label="مبلغ دریافتی" value={amount} onValueChange={setAmount} currency={expense.currency}>
-              {amountNum > remaining + 1e-6 && <p className="expense-form-hint">بیشتر از مانده‌ی طلب ({money(remaining)}) است.</p>}
+            <AmountField id="reimbursement-amount" label={t('مبلغ دریافتی')} value={amount} onValueChange={setAmount} currency={expense.currency}>
+              {amountNum > remaining + 1e-6 && <p className="expense-form-hint">{t('بیشتر از مانده‌ی طلب ({amount}) است.', { amount: money(remaining) })}</p>}
             </AmountField>
 
             {payInto.length > 0 && (
               <PickerRow
-                label="واریز به"
+                label={t('واریز به')}
                 value={accountId}
-                options={[{ value: '', label: 'نامشخص / نقد' }, ...payInto.map((a) => ({ value: a.id, label: accountLabel(a) }))]}
+                options={[{ value: '', label: t('نامشخص / نقد') }, ...payInto.map((a) => ({ value: a.id, label: accountLabel(a) }))]}
                 onChange={setAccountId}
               />
             )}
 
-            <DateField label="تاریخ دریافت *" value={dateShamsi} onChange={setDateShamsi} />
+            <DateField label={t('تاریخ دریافت *')} value={dateShamsi} onChange={setDateShamsi} />
 
-            <MoreDetails filled={notes.trim() ? ['توضیح'] : []}>
+            <MoreDetails filled={notes.trim() ? [t('توضیح')] : []}>
               <Input
                 id="reimbursement-notes"
-                label="توضیح (اختیاری)"
-                placeholder="مثلاً: سهم علی"
+                label={t('توضیح (اختیاری)')}
+                placeholder={t('مثلاً: سهم علی')}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 maxLength={EXPENSE_LIMITS.reimbursementNotesLength}

@@ -26,6 +26,7 @@
 
 import React, { useState } from 'react';
 import { Wallet } from 'lucide-react';
+import { t } from '../../../utils/i18n.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { getTransfers } from '../../../shared/vault/vaultTransfers.js';
 import { findDuplicatePayment } from '../../../utils/creditAccount.js';
@@ -60,7 +61,7 @@ import DayRateHint from '../../../shared/currency/DayRateHint.jsx';
 
 /** The «حساب جدید» option of «واریز به» */
 const NEW_ACCOUNT = '__new_account__';
-const RECEIVE_WITH = [{ value: 'other', label: 'واریز یا نقد' }, { value: 'cheque', label: 'چک' }];
+const RECEIVE_WITH = [{ value: 'other', label: t('واریز یا نقد') }, { value: 'cheque', label: t('چک') }];
 
 /** A new income starts in the category used last, else the default one */
 function startingCategory() {
@@ -172,9 +173,9 @@ export default function IncomeForm({
         const { transfers } = await getTransfers({ from: dateIso, to: dateIso }).catch(() => ({ transfers: [] }));
         if (findDuplicatePayment({ creditId: linkValue, amount: amountNum, date: dateIso }, { transfers })) {
           const proceed = await confirm({
-            title: 'پرداخت تکراری؟',
-            message: 'برای همین اعتبار در همین روز انتقالی با همین مبلغ ثبت شده است. اگر این همان پرداخت است، ثبت دوباره بدهی را دو بار کم می‌کند. باز هم ثبت شود؟',
-            confirmLabel: 'ثبت شود',
+            title: t('پرداخت تکراری؟'),
+            message: t('برای همین اعتبار در همین روز انتقالی با همین مبلغ ثبت شده است. اگر این همان پرداخت است، ثبت دوباره بدهی را دو بار کم می‌کند. باز هم ثبت شود؟'),
+            confirmLabel: t('ثبت شود'),
           });
           if (!proceed) return;
         }
@@ -205,7 +206,7 @@ export default function IncomeForm({
       if (next) startNext(title.trim());
       else onClose();
     } catch (err) {
-      setSubmitError(err.message || 'خطا در ذخیره درآمد');
+      setSubmitError(err.message || t('خطا در ذخیره درآمد'));
     }
   };
 
@@ -214,14 +215,14 @@ export default function IncomeForm({
     <Modal
       isOpen
       onClose={onClose}
-      title={editingIncome ? 'ویرایش درآمد' : 'ثبت درآمد جدید'}
-      subtitle={isForeign ? `به ${unit}، با نرخ همان روز از تاریخچه‌ی قیمت` : 'به تومان'}
+      title={editingIncome ? t('ویرایش درآمد') : t('ثبت درآمد جدید')}
+      subtitle={isForeign ? t('به {unit}، با نرخ همان روز از تاریخچه‌ی قیمت', { unit }) : t('به تومان')}
       icon={<Wallet size={18} />}
       maxWidth="560px"
       onSubmit={handleSubmit}
       footer={
         <EntryFormActions
-          submitLabel={editingIncome ? 'ذخیره تغییرات' : 'ثبت درآمد'}
+          submitLabel={editingIncome ? t('ذخیره تغییرات') : t('ثبت درآمد')}
           valid={isFormValid}
           submitting={submitting}
           onCancel={onClose}
@@ -231,7 +232,7 @@ export default function IncomeForm({
     >
       <div className="entry-form-body">
         {submitError && <AlertBanner type="error" message={submitError} />}
-        {saved && <p className="entry-form-saved" role="status">«{saved}» ثبت شد؛ درآمد بعدی را وارد کنید.</p>}
+        {saved && <p className="entry-form-saved" role="status">{t('«{title}» ثبت شد؛ درآمد بعدی را وارد کنید.', { title: saved })}</p>}
 
         <AmountField
           key={round}
@@ -240,7 +241,7 @@ export default function IncomeForm({
           onValueChange={setAmount}
           currency={currency}
           onCurrencyChange={setCurrency}
-          placeholder={isForeign ? 'مثلاً ۲۵۰۰' : 'مثلاً ۲۵,۰۰۰,۰۰۰'}
+          placeholder={isForeign ? t('مثلاً ۲۵۰۰') : t('مثلاً ۲۵,۰۰۰,۰۰۰')}
           autoFocus={!editingIncome}
         >
           {isForeign && <DayRateHint unit={unit} rate={dayRate} state={rateState} toman={amountNum > 0 ? toman : 0} portfolio={selling} />}
@@ -268,35 +269,35 @@ export default function IncomeForm({
           />
         )}
         {settling && (
-          <p className="expense-form-hint">این برای واریز از بیرون است. اگر پول را از یکی از حساب‌های خودتان به اعتبار داده‌اید، «انتقال بین حساب‌ها» ثبت کنید، نه این درآمد.</p>
+          <p className="expense-form-hint">{t('این برای واریز از بیرون است. اگر پول را از یکی از حساب‌های خودتان به اعتبار داده‌اید، «انتقال بین حساب‌ها» ثبت کنید، نه این درآمد.')}</p>
         )}
 
         <Input
           id="income-title"
-          label="عنوان درآمد *"
-          placeholder="مثلاً: حقوق مهرماه، پروژه طراحی سایت"
+          label={t('عنوان درآمد *')}
+          placeholder={t('مثلاً: حقوق مهرماه، پروژه طراحی سایت')}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           maxLength={120}
           required
         />
 
-        <DateField label="تاریخ دریافت *" value={dateShamsi} onChange={setDateShamsi} />
+        <DateField label={t('تاریخ دریافت *')} value={dateShamsi} onChange={setDateShamsi} />
 
         {loaded.enabled && !receivesCheque && !settling && (
           <PickerRow
-            label="واریز به"
+            label={t('واریز به')}
             value={effectiveAccountId}
             options={[
-              ...(accountRequired ? [] : [{ value: '', label: 'نامشخص' }]),
+              ...(accountRequired ? [] : [{ value: '', label: t('نامشخص') }]),
               ...incomeAccounts.map((a) => ({ value: a.id, label: accountLabel(a) })),
-              { value: NEW_ACCOUNT, label: '+ حساب جدید' },
+              { value: NEW_ACCOUNT, label: t('+ حساب جدید') },
             ]}
             onChange={(v) => (v === NEW_ACCOUNT ? setCreatingAccount(true) : setAccountId(v))}
-            placeholder={accountRequired ? 'یک حساب انتخاب کنید' : 'نامشخص'}
+            placeholder={accountRequired ? t('یک حساب انتخاب کنید') : t('نامشخص')}
           >
             {accountRequired && !effectiveAccountId && (
-              <p className="expense-form-hint is-warning">هر درآمد باید به یک حساب وصل باشد؛ حسابی را انتخاب کنید یا «حساب جدید» بسازید.</p>
+              <p className="expense-form-hint is-warning">{t('هر درآمد باید به یک حساب وصل باشد؛ حسابی را انتخاب کنید یا «حساب جدید» بسازید.')}</p>
             )}
           </PickerRow>
         )}
@@ -304,7 +305,7 @@ export default function IncomeForm({
         {!isForeign && (
           <div className="entry-form-section">
             <div className="ui-input-group">
-              <span className="ui-input-label">دریافت با</span>
+              <span className="ui-input-label">{t('دریافت با')}</span>
               <FilterPills
                 variant="segmented"
                 size="sm"
@@ -319,12 +320,12 @@ export default function IncomeForm({
           </div>
         )}
 
-        <MoreDetails filled={notes.trim() ? ['یادداشت'] : []}>
+        <MoreDetails filled={notes.trim() ? [t('یادداشت')] : []}>
           <Input
             id="income-notes"
             as="textarea"
-            label="یادداشت"
-            placeholder="توضیحات تکمیلی، نام کارفرما، شماره فاکتور و..."
+            label={t('یادداشت')}
+            placeholder={t('توضیحات تکمیلی، نام کارفرما، شماره فاکتور و...')}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             maxLength={500}

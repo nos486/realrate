@@ -10,6 +10,7 @@ import { e2eeEncrypt, e2eeDecrypt } from '../../lib/e2ee.js';
 import { listVaultRecords } from './vaultApi.js';
 import { putRecord } from './vaultRecordMeta.js';
 import { RISK_RECORD_KIND, validateRiskResult } from '../../utils/riskProfile.js';
+import { t } from '../../utils/i18n.js';
 
 const SILENT = { silent: true };
 const recordIdOf = (portfolioId) => `risk_${portfolioId}`.slice(0, 80);
@@ -37,7 +38,7 @@ export async function loadRiskProfile(portfolioId, key) {
  * @returns {Promise<object>} the stored result
  */
 export async function saveRiskProfile(portfolioId, key, input) {
-  if (!portfolioId || !key) throw new Error('شناسه پورتفو و کلید رمزنگاری الزامی است.');
+  if (!portfolioId || !key) throw new Error(t('شناسه پورتفو و کلید رمزنگاری الزامی است.'));
   const { value, error } = validateRiskResult(input);
   if (error) throw new Error(error);
   await putRecord(RISK_RECORD_KIND, recordIdOf(portfolioId), await e2eeEncrypt(key, value), value, { parentId: portfolioId, ...SILENT });

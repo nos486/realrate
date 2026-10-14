@@ -8,6 +8,7 @@
  */
 
 import { isNativeApp } from './nativeApp.js';
+import { t } from '../../utils/i18n.js';
 
 export const EXIT_WINDOW_MS = 2000;
 
@@ -51,7 +52,7 @@ export function startBackExit(onHint) {
         return;
       }
       lastPressAt = now;
-      onHint('برای خروج یک بار دیگر «بازگشت» را بزنید');
+      onHint(t('برای خروج یک بار دیگر «بازگشت» را بزنید'));
     });
     if (stopped) handle.remove();
   }).catch(() => {});

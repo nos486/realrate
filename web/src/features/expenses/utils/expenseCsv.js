@@ -12,6 +12,7 @@
  * it (a loan, a portfolio) name records of their own, so they are not imported.
  */
 
+import { t } from '../../../utils/i18n.js';
 import { isSharedExpense, expenseReceivable, normalizeTags } from '../../../utils/expenseDocument.js';
 import { BASE_CURRENCY, CURRENCIES, currencyLabel } from '../../../utils/currencies.js';
 import { formatShamsiDisplay, shamsiToGregorian } from '../../portfolio/components/ShamsiDatePicker.jsx';
@@ -20,12 +21,12 @@ import { toEnglishDigits } from '../../../shared/utils/formatters.js';
 import { accountLabel } from '../../accounts/constants/accountDisplay.js';
 import { getExpenseCategory } from '../constants/expenseCategories.js';
 
-const BASE = ['تاریخ', 'عنوان', 'مبلغ', 'سهم من', 'ارز'];
-const REST = ['برچسب‌ها', 'دریافت‌شده از دیگران', 'پرداخت از', 'تأمین از', 'ثبت از', 'یادداشت'];
+const BASE = [t('تاریخ'), t('عنوان'), t('مبلغ'), t('سهم من'), t('ارز')];
+const REST = [t('برچسب‌ها'), t('دریافت‌شده از دیگران'), t('پرداخت از'), t('تأمین از'), t('ثبت از'), t('یادداشت')];
 
 /** @param {{ withCategory?: boolean }} [options] with a category column (empty: a project's expense without one) */
 export function expenseCsvHeaders({ withCategory = false } = {}) {
-  return withCategory ? [BASE[0], 'دسته‌بندی', ...BASE.slice(1), ...REST] : [...BASE, ...REST];
+  return withCategory ? [BASE[0], t('دسته‌بندی'), ...BASE.slice(1), ...REST] : [...BASE, ...REST];
 }
 
 /**
@@ -36,9 +37,9 @@ export function expenseCsvHeaders({ withCategory = false } = {}) {
 export function expenseCsvRow(e, { withCategory = false, accountById = new Map(), loanById = new Map() } = {}) {
   const shared = isSharedExpense(e);
   const funding = e.paidFrom?.portfolioId
-    ? `پورتفو: ${e.paidFrom.portfolioName || 'پورتفو'}`
+    ? t('پورتفو: {name}', { name: e.paidFrom.portfolioName || t('پورتفو') })
     : e.loanId
-      ? `وام: ${loanById.get(e.loanId)?.title || 'وام حذف‌شده'}`
+      ? t('وام: {name}', { name: loanById.get(e.loanId)?.title || t('وام حذف‌شده') })
       : '';
   const base = [
     formatShamsiDisplay(`${e.date}T00:00:00`),
@@ -48,11 +49,11 @@ export function expenseCsvRow(e, { withCategory = false, accountById = new Map()
     currencyLabel(e.currency),
   ];
   const rest = [
-    (e.tags || []).join('، '),
+    (e.tags || []).join(`${t('،')} `),
     shared ? expenseReceivable(e).received : '',
     e.accountId ? accountLabel(accountById.get(e.accountId)) : '',
     funding,
-    e.source === 'sms' ? 'پیامک بانک' : '',
+    e.source === 'sms' ? t('پیامک بانک') : '',
     e.notes || '',
   ];
   return withCategory
@@ -80,20 +81,21 @@ const currencyFromLabel = (label) => CURRENCIES.find((c) => c.label === label ||
  * @returns {{ status: 'ok'|'invalid', name: string, data?: object }}
  */
 export function parseExpenseCsvRow(row, headerIndex, rowIndex, { categoryOf, accountOf }) {
+  // A file written in the other language is read too: a header's Persian name stays accepted
   const get = (header) => {
-    const idx = headerIndex[header];
+    const idx = headerIndex[t(header)] ?? headerIndex[header];
     return idx !== undefined && row[idx] !== undefined ? String(row[idx]).trim() : '';
   };
-  const title = get('عنوان');
-  const category = categoryOf(get('دسته‌بندی'));
-  const amount = parseInputNumber(toEnglishDigits(get('مبلغ')));
-  const date = dayOf(get('تاریخ'));
-  const name = title || `ردیف ${rowIndex + 2}`;
+  const title = get('عنوان'); // i18n-ignore
+  const category = categoryOf(get('دسته‌بندی')); // i18n-ignore
+  const amount = parseInputNumber(toEnglishDigits(get('مبلغ'))); // i18n-ignore
+  const date = dayOf(get('تاریخ')); // i18n-ignore
+  const name = title || t('ردیف {n}', { n: rowIndex + 2 });
   if ((!title && !category) || !(amount > 0) || !date) return { status: 'invalid', name };
 
-  const currency = currencyFromLabel(get('ارز'));
+  const currency = currencyFromLabel(get('ارز')); // i18n-ignore
   // A share below the amount: paid for others too («دنگ», tomans only)
-  const share = parseInputNumber(toEnglishDigits(get('سهم من')));
+  const share = parseInputNumber(toEnglishDigits(get('سهم من'))); // i18n-ignore
   const myShare = currency === BASE_CURRENCY && share !== null && share >= 0 && share < amount ? share : null;
   return {
     status: 'ok',
@@ -105,9 +107,9 @@ export function parseExpenseCsvRow(row, headerIndex, rowIndex, { categoryOf, acc
       currency,
       date,
       myShare,
-      tags: normalizeTags(get('برچسب‌ها').split(/[،,]/)),
-      accountId: accountOf(get('پرداخت از')),
-      notes: get('یادداشت'),
+      tags: normalizeTags(get('برچسب‌ها').split(/[،,]/)), // i18n-ignore
+      accountId: accountOf(get('پرداخت از')), // i18n-ignore
+      notes: get('یادداشت'), // i18n-ignore
     },
   };
 }

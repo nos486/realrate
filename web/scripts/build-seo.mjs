@@ -16,6 +16,8 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { createHash } from 'node:crypto';
 import { SITE, FEATURE_PAGES, STATIC_PAGES } from '../src/seo/pages.js';
+import { SITE as SITE_EN, FEATURE_PAGES as FEATURE_PAGES_EN, STATIC_PAGES as STATIC_PAGES_EN } from '../src/seo/pages.en.js';
+import { SEO_LOCALES } from '../src/seo/chrome.js';
 import { generateRedirects } from '../src/seo/spaRoutes.js';
 import { DEMO_ENABLED } from '../src/shared/routes.js';
 
@@ -101,6 +103,12 @@ if (!landingHtml.includes('rel="canonical"')) {
     `    <link rel="canonical" href="${SITE.origin}/" />\n  </head>`
   );
 }
+
+// hreflang: the English home page is a static page under /en/
+landingHtml = landingHtml.replace(
+  /(<link\s+rel="canonical"[^>]*>)/i,
+  `$1\n    <link rel="alternate" hreflang="fa" href="${SITE.origin}/" />\n    <link rel="alternate" hreflang="en" href="${SITE.origin}/en/" />\n    <link rel="alternate" hreflang="x-default" href="${SITE.origin}/" />`
+);
 
 // Ensure Open Graph URL, image, locale
 if (!landingHtml.includes('property="og:url"')) {
@@ -201,6 +209,28 @@ landingHtml = landingHtml.replace('<div id="root"></div>', crawlableLandingConte
 writeFileSync(rawIndexHtmlPath, landingHtml, 'utf-8');
 console.log('✓ Updated dist/index.html with metadata, JSON-LD, and crawlable fallback');
 
+/**
+ * Builds one language's static pages: Persian at the site root, English under /en (SEO_LOCALES).
+ * @param {object} L - the language row (chrome.js)
+ * @param {{ SITE: object, FEATURE_PAGES: object[], STATIC_PAGES: object }} content - that language's page content
+ */
+function buildLocalePages(L, content) {
+const { SITE, FEATURE_PAGES, STATIC_PAGES } = content;
+const c = L.c;
+const outDir = resolve(distDir, L.base.replace(/^\//, ''));
+const other = SEO_LOCALES[L.code === 'fa' ? 'en' : 'fa'];
+mkdirSync(resolve(outDir, 'features'), { recursive: true });
+/** A link into the app (sign-in, sign-up, demo): English visitors carry their language along */
+const appLink = (path) => (L.code === 'en' ? `${path}?lang=en` : path);
+/** hreflang links to this page's counterpart in each language ("x-default" is Persian) */
+const alternateLinks = (altPath) =>
+  altPath === null
+    ? ''
+    : [
+        ...Object.values(SEO_LOCALES).map((o) => `\n    <link rel="alternate" hreflang="${o.code}" href="${SITE.origin}${o.base}${altPath === '/' ? '/' : altPath}" />`),
+        `\n    <link rel="alternate" hreflang="x-default" href="${SITE.origin}${altPath}" />`,
+      ].join('');
+
 // ── 4. Shared HTML Template Generator for Static Pages ───────────────────────
 // They look like the landing page (pages/LandingPage.jsx): its header, footer, colors and buttons
 const BRAND_ICON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg>';
@@ -218,8 +248,8 @@ const ctaBlock = (title, text, buttons = null) => `
       <h2>${escapeHtml(title)}</h2>
       <p>${escapeHtml(text)}</p>
       <div class="seo-cta-buttons">
-        ${buttons ?? `<a href="/register" class="seo-btn seo-btn-primary">شروع رایگان <span aria-hidden="true">←</span></a>
-        ${DEMO_ENABLED ? '<a href="/demo" class="seo-btn seo-btn-ghost">دیدن نسخه‌ی دمو</a>' : ''}`}
+        ${buttons ?? `<a href="${appLink('/register')}" class="seo-btn seo-btn-primary">${c.ctaStart} <span aria-hidden="true">${L.forward}</span></a>
+        ${DEMO_ENABLED ? `<a href="${appLink('/demo')}" class="seo-btn seo-btn-ghost">${c.ctaDemo}</a>` : ''}`}
       </div>
     </section>`;
 
@@ -232,6 +262,7 @@ function renderStaticPage({
   jsonLdSchemas = [],
   bodyHtml,
   noIndex = false,
+  altPath = null,
 }) {
   const robotsTag = noIndex
     ? '<meta name="robots" content="noindex" />'
@@ -261,19 +292,19 @@ function renderStaticPage({
     : '';
 
   return `<!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="${L.code}" dir="${L.dir}">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>${escapeHtml(title)}</title>
     <meta name="description" content="${escapeHtml(description)}" />
     ${robotsTag}
-    <link rel="canonical" href="${escapeHtml(canonicalUrl)}" />
+    <link rel="canonical" href="${escapeHtml(canonicalUrl)}" />${alternateLinks(altPath)}
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="${escapeHtml(SITE.name)}" />
-    <meta property="og:locale" content="fa_IR" />
+    <meta property="og:locale" content="${L.ogLocale}" />
     <meta property="og:url" content="${escapeHtml(canonicalUrl)}" />
     <meta property="og:title" content="${escapeHtml(title)}" />
     <meta property="og:description" content="${escapeHtml(description)}" />
@@ -299,17 +330,18 @@ ${jsonLdBlock}
     <!-- Header: the same as the landing page's -->
     <header class="seo-header">
       <div class="seo-container seo-header-inner">
-        <a href="/" class="seo-brand" aria-label="RealRate — صفحه‌ی اصلی">
+        <a href="${L.base}/" class="seo-brand" aria-label="${c.homeAria}">
           <span class="seo-brand-icon">${BRAND_ICON}</span>
           <span>${escapeHtml(SITE.name)}</span>
         </a>
-        <nav class="seo-nav" aria-label="منوی اصلی">
-          <a href="/features">امکانات</a>
-          <a href="/android">اپ اندروید</a>
-          <a href="/faq">سؤالات</a>
-          <a href="/about">درباره</a>
+        <nav class="seo-nav" aria-label="${c.mainNav}">
+          <a href="${L.base}/features">${c.navFeatures}</a>
+          <a href="${L.base}/android">${c.navAndroid}</a>
+          <a href="${L.base}/faq">${c.navFaq}</a>
+          <a href="${L.base}/about">${c.navAbout}</a>
         </nav>
-        <a href="/login" class="seo-btn seo-btn-small">ورود <span aria-hidden="true">‹</span></a>
+        ${altPath === null ? '' : `<a href="${other.base}${altPath}" class="seo-lang" hreflang="${other.code}" lang="${other.code}" aria-label="${escapeHtml(c.languageAria)}">${escapeHtml(c.languageLabel)}</a>`}
+        <a href="${appLink('/login')}" class="seo-btn seo-btn-small">${L.login} <span aria-hidden="true">${L.chevron}</span></a>
       </div>
     </header>
 
@@ -324,24 +356,24 @@ ${jsonLdBlock}
     <footer class="seo-footer">
       <div class="seo-container seo-footer-inner">
         <div class="seo-footer-brand">
-          <a href="/" class="seo-brand">
+          <a href="${L.base}/" class="seo-brand">
             <span class="seo-brand-icon">${BRAND_ICON}</span>
             <span>${escapeHtml(SITE.name)}</span>
           </a>
-          <p>ابزار رایگان و متن‌باز برای دیدن ارزش واقعی دارایی‌ها و مدیریت مالی شخصی.</p>
+          <p>${c.footerTagline}</p>
         </div>
-        <nav class="seo-footer-links" aria-label="پیوندها">
-          <a href="/features">امکانات</a>
-          <a href="/android">اپ اندروید</a>
-          <a href="/about">درباره</a>
-          <a href="/faq">سؤالات</a>
-          <a href="/privacy">حریم خصوصی</a>
-          ${DEMO_ENABLED ? '<a href="/demo">دمو</a>' : ''}
+        <nav class="seo-footer-links" aria-label="${c.footerLinks}">
+          <a href="${L.base}/features">${c.navFeatures}</a>
+          <a href="${L.base}/android">${c.navAndroid}</a>
+          <a href="${L.base}/about">${c.navAbout}</a>
+          <a href="${L.base}/faq">${c.navFaq}</a>
+          <a href="${L.base}/privacy">${c.privacy}</a>
+          ${DEMO_ENABLED ? `<a href="${appLink('/demo')}">${c.demo}</a>` : ''}
           <a href="https://github.com/nos486/realrate" target="_blank" rel="noopener noreferrer">GitHub</a>
         </nav>
       </div>
       <div class="seo-container seo-footer-bottom">
-        © ${new Date().getFullYear().toLocaleString('fa-IR', { useGrouping: false })} RealRate · متن‌باز با مجوز MIT
+        © ${new Date().getFullYear().toLocaleString(L.intl, { useGrouping: false })} RealRate · ${c.copyright}
       </div>
     </footer>
   </body>
@@ -350,10 +382,10 @@ ${jsonLdBlock}
 
 // ── 5. Generate Individual Feature Pages (/features/<slug>) ──────────────────
 for (const page of FEATURE_PAGES) {
-  const canonicalUrl = `${SITE.origin}/features/${page.slug}`;
+  const canonicalUrl = `${SITE.origin}${L.base}/features/${page.slug}`;
   const breadcrumbs = [
-    { label: 'خانه', url: `${SITE.origin}/` },
-    { label: 'ویژگی‌ها', url: `${SITE.origin}/features` },
+    { label: c.home, url: `${SITE.origin}${L.base}/` },
+    { label: c.features, url: `${SITE.origin}${L.base}/features` },
     { label: page.h1, url: canonicalUrl },
   ];
 
@@ -382,17 +414,17 @@ for (const page of FEATURE_PAGES) {
 
   const bodyHtml = `
     <!-- Breadcrumb -->
-    <nav aria-label="مسیر راهنما">
+    <nav aria-label="${c.breadcrumbLabel}">
       <ol class="seo-breadcrumb">
-        <li><a href="/">خانه</a></li>
-        <li><a href="/features">ویژگی‌ها</a></li>
+        <li><a href="${L.base}/">${c.home}</a></li>
+        <li><a href="${L.base}/features">${c.features}</a></li>
         <li aria-current="page">${escapeHtml(page.h1)}</li>
       </ol>
     </nav>
 
     <!-- Hero -->
     <header class="seo-hero">
-      <div class="seo-badge">امکانات</div>
+      <div class="seo-badge">${c.badgeFeatures}</div>
       <h1>${escapeHtml(page.h1)}</h1>
       <p class="seo-hero-intro">${escapeHtml(page.intro)}</p>
     </header>
@@ -422,7 +454,7 @@ for (const page of FEATURE_PAGES) {
       page.steps && page.steps.length
         ? `
     <section class="seo-steps-block">
-      <h2>چطور کار می‌کند؟</h2>
+      <h2>${c.howItWorks}</h2>
       <div class="seo-steps-grid">
         ${page.steps
           .map(
@@ -444,7 +476,7 @@ for (const page of FEATURE_PAGES) {
       page.faq && page.faq.length
         ? `
     <section class="seo-faq-block">
-      <h2>پرسش‌های متداول</h2>
+      <h2>${c.faqTitle}</h2>
       <div class="seo-faq-grid">
         ${page.faq
           .map(
@@ -461,7 +493,7 @@ for (const page of FEATURE_PAGES) {
       relatedPages.length
         ? `
     <section class="seo-related-block">
-      <h2>امکانات مرتبط</h2>
+      <h2>${c.related}</h2>
       <div class="seo-related-grid">
         ${relatedPages
           .map(
@@ -469,9 +501,9 @@ for (const page of FEATURE_PAGES) {
           <div class="seo-related-card">
             <h3>${escapeHtml(rel.h1)}</h3>
             <p>${escapeHtml(rel.description)}</p>
-            <a href="/features/${rel.slug}" class="seo-related-link">
-              <span>بیشتر</span>
-              <span aria-hidden="true">←</span>
+            <a href="${L.base}/features/${rel.slug}" class="seo-related-link">
+              <span>${c.more}</span>
+              <span aria-hidden="true">${L.forward}</span>
             </a>
           </div>`
           )
@@ -482,7 +514,7 @@ for (const page of FEATURE_PAGES) {
     }
 
     <!-- Call to Action Banner -->
-    ${ctaBlock('همین حالا رایگان شروع کن', 'چند ثانیه با ایمیل یا حساب گوگل — بدون کارت بانکی و بدون تبلیغ.')}`;
+    ${ctaBlock(c.ctaTitle, c.ctaText)}`;
 
   const html = renderStaticPage({
     title: page.title,
@@ -492,19 +524,20 @@ for (const page of FEATURE_PAGES) {
     breadcrumbs,
     jsonLdSchemas,
     bodyHtml,
+    altPath: `/features/${page.slug}`,
   });
 
-  const outPath = resolve(distDir, `features/${page.slug}.html`);
+  const outPath = resolve(outDir, `features/${page.slug}.html`);
   writeFileSync(outPath, html, 'utf-8');
 }
 console.log(`✓ Generated ${FEATURE_PAGES.length} feature pages in dist/features/`);
 
 // ── 6. Generate Features Hub Page (/features) ────────────────────────────────
 {
-  const canonicalUrl = `${SITE.origin}/features`;
+  const canonicalUrl = `${SITE.origin}${L.base}/features`;
   const breadcrumbs = [
-    { label: 'خانه', url: `${SITE.origin}/` },
-    { label: 'ویژگی‌ها', url: canonicalUrl },
+    { label: c.home, url: `${SITE.origin}${L.base}/` },
+    { label: c.features, url: canonicalUrl },
   ];
 
   const appSchema = {
@@ -513,7 +546,7 @@ console.log(`✓ Generated ${FEATURE_PAGES.length} feature pages in dist/feature
     'name': SITE.name,
     'applicationCategory': 'FinanceApplication',
     'operatingSystem': 'Web, Android, iOS (PWA)',
-    'inLanguage': 'fa',
+    'inLanguage': L.code,
     'offers': {
       '@type': 'Offer',
       'price': '0',
@@ -524,16 +557,16 @@ console.log(`✓ Generated ${FEATURE_PAGES.length} feature pages in dist/feature
 
   const bodyHtml = `
     <!-- Breadcrumb -->
-    <nav aria-label="مسیر راهنما">
+    <nav aria-label="${c.breadcrumbLabel}">
       <ol class="seo-breadcrumb">
-        <li><a href="/">خانه</a></li>
-        <li aria-current="page">ویژگی‌ها</li>
+        <li><a href="${L.base}/">${c.home}</a></li>
+        <li aria-current="page">${c.features}</li>
       </ol>
     </nav>
 
     <!-- Hero -->
     <header class="seo-hero">
-      <div class="seo-badge">امکانات</div>
+      <div class="seo-badge">${c.badgeFeatures}</div>
       <h1>${escapeHtml(STATIC_PAGES.features.h1)}</h1>
       <p class="seo-hero-intro">${escapeHtml(STATIC_PAGES.features.intro)}</p>
     </header>
@@ -545,16 +578,16 @@ console.log(`✓ Generated ${FEATURE_PAGES.length} feature pages in dist/feature
         <article class="seo-hub-card">
           <h2>${escapeHtml(p.h1)}</h2>
           <p>${escapeHtml(p.description)}</p>
-          <a href="/features/${p.slug}" class="seo-hub-more">
-            <span>بیشتر</span>
-            <span aria-hidden="true">←</span>
+          <a href="${L.base}/features/${p.slug}" class="seo-hub-more">
+            <span>${c.more}</span>
+            <span aria-hidden="true">${L.forward}</span>
           </a>
         </article>`
       ).join('')}
     </div>
 
     <!-- Call to Action Banner -->
-    ${ctaBlock('همین حالا رایگان شروع کن', 'چند ثانیه با ایمیل یا حساب گوگل — بدون کارت بانکی و بدون تبلیغ.')}`;
+    ${ctaBlock(c.ctaTitle, c.ctaText)}`;
 
   const hubHtml = renderStaticPage({
     title: STATIC_PAGES.features.title,
@@ -564,19 +597,20 @@ console.log(`✓ Generated ${FEATURE_PAGES.length} feature pages in dist/feature
     breadcrumbs,
     jsonLdSchemas: [appSchema],
     bodyHtml,
+    altPath: '/features',
   });
 
-  writeFileSync(resolve(distDir, 'features.html'), hubHtml, 'utf-8');
+  writeFileSync(resolve(outDir, 'features.html'), hubHtml, 'utf-8');
   console.log('✓ Generated dist/features.html (hub, served at /features)');
 }
 
 // ── 7. Generate About Page (/about) ──────────────────────────────────────────
 {
   const about = STATIC_PAGES.about;
-  const canonicalUrl = `${SITE.origin}/about`;
+  const canonicalUrl = `${SITE.origin}${L.base}/about`;
   const breadcrumbs = [
-    { label: 'خانه', url: `${SITE.origin}/` },
-    { label: 'درباره ما', url: canonicalUrl },
+    { label: c.home, url: `${SITE.origin}${L.base}/` },
+    { label: c.aboutCrumb, url: canonicalUrl },
   ];
 
   const appSchema = {
@@ -585,7 +619,7 @@ console.log(`✓ Generated ${FEATURE_PAGES.length} feature pages in dist/feature
     'name': SITE.name,
     'applicationCategory': 'FinanceApplication',
     'operatingSystem': 'Web, Android, iOS (PWA)',
-    'inLanguage': 'fa',
+    'inLanguage': L.code,
     'offers': {
       '@type': 'Offer',
       'price': '0',
@@ -596,16 +630,16 @@ console.log(`✓ Generated ${FEATURE_PAGES.length} feature pages in dist/feature
 
   const bodyHtml = `
     <!-- Breadcrumb -->
-    <nav aria-label="مسیر راهنما">
+    <nav aria-label="${c.breadcrumbLabel}">
       <ol class="seo-breadcrumb">
-        <li><a href="/">خانه</a></li>
-        <li aria-current="page">درباره ما</li>
+        <li><a href="${L.base}/">${c.home}</a></li>
+        <li aria-current="page">${c.aboutCrumb}</li>
       </ol>
     </nav>
 
     <!-- Hero -->
     <header class="seo-hero">
-      <div class="seo-badge">درباره</div>
+      <div class="seo-badge">${c.badgeAbout}</div>
       <h1>${escapeHtml(about.h1)}</h1>
       <p class="seo-hero-intro">${escapeHtml(about.intro)}</p>
     </header>
@@ -631,7 +665,7 @@ console.log(`✓ Generated ${FEATURE_PAGES.length} feature pages in dist/feature
     </article>
 
     <!-- CTA -->
-    ${ctaBlock('همین حالا رایگان شروع کن', 'چند ثانیه با ایمیل یا حساب گوگل — بدون کارت بانکی و بدون تبلیغ.')}`;
+    ${ctaBlock(c.ctaTitle, c.ctaText)}`;
 
   const aboutHtml = renderStaticPage({
     title: about.title,
@@ -641,19 +675,20 @@ console.log(`✓ Generated ${FEATURE_PAGES.length} feature pages in dist/feature
     breadcrumbs,
     jsonLdSchemas: [appSchema],
     bodyHtml,
+    altPath: '/about',
   });
 
-  writeFileSync(resolve(distDir, 'about.html'), aboutHtml, 'utf-8');
+  writeFileSync(resolve(outDir, 'about.html'), aboutHtml, 'utf-8');
   console.log('✓ Generated dist/about.html');
 }
 
 // ── 8. Generate FAQ Page (/faq) ──────────────────────────────────────────────
 {
   const faqPage = STATIC_PAGES.faq;
-  const canonicalUrl = `${SITE.origin}/faq`;
+  const canonicalUrl = `${SITE.origin}${L.base}/faq`;
   const breadcrumbs = [
-    { label: 'خانه', url: `${SITE.origin}/` },
-    { label: 'پرسش‌های متداول', url: canonicalUrl },
+    { label: c.home, url: `${SITE.origin}${L.base}/` },
+    { label: c.faqCrumb, url: canonicalUrl },
   ];
 
   const faqSchema = {
@@ -671,16 +706,16 @@ console.log(`✓ Generated ${FEATURE_PAGES.length} feature pages in dist/feature
 
   const bodyHtml = `
     <!-- Breadcrumb -->
-    <nav aria-label="مسیر راهنما">
+    <nav aria-label="${c.breadcrumbLabel}">
       <ol class="seo-breadcrumb">
-        <li><a href="/">خانه</a></li>
-        <li aria-current="page">پرسش‌های متداول</li>
+        <li><a href="${L.base}/">${c.home}</a></li>
+        <li aria-current="page">${c.faqCrumb}</li>
       </ol>
     </nav>
 
     <!-- Hero -->
     <header class="seo-hero">
-      <div class="seo-badge">سؤالات</div>
+      <div class="seo-badge">${c.badgeFaq}</div>
       <h1>${escapeHtml(faqPage.h1)}</h1>
       <p class="seo-hero-intro">${escapeHtml(faqPage.intro)}</p>
     </header>
@@ -696,11 +731,11 @@ console.log(`✓ Generated ${FEATURE_PAGES.length} feature pages in dist/feature
 
     <!-- CTA -->
     <section class="seo-cta">
-      <h2>جواب سؤالت را پیدا نکردی؟</h2>
-      <p>برنامه را رایگان امتحان کن یا سؤالت را در گیت‌هاب بپرس.</p>
+      <h2>${c.faqCtaTitle}</h2>
+      <p>${c.faqCtaText}</p>
       <div class="seo-cta-buttons">
-        <a href="/register" class="seo-btn seo-btn-primary">شروع رایگان <span aria-hidden="true">←</span></a>
-        <a href="https://github.com/nos486/realrate/issues" target="_blank" rel="noopener noreferrer" class="seo-btn seo-btn-ghost">پرسیدن در GitHub</a>
+        <a href="${appLink('/register')}" class="seo-btn seo-btn-primary">${c.ctaStart} <span aria-hidden="true">${L.forward}</span></a>
+        <a href="https://github.com/nos486/realrate/issues" target="_blank" rel="noopener noreferrer" class="seo-btn seo-btn-ghost">${c.askGithub}</a>
       </div>
     </section>`;
 
@@ -712,25 +747,26 @@ console.log(`✓ Generated ${FEATURE_PAGES.length} feature pages in dist/feature
     breadcrumbs,
     jsonLdSchemas: [faqSchema],
     bodyHtml,
+    altPath: '/faq',
   });
 
-  writeFileSync(resolve(distDir, 'faq.html'), faqHtml, 'utf-8');
+  writeFileSync(resolve(outDir, 'faq.html'), faqHtml, 'utf-8');
   console.log('✓ Generated dist/faq.html');
 }
 
 // ── 8c. Generate the legal pages (/privacy, /delete-account) ─────────────────
 // Google Play asks for both as public URLs. Plain text sections, no sign-in links.
 for (const page of [STATIC_PAGES.privacy, STATIC_PAGES.deleteAccount]) {
-  const canonicalUrl = `${SITE.origin}/${page.slug}`;
+  const canonicalUrl = `${SITE.origin}${L.base}/${page.slug}`;
   const breadcrumbs = [
-    { label: 'خانه', url: `${SITE.origin}/` },
+    { label: c.home, url: `${SITE.origin}${L.base}/` },
     { label: page.h1, url: canonicalUrl },
   ];
 
   const bodyHtml = `
-    <nav aria-label="مسیر راهنما">
+    <nav aria-label="${c.breadcrumbLabel}">
       <ol class="seo-breadcrumb">
-        <li><a href="/">خانه</a></li>
+        <li><a href="${L.base}/">${c.home}</a></li>
         <li aria-current="page">${escapeHtml(page.h1)}</li>
       </ol>
     </nav>
@@ -738,7 +774,7 @@ for (const page of [STATIC_PAGES.privacy, STATIC_PAGES.deleteAccount]) {
     <header class="seo-hero">
       <h1>${escapeHtml(page.h1)}</h1>
       <p class="seo-hero-intro">${escapeHtml(page.intro)}</p>
-      <p class="seo-hero-intro">آخرین به‌روزرسانی: ${escapeHtml(page.updated)}</p>
+      <p class="seo-hero-intro">${c.updated}: ${escapeHtml(page.updated)}</p>
     </header>
 
     <article class="seo-article">
@@ -755,7 +791,7 @@ for (const page of [STATIC_PAGES.privacy, STATIC_PAGES.deleteAccount]) {
     </article>`;
 
   writeFileSync(
-    resolve(distDir, `${page.slug}.html`),
+    resolve(outDir, `${page.slug}.html`),
     renderStaticPage({
       title: page.title,
       description: page.description,
@@ -767,10 +803,11 @@ for (const page of [STATIC_PAGES.privacy, STATIC_PAGES.deleteAccount]) {
         '@type': 'WebPage',
         'name': page.h1,
         'description': page.description,
-        'inLanguage': 'fa',
+        'inLanguage': L.code,
         'url': canonicalUrl,
       }],
       bodyHtml,
+      altPath: `/${page.slug}`,
     }),
     'utf-8'
   );
@@ -782,10 +819,10 @@ for (const page of [STATIC_PAGES.privacy, STATIC_PAGES.deleteAccount]) {
 // Play Protect warning a sideloaded app with the SMS permission meets
 {
   const app = STATIC_PAGES.android;
-  const canonicalUrl = `${SITE.origin}/android`;
+  const canonicalUrl = `${SITE.origin}${L.base}/android`;
   const breadcrumbs = [
-    { label: 'خانه', url: `${SITE.origin}/` },
-    { label: 'اپ اندروید', url: canonicalUrl },
+    { label: c.home, url: `${SITE.origin}${L.base}/` },
+    { label: c.navAndroid, url: canonicalUrl },
   ];
 
   const appSchema = {
@@ -794,7 +831,7 @@ for (const page of [STATIC_PAGES.privacy, STATIC_PAGES.deleteAccount]) {
     'name': SITE.name,
     'applicationCategory': 'FinanceApplication',
     'operatingSystem': 'Android 7.0+',
-    'inLanguage': 'fa',
+    'inLanguage': L.code,
     'downloadUrl': app.downloadUrl,
     'offers': { '@type': 'Offer', 'price': '0', 'priceCurrency': 'IRR' },
     'description': app.description,
@@ -811,34 +848,34 @@ for (const page of [STATIC_PAGES.privacy, STATIC_PAGES.deleteAccount]) {
 
   const bodyHtml = `
     <!-- Breadcrumb -->
-    <nav aria-label="مسیر راهنما">
+    <nav aria-label="${c.breadcrumbLabel}">
       <ol class="seo-breadcrumb">
-        <li><a href="/">خانه</a></li>
-        <li aria-current="page">اپ اندروید</li>
+        <li><a href="${L.base}/">${c.home}</a></li>
+        <li aria-current="page">${c.navAndroid}</li>
       </ol>
     </nav>
 
     <!-- Hero -->
     <header class="seo-hero">
-      <div class="seo-badge">رایگان · متن‌باز · امضاشده</div>
+      <div class="seo-badge">${c.badgeAndroid}</div>
       <h1>${escapeHtml(app.h1)}</h1>
       <p class="seo-hero-intro">${escapeHtml(app.intro)}</p>
       <div class="seo-cta-buttons">
-        <a href="${escapeHtml(app.downloadUrl)}" class="seo-btn seo-btn-primary" download>دانلود اپ اندروید</a>
-        <a href="${escapeHtml(app.releasesUrl)}" target="_blank" rel="noopener noreferrer" class="seo-btn seo-btn-ghost">همه‌ی نسخه‌ها و تغییرات</a>
+        <a href="${escapeHtml(app.downloadUrl)}" class="seo-btn seo-btn-primary" download>${c.download}</a>
+        <a href="${escapeHtml(app.releasesUrl)}" target="_blank" rel="noopener noreferrer" class="seo-btn seo-btn-ghost">${c.allReleases}</a>
       </div>
-      <p class="seo-hero-note">اندروید ۷ به بالا · همیشه آخرین نسخه · به‌روزرسانی روی نسخه‌ی قبلی نصب می‌شود</p>
+      <p class="seo-hero-note">${c.androidNote}</p>
     </header>
 
     <!-- Install steps -->
     <section class="seo-steps-block">
-      <h2>راهنمای نصب</h2>
+      <h2>${c.installGuide}</h2>
       <div class="seo-steps-grid">
         ${app.steps
           .map(
             (step, i) => `
           <div class="seo-step-card">
-            <span class="seo-step-num">${(i + 1).toLocaleString('fa-IR')}</span>
+            <span class="seo-step-num">${(i + 1).toLocaleString(L.intl)}</span>
             <h3>${escapeHtml(step.title)}</h3>
             <p>${escapeHtml(step.description)}</p>
           </div>`
@@ -869,7 +906,7 @@ for (const page of [STATIC_PAGES.privacy, STATIC_PAGES.deleteAccount]) {
 
     <!-- FAQ -->
     <section class="seo-faq-block">
-      <h2>پرسش‌های متداول</h2>
+      <h2>${c.faqTitle}</h2>
       <div class="seo-faq-grid">
         ${app.faq
           .map(
@@ -881,11 +918,11 @@ for (const page of [STATIC_PAGES.privacy, STATIC_PAGES.deleteAccount]) {
 
     <!-- CTA -->
     <section class="seo-cta">
-      <h2>ترجیح می‌دهید بدون نصب شروع کنید؟</h2>
-      <p>همه‌ی امکانات ریل‌ریت در مرورگر هم در دسترس است؛ با همان حساب، هر وقت خواستید اپ را نصب کنید.</p>
+      <h2>${c.androidCtaTitle}</h2>
+      <p>${c.androidCtaText}</p>
       <div class="seo-cta-buttons">
-        <a href="${escapeHtml(app.downloadUrl)}" class="seo-btn seo-btn-primary" download>دانلود اپ اندروید</a>
-        <a href="/register" class="seo-btn seo-btn-ghost">ثبت‌نام در سایت</a>
+        <a href="${escapeHtml(app.downloadUrl)}" class="seo-btn seo-btn-primary" download>${c.download}</a>
+        <a href="${appLink('/register')}" class="seo-btn seo-btn-ghost">${c.signupSite}</a>
       </div>
     </section>`;
 
@@ -897,11 +934,72 @@ for (const page of [STATIC_PAGES.privacy, STATIC_PAGES.deleteAccount]) {
     breadcrumbs,
     jsonLdSchemas: [appSchema, faqSchema],
     bodyHtml,
+    altPath: '/android',
   });
 
-  writeFileSync(resolve(distDir, 'android.html'), androidHtml, 'utf-8');
+  writeFileSync(resolve(outDir, 'android.html'), androidHtml, 'utf-8');
   console.log('✓ Generated dist/android.html');
 }
+  // The English home page (the Persian one is the app's own landing page, pages/LandingPage.jsx)
+  if (L.code === 'en') {
+    const home = L.home;
+    const bodyHtml = `
+    <header class="seo-hero">
+      <h1>${escapeHtml(home.h1)}</h1>
+      <p class="seo-hero-intro">${escapeHtml(home.intro)}</p>
+      <div class="seo-cta-buttons">
+        <a href="${appLink('/register')}" class="seo-btn seo-btn-primary">${c.ctaStart} <span aria-hidden="true">${L.forward}</span></a>
+        <a href="${L.base}/features" class="seo-btn seo-btn-ghost">${c.navFeatures}</a>
+      </div>
+    </header>
+
+    <section class="seo-related-block">
+      <h2>${escapeHtml(home.featuresTitle)}</h2>
+      <div class="seo-hub-grid">
+        ${FEATURE_PAGES.map(
+          (p) => `
+        <article class="seo-hub-card">
+          <h3>${escapeHtml(p.h1)}</h3>
+          <p>${escapeHtml(p.description)}</p>
+          <a href="${L.base}/features/${p.slug}" class="seo-hub-more">
+            <span>${c.more}</span>
+            <span aria-hidden="true">${L.forward}</span>
+          </a>
+        </article>`
+        ).join('')}
+      </div>
+    </section>
+
+    ${ctaBlock(c.ctaTitle, c.ctaText)}`;
+
+    writeFileSync(
+      resolve(outDir, 'index.html'),
+      renderStaticPage({
+        title: home.title,
+        description: home.description,
+        canonicalUrl: `${SITE.origin}${L.base}/`,
+        ogImage: SITE.ogImage,
+        breadcrumbs: [],
+        jsonLdSchemas: [{
+          '@context': 'https://schema.org',
+          '@type': 'WebSite',
+          'name': SITE.name,
+          'url': `${SITE.origin}${L.base}/`,
+          'description': home.description,
+          'inLanguage': L.code,
+        }],
+        bodyHtml,
+        altPath: '/',
+      }),
+      'utf-8'
+    );
+    console.log('✓ Generated dist/en/index.html (English home page)');
+  }
+  return { renderStaticPage };
+}
+
+const { renderStaticPage } = buildLocalePages(SEO_LOCALES.fa, { SITE, FEATURE_PAGES, STATIC_PAGES });
+buildLocalePages(SEO_LOCALES.en, { SITE: SITE_EN, FEATURE_PAGES: FEATURE_PAGES_EN, STATIC_PAGES: STATIC_PAGES_EN });
 
 // ── 9. Generate 404 Page (/404.html) ─────────────────────────────────────────
 {
@@ -930,28 +1028,31 @@ for (const page of [STATIC_PAGES.privacy, STATIC_PAGES.deleteAccount]) {
 }
 
 // ── 10. Generate sitemap.xml ─────────────────────────────────────────────────
+// Every page in both languages (English under /en), each listing its counterpart (hreflang)
 {
-  const urls = [
-    { loc: `${SITE.origin}/`, priority: '1.0', changefreq: 'daily' },
-    { loc: `${SITE.origin}/features`, priority: '0.9', changefreq: 'weekly' },
-    ...FEATURE_PAGES.map((p) => ({
-      loc: `${SITE.origin}/features/${p.slug}`,
-      priority: '0.8',
-      changefreq: 'weekly',
-    })),
-    { loc: `${SITE.origin}/about`, priority: '0.6', changefreq: 'monthly' },
-    { loc: `${SITE.origin}/faq`, priority: '0.7', changefreq: 'weekly' },
-    { loc: `${SITE.origin}/android`, priority: '0.8', changefreq: 'weekly' },
-    { loc: `${SITE.origin}/privacy`, priority: '0.3', changefreq: 'yearly' },
-    { loc: `${SITE.origin}/delete-account`, priority: '0.3', changefreq: 'yearly' },
+  const pages = [
+    { path: '/', priority: '1.0', changefreq: 'daily' },
+    { path: '/features', priority: '0.9', changefreq: 'weekly' },
+    ...FEATURE_PAGES.map((p) => ({ path: `/features/${p.slug}`, priority: '0.8', changefreq: 'weekly' })),
+    { path: '/about', priority: '0.6', changefreq: 'monthly' },
+    { path: '/faq', priority: '0.7', changefreq: 'weekly' },
+    { path: '/android', priority: '0.8', changefreq: 'weekly' },
+    { path: '/privacy', priority: '0.3', changefreq: 'yearly' },
+    { path: '/delete-account', priority: '0.3', changefreq: 'yearly' },
   ];
+  // The Persian page keeps its own address; the home page's English twin is /en/
+  const url = (loc, path) => `${SITE.origin}${loc.base}${path}`;
+  const urls = pages.flatMap((p) => Object.values(SEO_LOCALES).map((loc) => ({ ...p, loc: url(loc, p.path), self: loc })));
 
   const sitemapXml = `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
 ${urls
   .map(
     (u) => `  <url>
     <loc>${u.loc}</loc>
+${Object.values(SEO_LOCALES)
+  .map((loc) => `    <xhtml:link rel="alternate" hreflang="${loc.code}" href="${url(loc, u.path)}"/>`)
+  .join('\n')}
     <lastmod>${buildDateIso}</lastmod>
     <changefreq>${u.changefreq}</changefreq>
     <priority>${u.priority}</priority>

@@ -22,6 +22,7 @@ import {
   parseDateParts,
   computeClampedDueDate,
 } from "./loanCalculator.js";
+import { t } from "./i18n.js";
 
 /** Error raised for invalid input — `statusCode` matches what the API would have answered */
 export class LoanDocumentError extends Error {
@@ -144,9 +145,9 @@ export function createLoanDoc(data = {}, options = {}) {
   const principalAmount = Number(data.principalAmount ?? data.principal ?? 0);
   const installmentCount = parseInt(data.installmentCount ?? data.installment_count ?? 0, 10);
 
-  if (!title) throw badRequest("عنوان وام الزامی است.");
-  if (!principalAmount || principalAmount <= 0) throw badRequest("مبلغ اصل وام باید مقداری بزرگتر از صفر باشد.");
-  if (!installmentCount || installmentCount <= 0) throw badRequest("تعداد اقساط باید حداقل ۱ باشد.");
+  if (!title) throw badRequest(t("عنوان وام الزامی است."));
+  if (!principalAmount || principalAmount <= 0) throw badRequest(t("مبلغ اصل وام باید مقداری بزرگتر از صفر باشد."));
+  if (!installmentCount || installmentCount <= 0) throw badRequest(t("تعداد اقساط باید حداقل ۱ باشد."));
 
   const loanId = data.id || generateId("loan");
   const bank = (options.resolveBank || defaultResolveBank)({
@@ -167,10 +168,10 @@ export function createLoanDoc(data = {}, options = {}) {
     }))
     .reduce((map, entry) => {
       if (!Number.isInteger(entry.installmentNumber) || entry.installmentNumber < 1 || entry.installmentNumber > installmentCount) {
-        throw badRequest(`شماره قسط سفارشی‌سازی‌شده (${entry.installmentNumber}) خارج از بازه معتبر است.`);
+        throw badRequest(t('شماره قسط سفارشی‌سازی‌شده ({installmentNumber}) خارج از بازه معتبر است.', { installmentNumber: entry.installmentNumber }));
       }
       if (isNaN(entry.totalAmount) || entry.totalAmount <= 0) {
-        throw badRequest(`مبلغ سفارشی‌سازی‌شده برای قسط ${entry.installmentNumber} باید عددی بزرگتر از صفر باشد.`);
+        throw badRequest(t('مبلغ سفارشی‌سازی‌شده برای قسط {installmentNumber} باید عددی بزرگتر از صفر باشد.', { installmentNumber: entry.installmentNumber }));
       }
       map[entry.installmentNumber] = entry.totalAmount;
       return map;
@@ -182,7 +183,7 @@ export function createLoanDoc(data = {}, options = {}) {
     ? Number(data.total_repayment_amount)
     : null;
   if (totalRepaymentInput !== null && (isNaN(totalRepaymentInput) || totalRepaymentInput <= 0)) {
-    throw badRequest("مبلغ کل بازپرداخت باید عددی بزرگتر از صفر باشد.");
+    throw badRequest(t("مبلغ کل بازپرداخت باید عددی بزرگتر از صفر باشد."));
   }
 
   let distributedSchedule = [];
@@ -319,15 +320,15 @@ export function updateLoanDoc(doc, data = {}, options = {}) {
 
     if (paidCount > 0) {
       if (newCount < paidCount) {
-        throw badRequest(`تعداد اقساط جدید (${newCount}) نمی‌تواند از تعداد اقساط پرداخت‌شده (${paidCount}) کمتر باشد.`);
+        throw badRequest(t('تعداد اقساط جدید ({newCount}) نمی‌تواند از تعداد اقساط پرداخت‌شده ({paidCount}) کمتر باشد.', { newCount, paidCount }));
       }
       if (newPrincipal < alreadyPaidPrincipal) {
         throw badRequest(
-          `مبلغ اصل وام جدید نمی‌تواند کمتر از مبلغ اصلِ قبلاً پرداخت‌شده (${Math.round(alreadyPaidPrincipal).toLocaleString("en-US")} تومان) باشد.`
+          t('مبلغ اصل وام جدید نمی‌تواند کمتر از مبلغ اصلِ قبلاً پرداخت‌شده ({amount} تومان) باشد.', { amount: Math.round(alreadyPaidPrincipal).toLocaleString("en-US") })
         );
       }
       if (newStartDate !== existing.startDate) {
-        throw badRequest("پس از پرداخت حداقل یک قسط، امکان تغییر تاریخ شروع وام وجود ندارد.");
+        throw badRequest(t("پس از پرداخت حداقل یک قسط، امکان تغییر تاریخ شروع وام وجود ندارد."));
       }
     }
   }
@@ -444,8 +445,8 @@ export function markInstallmentPaidCascadeDoc(doc, installmentId, details = {}, 
   const targetInst = view.installments.find(
     (i) => i.id === installmentId || String(i.installmentNumber) === String(installmentId)
   );
-  if (!targetInst) throw notFound("قسط مورد نظر یافت نشد.");
-  if (targetInst.isPaid) throw badRequest("این قسط قبلاً پرداخت شده است.");
+  if (!targetInst) throw notFound(t("قسط مورد نظر یافت نشد."));
+  if (targetInst.isPaid) throw badRequest(t("این قسط قبلاً پرداخت شده است."));
 
   const priorUnpaid = view.installments.filter(
     (i) => i.installmentNumber < targetInst.installmentNumber && !i.isPaid
@@ -521,8 +522,8 @@ export function unmarkInstallmentPaidDoc(doc, installmentId, options = {}) {
 export function bulkDistributeInstallmentsDoc(doc, knownAmounts = {}, totalRepaymentAmount, options = {}) {
   const { now, generateId } = resolveOptions(options);
   if (totalRepaymentAmount !== undefined && totalRepaymentAmount !== null) {
-    const t = Number(totalRepaymentAmount);
-    if (isNaN(t) || t <= 0) throw badRequest("مبلغ کل بازپرداخت باید عددی بزرگتر از صفر باشد.");
+    const total = Number(totalRepaymentAmount);
+    if (isNaN(total) || total <= 0) throw badRequest(t("مبلغ کل بازپرداخت باید عددی بزرگتر از صفر باشد."));
   }
 
   const view = buildLoanView(doc);
@@ -537,13 +538,13 @@ export function bulkDistributeInstallmentsDoc(doc, knownAmounts = {}, totalRepay
     const n = parseInt(num, 10);
     const a = Number(amt);
     if (!Number.isInteger(n) || n < 1 || n > view.installmentCount) {
-      throw badRequest(`شماره قسط سفارشی‌سازی‌شده (${n}) خارج از بازه معتبر است.`);
+      throw badRequest(t('شماره قسط سفارشی‌سازی‌شده ({n}) خارج از بازه معتبر است.', { n }));
     }
     if (isNaN(a) || a <= 0) {
-      throw badRequest(`مبلغ سفارشی‌سازی‌شده برای قسط ${n} باید عددی بزرگتر از صفر باشد.`);
+      throw badRequest(t('مبلغ سفارشی‌سازی‌شده برای قسط {n} باید عددی بزرگتر از صفر باشد.', { n }));
     }
     if (paidInstallments.some((p) => p.installmentNumber === n)) {
-      throw badRequest(`قسط ${n} قبلاً پرداخت شده و قابل ویرایش نیست.`);
+      throw badRequest(t('قسط {n} قبلاً پرداخت شده و قابل ویرایش نیست.', { n }));
     }
     cleanKnownAmounts[n] = a;
   }
@@ -589,13 +590,13 @@ export function bulkDistributeInstallmentsDoc(doc, knownAmounts = {}, totalRepay
 export function addExtraPaymentDoc(doc, { amount, paymentDate, reductionMode = "reduce_amount", notes = "" } = {}, options = {}) {
   const { now, generateId } = resolveOptions(options);
   const payAmount = Number(amount);
-  if (isNaN(payAmount) || payAmount <= 0) throw badRequest("مبلغ پرداخت اضافه باید عددی بزرگتر از صفر باشد.");
-  if (!paymentDate) throw badRequest("تاریخ پرداخت اضافه الزامی است.");
+  if (isNaN(payAmount) || payAmount <= 0) throw badRequest(t("مبلغ پرداخت اضافه باید عددی بزرگتر از صفر باشد."));
+  if (!paymentDate) throw badRequest(t("تاریخ پرداخت اضافه الزامی است."));
 
   const mode = reductionMode === "reduce_term" ? "reduce_term" : "reduce_amount";
   const view = buildLoanView(doc);
   if (view.scheduleMode === "distributed") {
-    throw badRequest("ثبت پرداخت اضافه برای وام‌هایی با حالت «سفارشی‌سازی و تقسیم مساوی اقساط» پشتیبانی نمی‌شود.");
+    throw badRequest(t("ثبت پرداخت اضافه برای وام‌هایی با حالت «سفارشی‌سازی و تقسیم مساوی اقساط» پشتیبانی نمی‌شود."));
   }
 
   const paidInstallments = view.installments.filter((inst) => inst.isPaid);

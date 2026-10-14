@@ -22,6 +22,7 @@ import { validatePortfolioLink } from './portfolioLink.js';
 import { isRecordOwner } from './recordOwners.js';
 import { dollarValueOf } from './dollarValue.js';
 import { BASE_CURRENCY, normalizeCurrency, currencyRateOn, currencyRateToday } from './currencies.js';
+import { t } from './i18n.js';
 
 export const INCOME_LIMITS = {
   titleLength: 120,
@@ -44,11 +45,11 @@ export function validateIncome(body = {}) {
   const currency = normalizeCurrency(body.currency);
   const category = isCategoryValue('income', body.category) ? body.category : 'other';
 
-  if (!title) return { error: 'عنوان درآمد الزامی است.' };
-  if (title.length > INCOME_LIMITS.titleLength) return { error: `عنوان درآمد نباید بیشتر از ${INCOME_LIMITS.titleLength} کاراکتر باشد.` };
-  if (!Number.isFinite(amount) || amount <= 0) return { error: 'مبلغ درآمد باید عددی بزرگتر از صفر باشد.' };
-  if (!ISO_DATE_RE.test(incomeDate) || Number.isNaN(new Date(incomeDate).getTime())) return { error: 'تاریخ دریافت درآمد نامعتبر است.' };
-  if (notes.length > INCOME_LIMITS.notesLength) return { error: `یادداشت نباید بیشتر از ${INCOME_LIMITS.notesLength} کاراکتر باشد.` };
+  if (!title) return { error: t('عنوان درآمد الزامی است.') };
+  if (title.length > INCOME_LIMITS.titleLength) return { error: t('عنوان درآمد نباید بیشتر از {titleLength} کاراکتر باشد.', { titleLength: INCOME_LIMITS.titleLength }) };
+  if (!Number.isFinite(amount) || amount <= 0) return { error: t('مبلغ درآمد باید عددی بزرگتر از صفر باشد.') };
+  if (!ISO_DATE_RE.test(incomeDate) || Number.isNaN(new Date(incomeDate).getTime())) return { error: t('تاریخ دریافت درآمد نامعتبر است.') };
+  if (notes.length > INCOME_LIMITS.notesLength) return { error: t('یادداشت نباید بیشتر از {notesLength} کاراکتر باشد.', { notesLength: INCOME_LIMITS.notesLength }) };
 
   // Sold from a portfolio: its «sell» entry (always returned, so an edit can remove it)
   const sold = validatePortfolioLink(body.soldFrom);

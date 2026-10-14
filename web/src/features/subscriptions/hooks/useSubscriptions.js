@@ -10,6 +10,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { t } from '../../../utils/i18n.js';
 import { useRefreshHandler } from '../../../shared/refresh/pageRefresh.js';
 import { useAuth } from '../../auth/index.js';
 import { useVault } from '../../../shared/vault/useVault.js';
@@ -68,7 +69,7 @@ export function useSubscriptions() {
       const current = await recordDue(list);
       if (current.some((sub, i) => sub !== list[i])) setSubscriptions(current);
     } catch (err) {
-      setError(err.message || 'خطا در بارگذاری اشتراک‌ها');
+      setError(err.message || t('خطا در بارگذاری اشتراک‌ها'));
     } finally {
       setLoading(false);
     }

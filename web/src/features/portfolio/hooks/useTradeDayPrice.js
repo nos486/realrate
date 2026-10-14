@@ -14,6 +14,7 @@ import { priceOnDay } from '../../market/dailyHistory.js';
 import { shamsiToGregorian } from '../components/ShamsiDatePicker.jsx';
 import { todayIso } from '../../../shared/utils/dates.js';
 import { resolveReferencePriceToman } from '../utils/holdingHelpers.js';
+import { t } from '../../../utils/i18n.js';
 
 /** A form's date (Shamsi as typed, or ISO) → YYYY-MM-DD, or '' */
 export function tradeDayIso(date) {
@@ -105,8 +106,8 @@ export function useTradeDayPrice({ assetId, tradeDate = '', autoFill = true, pri
 
 /** The line under the price field: where the price came from */
 export function tradeDayPriceNote(source) {
-  if (source === 'loading') return 'در حال خواندن قیمت آن روز…';
-  if (source === 'history') return 'قیمت همان روز، از تاریخچه قیمت';
-  if (source === 'missing') return 'قیمت آن روز در تاریخچه نیست؛ قیمت امروز گذاشته شد.';
+  if (source === 'loading') return t('در حال خواندن قیمت آن روز…');
+  if (source === 'history') return t('قیمت همان روز، از تاریخچه قیمت');
+  if (source === 'missing') return t('قیمت آن روز در تاریخچه نیست؛ قیمت امروز گذاشته شد.');
   return '';
 }

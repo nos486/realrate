@@ -5,7 +5,7 @@
  * today
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { intlLocale, t } from '../../../utils/i18n.js';
 import React from 'react';
 import { Coins, DollarSign, Banknote, Hash } from 'lucide-react';
 import { MiniCard } from '../../../shared/ui/index.js';
@@ -21,9 +21,9 @@ export default function ExpenseSummaryCards({ summary, budget = null, hideValues
   const money = (v, currency = 'IRT') => (hideValues ? MASK : formatAmount(v, currency));
   const unpriced = summary.unpriced || {};
   const totalFoot = Object.keys(unpriced).length > 0
-    ? <span>{formatCurrencyAmounts(unpriced)} بدون نرخ حساب نشده</span>
+    ? <span>{t('{amount} بدون نرخ حساب نشده', { amount: formatCurrencyAmounts(unpriced) })}</span>
     : summary.usesTodayRate
-      ? <span>ارزهای بدون نرخ، به نرخ امروز</span>
+      ? <span>{t('ارزهای بدون نرخ، به نرخ امروز')}</span>
       : null;
   // The other foreign currencies it has (the dollar's card is always shown)
   const others = currencyAmounts(summary.byCurrency).filter((c) => c.code !== 'IRT' && c.code !== 'USD');
@@ -32,31 +32,31 @@ export default function ExpenseSummaryCards({ summary, budget = null, hideValues
     <>
       {budget > 0 && (
         <div className="expense-side-card">
-          <BudgetProgress label="از بودجه کل" spent={summary.totalToman} budget={budget} hideValues={hideValues} />
+          <BudgetProgress label={t('از بودجه کل')} spent={summary.totalToman} budget={budget} hideValues={hideValues} />
         </div>
       )}
       <div className="incomes-summary-grid">
         <MiniCard
           icon={<Coins size={14} />}
-          title="جمع کل (تومان)"
+          title={t('جمع کل (تومان)')}
           value={money(summary.totalToman)}
-          unit="تومان"
+          unit={t('تومان')}
           color="rose"
           className="incomes-summary-card is-primary"
           footer={totalFoot}
         />
         <MiniCard
           icon={<Banknote size={14} />}
-          title="هزینه‌های تومانی"
+          title={t('هزینه‌های تومانی')}
           value={money(summary.toman)}
-          unit="تومان"
+          unit={t('تومان')}
           className="incomes-summary-card"
         />
         <MiniCard
           icon={<DollarSign size={14} />}
-          title="هزینه‌های دلاری"
+          title={t('هزینه‌های دلاری')}
           value={money(summary.byCurrency?.USD || 0, 'USD')}
-          unit="دلار"
+          unit={t('دلار')}
           color="blue"
           className="incomes-summary-card"
         />
@@ -64,7 +64,7 @@ export default function ExpenseSummaryCards({ summary, budget = null, hideValues
           <MiniCard
             key={code}
             icon={<Banknote size={14} />}
-            title={`هزینه‌های ${currencyAdjective(code)}`}
+            title={t('هزینه‌های {currency}', { currency: currencyAdjective(code) })}
             value={money(amount, code)}
             unit={currencyLabel(code)}
             color="blue"
@@ -75,14 +75,15 @@ export default function ExpenseSummaryCards({ summary, budget = null, hideValues
         <FlowDollarCard kind="expense" view={dollarView} hideValues={hideValues} wide={false} />
         <MiniCard
           icon={<Hash size={14} />}
-          title="تعداد هزینه‌ها"
+          title={t('تعداد هزینه‌ها')}
           value={summary.count.toLocaleString(intlLocale())}
-          unit="مورد"
+          unit={t('مورد')}
           className="incomes-summary-card"
           footer={summary.firstDate && (
             <span>
-              {formatShamsiDisplay(`${summary.firstDate}T00:00:00`)}
-              {summary.lastDate !== summary.firstDate && ` تا ${formatShamsiDisplay(`${summary.lastDate}T00:00:00`)}`}
+              {summary.lastDate !== summary.firstDate
+                ? t('{from} تا {to}', { from: formatShamsiDisplay(`${summary.firstDate}T00:00:00`), to: formatShamsiDisplay(`${summary.lastDate}T00:00:00`) })
+                : formatShamsiDisplay(`${summary.firstDate}T00:00:00`)}
             </span>
           )}
         />

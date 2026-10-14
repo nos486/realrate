@@ -52,12 +52,13 @@ import CreditConversionForm from './CreditConversionForm.jsx';
 // Loaded on first use: the statement reader and its engine are only needed when importing
 const StatementImportModal = lazy(() => import('../statement-import/StatementImportModal.jsx'));
 import { statementBanksFor } from '../statement-import/statementFormat.js';
+import { t } from '../../../utils/i18n.js';
 
 const HEADER = {
   icon: <WalletCards size={24} />,
-  title: 'حساب‌ها',
+  title: t('حساب‌ها'),
   help: 'accounts',
-  subtitle: 'حساب‌های بانکی، اعتبارها، پول نقد و کیف پول؛ منبع هزینه‌های شما',
+  subtitle: t('حساب‌های بانکی، اعتبارها، پول نقد و کیف پول؛ منبع هزینه‌های شما'),
 };
 
 /**
@@ -70,14 +71,14 @@ function AccountSpending({ spent, hideValues = false }) {
   const tomanOnly = amounts.length === 1 && amounts[0].code === 'IRT';
   return (
     <div className="account-card-stat">
-      <span>هزینه‌های این ماه</span>
+      <span>{t('هزینه‌های این ماه')}</span>
       {amounts.length === 0 ? <strong>—</strong> : (
         <span className="account-card-spent">
           {amounts.map(({ code, amount }) => (
             <strong key={code}>{hideValues ? `**** ${currencyLabel(code)}` : formatMoney(amount, code)}</strong>
           ))}
           {!tomanOnly && spent.totalToman > 0 && (
-            <small>≈ {hideValues ? '****' : formatAmount(spent.totalToman)} تومان</small>
+            <small>≈ {hideValues ? '****' : formatAmount(spent.totalToman)} {t('تومان')}</small>
           )}
         </span>
       )}
@@ -133,16 +134,16 @@ export default function AccountsPage() {
     return (
       <div className="incomes-page-container">
         <FeaturePageHeader {...HEADER} />
-        <VaultUnlockCard title="حساب‌های شما رمزنگاری شده‌اند" />
+        <VaultUnlockCard title={t('حساب‌های شما رمزنگاری شده‌اند')} />
       </div>
     );
   }
 
   const handleDelete = async (account) => {
     const ok = await confirm({
-      title: 'حذف حساب',
-      message: `حساب «${account.name}» حذف شود؟ هزینه‌های ثبت‌شده از آن باقی می‌مانند، بدون نام حساب.`,
-      confirmLabel: 'حذف',
+      title: t('حذف حساب'),
+      message: t('حساب «{name}» حذف شود؟ هزینه‌های ثبت‌شده از آن باقی می‌مانند، بدون نام حساب.', { name: account.name }),
+      confirmLabel: t('حذف'),
       danger: true,
     });
     if (!ok) return;
@@ -155,9 +156,9 @@ export default function AccountsPage() {
 
   const handleDeleteTransfer = async (transfer) => {
     const ok = await confirm({
-      title: 'حذف انتقال',
-      message: `انتقال ${formatAmount(transfer.amount)} تومانی حذف شود؟`,
-      confirmLabel: 'حذف',
+      title: t('حذف انتقال'),
+      message: t('انتقال {amount} تومانی حذف شود؟', { amount: formatAmount(transfer.amount) }),
+      confirmLabel: t('حذف'),
       danger: true,
     });
     if (ok) deleteTransfer(transfer.id).then(credit.reload).catch(() => {});
@@ -179,7 +180,7 @@ export default function AccountsPage() {
       const group = await ensureDailyGroup((await getExpenseGroups()).groups || []);
       const { expense } = await saveExpense({
         groupId: group.id,
-        title: `کارمزد قسط‌بندی ${account.name}`,
+        title: t('کارمزد قسط‌بندی {name}', { name: account.name }),
         amount: cost,
         currency: 'IRT',
         date: conversion.date,
@@ -195,9 +196,9 @@ export default function AccountsPage() {
 
   const handleUndoConversion = async (account, plan) => {
     const ok = await confirm({
-      title: 'حذف قسط‌بندی',
-      message: 'این قسط‌بندی و کارمزدش حذف شود؟ پرداخت‌هایی که برای اقساطش ثبت کرده‌اید باقی می‌مانند و از بدهی کم می‌شوند.',
-      confirmLabel: 'حذف',
+      title: t('حذف قسط‌بندی'),
+      message: t('این قسط‌بندی و کارمزدش حذف شود؟ پرداخت‌هایی که برای اقساطش ثبت کرده‌اید باقی می‌مانند و از بدهی کم می‌شوند.'),
+      confirmLabel: t('حذف'),
       danger: true,
     });
     if (!ok) return;
@@ -228,16 +229,16 @@ export default function AccountsPage() {
           <>
             {accounts.length >= 2 && (
               <Button variant="secondary" icon={<ArrowLeftRight size={16} />} onClick={() => setTransferForm({ transfer: null })} disabled={readOnly}>
-                انتقال بین حساب‌ها
+                {t('انتقال بین حساب‌ها')}
               </Button>
             )}
             <Button
               icon={<Plus size={16} />}
               onClick={() => setForm({ account: null })}
               disabled={readOnly}
-              title={readOnly ? 'در نسخه دمو غیرفعال است' : undefined}
+              title={readOnly ? t('در نسخه دمو غیرفعال است') : undefined}
             >
-              حساب جدید
+              {t('حساب جدید')}
             </Button>
           </>
         }
@@ -248,7 +249,7 @@ export default function AccountsPage() {
           type="error"
           message={error}
           onClose={clearError}
-          action={<Button size="sm" variant="secondary" onClick={fetchAccounts}>تلاش مجدد</Button>}
+          action={<Button size="sm" variant="secondary" onClick={fetchAccounts}>{t('تلاش مجدد')}</Button>}
         />
       )}
 
@@ -257,10 +258,10 @@ export default function AccountsPage() {
       ) : accounts.length === 0 ? (
         <EmptyState
           icon={<WalletCards size={44} strokeWidth={1.5} />}
-          title="هنوز حسابی اضافه نکرده‌اید"
-          description="حساب‌های بانکی، پول نقد یا کیف پول الکترونیک را اضافه کنید تا هنگام ثبت هزینه مشخص کنید از کدام پرداخت شده است."
+          title={t('هنوز حسابی اضافه نکرده‌اید')}
+          description={t('حساب‌های بانکی، پول نقد یا کیف پول الکترونیک را اضافه کنید تا هنگام ثبت هزینه مشخص کنید از کدام پرداخت شده است.')}
           action={!readOnly && (
-            <Button icon={<Plus size={16} />} onClick={() => setForm({ account: null })}>افزودن اولین حساب</Button>
+            <Button icon={<Plus size={16} />} onClick={() => setForm({ account: null })}>{t('افزودن اولین حساب')}</Button>
           )}
         />
       ) : (
@@ -281,7 +282,7 @@ export default function AccountsPage() {
                     <span>
                       {accountTypeLabel(account.type)}
                       {accountCurrencyLabel(account) && ` · ${accountCurrencyLabel(account)}`}
-                      {account.archived && ' · بایگانی‌شده'}
+                      {account.archived && ` · ${t('بایگانی‌شده')}`}
                     </span>
                   </div>
                 </header>
@@ -305,7 +306,7 @@ export default function AccountsPage() {
                 {hasExpenses && !isCredit && <AccountSpending spent={spent} hideValues={hideValues} />}
                 {!isCredit && movedBy.has(account.id) && (
                   <div className="account-card-stat">
-                    <span>انتقال {isThisMonth ? 'این ماه' : formatShamsiMonth(transferMonth.jy, transferMonth.jm)}</span>
+                    <span>{t('انتقال {month}', { month: isThisMonth ? t('این ماه') : formatShamsiMonth(transferMonth.jy, transferMonth.jm) })}</span>
                     <strong className="account-card-moved">
                       {movedBy.get(account.id).in > 0 && <span className="is-in">+{money(movedBy.get(account.id).in)}</span>}
                       {movedBy.get(account.id).out > 0 && <span className="is-out">−{money(movedBy.get(account.id).out)}</span>}
@@ -316,18 +317,18 @@ export default function AccountsPage() {
                 {/* «ورود از همراه بانک»: the bank's exported statement becomes this account's records */}
                 {canImportStatement && !readOnly && !account.archived && statementBanksFor(account).length > 0 && (
                   <Button size="sm" variant="secondary" icon={<FileSpreadsheet size={14} />} onClick={() => setImportAccountId(account.id)}>
-                    ورود از همراه بانک
+                    {t('ورود از همراه بانک')}
                   </Button>
                 )}
                 {!readOnly && (
                   <div className="row-actions-group account-card-actions">
-                    <button type="button" className="btn-table-action edit" title="ویرایش حساب" onClick={() => setForm({ account })}>
+                    <button type="button" className="btn-table-action edit" title={t('ویرایش حساب')} onClick={() => setForm({ account })}>
                       <Pencil size={13} strokeWidth={2} />
                     </button>
                     <button
                       type="button"
                       className="btn-table-action"
-                      title={account.archived ? 'بازگردانی از بایگانی' : 'بایگانی (در فرم هزینه نمایش داده نمی‌شود)'}
+                      title={account.archived ? t('بازگردانی از بایگانی') : t('بایگانی (در فرم هزینه نمایش داده نمی‌شود)')}
                       onClick={() => toggleArchive(account)}
                     >
                       {account.archived ? <ArchiveRestore size={13} strokeWidth={2} /> : <Archive size={13} strokeWidth={2} />}
@@ -335,7 +336,7 @@ export default function AccountsPage() {
                     <button
                       type="button"
                       className={`btn-table-action delete ${deletingId === account.id ? 'loading' : ''}`}
-                      title="حذف حساب"
+                      title={t('حذف حساب')}
                       onClick={() => handleDelete(account)}
                       disabled={deletingId === account.id}
                     >
@@ -352,39 +353,39 @@ export default function AccountsPage() {
       {accounts.length >= 2 && (
         <section className="transfers-section">
           <header className="transfers-head">
-            <h3><ArrowLeftRight size={17} /> انتقال بین حساب‌ها</h3>
+            <h3><ArrowLeftRight size={17} /> {t('انتقال بین حساب‌ها')}</h3>
             <div className="transfers-month">
-              <button type="button" className="btn-table-action" title="ماه قبل" onClick={() => setTransferMonth((m) => shiftShamsiMonth(m, -1))}>
+              <button type="button" className="btn-table-action" title={t('ماه قبل')} onClick={() => setTransferMonth((m) => shiftShamsiMonth(m, -1))}>
                 <ChevronRight size={15} />
               </button>
               <span>{formatShamsiMonth(transferMonth.jy, transferMonth.jm)}</span>
-              <button type="button" className="btn-table-action" title="ماه بعد" disabled={isThisMonth} onClick={() => setTransferMonth((m) => shiftShamsiMonth(m, 1))}>
+              <button type="button" className="btn-table-action" title={t('ماه بعد')} disabled={isThisMonth} onClick={() => setTransferMonth((m) => shiftShamsiMonth(m, 1))}>
                 <ChevronLeft size={15} />
               </button>
             </div>
           </header>
-          <p className="transfers-hint">جابه‌جایی پول بین حساب‌های خودتان (کارت به کارت به حساب دیگرتان، برداشت نقدی، شارژ کیف پول) هزینه یا درآمد نیست و در جمع آن‌ها حساب نمی‌شود.</p>
+          <p className="transfers-hint">{t('جابه‌جایی پول بین حساب‌های خودتان (کارت به کارت به حساب دیگرتان، برداشت نقدی، شارژ کیف پول) هزینه یا درآمد نیست و در جمع آن‌ها حساب نمی‌شود.')}</p>
           {transfers.length === 0 ? (
-            <p className="transfers-empty">انتقالی در این ماه ثبت نشده است.</p>
+            <p className="transfers-empty">{t('انتقالی در این ماه ثبت نشده است.')}</p>
           ) : (
             <ul className="transfers-list">
-              {transfers.map((t) => (
-                <li key={t.id}>
-                  <span className="transfers-date">{formatShamsiDisplay(`${t.date}T00:00:00`)}</span>
+              {transfers.map((tr) => (
+                <li key={tr.id}>
+                  <span className="transfers-date">{formatShamsiDisplay(`${tr.date}T00:00:00`)}</span>
                   <span className="transfers-route">
-                    {accountLabel(accountById.get(t.fromAccountId))} <ArrowLeft size={14} /> {accountLabel(accountById.get(t.toAccountId))}
+                    {accountLabel(accountById.get(tr.fromAccountId))} <ArrowLeft size={14} /> {accountLabel(accountById.get(tr.toAccountId))}
                   </span>
                   <strong className="transfers-amount">
-                    {money(t.amount)} تومان
-                    {t.fee > 0 && <small> (کارمزد {money(t.fee)})</small>}
+                    {money(tr.amount)} {t('تومان')}
+                    {tr.fee > 0 && <small> ({t('کارمزد {fee}', { fee: money(tr.fee) })})</small>}
                   </strong>
-                  {t.notes && <span className="transfers-notes">{t.notes}</span>}
+                  {tr.notes && <span className="transfers-notes">{tr.notes}</span>}
                   {!readOnly && (
                     <span className="row-actions-group">
-                      <button type="button" className="btn-table-action edit" title="ویرایش" onClick={() => setTransferForm({ transfer: t })}>
+                      <button type="button" className="btn-table-action edit" title={t('ویرایش')} onClick={() => setTransferForm({ transfer: tr })}>
                         <Pencil size={13} />
                       </button>
-                      <button type="button" className="btn-table-action delete" title="حذف" onClick={() => handleDeleteTransfer(t)}>
+                      <button type="button" className="btn-table-action delete" title={t('حذف')} onClick={() => handleDeleteTransfer(tr)}>
                         <Trash2 size={13} />
                       </button>
                     </span>

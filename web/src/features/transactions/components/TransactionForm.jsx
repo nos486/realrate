@@ -11,7 +11,7 @@
  * saved).
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { intlLocale, t } from '../../../utils/i18n.js';
 import React, { useState, useEffect } from 'react';
 import { Receipt, AlertTriangle } from 'lucide-react';
 import { FilterPills, Input, Modal } from '../../../shared/ui/index.js';
@@ -42,8 +42,8 @@ export default function TransactionForm({
   onSwitchToBuy = null,
 }) {
   const [assetId, setAssetId] = useState('gold_18k');
-  const [assetName, setAssetName] = useState('طلای ۱۸ عیار');
-  const [unit, setUnit] = useState('گرم');
+  const [assetName, setAssetName] = useState(t('طلای ۱۸ عیار'));
+  const [unit, setUnit] = useState(t('گرم'));
   const [transactionType, setTransactionType] = useState('buy'); // 'buy' | 'sell'
   const [quantity, setQuantity] = useState('');
   const [unitPrice, setUnitPrice] = useState('');
@@ -66,8 +66,8 @@ export default function TransactionForm({
 
     if (editingTransaction) {
       setAssetId(editingTransaction.assetId || 'gold_18k');
-      setAssetName(editingTransaction.assetName || resolveAssetDisplayName(editingTransaction.assetId) || 'دارایی');
-      setUnit(editingTransaction.unit || 'واحد');
+      setAssetName(editingTransaction.assetName || resolveAssetDisplayName(editingTransaction.assetId) || t('دارایی'));
+      setUnit(editingTransaction.unit || t('واحد'));
       setTransactionType(editingTransaction.transactionType || 'buy');
       setQuantity(editingTransaction.quantity !== undefined ? String(editingTransaction.quantity) : '');
       setUnitPrice(editingTransaction.unitPrice !== undefined ? String(editingTransaction.unitPrice) : '');
@@ -79,7 +79,7 @@ export default function TransactionForm({
         setReferenceAsset({
           id: refId,
           name: resolveAssetDisplayName(refId) || refId,
-          unit: resolveAssetUnit(refId) || 'واحد',
+          unit: resolveAssetUnit(refId) || t('واحد'),
           category: getItemCategory(refId),
         });
         setReferenceQuantity(String(editingTransaction.referenceQuantity));
@@ -93,8 +93,8 @@ export default function TransactionForm({
       }
     } else {
       setAssetId(preset?.assetId || 'gold_18k');
-      setAssetName(preset?.assetName || 'طلای ۱۸ عیار');
-      setUnit(preset?.unit || 'گرم');
+      setAssetName(preset?.assetName || t('طلای ۱۸ عیار'));
+      setUnit(preset?.unit || t('گرم'));
       setTransactionType(preset?.transactionType === 'sell' ? 'sell' : 'buy');
       setQuantity('');
       setUnitPrice(preset?.unitPrice > 0 ? String(Math.round(preset.unitPrice)) : '');
@@ -111,14 +111,14 @@ export default function TransactionForm({
     if (!asset) return;
     if (asset.category === 'custom' || isCustomAssetId(asset.id)) {
       setAssetId(isCustomAssetId(asset.id) && asset.id !== 'custom' ? asset.id : `custom_${Date.now()}`);
-      setAssetName(asset.name || 'دارایی شخصی');
-      setUnit(asset.unit || 'واحد');
+      setAssetName(asset.name || t('دارایی شخصی'));
+      setUnit(asset.unit || t('واحد'));
       return;
     }
     // Picked from the price book: its id is what gets stored, its price is today's
     setAssetId(toPriceId(asset.id));
     setAssetName(asset.name || '');
-    setUnit(asset.unit || 'واحد');
+    setUnit(asset.unit || t('واحد'));
     if (!unitPrice && asset.price > 0) setUnitPrice(String(Math.round(asset.price)));
   };
 
@@ -185,8 +185,8 @@ export default function TransactionForm({
   // On a new entry «خرید» is the buy form's (AddHoldingForm), for the asset chosen here
   const switchesToBuy = Boolean(onSwitchToBuy && !editingTransaction);
   const sideOptions = [
-    { value: 'buy', label: switchesToBuy ? 'خرید / موجودی' : 'خرید (ورود دارایی)' },
-    { value: 'sell', label: 'فروش (خروج دارایی)' },
+    { value: 'buy', label: switchesToBuy ? t('خرید / موجودی') : t('خرید (ورود دارایی)') },
+    { value: 'sell', label: t('فروش (خروج دارایی)') },
   ];
   const changeSide = (side) => {
     if (side === 'buy' && switchesToBuy) onSwitchToBuy({ assetId, assetName, unit });
@@ -197,13 +197,13 @@ export default function TransactionForm({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={editingTransaction ? 'ویرایش تراکنش' : 'ثبت تراکنش جدید'}
+      title={editingTransaction ? t('ویرایش تراکنش') : t('ثبت تراکنش جدید')}
       icon={<Receipt size={18} />}
       maxWidth="540px"
       onSubmit={handleSubmit}
       footer={
         <EntryFormActions
-          submitLabel={editingTransaction ? 'به‌روزرسانی تراکنش' : 'ثبت تراکنش'}
+          submitLabel={editingTransaction ? t('به‌روزرسانی تراکنش') : t('ثبت تراکنش')}
           valid={isValid}
           submitting={submitting}
           onCancel={onClose}
@@ -212,13 +212,13 @@ export default function TransactionForm({
       }
     >
       <div className="entry-form-body portfolio-entry-form">
-        {saved && <p className="entry-form-saved" role="status">«{saved}» ثبت شد؛ تراکنش بعدی را وارد کنید.</p>}
+        {saved && <p className="entry-form-saved" role="status">{t('«{saved}» ثبت شد؛ تراکنش بعدی را وارد کنید.', { saved })}</p>}
 
         <FilterPills variant="segmented" options={sideOptions} activeValue={transactionType} onChange={changeSide} />
 
         <div className="ui-input-group portfolio-entry-asset">
           <div className="portfolio-entry-asset-head">
-            <span className="ui-input-label">دارایی *</span>
+            <span className="ui-input-label">{t('دارایی *')}</span>
             <span className="portfolio-entry-asset-chosen">
               {assetName} <span className="portfolio-entry-asset-unit">({unit})</span>
             </span>
@@ -227,29 +227,29 @@ export default function TransactionForm({
             mode="picker"
             selectedAssetId={assetId}
             onSelect={handleAssetSelect}
-            placeholder="جستجو و انتخاب دارایی..."
+            placeholder={t('جستجو و انتخاب دارایی...')}
           />
         </div>
 
         <AmountField
           key={`quantity-${round}`}
           id="tx-quantity"
-          label="مقدار"
+          label={t('مقدار')}
           unit={unit}
           value={quantity}
           onValueChange={setQuantity}
-          placeholder="مثلاً ۱.۵ یا ۱۰۰"
+          placeholder={t('مثلاً ۱.۵ یا ۱۰۰')}
           autoFocus={!editingTransaction}
         />
 
         {!hasReference && (
           <AmountField
             id="tx-unit-price"
-            label={`قیمت هر ${unit}`}
+            label={t('قیمت هر {unit}', { unit })}
             value={unitPrice}
             onValueChange={setUnitPrice}
             currency={BASE_CURRENCY}
-            placeholder="قیمت هر واحد در لحظه معامله"
+            placeholder={t('قیمت هر واحد در لحظه معامله')}
           />
         )}
 
@@ -269,27 +269,25 @@ export default function TransactionForm({
 
         {totalValue > 0 && (
           <div className="tx-summary-preview-box">
-            <span className="tx-summary-label">ارزش کل معامله:</span>
-            <strong className="tx-summary-value">{Math.round(totalValue).toLocaleString(intlLocale())} تومان</strong>
+            <span className="tx-summary-label">{t('ارزش کل معامله:')}</span>
+            <strong className="tx-summary-value">{t('{count} تومان', { count: Math.round(totalValue).toLocaleString(intlLocale()) })}</strong>
           </div>
         )}
 
         {isSellingOverBalance && (
           <div className="tx-warning-banner">
             <AlertTriangle size={15} style={{ verticalAlign: 'middle', marginInlineEnd: '6px', flexShrink: 0 }} />
-            <span>
-              توجه: مقدار فروش ({Number(quantityNum).toLocaleString(intlLocale())} {unit}) بیشتر از موجودی محاسبه‌شده فعلی این دارایی ({Number(availableBalance).toLocaleString(intlLocale())} {unit}) است. (غیرمسدودکننده)
-            </span>
+            <span>{t('توجه: مقدار فروش ({count} {unit}) بیشتر از موجودی محاسبه‌شده فعلی این دارایی ({available} {unit}) است. (غیرمسدودکننده)', { count: Number(quantityNum).toLocaleString(intlLocale()), unit, available: Number(availableBalance).toLocaleString(intlLocale()) })}</span>
           </div>
         )}
 
-        <DateField key={`day-${opened}`} label="تاریخ معامله *" value={transactionDate} onChange={setTransactionDate} />
+        <DateField key={`day-${opened}`} label={t('تاریخ معامله *')} value={transactionDate} onChange={setTransactionDate} />
 
-        <MoreDetails key={`details-${opened}`} filled={notes.trim() ? ['یادداشت'] : []}>
+        <MoreDetails key={`details-${opened}`} filled={notes.trim() ? [t('یادداشت')] : []}>
           <Input
             id="tx-notes"
-            label="یادداشت"
-            placeholder="مثلاً: خرید پله‌ای، صرافی فلان، کارمزد و..."
+            label={t('یادداشت')}
+            placeholder={t('مثلاً: خرید پله‌ای، صرافی فلان، کارمزد و...')}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
           />

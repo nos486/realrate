@@ -6,17 +6,17 @@
  * encrypted layout (utils/allocationTargets.js).
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { intlLocale, t } from '../../../utils/i18n.js';
 import React, { useMemo, useState } from 'react';
 import { Target, Wand2, Eraser } from 'lucide-react';
 import { AlertBanner, Button, Modal, NumericInput } from '../../../shared/ui/index.js';
 import { CategoryIcon } from '../utils/holdingHelpers.js';
 import { targetKeyOf, DRIFT_THRESHOLD } from '../utils/allocationTargets.js';
 
-const faPct = (n) => `${Number(n || 0).toLocaleString(intlLocale(), { maximumFractionDigits: 1 })}٪`;
+const faPct = (n) => t('{count}٪', { count: Number(n || 0).toLocaleString(intlLocale(), { maximumFractionDigits: 1 }) });
 const toInput = (n) => (n > 0 ? String(n) : '');
 const parse = (text) => {
-  const value = Number(String(text || '').replace(/[,،\s]/g, ''));
+  const value = Number(String(text || '').replace(/[,،\s]/g, '')); // i18n-ignore
   return Number.isFinite(value) && value > 0 ? Math.round(value * 10) / 10 : 0;
 };
 
@@ -56,14 +56,14 @@ export default function TargetAllocationModal({ groups = [], targets = {}, onSav
     <Modal
       isOpen
       onClose={onClose}
-      title="هدف‌گذاری ترکیب پورتفو"
-      subtitle={`سهم هدف هر دسته (جمع ۱۰۰٪)؛ اختلاف بیش از ${DRIFT_THRESHOLD.toLocaleString(intlLocale())}٪ هشدار می‌دهد`}
+      title={t('هدف‌گذاری ترکیب پورتفو')}
+      subtitle={t('سهم هدف هر دسته (جمع ۱۰۰٪)؛ اختلاف بیش از {count}٪ هشدار می‌دهد', { count: DRIFT_THRESHOLD.toLocaleString(intlLocale()) })}
       icon={<Target size={18} />}
       maxWidth="520px"
       footer={(
         <div className="modal-actions">
-          <Button variant="secondary" block onClick={onClose}>انصراف</Button>
-          <Button block disabled={!canSave} onClick={handleSave}>ذخیره</Button>
+          <Button variant="secondary" block onClick={onClose}>{t('انصراف')}</Button>
+          <Button block disabled={!canSave} onClick={handleSave}>{t('ذخیره')}</Button>
         </div>
       )}
     >
@@ -75,12 +75,12 @@ export default function TargetAllocationModal({ groups = [], targets = {}, onSav
               setDraft(Object.fromEntries(rows.map((r) => [r.targetKey, toInput(next[r.targetKey])])));
             }}
           >
-            از ترکیب فعلی
+            {t('از ترکیب فعلی')}
           </Button>
           <Button size="sm" variant="secondary" icon={<Eraser size={14} />}
             onClick={() => setDraft(Object.fromEntries(rows.map((r) => [r.targetKey, ''])))}
           >
-            پاک کردن همه
+            {t('پاک کردن همه')}
           </Button>
         </div>
 
@@ -90,16 +90,16 @@ export default function TargetAllocationModal({ groups = [], targets = {}, onSav
               <span className="allocation-target-icon"><CategoryIcon category={r.icon} size={15} /></span>
               <span className="allocation-target-name">
                 <strong>{r.name}</strong>
-                <small>اکنون {faPct(total > 0 ? (r.value / total) * 100 : 0)}</small>
+                <small>{t('اکنون {pct}', { pct: faPct(total > 0 ? (r.value / total) * 100 : 0) })}</small>
               </span>
               <NumericInput
                 id={`target-${r.targetKey}`}
-                aria-label={`هدف ${r.name}`}
+                aria-label={t('هدف {name}', { name: r.name })}
                 className="allocation-target-input"
                 allowDecimals
                 value={draft[r.targetKey] || ''}
-                placeholder="۰"
-                affix="٪"
+                placeholder={t('۰')}
+                affix={t('٪')}
                 onValueChange={(v) => setDraft((d) => ({ ...d, [r.targetKey]: v }))}
               />
             </li>
@@ -107,11 +107,11 @@ export default function TargetAllocationModal({ groups = [], targets = {}, onSav
         </ul>
 
         <div className={`allocation-target-sum ${canSave ? 'is-ok' : 'is-off'}`}>
-          جمع اهداف: <strong>{faPct(sum)}</strong>
-          {!canSave && <span> — {sum < 100 ? `${faPct(100 - sum)} مانده` : `${faPct(sum - 100)} بیشتر از ۱۰۰`}</span>}
+          {t('جمع اهداف:')}{' '}<strong>{faPct(sum)}</strong>
+          {!canSave && <span> — {sum < 100 ? t('{pct} مانده', { pct: faPct(100 - sum) }) : t('{pct} بیشتر از ۱۰۰', { pct: faPct(sum - 100) })}</span>}
         </div>
         {sum === 0 && Object.keys(targets || {}).length > 0 && (
-          <AlertBanner type="info" message="با ذخیره، هدف‌گذاری این پورتفو حذف می‌شود." />
+          <AlertBanner type="info" message={t('با ذخیره، هدف‌گذاری این پورتفو حذف می‌شود.')} />
         )}
       </div>
     </Modal>

@@ -11,6 +11,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { t } from '../../../utils/i18n.js';
 import { DollarValueLine } from '../../../shared/ui/DollarValue.jsx';
 import { Calendar, FolderInput, FolderOpen, HandCoins, Landmark, MessageSquare, Pencil, Trash2 } from 'lucide-react';
 import { ResponsiveDataTable } from '../../../shared/ui/index.js';
@@ -33,10 +34,10 @@ const MASK = '****';
 function ShareStatus({ expense, hideValues, onClick }) {
   const { remaining } = expenseReceivable(expense);
   const money = (v) => (hideValues ? MASK : formatAmount(v, expense.currency));
-  const label = remaining > 0 ? `طلب ${money(remaining)}` : 'تسویه شد';
+  const label = remaining > 0 ? t('طلب {amount}', { amount: money(remaining) }) : t('تسویه شد');
   return (
     <span className="expense-share-status">
-      <span>سهم شما {money(expense.myShare)}</span>
+      <span>{t('سهم شما {amount}', { amount: money(expense.myShare) })}</span>
       {onClick ? (
         <button type="button" className={`expense-share-chip ${remaining > 0 ? 'is-open' : 'is-settled'}`} onClick={onClick}>
           {label}
@@ -77,11 +78,11 @@ export default function ExpensesTable({
   const projectFor = (e) => (projectOf ? projectOf(e) : null);
   const accountById = accounts ? new Map(accounts.map((a) => [a.id, a])) : null;
   const loans = useOptionalLoans();
-  const loanTitle = (id) => (id ? loans.find((l) => l.id === id)?.title || 'وام' : '');
+  const loanTitle = (id) => (id ? loans.find((l) => l.id === id)?.title || t('وام') : '');
   const columns = [
     {
       key: 'title',
-      header: 'عنوان',
+      header: t('عنوان'),
       mobile: 'title',
       render: (e) => (
         <span className="income-title-text">
@@ -90,7 +91,7 @@ export default function ExpensesTable({
           {e.loanId && (
             <small className="expense-loan-badge">
               <Landmark size={11} />
-              از {loanTitle(e.loanId)}
+              {t('از {loan}', { loan: loanTitle(e.loanId) })}
             </small>
           )}
           {e.tags?.length > 0 && (
@@ -114,7 +115,7 @@ export default function ExpensesTable({
     ...(showCategory
       ? [{
           key: 'category',
-          header: 'دسته‌بندی',
+          header: t('دسته‌بندی'),
           mobile: 'meta',
           render: (e) => {
             const project = projectFor(e);
@@ -124,7 +125,7 @@ export default function ExpensesTable({
               <span className="income-category-badge" style={{ '--income-cat-color': color }}>
                 <Icon size={12} />
                 {label}
-                {markExcluded && !project && excluded && <span className="excluded-badge" title="در جمع هزینه‌ها حساب نمی‌شود">خارج از جمع</span>}
+                {markExcluded && !project && excluded && <span className="excluded-badge" title={t('در جمع هزینه‌ها حساب نمی‌شود')}>{t('خارج از جمع')}</span>}
               </span>
             );
             if (!project) return badge;
@@ -133,8 +134,8 @@ export default function ExpensesTable({
                 {badge}
                 <span className="income-category-badge expense-project-badge">
                   <FolderOpen size={12} />
-                  پروژه «{project.name}»
-                  <span className="excluded-badge" title="فقط در جمع همان پروژه حساب می‌شود">خارج از جمع</span>
+                  {t('پروژه «{name}»', { name: project.name })}
+                  <span className="excluded-badge" title={t('فقط در جمع همان پروژه حساب می‌شود')}>{t('خارج از جمع')}</span>
                 </span>
               </span>
             );
@@ -143,7 +144,7 @@ export default function ExpensesTable({
       : []),
     {
       key: 'date',
-      header: 'تاریخ',
+      header: t('تاریخ'),
       sortKey: 'date',
       mobile: 'meta',
       render: (e) => (
@@ -155,7 +156,7 @@ export default function ExpensesTable({
     },
     {
       key: 'amount',
-      header: 'مبلغ',
+      header: t('مبلغ'),
       mobile: 'stat',
       render: (e) => {
         const foreign = isForeignCurrency(e.currency);
@@ -170,16 +171,16 @@ export default function ExpensesTable({
               <span className="cell-unit">{currencyLabel(e.currency)}</span>
             </span>
             {foreign && inToman !== null && (
-              <span className="expense-toman-equiv" title={dayRate ? `نرخ ${currencyLabel(e.currency)} روز هزینه: ${formatAmount(dayRate)} تومان` : 'به نرخ امروز'}>
-                ≈ {hideValues ? MASK : formatAmount(inToman)} تومان{!dayRate && ' (نرخ امروز)'}
-                {isSharedExpense(e) && ' (سهم شما)'}
+              <span className="expense-toman-equiv" title={dayRate ? t('نرخ {currency} روز هزینه: {amount} تومان', { currency: currencyLabel(e.currency), amount: formatAmount(dayRate) }) : t('به نرخ امروز')}>
+                {t('≈ {amount} تومان', { amount: hideValues ? MASK : formatAmount(inToman) })}{!dayRate && ` ${t('(نرخ امروز)')}`}
+                {isSharedExpense(e) && ` ${t('(سهم شما)')}`}
               </span>
             )}
             {!foreign && (
               <DollarValueLine
                 value={expenseDollarValue(e, rates)}
                 hideValues={hideValues}
-                title={`نرخ دلار روز هزینه: ${formatAmount(expenseDayRate(e, rates.usdAt))} تومان`}
+                title={t('نرخ دلار روز هزینه: {amount} تومان', { amount: formatAmount(expenseDayRate(e, rates.usdAt)) })}
               />
             )}
             {isSharedExpense(e) && <ShareStatus expense={e} hideValues={hideValues} onClick={onReimburse && (() => onReimburse(e))} />}
@@ -190,12 +191,12 @@ export default function ExpensesTable({
     ...(accountById
       ? [{
           key: 'account',
-          header: 'پرداخت از',
+          header: t('پرداخت از'),
           mobile: 'meta',
           render: (e) => (
             <span className="expense-account-text">
               {e.paidFrom
-                ? `دلار «${e.paidFrom.portfolioName || 'پورتفو'}»`
+                ? t('دلار «{name}»', { name: e.paidFrom.portfolioName || t('پورتفو') })
                 : e.accountId ? accountLabel(accountById.get(e.accountId)) : '—'}
             </span>
           ),
@@ -203,7 +204,7 @@ export default function ExpensesTable({
       : []),
     {
       key: 'notes',
-      header: 'یادداشت',
+      header: t('یادداشت'),
       thClassName: 'col-wide-only',
       tdClassName: 'td-notes col-wide-only',
       render: (e) => (
@@ -220,17 +221,17 @@ export default function ExpensesTable({
     ...(!readOnly
       ? [{
           key: 'actions',
-          header: 'عملیات',
+          header: t('عملیات'),
           mobile: 'actions',
           render: (e) => (
             <div className="row-actions-group">
               {projectFor(e) && (
-                <Link to={`/projects/${projectFor(e).id}`} className="btn-table-action" title="در پروژه" aria-label={`باز کردن پروژه «${projectFor(e).name}»`}>
+                <Link to={`/projects/${projectFor(e).id}`} className="btn-table-action" title={t('در پروژه')} aria-label={t('باز کردن پروژه «{name}»', { name: projectFor(e).name })}>
                   <FolderOpen size={13} strokeWidth={2} />
                 </Link>
               )}
               {onReimburse && isSharedExpense(e) && (
-                <button type="button" className="btn-table-action" title="دریافتی‌های دنگ" onClick={() => onReimburse(e)}>
+                <button type="button" className="btn-table-action" title={t('دریافتی‌های دنگ')} onClick={() => onReimburse(e)}>
                   <HandCoins size={13} strokeWidth={2} />
                 </button>
               )}
@@ -238,17 +239,17 @@ export default function ExpensesTable({
               {recordOwnerOf(e) ? <OwnedRecordLink record={e} /> : (
                 <>
                   {onMove && !projectFor(e) && (
-                    <button type="button" className="btn-table-action" title="انتقال به پروژه" aria-label="انتقال به پروژه" onClick={() => onMove(e)}>
+                    <button type="button" className="btn-table-action" title={t('انتقال به پروژه')} aria-label={t('انتقال به پروژه')} onClick={() => onMove(e)}>
                       <FolderInput size={13} strokeWidth={2} />
                     </button>
                   )}
-                  <button type="button" className="btn-table-action edit" title="ویرایش هزینه" onClick={() => onEdit(e)}>
+                  <button type="button" className="btn-table-action edit" title={t('ویرایش هزینه')} onClick={() => onEdit(e)}>
                     <Pencil size={13} strokeWidth={2} />
                   </button>
                   <button
                     type="button"
                     className={`btn-table-action delete ${deletingId === e.id ? 'loading' : ''}`}
-                    title="حذف هزینه"
+                    title={t('حذف هزینه')}
                     onClick={() => onDelete(e)}
                     disabled={deletingId === e.id}
                   >

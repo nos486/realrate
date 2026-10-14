@@ -15,7 +15,7 @@
  * the Android notifications' and the email digest's (shared/alerts, domain/reminders.js).
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { intlLocale, t } from '../../../utils/i18n.js';
 import React, { useMemo, useState } from 'react';
 import { CalendarSync, Plus, Eye, EyeOff } from 'lucide-react';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
@@ -45,9 +45,9 @@ import { subscriptionIcon } from '../constants/subscriptionDisplay.js';
 
 const HEADER = {
   icon: <CalendarSync size={24} />,
-  title: 'اشتراک‌ها',
+  title: t('اشتراک‌ها'),
   help: 'subscriptions',
-  subtitle: 'هزینه‌ی ماهانه و یادآوری قبل از هر تمدید',
+  subtitle: t('هزینه‌ی ماهانه و یادآوری قبل از هر تمدید'),
 };
 
 const fa = (n) => Number(n).toLocaleString(intlLocale());
@@ -103,9 +103,9 @@ export default function SubscriptionsPage() {
   const handleStatus = async (sub, status) => {
     if (status === 'cancelled') {
       const ok = await confirm({
-        title: 'لغو اشتراک',
-        message: `«${sub.name}» لغو شود؟ دیگر تمدیدی برایش حساب و یادآوری نمی‌شود؛ اگر تا پایان دوره فعال است، به‌جای لغو «پایان» را در ویرایش بگذارید.`,
-        confirmLabel: 'لغو اشتراک',
+        title: t('لغو اشتراک'),
+        message: t('«{name}» لغو شود؟ دیگر تمدیدی برایش حساب و یادآوری نمی‌شود؛ اگر تا پایان دوره فعال است، به‌جای لغو «پایان» را در ویرایش بگذارید.', { name: sub.name }),
+        confirmLabel: t('لغو اشتراک'),
         danger: true,
       });
       if (!ok) return;
@@ -113,22 +113,22 @@ export default function SubscriptionsPage() {
     try {
       await saveSubscription({ status, cancelledOn: status === 'cancelled' ? today : '' }, sub);
     } catch (err) {
-      toast.error(err.message || 'ذخیره‌ی اشتراک ممکن نشد.');
+      toast.error(err.message || t('ذخیره‌ی اشتراک ممکن نشد.'));
     }
   };
 
   const handleDelete = async (sub) => {
     const ok = await confirm({
-      title: 'حذف اشتراک',
-      message: `«${sub.name}» حذف شود؟ پرداخت‌هایی که برایش ثبت کرده‌اید در هزینه‌ها می‌مانند.`,
-      confirmLabel: 'حذف',
+      title: t('حذف اشتراک'),
+      message: t('«{name}» حذف شود؟ پرداخت‌هایی که برایش ثبت کرده‌اید در هزینه‌ها می‌مانند.', { name: sub.name }),
+      confirmLabel: t('حذف'),
       danger: true,
     });
     if (!ok) return;
     try {
       await deleteSubscription(sub.id);
     } catch (err) {
-      toast.error(err.message || 'حذف اشتراک ممکن نشد.');
+      toast.error(err.message || t('حذف اشتراک ممکن نشد.'));
     }
   };
 
@@ -139,14 +139,14 @@ export default function SubscriptionsPage() {
     // In the everyday expenses, or the project picked in the form (vaultExpenses.js)
     await saveExpense(input);
     const renews = !sub.autoRenew && input.subscriptionId === sub.id;
-    toast.success(renews ? 'پرداخت ثبت شد و اعتبار اشتراک یک دوره تمدید شد.' : 'پرداخت ثبت شد.');
+    toast.success(renews ? t('پرداخت ثبت شد و اعتبار اشتراک یک دوره تمدید شد.') : t('پرداخت ثبت شد.'));
   };
 
   if (vaultLocked) {
     return (
       <div className="incomes-page-container">
         <FeaturePageHeader {...HEADER} />
-        <VaultUnlockCard title="اشتراک‌های شما رمزنگاری شده‌اند" />
+        <VaultUnlockCard title={t('اشتراک‌های شما رمزنگاری شده‌اند')} />
       </div>
     );
   }
@@ -155,7 +155,7 @@ export default function SubscriptionsPage() {
   const sidebar = (
     <>
       <SubscriptionSummary totals={totals} monthLabel={monthLabel} nearest={nearest} rates={{ usdToman, ...fx }} hideValues={hideValues} />
-      {donutItems.length > 0 && <DonutChart title="ماهانه به تفکیک دسته" items={donutItems} centerLabel="جمع ماهانه" masked={hideValues} />}
+      {donutItems.length > 0 && <DonutChart title={t('ماهانه به تفکیک دسته')} items={donutItems} centerLabel={t('جمع ماهانه')} masked={hideValues} />}
     </>
   );
 
@@ -164,8 +164,8 @@ export default function SubscriptionsPage() {
       <FeaturePageHeader
         {...HEADER}
         actions={(
-          <Button icon={<Plus size={16} />} onClick={openNew} disabled={readOnly} title={readOnly ? 'در نسخه دمو غیرفعال است' : undefined}>
-            اشتراک جدید
+          <Button icon={<Plus size={16} />} onClick={openNew} disabled={readOnly} title={readOnly ? t('در نسخه دمو غیرفعال است') : undefined}>
+            {t('اشتراک جدید')}
           </Button>
         )}
       />
@@ -175,7 +175,7 @@ export default function SubscriptionsPage() {
           type="error"
           message={error}
           onClose={clearError}
-          action={!hasAny && <Button size="sm" variant="secondary" onClick={fetchSubscriptions}>تلاش مجدد</Button>}
+          action={!hasAny && <Button size="sm" variant="secondary" onClick={fetchSubscriptions}>{t('تلاش مجدد')}</Button>}
         />
       )}
 
@@ -184,12 +184,12 @@ export default function SubscriptionsPage() {
           <div className="portfolio-table-header">
             <div className="table-title">
               <div className="table-title-main">
-                <h3>لیست اشتراک‌ها</h3>
+                <h3>{t('لیست اشتراک‌ها')}</h3>
               </div>
             </div>
             {inactive.length > 0 && (
               <Button size="sm" variant="ghost" icon={showInactive ? <EyeOff size={14} /> : <Eye size={14} />} onClick={() => setShowInactive((v) => !v)}>
-                {showInactive ? 'پنهان کردن لغوشده‌ها' : `لغوشده و پایان‌یافته (${fa(inactive.length)})`}
+                {showInactive ? t('پنهان کردن لغوشده‌ها') : t('لغوشده و پایان‌یافته ({n})', { n: fa(inactive.length) })}
               </Button>
             )}
           </div>
@@ -199,12 +199,12 @@ export default function SubscriptionsPage() {
             ) : !hasAny ? (
               <EmptyState
                 icon={<CalendarSync size={38} strokeWidth={1.5} />}
-                title="هنوز اشتراکی ثبت نکرده‌اید"
-                description="نتفلیکس، ChatGPT، فیلیمو، اینترنت، باشگاه… را اضافه کنید تا جمع ماهانه را ببینید و قبل از هر تمدید یادآوری بگیرید."
-                action={!readOnly && <Button icon={<Plus size={16} />} onClick={openNew}>اشتراک جدید</Button>}
+                title={t('هنوز اشتراکی ثبت نکرده‌اید')}
+                description={t('نتفلیکس، ChatGPT، فیلیمو، اینترنت، باشگاه… را اضافه کنید تا جمع ماهانه را ببینید و قبل از هر تمدید یادآوری بگیرید.')}
+                action={!readOnly && <Button icon={<Plus size={16} />} onClick={openNew}>{t('اشتراک جدید')}</Button>}
               />
             ) : listed.length === 0 ? (
-              <EmptyState title="اشتراک فعالی ندارید" description="اشتراک‌های لغوشده و پایان‌یافته پنهان هستند." />
+              <EmptyState title={t('اشتراک فعالی ندارید')} description={t('اشتراک‌های لغوشده و پایان‌یافته پنهان هستند.')} />
             ) : (
               <ul className="row-card-list">
                 {listed.map(({ sub, view, period }) => (

@@ -14,6 +14,7 @@
 import { isNativeApp } from './nativeApp.js';
 import { BiometricVault } from './nativePlugins.js';
 import { getVaultState, getVaultUnlockSecret, unlockVaultWithSecret } from '../vault/vaultStore.js';
+import { t } from '../../utils/i18n.js';
 
 const OWNER_KEY = 'realrate_biometric_user';
 
@@ -57,11 +58,11 @@ export async function isBiometricEnabled(userId = getVaultState().userId) {
 /** Turn it on (the vault must be unlocked); asks for the fingerprint */
 export async function enableBiometric() {
   const secret = getVaultUnlockSecret();
-  if (!secret) throw new Error('ابتدا اطلاعات رمزنگاری‌شده را با رمز عبور باز کنید.');
+  if (!secret) throw new Error(t('ابتدا اطلاعات رمزنگاری‌شده را با رمز عبور باز کنید.'));
   await BiometricVault.store({
     data: JSON.stringify(secret),
-    title: 'فعال کردن اثر انگشت',
-    subtitle: 'از این پس اطلاعات رمزنگاری‌شده با اثر انگشت باز می‌شود',
+    title: t('فعال کردن اثر انگشت'),
+    subtitle: t('از این پس اطلاعات رمزنگاری‌شده با اثر انگشت باز می‌شود'),
   });
   writeOwner(secret.userId);
 }
@@ -84,11 +85,11 @@ export async function disableBiometric() {
 export async function unlockWithBiometric() {
   let data;
   try {
-    ({ data } = await BiometricVault.retrieve({ title: 'باز کردن با اثر انگشت' }));
+    ({ data } = await BiometricVault.retrieve({ title: t('باز کردن با اثر انگشت') }));
   } catch (err) {
     if (err?.code === 'CANCELED') return false;
     if (err?.code === 'INVALIDATED' || err?.code === 'NOT_STORED') writeOwner('');
-    throw new Error(err?.message || 'باز کردن با اثر انگشت ممکن نشد.');
+    throw new Error(err?.message || t('باز کردن با اثر انگشت ممکن نشد.'));
   }
   let secret = null;
   try {
@@ -98,7 +99,7 @@ export async function unlockWithBiometric() {
   }
   if (!(await unlockVaultWithSecret(secret))) {
     await disableBiometric();
-    throw new Error('رمز عبور رمزنگاری تغییر کرده است؛ یک بار با رمز باز کنید و اثر انگشت را دوباره فعال کنید.');
+    throw new Error(t('رمز عبور رمزنگاری تغییر کرده است؛ یک بار با رمز باز کنید و اثر انگشت را دوباره فعال کنید.'));
   }
   return true;
 }

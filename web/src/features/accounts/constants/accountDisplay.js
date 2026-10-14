@@ -2,7 +2,7 @@
  * accountDisplay.js — How an account is shown: its icon and its one-line label
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { intlLocale, t } from '../../../utils/i18n.js';
 import { Landmark, Banknote, Smartphone, WalletMinimal, CreditCard } from 'lucide-react';
 import { accountCurrencies } from '../../../utils/accountDocument.js';
 import { currencyAdjective } from '../../../utils/currencies.js';
@@ -18,7 +18,7 @@ export function getAccountTypeIcon(type) {
  * next to Persian digits they read as zeros)
  */
 export function accountLabel(account) {
-  if (!account) return 'حساب حذف‌شده';
+  if (!account) return t('حساب حذف‌شده');
   const digits = account.cardLast4
     ? Number(account.cardLast4).toLocaleString(intlLocale(), { useGrouping: false, minimumIntegerDigits: 4 })
     : '';
@@ -32,5 +32,5 @@ export function accountLabel(account) {
 export function accountCurrencyLabel(account) {
   const held = accountCurrencies(account);
   if (held.length === 1 && held[0] === 'IRT') return '';
-  return held.map(currencyAdjective).join(' و ');
+  return held.map(currencyAdjective).join(` ${t('و')} `);
 }

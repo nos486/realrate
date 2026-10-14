@@ -28,6 +28,7 @@ import {
   resetAdminDemo,
 } from '../api/demoApi.js';
 import { toPersianDigits } from '../../../shared/utils/formatters.js';
+import { t } from '../../../utils/i18n.js';
 
 const ADMIN_RETURN_TOKEN_KEY = 'rr_admin_return_token';
 
@@ -48,7 +49,7 @@ export default function AdminDemoCard() {
       const payload = res?.demo || res;
       setDemoData(payload && typeof payload === 'object' ? payload : null);
     } catch (err) {
-      toast.error(err.message || 'خطا در دریافت وضعیت حساب دمو');
+      toast.error(err.message || t('خطا در دریافت وضعیت حساب دمو'));
     } finally {
       setLoading(false);
     }
@@ -62,10 +63,10 @@ export default function AdminDemoCard() {
     setBusyAction('create');
     try {
       const res = await createAdminDemo();
-      toast.success(res.message || 'حساب دمو با موفقیت آماده‌سازی شد.');
+      toast.success(res.message || t('حساب دمو با موفقیت آماده‌سازی شد.'));
       await fetchStatus();
     } catch (err) {
-      toast.error(err.message || 'خطا در ساخت حساب دمو');
+      toast.error(err.message || t('خطا در ساخت حساب دمو'));
     } finally {
       setBusyAction(null);
     }
@@ -80,14 +81,14 @@ export default function AdminDemoCard() {
       }
       const data = await createAdminDemoEditSession();
       if (data?.token && data?.user) {
-        toast.info('وارد حالت ویرایش داده‌های دمو شدید.');
+        toast.info(t('وارد حالت ویرایش داده‌های دمو شدید.'));
         completeLogin(data);
         navigate(APP_BASE);
       } else {
-        toast.error('ایجاد سشن ویرایش دمو ناموفق بود.');
+        toast.error(t('ایجاد سشن ویرایش دمو ناموفق بود.'));
       }
     } catch (err) {
-      toast.error(err.message || 'خطا در ورود به حالت ویرایش دمو');
+      toast.error(err.message || t('خطا در ورود به حالت ویرایش دمو'));
     } finally {
       setBusyAction(null);
     }
@@ -97,11 +98,11 @@ export default function AdminDemoCard() {
     setBusyAction('reset');
     try {
       const res = await resetAdminDemo();
-      toast.success(res.message || 'داده‌های حساب دمو با موفقیت بازنشانی شد.');
+      toast.success(res.message || t('داده‌های حساب دمو با موفقیت بازنشانی شد.'));
       setConfirmResetOpen(false);
       await fetchStatus();
     } catch (err) {
-      toast.error(err.message || 'خطا در بازنشانی داده‌های دمو');
+      toast.error(err.message || t('خطا در بازنشانی داده‌های دمو'));
     } finally {
       setBusyAction(null);
     }
@@ -115,23 +116,23 @@ export default function AdminDemoCard() {
     <div className="portfolio-stat-card admin-demo-card">
       <div className="stat-header">
         <span className="stat-label">
-          <Sparkles size={15} /> حساب نمایشی (دمو)
+          <Sparkles size={15} /> {t('حساب نمایشی (دمو)')}
         </span>
         <span className={`status-indicator ${exists ? 'is-active' : 'is-inactive'}`}>
           {exists ? (
             <span className="flex-center gap-1 text-emerald">
-              <CheckCircle2 size={13} /> فعال
+              <CheckCircle2 size={13} /> {t('فعال')}
             </span>
           ) : (
             <span className="flex-center gap-1 text-slate">
-              <XCircle size={13} /> ساخته نشده
+              <XCircle size={13} /> {t('ساخته نشده')}
             </span>
           )}
         </span>
       </div>
 
       <p className="admin-card-hint">
-        بازدیدکنندگان بدون ثبت‌نام با یک کلیک حساب دمو را فقط برای مشاهده می‌بینند.
+        {t('بازدیدکنندگان بدون ثبت‌نام با یک کلیک حساب دمو را فقط برای مشاهده می‌بینند.')}
       </p>
 
       {loading ? (
@@ -142,19 +143,19 @@ export default function AdminDemoCard() {
         <div className="admin-demo-stats-grid">
           <div className="demo-stat-pill">
             <Briefcase size={13} />
-            <span>پورتفوها: {toPersianDigits(stats?.portfolios ?? 0)}</span>
+            <span>{t('پورتفوها: {n}', { n: toPersianDigits(stats?.portfolios ?? 0) })}</span>
           </div>
           <div className="demo-stat-pill">
             <Landmark size={13} />
-            <span>وام‌ها: {toPersianDigits(stats?.loans ?? 0)}</span>
+            <span>{t('وام‌ها: {n}', { n: toPersianDigits(stats?.loans ?? 0) })}</span>
           </div>
           <div className="demo-stat-pill">
             <Wallet size={13} />
-            <span>درآمدها: {toPersianDigits(stats?.incomes ?? 0)}</span>
+            <span>{t('درآمدها: {n}', { n: toPersianDigits(stats?.incomes ?? 0) })}</span>
           </div>
           <div className="demo-stat-pill">
             <ReceiptText size={13} />
-            <span>چک‌ها: {toPersianDigits(stats?.cheques ?? 0)}</span>
+            <span>{t('چک‌ها: {n}', { n: toPersianDigits(stats?.cheques ?? 0) })}</span>
           </div>
         </div>
       ) : null}
@@ -169,7 +170,7 @@ export default function AdminDemoCard() {
             disabled={Boolean(busyAction)}
             onClick={handleCreate}
           >
-            ساخت حساب دمو
+            {t('ساخت حساب دمو')}
           </Button>
         ) : (
           <>
@@ -181,7 +182,7 @@ export default function AdminDemoCard() {
               disabled={Boolean(busyAction)}
               onClick={handleEdit}
             >
-              ویرایش داده‌های دمو
+              {t('ویرایش داده‌های دمو')}
             </Button>
             <Button
               size="sm"
@@ -190,7 +191,7 @@ export default function AdminDemoCard() {
               disabled={Boolean(busyAction)}
               onClick={() => setConfirmResetOpen(true)}
             >
-              بازنشانی داده‌ها
+              {t('بازنشانی داده‌ها')}
             </Button>
           </>
         )}
@@ -200,12 +201,11 @@ export default function AdminDemoCard() {
         <Modal
           isOpen={confirmResetOpen}
           onClose={() => !busyAction && setConfirmResetOpen(false)}
-          title="بازنشانی داده‌های حساب دمو"
+          title={t('بازنشانی داده‌های حساب دمو')}
         >
           <div className="admin-confirm-modal-body">
             <p>
-              آیا از بازنشانی داده‌های حساب دمو اطمینان دارید؟ تمام پورتفوها، تراکنش‌ها، وام‌ها،
-              درآمدها و چک‌های موجود در حساب دمو حذف خواهند شد و گاوصندوق خالی می‌شود.
+              {t('آیا از بازنشانی داده‌های حساب دمو اطمینان دارید؟ تمام پورتفوها، تراکنش‌ها، وام‌ها، درآمدها و چک‌های موجود در حساب دمو حذف خواهند شد و گاوصندوق خالی می‌شود.')}
             </p>
             <div className="modal-actions-row" style={{ marginTop: '16px' }}>
               <Button
@@ -213,14 +213,14 @@ export default function AdminDemoCard() {
                 loading={busyAction === 'reset'}
                 onClick={handleReset}
               >
-                تأیید و بازنشانی
+                {t('تأیید و بازنشانی')}
               </Button>
               <Button
                 variant="secondary"
                 disabled={Boolean(busyAction)}
                 onClick={() => setConfirmResetOpen(false)}
               >
-                انصراف
+                {t('انصراف')}
               </Button>
             </div>
           </div>

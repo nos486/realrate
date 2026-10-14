@@ -24,11 +24,12 @@ import { todayIso } from '../../../shared/utils/dates.js';
 import { cycleStartOf } from '../../../utils/creditAccount.js';
 import { gregorianToJalali } from '../../../utils/loanCalculator.js';
 import { getAccountTypeIcon } from '../constants/accountDisplay.js';
+import { t } from '../../../utils/i18n.js';
 
 /** The types as icon tiles (CategoryGrid) */
-const TYPE_OPTIONS = ACCOUNT_TYPES.map(({ value, label }) => ({ value, label, Icon: getAccountTypeIcon(value) }));
-const CURRENCY_OPTIONS = CURRENCIES.map(({ code, label }) => ({ value: code, label }));
-const digits = (v) => String(v ?? '').replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[^\d]/g, '');
+const TYPE_OPTIONS = ACCOUNT_TYPES.map(({ value, label }) => ({ value, label: t(label), Icon: getAccountTypeIcon(value) }));
+const CURRENCY_OPTIONS = CURRENCIES.map(({ code, label }) => ({ value: code, label: t(label) }));
+const digits = (v) => String(v ?? '').replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[^\d]/g, ''); // i18n-ignore
 
 /** The Shamsi day of month of a Gregorian YYYY-MM-DD */
 function shamsiDayOf(iso) {
@@ -73,9 +74,9 @@ export default function AccountForm({ account = null, onSubmit, onClose, submitt
 
   // What «جزئیات بیشتر» holds that is filled in (a bank's card and number only for a bank)
   const detailsFilled = [
-    ...(isBank && cardLast4 ? ['کارت'] : []),
-    ...(isBank && accountNumber ? ['شماره حساب'] : []),
-    ...(notes.trim() ? ['توضیحات'] : []),
+    ...(isBank && cardLast4 ? [t('کارت')] : []),
+    ...(isBank && accountNumber ? [t('شماره حساب')] : []),
+    ...(notes.trim() ? [t('توضیحات')] : []),
   ];
 
   const handleSubmit = async (e) => {
@@ -109,7 +110,7 @@ export default function AccountForm({ account = null, onSubmit, onClose, submitt
       });
       onClose();
     } catch (err) {
-      setSubmitError(err.message || 'خطا در ذخیره حساب');
+      setSubmitError(err.message || t('خطا در ذخیره حساب'));
     }
   };
 
@@ -117,28 +118,28 @@ export default function AccountForm({ account = null, onSubmit, onClose, submitt
     <Modal
       isOpen
       onClose={onClose}
-      title={account ? 'ویرایش حساب' : 'حساب جدید'}
-      subtitle="حساب بانکی، اعتبار بانکی، پول نقد یا کیف پول؛ برای مشخص کردن منبع هر هزینه"
+      title={account ? t('ویرایش حساب') : t('حساب جدید')}
+      subtitle={t('حساب بانکی، اعتبار بانکی، پول نقد یا کیف پول؛ برای مشخص کردن منبع هر هزینه')}
       icon={<WalletCards size={18} />}
       maxWidth="520px"
       onSubmit={handleSubmit}
       footer={
-        <EntryFormActions submitLabel={account ? 'ذخیره تغییرات' : 'افزودن حساب'} valid={isValid} submitting={submitting} onCancel={onClose} />
+        <EntryFormActions submitLabel={account ? t('ذخیره تغییرات') : t('افزودن حساب')} valid={isValid} submitting={submitting} onCancel={onClose} />
       }
     >
       <div className="entry-form-body">
         {submitError && <AlertBanner type="error" message={submitError} />}
 
         <div className="account-type-field">
-          <CategoryGrid kind="account" label="نوع" options={TYPE_OPTIONS} value={type} onChange={setType} />
+          <CategoryGrid kind="account" label={t('نوع')} options={TYPE_OPTIONS} value={type} onChange={setType} />
         </div>
 
-        {isBank && <BankPicker id="account-bank" value={bank} onChange={setBank} label="بانک" />}
+        {isBank && <BankPicker id="account-bank" value={bank} onChange={setBank} label={t('بانک')} />}
 
         <Input
           id="account-name"
-          label={isBank ? 'نام حساب (اختیاری)' : 'نام حساب *'}
-          placeholder={isCredit ? 'مثلاً: اعتبار خرید' : isBank ? (bank.lenderName ? `خالی: «${bank.lenderName}»` : 'مثلاً: حساب حقوق') : 'مثلاً: کیف پول، صندوق خانه'}
+          label={isBank ? t('نام حساب (اختیاری)') : t('نام حساب *')}
+          placeholder={isCredit ? t('مثلاً: اعتبار خرید') : isBank ? (bank.lenderName ? t('خالی: «{name}»', { name: bank.lenderName }) : t('مثلاً: حساب حقوق')) : t('مثلاً: کیف پول، صندوق خانه')}
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={ACCOUNT_LIMITS.nameLength}
@@ -149,7 +150,7 @@ export default function AccountForm({ account = null, onSubmit, onClose, submitt
           <CreditTermsFields credit={credit} setTerm={setTerm} />
         ) : (
           <div className="ui-input-group">
-            <span className="ui-input-label" id="account-currencies-label">ارزهای حساب</span>
+            <span className="ui-input-label" id="account-currencies-label">{t('ارزهای حساب')}</span>
             <div className="ui-filter-pills variant-pills size-sm" role="group" aria-labelledby="account-currencies-label">
               {CURRENCY_OPTIONS.map((o) => {
                 const on = currencies.includes(o.value);
@@ -160,7 +161,7 @@ export default function AccountForm({ account = null, onSubmit, onClose, submitt
                 );
               })}
             </div>
-            <p className="expense-form-hint">حسابی که چند ارز دارد (مثلاً تومان و دلار) را یک‌بار ثبت کنید؛ در هر فرم فقط حساب‌هایی می‌آیند که ارز همان ثبت را دارند.</p>
+            <p className="expense-form-hint">{t('حسابی که چند ارز دارد (مثلاً تومان و دلار) را یک‌بار ثبت کنید؛ در هر فرم فقط حساب‌هایی می‌آیند که ارز همان ثبت را دارند.')}</p>
           </div>
         )}
 
@@ -168,10 +169,10 @@ export default function AccountForm({ account = null, onSubmit, onClose, submitt
           {isBank && (
             <Input
               id="account-card"
-              label="چهار رقم آخر کارت (اختیاری)"
-              placeholder="مثلاً ۱۲۳۴"
+              label={t('چهار رقم آخر کارت (اختیاری)')}
+              placeholder={t('مثلاً ۱۲۳۴')}
               value={cardLast4}
-              onChange={(e) => setCardLast4(e.target.value.replace(/[^\d۰-۹٠-٩]/g, '').slice(0, 4))}
+              onChange={(e) => setCardLast4(e.target.value.replace(/[^\d۰-۹٠-٩]/g, '').slice(0, 4))} // i18n-ignore
               inputMode="numeric"
               maxLength={4}
             />
@@ -180,10 +181,10 @@ export default function AccountForm({ account = null, onSubmit, onClose, submitt
           {isBank && (
             <Input
               id="account-number"
-              label="شماره حساب (اختیاری)"
-              placeholder="برای تشخیص خودکار پیامک‌های بانک"
+              label={t('شماره حساب (اختیاری)')}
+              placeholder={t('برای تشخیص خودکار پیامک‌های بانک')}
               value={accountNumber}
-              onChange={(e) => setAccountNumber(e.target.value.replace(/[^\d۰-۹٠-٩]/g, '').slice(0, 26))}
+              onChange={(e) => setAccountNumber(e.target.value.replace(/[^\d۰-۹٠-٩]/g, '').slice(0, 26))} // i18n-ignore
               inputMode="numeric"
               dir="ltr"
               maxLength={26}
@@ -193,7 +194,7 @@ export default function AccountForm({ account = null, onSubmit, onClose, submitt
           <Input
             id="account-notes"
             as="textarea"
-            label="توضیحات (اختیاری)"
+            label={t('توضیحات (اختیاری)')}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             maxLength={ACCOUNT_LIMITS.notesLength}
@@ -218,10 +219,10 @@ function CreditTermsFields({ credit, setTerm }) {
   );
   return (
     <div className="credit-terms-fields">
-      {numberField('credit-limit', 'limit', 'سقف اعتبار (تومان) *')}
-      {numberField('credit-opening', 'openingDebt', 'بدهی فعلی هنگام ثبت (تومان، اختیاری)', 'آنچه پیش از افزودن این حساب خرج شده و هنوز پرداخت نشده')}
-      {numberField('credit-cycle-day', 'cycleDay', 'روز شروع دوره‌ی هر ماه (روز چندم ماه شمسی) *', 'بدهی و «هزینه‌ها و انتقال این دوره» از این روز حساب می‌شوند؛ «بدهی فعلی» همان بدهی در شروع همین دوره است')}
-      <p className="expense-form-hint">خرید از اعتبار را مثل هر هزینه با «پرداخت از» همین حساب ثبت کنید؛ تسویه‌ی بدهی و تبدیل به قسط از روی کارت اعتبار، دستی و با مبلغ‌های واقعی ثبت می‌شوند.</p>
+      {numberField('credit-limit', 'limit', t('سقف اعتبار (تومان) *'))}
+      {numberField('credit-opening', 'openingDebt', t('بدهی فعلی هنگام ثبت (تومان، اختیاری)'), t('آنچه پیش از افزودن این حساب خرج شده و هنوز پرداخت نشده'))}
+      {numberField('credit-cycle-day', 'cycleDay', t('روز شروع دوره‌ی هر ماه (روز چندم ماه شمسی) *'), t('بدهی و «هزینه‌ها و انتقال این دوره» از این روز حساب می‌شوند؛ «بدهی فعلی» همان بدهی در شروع همین دوره است'))}
+      <p className="expense-form-hint">{t('خرید از اعتبار را مثل هر هزینه با «پرداخت از» همین حساب ثبت کنید؛ تسویه‌ی بدهی و تبدیل به قسط از روی کارت اعتبار، دستی و با مبلغ‌های واقعی ثبت می‌شوند.')}</p>
     </div>
   );
 }

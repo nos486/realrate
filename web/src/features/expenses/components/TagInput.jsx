@@ -5,6 +5,7 @@
 
 import React, { useState } from 'react';
 import { X, Tag } from 'lucide-react';
+import { t } from '../../../utils/i18n.js';
 import { normalizeTags, EXPENSE_LIMITS } from '../../../utils/expenseDocument.js';
 import TextField from '../../../shared/ui/TextField.jsx';
 
@@ -22,12 +23,12 @@ export default function TagInput({ id = 'expense-tags', value = [], onChange, su
 
   return (
     <div className="ui-input-group expense-tags">
-      <label htmlFor={id} className="ui-input-label">برچسب‌ها (اختیاری)</label>
+      <label htmlFor={id} className="ui-input-label">{t('برچسب‌ها (اختیاری)')}</label>
       <div className="expense-tags-box">
         {value.map((tag) => (
           <span key={tag} className="expense-tag-chip">
             <Tag size={11} /> {tag}
-            <button type="button" aria-label={`حذف برچسب ${tag}`} onClick={() => remove(tag)}><X size={11} /></button>
+            <button type="button" aria-label={t('حذف برچسب {tag}', { tag })} onClick={() => remove(tag)}><X size={11} /></button>
           </span>
         ))}
         {!full && (
@@ -35,12 +36,12 @@ export default function TagInput({ id = 'expense-tags', value = [], onChange, su
             id={id}
             className="expense-tags-field"
             value={draft}
-            placeholder={value.length ? 'برچسب دیگر…' : 'مثلاً مصالح، دستمزد…'}
+            placeholder={value.length ? t('برچسب دیگر…') : t('مثلاً مصالح، دستمزد…')}
             maxLength={EXPENSE_LIMITS.tagLength + 1}
             onChange={(e) => {
               const text = e.target.value;
               // A separator closes the tag being typed
-              if (/[,،]/.test(text)) add(text);
+              if (/[,،]/.test(text)) add(text); // i18n-ignore
               else setDraft(text);
             }}
             onKeyDown={(e) => {

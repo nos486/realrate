@@ -5,6 +5,7 @@ import VaultLockCard from '../../features/portfolio/components/VaultLockCard.jsx
 import { unlockVault } from './vaultStore.js';
 import { isBiometricEnabled, unlockWithBiometric } from '../native/biometricUnlock.js';
 import { useFeedback } from '../ui/FeedbackProvider.jsx';
+import { t } from '../../utils/i18n.js';
 
 // The fingerprint prompt opens by itself once per app session (not on every locked screen)
 let promptedThisSession = false;
@@ -15,14 +16,14 @@ let promptedThisSession = false;
  * up (app settings), a fingerprint button opens it too. "Forgot the passphrase?" leads to the
  * reset in account settings (VaultResetSection).
  */
-export default function VaultUnlockCard({ title = 'اطلاعات رمزنگاری شده است', description, className = '', showForgot = true }) {
+export default function VaultUnlockCard({ title = t('اطلاعات رمزنگاری شده است'), description, className = '', showForgot = true }) {
   const { toast } = useFeedback();
   const [biometric, setBiometric] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const handleUnlock = async (passphrase) => {
     const ok = await unlockVault(passphrase);
-    if (!ok) throw new Error('رمز عبور رمزنگاری حساب اشتباه است.');
+    if (!ok) throw new Error(t('رمز عبور رمزنگاری حساب اشتباه است.'));
     return true;
   };
 
@@ -61,19 +62,19 @@ export default function VaultUnlockCard({ title = 'اطلاعات رمزنگار
       title={title}
       description={
         description ||
-        'رمزنگاری سرتاسری حساب شما فعال است. برای دیدن اطلاعات، رمز عبور رمزنگاری حساب را وارد کنید — با یک بار باز کردن، همه بخش‌ها باز می‌شوند.'
+        t('رمزنگاری سرتاسری حساب شما فعال است. برای دیدن اطلاعات، رمز عبور رمزنگاری حساب را وارد کنید — با یک بار باز کردن، همه بخش‌ها باز می‌شوند.')
       }
       onUnlock={handleUnlock}
       className={className}
       extraAction={biometric && (
         <button type="button" className="btn-vault-biometric" onClick={handleBiometric} disabled={busy}>
           <Fingerprint size={16} />
-          اثر انگشت
+          {t('اثر انگشت')}
         </button>
       )}
       helpLink={showForgot && (
         <Link to="/settings?vault-reset=1" className="vault-lock-forgot">
-          رمز را فراموش کرده‌اید؟
+          {t('رمز را فراموش کرده‌اید؟')}
         </Link>
       )}
     />

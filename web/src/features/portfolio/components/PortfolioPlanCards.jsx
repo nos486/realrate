@@ -6,7 +6,7 @@
  * nothing to show (no allocation, locked vault, no opener).
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { intlLocale, t } from '../../../utils/i18n.js';
 import React from 'react';
 import { Gauge } from 'lucide-react';
 import AllocationTargetsCard from './AllocationTargetsCard.jsx';
@@ -33,21 +33,19 @@ export default function PortfolioPlanCards({
       {onOpenRisk && (
         <div className="portfolio-stat-card risk-profile-card">
           <div className="stat-header">
-            <span className="stat-label"><Gauge size={13} /> آزمون ریسک‌پذیری</span>
+            <span className="stat-label"><Gauge size={13} />{' '}{t('آزمون ریسک‌پذیری')}</span>
           </div>
           {riskResult ? (
             <>
               <p className="stat-sub risk-profile-card-result">
-                <strong>{profileOf(riskResult.score).title}</strong>
-                {' '}— {riskResult.score.toLocaleString(intlLocale(), { maximumFractionDigits: 1 })}٪
-              </p>
+                <strong>{profileOf(riskResult.score).title}</strong>{' '}{t('— {count}٪', { count: riskResult.score.toLocaleString(intlLocale(), { maximumFractionDigits: 1 }) })}</p>
               <RiskMixPie items={mixItemsOf(profileOf(riskResult.score).allocation)} />
             </>
           ) : (
-            <p className="stat-sub">با چند سؤال کوتاه بسنجید چقدر ریسک‌پذیر هستید و چه ترکیبی برای این پورتفو مناسب است.</p>
+            <p className="stat-sub">{t('با چند سؤال کوتاه بسنجید چقدر ریسک‌پذیر هستید و چه ترکیبی برای این پورتفو مناسب است.')}</p>
           )}
           <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={onOpenRisk}>
-            <Gauge size={14} /> {riskResult ? 'مشاهدهٔ نتیجه' : 'شروع آزمون'}
+            <Gauge size={14} /> {riskResult ? t('مشاهدهٔ نتیجه') : t('شروع آزمون')}
           </button>
         </div>
       )}

@@ -31,6 +31,7 @@ import { listCustomBanks, createCustomBank } from '../banks/bankApi.js';
 import { getHomeLayout, saveHomeLayout } from '../../features/home/homeApi.js';
 import { reminderOf, REMINDER_KINDS } from '../../utils/reminders.js';
 import { shouldIncludeChequeDirection } from '../alerts/emailAlertsApi.js';
+import { t } from '../../utils/i18n.js';
 
 export const BACKUP_FORMAT = 'realrate-backup';
 export const ENCRYPTED_BACKUP_FORMAT = 'realrate-backup-encrypted';
@@ -87,7 +88,7 @@ export async function buildFullBackup({ onProgress = () => {} } = {}) {
         items.push({ kind, id: record.id, recordDate: record.recordDate || '', data });
       }
     }
-    portfolios.push({ id: portfolio.id, name: portfolio.name || 'پورتفو', isDefault: Boolean(portfolio.isDefault), records: items });
+    portfolios.push({ id: portfolio.id, name: portfolio.name || t('پورتفو'), isDefault: Boolean(portfolio.isDefault), records: items });
   }
 
   const customBanks = ((await listCustomBanks().catch(() => null))?.banks || []).map((b) => ({ id: b.id, name: b.name }));
@@ -136,20 +137,20 @@ export async function parseBackup(text, password = '') {
   try {
     parsed = JSON.parse(String(text || '').replace(/^﻿/, ''));
   } catch {
-    throw new BackupError('این فایل پشتیبان RealRate نیست.', 'INVALID');
+    throw new BackupError(t('این فایل پشتیبان RealRate نیست.'), 'INVALID');
   }
   if (parsed?.format === ENCRYPTED_BACKUP_FORMAT) {
-    if (!password) throw new BackupError('این فایل رمز دارد؛ رمز آن را وارد کنید.', 'NEEDS_PASSWORD');
+    if (!password) throw new BackupError(t('این فایل رمز دارد؛ رمز آن را وارد کنید.'), 'NEEDS_PASSWORD');
     const key = await deriveE2eeKey(password, parsed.salt);
     const inner = await e2eeDecrypt(key, parsed.data).catch(() => null);
-    if (!inner || typeof inner !== 'object') throw new BackupError('رمز فایل درست نیست.', 'WRONG_PASSWORD');
+    if (!inner || typeof inner !== 'object') throw new BackupError(t('رمز فایل درست نیست.'), 'WRONG_PASSWORD');
     parsed = inner;
   }
   if (parsed?.format !== BACKUP_FORMAT || !Array.isArray(parsed.records)) {
-    throw new BackupError('این فایل پشتیبان RealRate نیست.', 'INVALID');
+    throw new BackupError(t('این فایل پشتیبان RealRate نیست.'), 'INVALID');
   }
   if (Number(parsed.version) > BACKUP_VERSION) {
-    throw new BackupError('این فایل با نسخه‌ی جدیدتری از RealRate ساخته شده است؛ اپ را به‌روز کنید.', 'INVALID');
+    throw new BackupError(t('این فایل با نسخه‌ی جدیدتری از RealRate ساخته شده است؛ اپ را به‌روز کنید.'), 'INVALID');
   }
   return parsed;
 }

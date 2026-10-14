@@ -23,7 +23,7 @@
  *   brings its message back.
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
 import { smsEnabled } from './nativeApp.js';
 import { takeSmsRead } from './smsPlan.js';
 import { FREE_SMS_READS } from '../../config/planLimits.js';
@@ -306,7 +306,7 @@ export function addSmsMessages(messages, { recheckRecorded = false } = {}) {
     if ([tx.fingerprint, tx.key].some((id) => handled.has(id) || known.has(id))) continue;
     // The free plan reads a few messages a day and a month: the rest stay in the phone's SMS
     if (!takeSmsRead()) {
-      window.dispatchEvent(new CustomEvent('realrate:plan-limit', { detail: { message: `پلن رایگان روزی ${FREE_SMS_READS.daily.toLocaleString(intlLocale())} پیامک و ماهی ${FREE_SMS_READS.monthly.toLocaleString(intlLocale())} پیامک بانک را می‌خواند. برای خواندن بیشتر به Pro ارتقا دهید.` } }));
+      window.dispatchEvent(new CustomEvent('realrate:plan-limit', { detail: { message: t('پلن رایگان روزی {daily} پیامک و ماهی {monthly} پیامک بانک را می‌خواند. برای خواندن بیشتر به Pro ارتقا دهید.', { daily: FREE_SMS_READS.daily.toLocaleString(intlLocale()), monthly: FREE_SMS_READS.monthly.toLocaleString(intlLocale()) }) } }));
       break;
     }
     known.add(tx.fingerprint);
@@ -449,7 +449,7 @@ export function readSmsDays(days, options = {}) {
 export function readSmsRange(fromIso, toIso, options = {}) {
   const since = Date.parse(`${fromIso}T00:00:00`);
   const until = Date.parse(`${toIso}T00:00:00`) + DAY_MS - 1;
-  if (!Number.isFinite(since) || !Number.isFinite(until) || until < since) throw new Error('بازه‌ی تاریخ نامعتبر است.');
+  if (!Number.isFinite(since) || !Number.isFinite(until) || until < since) throw new Error(t('بازه‌ی تاریخ نامعتبر است.'));
   return readSmsSince(since, { ...options, until, transactions: true });
 }
 

@@ -8,7 +8,7 @@
  * «پرداخت» — overdue installments, and the fees paid (utils/creditAccount.js for the figures).
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { intlLocale, t } from '../../../utils/i18n.js';
 import React from 'react';
 import { AlertTriangle, CalendarClock, Trash2, HandCoins } from 'lucide-react';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
@@ -17,7 +17,7 @@ import { formatAmount } from '../../expenses/utils/format.js';
 const fa = (n) => Number(n).toLocaleString(intlLocale(), { maximumFractionDigits: 2 });
 const day = (iso) => formatShamsiDisplay(`${iso}T00:00:00`);
 
-const STATUS_LABELS = { paid: 'پرداخت‌شده', overdue: 'معوق', due: 'سررسید امروز', upcoming: '' };
+const STATUS_LABELS = { paid: t('پرداخت‌شده'), overdue: t('معوق'), due: t('سررسید امروز'), upcoming: '' };
 
 /**
  * @param {{ status: object|null, costsPaid?: number, hideValues?: boolean, readOnly?: boolean,
@@ -34,29 +34,29 @@ export default function CreditSummary({
 
   return (
     <div className="credit-summary">
-      <div className="credit-usage" title={`${fa(usedPct)}٪ از سقف اعتبار استفاده شده`}>
+      <div className="credit-usage" title={t('{pct} از سقف اعتبار استفاده شده', { pct: `${fa(usedPct)}${t('٪')}` })}>
         <div className="credit-usage-head">
-          <span>بدهی</span>
-          <strong>{money(status.debt)} تومان</strong>
+          <span>{t('بدهی')}</span>
+          <strong>{money(status.debt)} {t('تومان')}</strong>
         </div>
-        <div className="credit-usage-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={usedPct} aria-label="مصرف سقف اعتبار">
+        <div className="credit-usage-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={usedPct} aria-label={t('مصرف سقف اعتبار')}>
           <span style={{ width: `${usedPct}%` }} />
         </div>
         {status.breakdown && (
           <div className="credit-usage-foot">
-            <span>بدهی اولیه {money(status.breakdown.opening)} + هزینه و برداشت {money(status.breakdown.charged)} − پرداخت‌ها {money(status.breakdown.paid)}</span>
+            <span>{t('بدهی اولیه {opening} + هزینه و برداشت {charged} − پرداخت‌ها {paid}', { opening: money(status.breakdown.opening), charged: money(status.breakdown.charged), paid: money(status.breakdown.paid) })}</span>
           </div>
         )}
         <div className="credit-usage-foot">
-          <span>آزاد: {money(status.available)}</span>
-          <span>سقف: {money(status.limit)}</span>
+          <span>{t('آزاد: {amount}', { amount: money(status.available) })}</span>
+          <span>{t('سقف: {amount}', { amount: money(status.limit) })}</span>
         </div>
       </div>
 
       {status.overdue.count > 0 && (
         <p className="credit-overdue">
           <AlertTriangle size={14} />
-          {fa(status.overdue.count)} قسط معوق — {money(status.overdue.amount)} تومان
+          {t('{n} قسط معوق — {amount} تومان', { n: fa(status.overdue.count), amount: money(status.overdue.amount) })}
         </p>
       )}
 
@@ -64,51 +64,51 @@ export default function CreditSummary({
       {status.freeDebt > 0 && (
         <div className="credit-statement">
           <span>
-            بدهی خارج از اقساط
-            <small>{money(status.freeDebt)} تومان</small>
+            {t('بدهی خارج از اقساط')}
+            <small>{money(status.freeDebt)} {t('تومان')}</small>
           </span>
           {canAct && (
             <span className="credit-actions">
               {onSettle && (
                 <button type="button" className="credit-link-btn" onClick={onSettle}>
-                  <HandCoins size={13} /> تسویه بدهی
+                  <HandCoins size={13} /> {t('تسویه بدهی')}
                 </button>
               )}
               {onConvert && (
                 <button type="button" className="credit-link-btn" onClick={onConvert}>
-                  <CalendarClock size={13} /> تبدیل به قسط
+                  <CalendarClock size={13} /> {t('تبدیل به قسط')}
                 </button>
               )}
             </span>
           )}
         </div>
       )}
-      {status.prepaid > 0 && <p className="credit-settled">پیش‌پرداخت: {money(status.prepaid)} تومان</p>}
-      {status.debt === 0 && status.prepaid === 0 && <p className="credit-settled">بدهی‌ای ندارید</p>}
+      {status.prepaid > 0 && <p className="credit-settled">{t('پیش‌پرداخت: {amount} تومان', { amount: money(status.prepaid) })}</p>}
+      {status.debt === 0 && status.prepaid === 0 && <p className="credit-settled">{t('بدهی‌ای ندارید')}</p>}
 
       {status.plans.map((plan) => (
         <details key={plan.id} className="credit-plan" open={plan.remaining > 0 && plan.installments.some((i) => i.status !== 'paid' && i.status !== 'upcoming')}>
           <summary>
-            اقساط {day(plan.date)} · مانده {money(plan.remaining)} تومان
+            {t('اقساط {date} · مانده {amount} تومان', { date: day(plan.date), amount: money(plan.remaining) })}
           </summary>
           <p className="credit-plan-meta">
-            {money(plan.principal)} ← {fa(plan.installments.length)} قسط، جمع {money(plan.total)} تومان
-            {plan.cost > 0 && ` · کارمزد قسط‌بندی ${money(plan.cost)} (${fa(plan.pct)}٪)`}
+            {money(plan.principal)} {t('←')} {t('{n} قسط، جمع {total} تومان', { n: fa(plan.installments.length), total: money(plan.total) })}
+            {plan.cost > 0 && ` · ${t('کارمزد قسط‌بندی {cost} ({pct})', { cost: money(plan.cost), pct: `${fa(plan.pct)}${t('٪')}` })}`}
             {canAct && onUndoConversion && (
-              <button type="button" className="credit-link-btn is-danger" onClick={() => onUndoConversion(plan)} title="حذف این قسط‌بندی">
-                <Trash2 size={12} /> حذف
+              <button type="button" className="credit-link-btn is-danger" onClick={() => onUndoConversion(plan)} title={t('حذف این قسط‌بندی')}>
+                <Trash2 size={12} /> {t('حذف')}
               </button>
             )}
           </p>
           <ul>
             {plan.installments.map((i) => (
               <li key={i.n} className={`is-${i.status}`}>
-                <span>قسط {fa(i.n)} · {day(i.dueDate)}</span>
+                <span>{t('قسط {n} · {date}', { n: fa(i.n), date: day(i.dueDate) })}</span>
                 <span>
                   {money(i.amount)}
                   {STATUS_LABELS[i.status] && <em>{STATUS_LABELS[i.status]}{i.paidOn ? ` ${day(i.paidOn)}` : ''}</em>}
                   {canAct && onPayInstallment && i.status !== 'paid' && (
-                    <button type="button" className="credit-link-btn" onClick={() => onPayInstallment(plan, i)}>پرداخت</button>
+                    <button type="button" className="credit-link-btn" onClick={() => onPayInstallment(plan, i)}>{t('پرداخت')}</button>
                   )}
                 </span>
               </li>
@@ -119,20 +119,20 @@ export default function CreditSummary({
 
       {status.next && (
         <div className={`credit-next ${status.overdue.count > 0 ? 'is-overdue' : ''}`}>
-          <span>قسط بعدی ({fa(status.next.n)} از {fa(status.next.count)}) · {day(status.next.dueDate)}</span>
-          <strong>{money(status.next.amount)} تومان</strong>
+          <span>{t('قسط بعدی ({n} از {count}) · {date}', { n: fa(status.next.n), count: fa(status.next.count), date: day(status.next.dueDate) })}</span>
+          <strong>{money(status.next.amount)} {t('تومان')}</strong>
         </div>
       )}
 
       {status.period && (
         <>
           <div className="account-card-stat">
-            <span>هزینه‌های این دوره <small>از {day(status.period.from)}</small></span>
-            <strong>{money(status.period.spent)} تومان</strong>
+            <span>{t('هزینه‌های این دوره')} <small>{t('از {date}', { date: day(status.period.from) })}</small></span>
+            <strong>{money(status.period.spent)} {t('تومان')}</strong>
           </div>
           {(status.period.paidIn > 0 || status.period.takenOut > 0) && (
             <div className="account-card-stat">
-              <span>انتقال این دوره</span>
+              <span>{t('انتقال این دوره')}</span>
               <strong className="account-card-moved">
                 {status.period.paidIn > 0 && <span className="is-in">+{money(status.period.paidIn)}</span>}
                 {status.period.takenOut > 0 && <span className="is-out">−{money(status.period.takenOut)}</span>}
@@ -144,8 +144,8 @@ export default function CreditSummary({
 
       {costsPaid > 0 && (
         <div className="account-card-stat">
-          <span>کارمزدهای پرداخت‌شده</span>
-          <strong>{money(costsPaid)} تومان</strong>
+          <span>{t('کارمزدهای پرداخت‌شده')}</span>
+          <strong>{money(costsPaid)} {t('تومان')}</strong>
         </div>
       )}
 

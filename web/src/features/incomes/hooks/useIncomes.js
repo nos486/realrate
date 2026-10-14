@@ -8,6 +8,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { t } from '../../../utils/i18n.js';
 import { useRefreshHandler } from '../../../shared/refresh/pageRefresh.js';
 import { useAuth } from '../../auth/index.js';
 import { useVault } from '../../../shared/vault/useVault.js';
@@ -55,7 +56,7 @@ export function useIncomes({ from, to }) {
       .catch((err) => {
         if (!active) return;
         setWindowData((prev) => ({ ...prev, key: windowKey }));
-        setError(err.message || 'خطا در بارگذاری لیست درآمدها');
+        setError(err.message || t('خطا در بارگذاری لیست درآمدها'));
       });
     return () => {
       active = false;
@@ -81,7 +82,7 @@ export function useIncomes({ from, to }) {
         ? await apiUpdateIncome(incomeId, incomeData)
         : await apiCreateIncome(incomeData);
       if (!res?.success || !res.income) {
-        throw new Error(res?.message || 'خطا در ذخیره درآمد');
+        throw new Error(res?.message || t('خطا در ذخیره درآمد'));
       }
       if (shouldReload) reload();
       return res.income;
@@ -100,11 +101,11 @@ export function useIncomes({ from, to }) {
     try {
       const res = await apiDeleteIncome(incomeId);
       if (!res?.success) {
-        throw new Error(res?.message || 'خطا در حذف درآمد');
+        throw new Error(res?.message || t('خطا در حذف درآمد'));
       }
       reload();
     } catch (err) {
-      setError(err.message || 'خطا در حذف درآمد');
+      setError(err.message || t('خطا در حذف درآمد'));
       throw err;
     } finally {
       setDeletingId(null);

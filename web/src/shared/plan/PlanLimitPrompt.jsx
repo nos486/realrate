@@ -11,13 +11,14 @@ import Modal from '../ui/Modal.jsx';
 import Button from '../ui/Button.jsx';
 import { PLAN_LIMIT_EVENT, PRO_PATH } from './usePlan.js';
 import { appPath } from '../routes.js';
+import { t } from '../../utils/i18n.js';
 
 export default function PlanLimitPrompt() {
   const navigate = useNavigate();
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    const onLimit = (e) => setMessage(e.detail?.message || 'به سقف پلن رایگان رسیده‌اید.');
+    const onLimit = (e) => setMessage(e.detail?.message || t('به سقف پلن رایگان رسیده‌اید.'));
     window.addEventListener(PLAN_LIMIT_EVENT, onLimit);
     return () => window.removeEventListener(PLAN_LIMIT_EVENT, onLimit);
   }, []);
@@ -32,13 +33,13 @@ export default function PlanLimitPrompt() {
     <Modal
       isOpen={Boolean(message)}
       onClose={close}
-      title="سقف پلن رایگان"
+      title={t('سقف پلن رایگان')}
       icon={<Crown size={18} />}
       maxWidth="420px"
       footer={(
         <>
-          <Button variant="secondary" onClick={close}>بعداً</Button>
-          <Button icon={<Crown size={16} />} onClick={compare}>مقایسه‌ی پلن‌ها</Button>
+          <Button variant="secondary" onClick={close}>{t('بعداً')}</Button>
+          <Button icon={<Crown size={16} />} onClick={compare}>{t('مقایسه‌ی پلن‌ها')}</Button>
         </>
       )}
     >

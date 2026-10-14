@@ -6,6 +6,7 @@
  */
 
 import React from 'react';
+import { t } from '../../../utils/i18n.js';
 import { GenericCsvImportButton } from '../../../shared/ui/index.js';
 import { listCategories } from '../../../shared/categories/categoryStore.js';
 import { accountLabel } from '../../accounts/constants/accountDisplay.js';
@@ -30,7 +31,7 @@ export default function ExpenseCsvImportButton({ saveExpense, groupId = '', acco
       parseRow={parseRow}
       onImportRow={(data) => saveExpense({ ...data, groupId })}
       onFinished={onImported}
-      itemLabel="هزینه"
+      itemLabel={t('هزینه')}
       disabled={disabled}
     />
   );

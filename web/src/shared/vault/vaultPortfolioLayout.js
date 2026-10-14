@@ -9,6 +9,7 @@ import { e2eeEncrypt, e2eeDecrypt } from '../../lib/e2ee.js';
 import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
 import { putRecord } from './vaultRecordMeta.js';
 import { normalizePortfolioLayout } from '../../features/portfolio/portfolioLayoutModel.js';
+import { t } from '../../utils/i18n.js';
 
 const SILENT = { silent: true };
 const newId = (prefix) => `${prefix}_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
@@ -51,10 +52,10 @@ export async function loadPortfolioLayout(portfolioId, key) {
  * @returns {Promise<{ success: boolean, layout: object, recordId: string }>}
  */
 export async function savePortfolioLayoutRecord(portfolioId, key, layout, existingRecordId = null) {
-  if (!portfolioId || !key) throw new Error('شناسه پورتفو و کلید رمزنگاری الزامی است.');
+  if (!portfolioId || !key) throw new Error(t('شناسه پورتفو و کلید رمزنگاری الزامی است.'));
 
   const cleanLayout = normalizePortfolioLayout(layout);
-  if (!cleanLayout) throw new Error('چیدمان دسته‌بندی نامعتبر است.');
+  if (!cleanLayout) throw new Error(t('چیدمان دسته‌بندی نامعتبر است.'));
 
   const recordId = existingRecordId || newId('layout');
   const cipher = await e2eeEncrypt(key, cleanLayout);

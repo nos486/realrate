@@ -12,6 +12,7 @@ import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { useDemo } from '../../demo/index.js';
 import { useQuickAddParam } from '../../../shared/hooks/useQuickAddParam.js';
 import TextField from '../../../shared/ui/TextField.jsx';
+import { t } from '../../../utils/i18n.js';
 
 export default function PortfolioTracker({
   initialPortfolioId = null,
@@ -77,7 +78,7 @@ export default function PortfolioTracker({
         setNewPortfolioModalOpen(false);
       }
     } catch (err) {
-      toast.error(err.message || 'خطا در ساخت پورتفو');
+      toast.error(err.message || t('خطا در ساخت پورتفو'));
     } finally {
       setCreatingPortfolio(false);
     }
@@ -88,17 +89,17 @@ export default function PortfolioTracker({
     <div className="portfolio-section">
       <FeaturePageHeader
         icon={<Briefcase size={24} />}
-        title="پورتفو"
+        title={t('پورتفو')}
         help="portfolio"
-        subtitle="دارایی‌ها با خرید، فروش و سود و زیان هرکدام، بر پایه نرخ لحظه‌ای"
+        subtitle={t('دارایی‌ها با خرید، فروش و سود و زیان هرکدام، بر پایه نرخ لحظه‌ای')}
         actions={
           <Button
             icon={<Plus size={16} />}
             onClick={handleOpenAdd}
             disabled={readOnly || holdingsVaultLocked}
-            title={readOnly ? 'در نسخه دمو غیرفعال است' : undefined}
+            title={readOnly ? t('در نسخه دمو غیرفعال است') : undefined}
           >
-            ثبت در پورتفو
+            {t('ثبت در پورتفو')}
           </Button>
         }
       />
@@ -132,7 +133,7 @@ export default function PortfolioTracker({
       <Modal
         isOpen={newPortfolioModalOpen}
         onClose={() => !creatingPortfolio && setNewPortfolioModalOpen(false)}
-        title="پورتفوی جدید"
+        title={t('پورتفوی جدید')}
         icon={<FolderPlus size={18} />}
         maxWidth="460px"
         className="new-portfolio-modal-box"
@@ -145,23 +146,23 @@ export default function PortfolioTracker({
               disabled={creatingPortfolio}
               onClick={() => setNewPortfolioModalOpen(false)}
             >
-              انصراف
+              {t('انصراف')}
             </button>
             <button
               type="submit"
               className="btn-primary"
               disabled={creatingPortfolio || !newPortfolioName.trim()}
             >
-              {creatingPortfolio ? 'در حال ایجاد...' : 'ایجاد'}
+              {creatingPortfolio ? t('در حال ایجاد...') : t('ایجاد')}
             </button>
           </div>
         }
       >
         <div className="form-item">
-          <label>نام پورتفو</label>
+          <label>{t('نام پورتفو')}</label>
           <TextField
             type="text"
-            placeholder="مثلاً: پس‌انداز طلا، سبد ارزی..."
+            placeholder={t('مثلاً: پس‌انداز طلا، سبد ارزی...')}
             value={newPortfolioName}
             onChange={(e) => setNewPortfolioName(e.target.value)}
             className="form-input"
@@ -169,7 +170,7 @@ export default function PortfolioTracker({
             autoFocus
           />
           <span className="field-sub-note">
-            امکان تنظیم رمز و لینک اشتراک اختصاصی در تنظیمات وجود دارد.
+            {t('امکان تنظیم رمز و لینک اشتراک اختصاصی در تنظیمات وجود دارد.')}
           </span>
         </div>
       </Modal>

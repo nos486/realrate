@@ -1,13 +1,13 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { ChevronDown, Plus, Search, X } from 'lucide-react';
 import BankLogo from './BankLogo.jsx';
-import { bankLogoUrl, bankShortName, getBankGroups, matchBankIdByName, resolveBank } from './resolveBank.js';
-import { t } from '../../utils/i18n.js';
+import { bankLogoUrl, getBankGroups, matchBankIdByName, resolveBank } from './resolveBank.js';
 import { normalizeBankName } from '../../config/banks.config.js';
 import { useCustomBanks } from './useCustomBanks.js';
 import { useFeedback } from '../ui/FeedbackProvider.jsx';
 import { useBackToClose } from '../hooks/useBackToClose.js';
 import TextField from '../ui/TextField.jsx';
+import { t } from '../../utils/i18n.js';
 
 const BANK_GROUPS = getBankGroups();
 
@@ -86,7 +86,7 @@ export default function BankPicker({ value, onChange, label = t('بانک / وا
     <div className={`bank-picker ${open ? 'is-open' : ''}`}>
       <label className="bank-picker-label" htmlFor={id}>
         {label}
-        {optional && <span className="bank-picker-optional"> {t('(اختیاری)')}</span>}
+        {optional && <span className="bank-picker-optional"> ({t('اختیاری')})</span>}
       </label>
 
       <button
@@ -178,8 +178,8 @@ export default function BankPicker({ value, onChange, label = t('بانک / وا
                   {group.banks.map((bank) => (
                     <div key={bank.id} className={`bank-option-wrap ${selected.id === bank.id ? 'is-selected' : ''}`}>
                       <button type="button" className="bank-option" onClick={() => choose({ bankId: bank.id, lenderName: bank.name })}>
-                        <BankLogo bank={{ logo: bankLogoUrl(bank.id), name: bank.name, shortName: bankShortName(bank), kind: 'standard' }} size={30} />
-                        <span>{bankShortName(bank)}</span>
+                        <BankLogo bank={{ logo: bankLogoUrl(bank.id), name: bank.name, shortName: bank.shortName, kind: 'standard' }} size={30} />
+                        <span>{bank.shortName}</span>
                       </button>
                     </div>
                   ))}

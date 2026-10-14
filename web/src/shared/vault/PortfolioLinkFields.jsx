@@ -8,7 +8,7 @@
  * portfolio's entry. Only portfolios under the account vault are offered.
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Search, X, Briefcase } from 'lucide-react';
 import { FilterPills, NumericInput } from '../ui/index.js';
@@ -34,7 +34,7 @@ function usePortfolios(mode) {
       : listLinkablePortfolios();
     load
       .then((list) => !cancelled && setState({ list, loading: false, error: '' }))
-      .catch((err) => !cancelled && setState({ list: [], loading: false, error: err?.message || 'پورتفوها خوانده نشدند.' }));
+      .catch((err) => !cancelled && setState({ list: [], loading: false, error: err?.message || t('پورتفوها خوانده نشدند.') }));
     return () => {
       cancelled = true;
     };
@@ -114,7 +114,7 @@ export default function PortfolioLinkFields({ mode, value, onChange, toman = 0, 
   if (!loading && !error && list.length === 0) {
     return (
       <p className="expense-form-hint">
-        <Briefcase size={12} /> برای {selling ? 'کم کردن از' : 'افزودن به'} پورتفو، ابتدا یک پورتفو بسازید.
+        <Briefcase size={12} /> {selling ? t('برای کم کردن از پورتفو، ابتدا یک پورتفو بسازید.') : t('برای افزودن به پورتفو، ابتدا یک پورتفو بسازید.')}
       </p>
     );
   }
@@ -124,11 +124,11 @@ export default function PortfolioLinkFields({ mode, value, onChange, toman = 0, 
       <label className="income-recurring-toggle">
         <input type="checkbox" checked={enabled} onChange={(e) => toggle(e.target.checked)} disabled={loading || Boolean(error)} />
         <span>
-          <strong>{selling ? 'کم کردن از پورتفو' : 'افزودن به پورتفو'}</strong>
+          <strong>{selling ? t('کم کردن از پورتفو') : t('افزودن به پورتفو')}</strong>
           <small>
             {selling
-              ? 'دارایی‌ای که فروختید از پورتفو کم می‌شود (یک «فروش» با همین مبلغ).'
-              : 'روی چه چیزی سرمایه‌گذاری کردید؟ همان در پورتفو «خرید» ثبت می‌شود.'}
+              ? t('دارایی‌ای که فروختید از پورتفو کم می‌شود (یک «فروش» با همین مبلغ).')
+              : t('روی چه چیزی سرمایه‌گذاری کردید؟ همان در پورتفو «خرید» ثبت می‌شود.')}
           </small>
         </span>
       </label>
@@ -138,7 +138,7 @@ export default function PortfolioLinkFields({ mode, value, onChange, toman = 0, 
         <div className="portfolio-link-body">
           {list.length > 1 && (
             <div className="ui-input-group">
-              <span className="ui-input-label">پورتفو</span>
+              <span className="ui-input-label">{t('پورتفو')}</span>
               <FilterPills
                 options={list.map((p) => ({ value: p.id, label: p.name }))}
                 activeValue={value.portfolioId}
@@ -153,13 +153,13 @@ export default function PortfolioLinkFields({ mode, value, onChange, toman = 0, 
           )}
 
           <div className="ui-input-group">
-            <span className="ui-input-label">{selling ? 'کدام دارایی فروخته شد؟ *' : 'دارایی *'}</span>
+            <span className="ui-input-label">{selling ? t('کدام دارایی فروخته شد؟ *') : t('دارایی *')}</span>
             {value.assetId ? (
               <div className="portfolio-link-chosen">
                 <CategoryIcon category={resolveCategory(value.assetId)} size={14} />
                 <strong>{assetName}</strong>
-                {available !== null && <small>موجودی: {hideValues ? '****' : qtyText(available)} {unit}</small>}
-                <button type="button" className="btn-table-action" title="تغییر دارایی" aria-label="تغییر دارایی" onClick={() => set({ assetId: '', assetName: '', unit: '' })}>
+                {available !== null && <small>{t('موجودی: {amount} {unit}', { amount: hideValues ? '****' : qtyText(available), unit })}</small>}
+                <button type="button" className="btn-table-action" title={t('تغییر دارایی')} aria-label={t('تغییر دارایی')} onClick={() => set({ assetId: '', assetName: '', unit: '' })}>
                   <X size={13} />
                 </button>
               </div>
@@ -171,14 +171,14 @@ export default function PortfolioLinkFields({ mode, value, onChange, toman = 0, 
                     type="search"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder={selling ? 'جستجو در دارایی‌های این پورتفو…' : 'جستجوی نام یا نماد (طلا، دلار، BTC، فولاد…)'}
-                    aria-label="جستجوی دارایی"
+                    placeholder={selling ? t('جستجو در دارایی‌های این پورتفو…') : t('جستجوی نام یا نماد (طلا، دلار، BTC، فولاد…)')}
+                    aria-label={t('جستجوی دارایی')}
                   />
                 </div>
                 {loading ? (
-                  <p className="expense-form-hint">در حال خواندن پورتفوها…</p>
+                  <p className="expense-form-hint">{t('در حال خواندن پورتفوها…')}</p>
                 ) : selling && held.length === 0 ? (
-                  <p className="expense-form-hint">این پورتفو دارایی‌ای ندارد.</p>
+                  <p className="expense-form-hint">{t('این پورتفو دارایی‌ای ندارد.')}</p>
                 ) : results.length > 0 ? (
                   <ul className="asset-picker-list portfolio-link-results">
                     {results.map((asset) => (
@@ -190,7 +190,7 @@ export default function PortfolioLinkFields({ mode, value, onChange, toman = 0, 
                           <span className="asset-picker-name">
                             <strong>{asset.name}</strong>
                             <small>{selling
-                              ? `موجودی: ${hideValues ? '****' : qtyText(asset.amount)} ${asset.unit || ''}`
+                              ? t('موجودی: {amount} {unit}', { amount: hideValues ? '****' : qtyText(asset.amount), unit: asset.unit || '' })
                               : [asset.badge, asset.code || asset.symbol].filter(Boolean).join(' • ')}
                             </small>
                           </span>
@@ -203,14 +203,14 @@ export default function PortfolioLinkFields({ mode, value, onChange, toman = 0, 
                     ))}
                   </ul>
                 ) : (
-                  query.trim() && <p className="expense-form-hint">موردی پیدا نشد.</p>
+                  query.trim() && <p className="expense-form-hint">{t('موردی پیدا نشد.')}</p>
                 )}
               </>
             )}
           </div>
 
           <div className="ui-input-group">
-            <label htmlFor={`portfolio-link-qty-${mode}`} className="ui-input-label">مقدار{unit ? ` (${unit})` : ''} *</label>
+            <label htmlFor={`portfolio-link-qty-${mode}`} className="ui-input-label">{t('مقدار')}{unit ? ` (${unit})` : ''} *</label>
             <div className="ui-input-wrapper">
               <NumericInput
                 id={`portfolio-link-qty-${mode}`}
@@ -220,17 +220,17 @@ export default function PortfolioLinkFields({ mode, value, onChange, toman = 0, 
                   set({ quantity: parseInputNumber(v) || 0 });
                 }}
                 allowDecimals
-                placeholder="مثلاً ۲٫۵"
+                placeholder={t('مثلاً ۲٫۵')}
                 className="ui-input-control"
               />
             </div>
             {unitPrice > 0 && (
               <small className="expense-form-hint">
-                هر {unit || 'واحد'} ≈ {hideValues ? '****' : formatNum(Math.round(unitPrice))} تومان
+                {t('هر {unit} ≈ {price} تومان', { unit: unit || t('واحد'), price: hideValues ? '****' : formatNum(Math.round(unitPrice)) })}
               </small>
             )}
             {selling && available !== null && qtyNum > available + EPS && (
-              <small className="expense-form-hint text-loss">بیشتر از موجودی این پورتفو است.</small>
+              <small className="expense-form-hint text-loss">{t('بیشتر از موجودی این پورتفو است.')}</small>
             )}
           </div>
         </div>

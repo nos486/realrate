@@ -10,6 +10,7 @@
 import { Widgets } from './nativePlugins.js';
 import { isNativeApp } from './nativeApp.js';
 import { WIDGET_MAX_ITEMS } from '../../utils/widgetFeed.js';
+import { t } from '../../utils/i18n.js';
 
 export { WIDGET_MAX_ITEMS, WIDGET_DEFAULT_ITEMS } from '../../utils/widgetFeed.js';
 
@@ -17,7 +18,7 @@ export const WIDGET_LINK = 'ir.realrate.app://widget/';
 
 /** The widget a user can place: key and label */
 export const WIDGET_KINDS = [
-  { key: 'market', label: 'قیمت و اخبار هوشمند', hint: 'قیمت دارایی‌های موردعلاقه‌ات و خبرهای هوش مصنوعی روی صفحه‌ی اصلی گوشی، با به‌روزرسانی هر ۱۰ دقیقه.' },
+  { key: 'market', label: t('قیمت و اخبار هوشمند'), hint: t('قیمت دارایی‌های موردعلاقه‌ات و خبرهای هوش مصنوعی روی صفحه‌ی اصلی گوشی، با به‌روزرسانی هر ۱۰ دقیقه.') },
 ];
 
 /** Where a widget link opens: the in-app path, or null when the link isn't a widget's */

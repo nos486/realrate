@@ -15,7 +15,7 @@
  * Pure: shared by the API (which validates a saved layout) and the web app.
  */
 
-import { intlLocale } from './i18n.js';
+import { intlLocale, t } from './i18n.js';
 import { SPEC_BY_ID, normalizePriceId } from "./priceBook.js";
 
 /** The variables, in order */
@@ -26,8 +26,8 @@ const LEGACY_VARS = { a: "x", b: "y", c: "z", d: "w" };
 
 /** How a formula card shows its value: a plain number, or a percent (the value × 100, «٪») */
 export const FORMULA_FORMATS = {
-  number: "عدد",
-  percent: "درصد",
+  number: t("عدد"),
+  percent: t("درصد"),
 };
 
 export const FORMULA_LIMITS = { nameLength: 40, exprLength: 80 };
@@ -37,8 +37,8 @@ export const FORMULA_LIMITS = { nameLength: 40, exprLength: 80 };
  * the window's days (the chart's own windows: one request serves both)
  */
 export const FORMULA_STATS = {
-  "30d": "۳۰ روز",
-  "1y": "یک سال",
+  "30d": t("۳۰ روز"),
+  "1y": t("یک سال"),
 };
 
 /**
@@ -50,12 +50,12 @@ export const FORMULA_PRESETS = [...SPEC_BY_ID.values()]
   .filter((spec) => spec?.bubbleOf)
   .map((spec) => ({
     key: `bubble_pct_${normalizePriceId(spec.id)}`,
-    label: `درصد ${spec.name}`,
+    label: t('درصد {name}', { name: spec.name }),
     expr: "x/(y-x)",
     format: "percent",
     stats: "30d",
     vars: { x: normalizePriceId(spec.id), y: normalizePriceId(spec.bubbleOf) },
-    hint: `x: ${spec.name}، y: ${SPEC_BY_ID.get(normalizePriceId(spec.bubbleOf))?.name || spec.bubbleOf} — حباب نسبت به ارزش طلای سکه`,
+    hint: t('x: {name}، y: {bubbleOf} — حباب نسبت به ارزش طلای سکه', { name: spec.name, bubbleOf: SPEC_BY_ID.get(normalizePriceId(spec.bubbleOf))?.name || spec.bubbleOf }),
   }));
 
 /** A formula card's id in a layout section: the prefix is reserved (never a price book id) */
@@ -71,9 +71,9 @@ const varOf = (letter) => {
 
 /** Persian / Arabic digits and the Persian decimal sign as Latin */
 const latinDigits = (s) => s
-  .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x6f0))
-  .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x660))
-  .replace(/[٫]/g, ".");
+  .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x6f0)) // i18n-ignore
+  .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x660)) // i18n-ignore
+  .replace(/[٫]/g, "."); // i18n-ignore
 
 /** The formula's tokens: numbers, variables, operators and parentheses */
 function tokenize(text) {
@@ -92,7 +92,7 @@ function tokenize(text) {
     // A variable is one letter: a longer word (a function name, "max") is not a formula
     const variable = varOf(ch);
     if (variable && !/[a-z]/i.test(src[i + 1] || "")) { tokens.push({ type: "var", value: variable }); i++; continue; }
-    throw new Error(`نویسه‌ی «${ch}» در فرمول معتبر نیست`);
+    throw new Error(t('نویسه‌ی «{ch}» در فرمول معتبر نیست', { ch }));
   }
   return tokens;
 }
@@ -107,16 +107,16 @@ function parseTokens(tokens) {
   const isOp = (t, ops) => t?.type === "op" && ops.includes(t.value);
 
   function atom() {
-    const t = tokens[pos++];
-    if (!t) throw new Error("فرمول ناتمام است");
-    if (t.type === "num") return { type: "num", value: t.value, text: t.text };
-    if (t.type === "var") return { type: "var", key: t.value };
-    if (t.type === "op" && t.value === "(") {
+    const tok = tokens[pos++];
+    if (!tok) throw new Error(t("فرمول ناتمام است"));
+    if (tok.type === "num") return { type: "num", value: tok.value, text: tok.text };
+    if (tok.type === "var") return { type: "var", key: tok.value };
+    if (tok.type === "op" && tok.value === "(") {
       const inner = expr();
-      if (!isOp(tokens[pos++], ")")) throw new Error("پرانتز بسته نشده است");
+      if (!isOp(tokens[pos++], ")")) throw new Error(t("پرانتز بسته نشده است"));
       return { type: "group", inner };
     }
-    throw new Error(`«${shownToken(t)}» بی‌جا آمده است`);
+    throw new Error(t('«{v}» بی‌جا آمده است', { v: shownToken(tok) }));
   }
   function factor() {
     if (isOp(peek(), "-")) {
@@ -137,7 +137,7 @@ function parseTokens(tokens) {
   }
 
   const tree = expr();
-  if (pos < tokens.length) throw new Error(`«${shownToken(tokens[pos])}» بی‌جا آمده است`);
+  if (pos < tokens.length) throw new Error(t('«{v}» بی‌جا آمده است', { v: shownToken(tokens[pos]) }));
   return tree;
 }
 
@@ -168,11 +168,11 @@ const varsOfTree = (node, out = new Set()) => {
  */
 export function parseFormula(text) {
   try {
-    if (!String(text ?? "").trim()) throw new Error("فرمول خالی است");
-    if (String(text).length > FORMULA_LIMITS.exprLength) throw new Error("فرمول خیلی طولانی است");
+    if (!String(text ?? "").trim()) throw new Error(t("فرمول خالی است"));
+    if (String(text).length > FORMULA_LIMITS.exprLength) throw new Error(t("فرمول خیلی طولانی است"));
     const tree = parseTokens(tokenize(text));
     const used = varsOfTree(tree);
-    if (used.size === 0) throw new Error("فرمول باید دست‌کم یک دارایی (x، y، …) داشته باشد");
+    if (used.size === 0) throw new Error(t("فرمول باید دست‌کم یک دارایی (x، y، …) داشته باشد"));
     return { ok: true, expr: storedOf(tree), tree, vars: FORMULA_VARS.filter((k) => used.has(k)) };
   } catch (err) {
     return { ok: false, error: err.message };
@@ -317,7 +317,7 @@ export function formatFormulaValue(value, format = "number") {
 /** A value already as the card shows it (a percent × 100), in its format */
 export function formatFormulaShown(shown, format = "number") {
   if (shown === null || shown === undefined || !Number.isFinite(shown)) return "—";
-  if (format === "percent") return `${shown.toLocaleString(intlLocale(), { maximumFractionDigits: 2 })}٪`;
+  if (format === "percent") return t('{v}٪', { v: shown.toLocaleString(intlLocale(), { maximumFractionDigits: 2 }) });
   return Math.abs(shown) >= 100
     ? Math.round(shown).toLocaleString(intlLocale())
     : shown.toLocaleString(intlLocale(), { maximumSignificantDigits: 4 });

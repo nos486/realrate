@@ -98,7 +98,7 @@ export function findUntranslated(src) {
  * in web/src/i18n/en/catalog.js (displayEngine.js, the asset registry, bank registry helpers).
  * api/tests/unit/catalogI18n.test.js checks that every displayed name has an English entry.
  */
-export const SKIP = new Set([
+export const DATA_FILES = new Set([
   'api/src/config/banks.config.js',
   'api/src/config/categories.config.js',
   'api/src/config/features.js',
@@ -117,22 +117,27 @@ export const SKIP = new Set([
   'api/src/domain/specs/silver.spec.js',
 ].map((p) => path.join(ROOT, p)));
 
-/** Source files (not symlinks, not tests, not SKIP data files) under a directory */
+/** Source files (not symlinks, not tests, not data files) under a directory */
 export function listSources(dir) {
   const files = [];
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
-    if (entry.isSymbolicLink() || SKIP.has(full)) continue;
+    if (entry.isSymbolicLink() || DATA_FILES.has(full)) continue;
     if (entry.isDirectory()) files.push(...listSources(full));
     else if (/\.(js|jsx|mjs)$/.test(entry.name)) files.push(full);
   }
   return files;
 }
 
+/** Left in Persian: the admin panel is for the site owner only */
+export const ADMIN_PATHS = [path.join(ROOT, 'web/src/features/admin'), path.join(ROOT, 'web/src/pages/AdminApp.jsx')];
+export const isSkipped = (file) => file.startsWith(DICTIONARY_PREFIX) || ADMIN_PATHS.some((p) => file.startsWith(p));
+
 /** The directories whose Persian texts reach the screen: the web app and the code it shares with the API */
 export const SCAN_ROOTS = ['web/src', 'api/src/domain', 'api/src/config'].map((p) => path.join(ROOT, p));
 /** The English dictionaries (one file per area) */
 export const DICTIONARY_DIR = path.join(ROOT, 'web/src/i18n/en');
+const DICTIONARY_PREFIX = DICTIONARY_DIR;
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const roots = process.argv.slice(2).map((p) => path.resolve(p));
@@ -140,7 +145,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   for (const dir of roots.length ? roots : SCAN_ROOTS) {
     const files = fs.statSync(dir).isDirectory() ? listSources(dir) : [dir];
     for (const file of files) {
-      if (file.startsWith(DICTIONARY_DIR)) continue;
+      if (isSkipped(file)) continue;
       const hits = findUntranslated(fs.readFileSync(file, 'utf8'));
       for (const hit of hits) console.log(`${path.relative(ROOT, file)}:${hit.line}: ${hit.text}`);
       total += hits.length;

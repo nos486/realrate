@@ -15,6 +15,7 @@ import { getTransfers, saveTransfer, deleteTransfer } from '../../../shared/vaul
 import { getLoans, getLoanDetail } from '../../loans/api/loanApi.js';
 import { getCheques } from '../../cheques/api/chequeApi.js';
 import { getSubscriptions } from '../../../shared/vault/vaultSubscriptions.js';
+import { t } from '../../../utils/i18n.js';
 
 /** Records saved per request chunk (the stores split further by VAULT_BATCH_MAX) */
 const CHUNK = 100;
@@ -94,7 +95,7 @@ export async function saveImport(records, { onProgress } = {}) {
       step(1);
     }
   } catch (err) {
-    return { saved, error: err?.message || 'ذخیره‌ی بخشی از ردیف‌ها ممکن نشد.' };
+    return { saved, error: err?.message || t('ذخیره‌ی بخشی از ردیف‌ها ممکن نشد.') };
   }
   return { saved, error: '' };
 }

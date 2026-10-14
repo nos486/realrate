@@ -8,6 +8,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { t } from '../../../utils/i18n.js';
 import { Mail, AlertTriangle, Send, ShieldAlert } from 'lucide-react';
 import Button from '../../../shared/ui/Button.jsx';
 import AlertBanner from '../../../shared/ui/AlertBanner.jsx';
@@ -22,10 +23,10 @@ import { REMINDER_SOURCES, REMINDER_KINDS } from '../../../utils/reminders.js';
 const SOURCE_OPTIONS = REMINDER_SOURCES;
 
 const LEAD_DAY_OPTIONS = [
-  { days: 7, label: '۷ روز قبل' },
-  { days: 3, label: '۳ روز قبل' },
-  { days: 1, label: '۱ روز قبل' },
-  { days: 0, label: 'روز سررسید' },
+  { days: 7, label: t('۷ روز قبل') },
+  { days: 3, label: t('۳ روز قبل') },
+  { days: 1, label: t('۱ روز قبل') },
+  { days: 0, label: t('روز سررسید') },
 ];
 
 export default function EmailRemindersSection() {
@@ -64,7 +65,7 @@ export default function EmailRemindersSection() {
       })
       .catch((err) => {
         if (!active) return;
-        setMessage({ text: 'خطا در دریافت تنظیمات یادآوری ایمیلی: ' + err.message, type: 'error' });
+        setMessage({ text: `${t('خطا در دریافت تنظیمات یادآوری ایمیلی:')} ${err.message}`, type: 'error' });
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -98,11 +99,11 @@ export default function EmailRemindersSection() {
         sendOverdue,
         includeChequeDirection,
       });
-      setMessage({ text: 'تنظیمات یادآوری ایمیلی با موفقیت ذخیره شد.', type: 'success' });
-      toast.success('تنظیمات یادآوری ایمیلی ذخیره شد.');
+      setMessage({ text: t('تنظیمات یادآوری ایمیلی با موفقیت ذخیره شد.'), type: 'success' });
+      toast.success(t('تنظیمات یادآوری ایمیلی ذخیره شد.'));
     } catch (err) {
-      setMessage({ text: err.message || 'خطا در ذخیره تنظیمات', type: 'error' });
-      toast.error(err.message || 'خطا در ذخیره تنظیمات');
+      setMessage({ text: err.message || t('خطا در ذخیره تنظیمات'), type: 'error' });
+      toast.error(err.message || t('خطا در ذخیره تنظیمات'));
     } finally {
       setSaving(false);
     }
@@ -112,9 +113,9 @@ export default function EmailRemindersSection() {
     setTesting(true);
     try {
       await sendTestAlertEmail();
-      toast.success(`یک ایمیل آزمایشی به ${userEmail} ارسال شد.`);
+      toast.success(t('یک ایمیل آزمایشی به {email} ارسال شد.', { email: userEmail }));
     } catch (err) {
-      toast.error(err.message || 'ارسال ایمیل آزمایشی با خطا مواجه شد.');
+      toast.error(err.message || t('ارسال ایمیل آزمایشی با خطا مواجه شد.'));
     } finally {
       setTesting(false);
     }
@@ -127,7 +128,7 @@ export default function EmailRemindersSection() {
       <div className="section-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
         <span>
           <Mail size={18} style={{ verticalAlign: 'middle', marginInlineEnd: '6px', display: 'inline', color: 'var(--accent-blue, #38bdf8)' }} />
-          یادآوری ایمیلی
+          {t('یادآوری ایمیلی')}
         </span>
         {userEmail && (
           <span style={{ fontSize: '12px', color: 'var(--text-muted)', direction: 'ltr' }}>
@@ -149,7 +150,7 @@ export default function EmailRemindersSection() {
         <div style={{ background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.3)', borderRadius: '8px', padding: '12px', marginBottom: '16px', display: 'flex', gap: '10px', alignItems: 'center' }}>
           <AlertTriangle size={18} style={{ color: '#eab308', flexShrink: 0 }} />
           <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>
-            ارسال ایمیل هنوز روی سرور پیکربندی نشده است.
+            {t('ارسال ایمیل هنوز روی سرور پیکربندی نشده است.')}
           </span>
         </div>
       )}
@@ -158,22 +159,22 @@ export default function EmailRemindersSection() {
         <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px', padding: '12px', marginBottom: '16px', display: 'flex', gap: '10px', alignItems: 'center' }}>
           <ShieldAlert size={18} style={{ color: '#ef4444', flexShrink: 0 }} />
           <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>
-            برای فعال‌سازی و دریافت یادآوری‌ها، لطفاً ابتدا ایمیل حساب خود را تأیید کنید.
+            {t('برای فعال‌سازی و دریافت یادآوری‌ها، لطفاً ابتدا ایمیل حساب خود را تأیید کنید.')}
           </span>
         </div>
       )}
 
       <div style={{ background: 'rgba(56, 189, 248, 0.06)', border: '1px solid rgba(56, 189, 248, 0.15)', borderRadius: '8px', padding: '12px', marginBottom: '20px', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.7' }}>
-        <strong>حفظ حریم خصوصی:</strong> در ایمیل فقط تعداد و نوع موارد می‌آید؛ مبلغ و عنوان در دستگاه شما رمزنگاری شده‌اند و سرور هرگز آن‌ها را نمی‌بیند.
+        <strong>{t('حفظ حریم خصوصی:')}</strong> {t('در ایمیل فقط تعداد و نوع موارد می‌آید؛ مبلغ و عنوان در دستگاه شما رمزنگاری شده‌اند و سرور هرگز آن‌ها را نمی‌بیند.')}
       </div>
 
       <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
         {/* Master Toggle */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'var(--bg-secondary, rgba(255,255,255,0.03))', borderRadius: '8px' }}>
           <div>
-            <strong style={{ fontSize: '14px', display: 'block' }}>ارسال روزانه خلاصه سررسیدها به ایمیل</strong>
+            <strong style={{ fontSize: '14px', display: 'block' }}>{t('ارسال روزانه خلاصه سررسیدها به ایمیل')}</strong>
             <small style={{ color: 'var(--text-muted)', fontSize: '11.5px' }}>
-              هر روز ساعت ۰۸:۰۰ صبح به وقت تهران در صورت وجود سررسید جدید
+              {t('هر روز ساعت ۰۸:۰۰ صبح به وقت تهران در صورت وجود سررسید جدید')}
             </small>
           </div>
           <label className={`app-switch ${isFormDisabled ? 'is-disabled' : ''}`}>
@@ -183,7 +184,7 @@ export default function EmailRemindersSection() {
               checked={enabled}
               disabled={isFormDisabled}
               onChange={(e) => setEnabled(e.target.checked)}
-              aria-label="ارسال روزانه خلاصه سررسیدها به ایمیل"
+              aria-label={t('ارسال روزانه خلاصه سررسیدها به ایمیل')}
             />
             <span className="app-switch-track" aria-hidden="true" />
           </label>
@@ -194,7 +195,7 @@ export default function EmailRemindersSection() {
             {/* Sources Multi-select */}
             <div>
               <span style={{ fontSize: '13px', fontWeight: 600, display: 'block', marginBottom: '8px' }}>
-                موارد مشمول یادآوری:
+                {t('موارد مشمول یادآوری:')}
               </span>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
                 {SOURCE_OPTIONS.map((opt) => (
@@ -229,7 +230,7 @@ export default function EmailRemindersSection() {
             {/* When to remind */}
             <div>
               <span style={{ fontSize: '13px', fontWeight: 600, display: 'block', marginBottom: '8px' }}>
-                زمان ارسال یادآوری:
+                {t('زمان ارسال یادآوری:')}
               </span>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
                 {LEAD_DAY_OPTIONS.map((opt) => (
@@ -264,9 +265,9 @@ export default function EmailRemindersSection() {
             {/* Overdue Items Toggle */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0' }}>
               <div>
-                <strong style={{ fontSize: '13px', display: 'block' }}>ایمیل برای موارد سررسیدگذشته</strong>
+                <strong style={{ fontSize: '13px', display: 'block' }}>{t('ایمیل برای موارد سررسیدگذشته')}</strong>
                 <small style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
-                  یادآوری اقساط و مواردی که سررسید آنها رد شده و هنوز ثبت نشده‌اند
+                  {t('یادآوری اقساط و مواردی که سررسید آنها رد شده و هنوز ثبت نشده‌اند')}
                 </small>
               </div>
               <label className={`app-switch ${isFormDisabled ? 'is-disabled' : ''}`}>
@@ -276,7 +277,7 @@ export default function EmailRemindersSection() {
                   checked={sendOverdue}
                   disabled={isFormDisabled}
                   onChange={(e) => setSendOverdue(e.target.checked)}
-                  aria-label="ایمیل برای موارد سررسیدگذشته"
+                  aria-label={t('ایمیل برای موارد سررسیدگذشته')}
                 />
                 <span className="app-switch-track" aria-hidden="true" />
               </label>
@@ -285,9 +286,9 @@ export default function EmailRemindersSection() {
             {/* Cheque Direction Toggle */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0' }}>
               <div>
-                <strong style={{ fontSize: '13px', display: 'block' }}>نوع چک (صادره/دریافتی) در ایمیل بیاید</strong>
+                <strong style={{ fontSize: '13px', display: 'block' }}>{t('نوع چک (صادره/دریافتی) در ایمیل بیاید')}</strong>
                 <small style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
-                  در صورت فعال‌بودن، جهت چک بدون مبلغ و عنوان به صورت متن ساده در سرور ذخیره می‌شود
+                  {t('در صورت فعال‌بودن، جهت چک بدون مبلغ و عنوان به صورت متن ساده در سرور ذخیره می‌شود')}
                 </small>
               </div>
               <label className={`app-switch ${isFormDisabled ? 'is-disabled' : ''}`}>
@@ -297,7 +298,7 @@ export default function EmailRemindersSection() {
                   checked={includeChequeDirection}
                   disabled={isFormDisabled}
                   onChange={(e) => setIncludeChequeDirection(e.target.checked)}
-                  aria-label="نوع چک در ایمیل بیاید"
+                  aria-label={t('نوع چک در ایمیل بیاید')}
                 />
                 <span className="app-switch-track" aria-hidden="true" />
               </label>
@@ -314,7 +315,7 @@ export default function EmailRemindersSection() {
             disabled={isFormDisabled}
             style={{ flex: 1, minWidth: '160px' }}
           >
-            ذخیره تنظیمات یادآوری
+            {t('ذخیره تنظیمات یادآوری')}
           </Button>
 
           {emailConfigured && emailVerified && (
@@ -326,7 +327,7 @@ export default function EmailRemindersSection() {
               onClick={handleSendTest}
               icon={<Send size={15} />}
             >
-              ارسال ایمیل آزمایشی
+              {t('ارسال ایمیل آزمایشی')}
             </Button>
           )}
         </div>

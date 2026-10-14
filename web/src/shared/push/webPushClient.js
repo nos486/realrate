@@ -16,6 +16,7 @@ import {
 import { planDueNotifications } from '../native/dueNotifications.js';
 import { isNativeApp } from '../native/nativeApp.js';
 import { httpClient } from '../api/httpClient.js';
+import { t } from '../../utils/i18n.js';
 
 const KEYSTORE_DB = 'realrate_push_keystore';
 const KEYSTORE_STORE = 'keys';
@@ -202,17 +203,17 @@ export async function sendTestPushOnServer({ deviceId, sealed }) {
  */
 export async function ensurePushSubscription() {
   if (!isWebPushSupported()) {
-    throw new Error('مرورگر شما از اعلان وب پشتیبانی نمی‌کند.');
+    throw new Error(t('مرورگر شما از اعلان وب پشتیبانی نمی‌کند.'));
   }
 
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') {
-    throw new Error('مجوز ارسال اعلان توسط کاربر صادر نشد.');
+    throw new Error(t('مجوز ارسال اعلان توسط کاربر صادر نشد.'));
   }
 
   const { vapidPublicKey, configured } = await fetchVapidKey();
   if (!configured || !vapidPublicKey) {
-    throw new Error('سرویس اعلان مرورگر روی سرور فعال نیست.');
+    throw new Error(t('سرویس اعلان مرورگر روی سرور فعال نیست.'));
   }
 
   const reg = await navigator.serviceWorker.ready;
@@ -352,11 +353,11 @@ export async function syncSealedReminders({
 
 export async function triggerTestPush() {
   const key = await getDeviceSealingKey();
-  if (!key) throw new Error('کلید رمزنگاری اعلان روی این دستگاه یافت نشد.');
+  if (!key) throw new Error(t('کلید رمزنگاری اعلان روی این دستگاه یافت نشد.'));
 
   const testPayload = {
-    title: 'اعلان آزمایشی RealRate',
-    body: 'این یک اعلان آزمایشی رمزنگاری‌شده است که با موفقیت روی مرورگر شما دریافت شد.',
+    title: t('اعلان آزمایشی RealRate'),
+    body: t('این یک اعلان آزمایشی رمزنگاری‌شده است که با موفقیت روی مرورگر شما دریافت شد.'),
     path: '/settings',
     tag: 'test_notification',
   };
