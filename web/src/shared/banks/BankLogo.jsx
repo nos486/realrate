@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { t } from '../../utils/i18n.js';
 
 /**
  * BankLogo — a bank's logo on a light tile (bank marks are drawn for light backgrounds), or
@@ -17,7 +18,8 @@ export default function BankLogo({ bank, size = 32, className = '' }) {
     );
   }
 
-  const initial = (bank?.shortName || bank?.name || '؟').replace(/^(بانک|مؤسسه|موسسه)\s+/, '').trim().charAt(0) || '؟';
+  const unknown = t('؟');
+  const initial = (bank?.shortName || bank?.name || unknown).replace(/^(بانک|مؤسسه|موسسه)\s+/, '').trim().charAt(0) || unknown; // i18n-ignore
   return (
     <span
       className={`bank-logo is-placeholder ${bank?.kind === 'none' ? 'is-empty' : ''} ${className}`}

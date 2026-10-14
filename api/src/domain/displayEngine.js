@@ -8,11 +8,16 @@
  * 3. Display Contract: Item display name is strictly generated as "{item.name} ({sourceName})"
  *
  * Single Source of Truth for RealRate presentation logic.
+ *
+ * Names, units and badges stay Persian in the data (the Worker only speaks Persian); the exported
+ * getters translate them with t() (the English texts: web/src/i18n/en/catalog.js). Matching logic
+ * (brand inside a name, name equal to a source name) works on the raw Persian values.
  */
 
 import { PRICE_SOURCES_CONFIG } from "../config/sources.config.js";
 import { CATEGORY_MAP } from "../config/categories.config.js";
 import { getCanonicalAssetSpec } from "./specs/registry.js";
+import { t, msg } from "./i18n.js";
 
 /**
  * Parses any item identifier into its sourceId and itemKey components.
@@ -93,7 +98,10 @@ export function getSourceConfig(key) {
  * @param {string|object} sourceOrKey
  * @returns {string}
  */
-export function getSourceBrand(sourceOrKey) {
+export const getSourceBrand = (sourceOrKey) => t(rawSourceBrand(sourceOrKey));
+
+/** rawSourceBrand: the same lookup before translation (matching logic needs the Persian values) */
+function rawSourceBrand(sourceOrKey) {
   if (!sourceOrKey) return "";
 
   if (typeof sourceOrKey === "object") {
@@ -116,7 +124,10 @@ export function getSourceBrand(sourceOrKey) {
  * @param {object|string} item
  * @returns {string}
  */
-export function getItemBaseName(item) {
+export const getItemBaseName = (item) => t(rawItemBaseName(item));
+
+/** rawItemBaseName: the same lookup before translation (matching logic needs the Persian values) */
+function rawItemBaseName(item) {
   if (!item) return "";
   const isString = typeof item === "string";
   const rawItem = isString ? { id: item } : item;
@@ -154,7 +165,7 @@ export function getItemBaseName(item) {
 
   // 4. Bourse fallback
   if (rawId.startsWith("bourse_") || (cfg?.id === "src_def_bourse" && itemKey)) {
-    return `سهام ${itemKey}`;
+    return t("سهام {symbol}", { symbol: itemKey });
   }
 
   // 5. Source name if single-rate
@@ -190,16 +201,16 @@ export function getItemDisplayName(item, sourceConfig = null) {
 
   const cfg = masterCfg ? { ...masterCfg, ...(sourceConfig || {}) } : (sourceConfig || {});
 
-  const baseName = getItemBaseName(rawItem);
-  const brand = cfg?.brand || (cfg ? getSourceBrand(cfg) : getSourceBrand(sourceId));
-  if (!brand) return baseName;
+  const baseName = rawItemBaseName(rawItem);
+  const brand = cfg?.brand || (cfg ? rawSourceBrand(cfg) : rawSourceBrand(sourceId));
+  if (!brand) return t(baseName);
 
   // Avoid duplicate brand tokens if baseName already includes brand or equals source name
   if (baseName.includes(brand) || (cfg?.name && baseName === cfg.name)) {
-    return baseName;
+    return t(baseName);
   }
 
-  return `${baseName} (${brand})`;
+  return `${t(baseName)} (${t(brand)})`;
 }
 
 /**
@@ -211,7 +222,10 @@ export function getItemDisplayName(item, sourceConfig = null) {
  * @param {string} [fallbackUnit="واحد"]
  * @returns {string}
  */
-export function getItemUnit(item, sourceConfig = null, fallbackUnit = "واحد") {
+export const getItemUnit = (item, sourceConfig = null, fallbackUnit = msg("واحد")) => t(rawItemUnit(item, sourceConfig, fallbackUnit));
+
+/** rawItemUnit: the same lookup before translation (matching logic needs the Persian values) */
+function rawItemUnit(item, sourceConfig = null, fallbackUnit = msg("واحد")) {
   const isString = typeof item === "string";
   const rawItem = isString ? { id: item } : item;
 
@@ -242,7 +256,7 @@ export function getItemUnit(item, sourceConfig = null, fallbackUnit = "واحد"
 
   // 5. Bourse legacy fallback
   if (rawId.startsWith("bourse_")) {
-    return "برگ سهم";
+    return msg("برگ سهم");
   }
 
   return fallbackUnit;
@@ -324,7 +338,7 @@ export function getCategoryColor(categoryKey) {
  */
 export function getItemBadge(item, sourceConfig = null) {
   const category = getItemCategory(item, sourceConfig);
-  return CATEGORY_MAP[category]?.badge || "دارایی";
+  return t(CATEGORY_MAP[category]?.badge || msg("دارایی"));
 }
 
 /**
@@ -395,7 +409,10 @@ export function getSourceCategoryConfig(sourceIdOrAssetId) {
  * @param {Array<object>} [customSources=[]]
  * @returns {string}
  */
-export function getSourceDisplayName(sourceOrItem, customSources = []) {
+export const getSourceDisplayName = (sourceOrItem, customSources = []) => t(rawSourceDisplayName(sourceOrItem, customSources));
+
+/** rawSourceDisplayName: the same lookup before translation (matching logic needs the Persian values) */
+function rawSourceDisplayName(sourceOrItem, customSources = []) {
   if (!sourceOrItem) return "";
 
   const allSources = Array.isArray(customSources) && customSources.length > 0

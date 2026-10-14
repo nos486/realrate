@@ -2,6 +2,7 @@
  * registry.js — Master Canonical Asset Registry & Metadata Resolution Helpers
  */
 
+import { t, msg } from "../i18n.js";
 import { GOLD_SPECS } from './gold.spec.js';
 import { COIN_SPECS } from './coin.spec.js';
 import { SILVER_SPECS } from './silver.spec.js';
@@ -39,9 +40,9 @@ FOREX_SPECS.forEach(item => {
     name: item.name,
     flag: item.flag,
     symbol: item.symbol,
-    unit: item.unit || 'واحد',
+    unit: item.unit || msg('واحد'),
     category: item.category || 'currency',
-    badge: item.badge || 'ارز',
+    badge: item.badge || msg('ارز'),
     defaultCross: item.defaultCross,
     aliases: item.aliases || [],
   };
@@ -148,7 +149,7 @@ export function getCanonicalAssetSpec(assetId) {
  */
 export function getCanonicalAssetName(assetId, fallbackName = '') {
   const spec = getCanonicalAssetSpec(assetId);
-  if (spec && spec.name) return spec.name;
+  if (spec && spec.name) return t(spec.name);
   return fallbackName || assetId || '';
 }
 
@@ -168,17 +169,21 @@ export function resolveItemCategory(item, fallbackType = null) {
 // Only categories an asset can be held in (market indicators such as bubbles are not)
 export const PORTFOLIO_CATEGORIES = CATEGORIES_CONFIG.filter((c) => c.holdable !== false).map((c) => ({
   ...c,
+  name: t(c.name),
+  badge: t(c.badge),
   match: (item) => resolveCategory(item) === c.key,
 }));
 
 export const CATEGORY_DEFINITIONS = PORTFOLIO_CATEGORIES;
 
 export function getCategoryLabel(categoryKey, fallback = '') {
-  return CATEGORY_MAP[categoryKey]?.name || fallback || categoryKey || '';
+  const name = CATEGORY_MAP[categoryKey]?.name;
+  return name ? t(name) : fallback || categoryKey || '';
 }
 
 export function getCategoryBadge(categoryKey, fallback = '') {
-  return CATEGORY_MAP[categoryKey]?.badge || fallback || categoryKey || '';
+  const badge = CATEGORY_MAP[categoryKey]?.badge;
+  return badge ? t(badge) : fallback || categoryKey || '';
 }
 
 // ── Dynamic Proxies for Single Source of Truth Forex & Currency Metadata ────

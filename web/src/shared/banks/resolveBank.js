@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 import {
   BANKS,
   BANK_TYPES,
@@ -8,6 +9,19 @@ import {
 } from '../../config/banks.config.js';
 
 export { BANKS, BANK_TYPES, getBankById, isCustomBankId, matchBankIdByName };
+
+/** The dictionary key of a bank's short name: short names are common words (مسکن, شهر), so they are keyed apart from other texts */
+const SHORT_NAME_KEY = 'بانک · '; // i18n-ignore
+
+/** A standard bank's full name in the active language (English: its registry `enName` via the catalog) */
+export const bankName = (bank) => t(bank.name);
+
+/** A standard bank's compact name in the active language */
+export const bankShortName = (bank) => {
+  const key = SHORT_NAME_KEY + bank.shortName;
+  const text = t(key);
+  return text === key ? bank.shortName : text;
+};
 
 /** Public URL of a standard bank's logo, or null when it has none (`noLogo`: shown by its initial) */
 export function bankLogoUrl(id) {
@@ -42,8 +56,8 @@ export function resolveBank(ref, customBanks = []) {
     return {
       key: standard.id,
       id: standard.id,
-      name: standard.name,
-      shortName: standard.shortName,
+      name: bankName(standard),
+      shortName: bankShortName(standard),
       logo: bankLogoUrl(standard.id),
       kind: 'standard',
     };
@@ -51,7 +65,7 @@ export function resolveBank(ref, customBanks = []) {
 
   if (isCustomBankId(bankId)) {
     const custom = customBanks.find((b) => b.id === bankId);
-    const name = custom?.name || lenderName || 'بانک سفارشی';
+    const name = custom?.name || lenderName || t('بانک سفارشی');
     return { key: bankId, id: bankId, name, shortName: name, logo: null, kind: 'custom' };
   }
 
@@ -59,12 +73,12 @@ export function resolveBank(ref, customBanks = []) {
     return { key: `name:${normalizeBankName(lenderName)}`, id: '', name: lenderName, shortName: lenderName, logo: null, kind: 'text' };
   }
 
-  return { key: '__none__', id: '', name: 'بدون بانک مشخص', shortName: 'بدون بانک', logo: null, kind: 'none' };
+  return { key: '__none__', id: '', name: t('بدون بانک مشخص'), shortName: t('بدون بانک'), logo: null, kind: 'none' };
 }
 
 /** Standard banks grouped for pickers, legacy (dissolved) banks left out */
 export function getBankGroups() {
   return Object.entries(BANK_TYPES)
-    .map(([type, label]) => ({ type, label, banks: BANKS.filter((b) => b.type === type && !b.legacy) }))
+    .map(([type, label]) => ({ type, label: t(label), banks: BANKS.filter((b) => b.type === type && !b.legacy) }))
     .filter((group) => group.banks.length > 0);
 }
