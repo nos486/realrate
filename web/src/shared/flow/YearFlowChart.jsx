@@ -8,6 +8,7 @@
  * bad news for expenses (red).
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import React, { useMemo, useState } from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { formatCompactAmount } from '../utils/formatters.js';
@@ -20,7 +21,7 @@ const KIND = {
   expense: { noun: 'هزینه', otherLabel: 'سایر دسته‌ها' },
 };
 
-const formatPct = (v) => `${Math.abs(v).toLocaleString('fa-IR', { maximumFractionDigits: Math.abs(v) < 10 ? 1 : 0 })}٪`;
+const formatPct = (v) => `${Math.abs(v).toLocaleString(intlLocale(), { maximumFractionDigits: Math.abs(v) < 10 ? 1 : 0 })}٪`;
 
 /** One stack per category: `order` first (the donut's, so colors match), then by total; extras fold into gray */
 function buildStacks(series, order, labelOf, otherLabel) {
@@ -92,7 +93,7 @@ export default function YearFlowChart({ series, kind, labelOf, categoryOrder = [
           <strong>{amount(month.total)}</strong>
           <span>
             <bdi>{month.label}</bdi>
-            {month.count > 0 && <>{'، '}<bdi>{month.count.toLocaleString('fa-IR')} مورد</bdi></>}
+            {month.count > 0 && <>{'، '}<bdi>{month.count.toLocaleString(intlLocale())} مورد</bdi></>}
           </span>
         </div>
         {month.change !== null ? (

@@ -11,6 +11,8 @@
  *
  * No prices are shown: nothing here is stale when cached or crawled. Styles: styles/landing.css.
  */
+import LanguageSwitch from '../shared/i18n/LanguageSwitch.jsx';
+import { getDir, getLocale } from '../utils/i18n.js';
 import React, { useCallback, useState } from 'react';
 import {
   TrendingUp,
@@ -154,7 +156,7 @@ export default function LandingPage() {
   );
 
   return (
-    <div className="landing-root" dir="rtl" lang="fa">
+    <div className="landing-root" dir={getDir()} lang={getLocale()}>
       <AppSuggestBanner />
 
       <header className="lp-header">
@@ -169,6 +171,7 @@ export default function LandingPage() {
             <a href="/faq">سؤالات</a>
             <a href="/about">درباره</a>
           </nav>
+          <LanguageSwitch className="lp-language" />
           <button type="button" className="lp-btn lp-btn-small" onClick={enterApp}>
             <span>ورود</span>
             <ChevronLeft size={15} />

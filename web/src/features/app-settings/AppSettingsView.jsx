@@ -11,10 +11,13 @@
  * - The app's version and its updates: automatic check on/off, «بررسی به‌روزرسانی» (shared/native/appUpdate.js)
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import React, { useEffect, useState } from 'react';
+import LanguageSwitch from '../../shared/i18n/LanguageSwitch.jsx';
+import { t } from '../../utils/i18n.js';
 import { useFeature } from '../../shared/features/useFeature.js';
 import ProLockedCard from '../../shared/plan/ProLockedCard.jsx';
-import { Smartphone, MessageSquareText, Trash2, Fingerprint, Info, ArrowLeft, RefreshCw, Download, Bell, LayoutGrid, Plus, X } from 'lucide-react';
+import { Languages, Smartphone, MessageSquareText, Trash2, Fingerprint, Info, ArrowLeft, RefreshCw, Download, Bell, LayoutGrid, Plus, X } from 'lucide-react';
 import { AlertBanner, Button, Card, FeaturePageHeader } from '../../shared/ui/index.js';
 import { NumericInput } from '../../shared/ui/NumericInput.jsx';
 import { getExpenseCategory } from '../expenses/constants/expenseCategories.js';
@@ -97,10 +100,10 @@ function Switch({ checked, onChange, disabled, label }) {
 
 function formatTime(ms) {
   if (!ms) return 'هنوز خوانده نشده';
-  return new Date(ms).toLocaleString('fa-IR', { dateStyle: 'medium', timeStyle: 'short' });
+  return new Date(ms).toLocaleString(intlLocale(), { dateStyle: 'medium', timeStyle: 'short' });
 }
 
-const faNum = (n) => Number(n || 0).toLocaleString('fa-IR');
+const faNum = (n) => Number(n || 0).toLocaleString(intlLocale());
 const digits = (v) => Number(String(v ?? '').replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[^\d]/g, '')) || 0;
 
 /** Small withdrawals: recorded by themselves up to an amount, the «ثبت سریع» button, and the category used for them */
@@ -496,14 +499,14 @@ function SmsRecordsCleanup({ vaultUnlocked }) {
       }
       const ok = await confirm({
         title: 'حذف ثبت‌های خودکار پیامک',
-        message: `${found.expenses.length.toLocaleString('fa-IR')} هزینه و ${found.incomes.length.toLocaleString('fa-IR')} درآمد که از پیامک بانک ساخته شده‌اند حذف می‌شوند. موردهای دستی دست نمی‌خورند. ادامه می‌دهید؟`,
+        message: `${found.expenses.length.toLocaleString(intlLocale())} هزینه و ${found.incomes.length.toLocaleString(intlLocale())} درآمد که از پیامک بانک ساخته شده‌اند حذف می‌شوند. موردهای دستی دست نمی‌خورند. ادامه می‌دهید؟`,
         confirmLabel: 'حذف',
         danger: true,
       });
       if (!ok) return;
       const deleted = await deleteSmsRecords(found);
       bumpVaultEpoch();
-      toast.success(`${deleted.toLocaleString('fa-IR')} مورد حذف شد.`);
+      toast.success(`${deleted.toLocaleString(intlLocale())} مورد حذف شد.`);
     } catch (err) {
       toast.error(err?.message || 'حذف ممکن نشد.');
     } finally {
@@ -626,7 +629,7 @@ export default function AppSettingsView({ onOpenSms }) {
             <dd>{formatTime(settings.lastRead)}</dd>
             <dt>منتظر ثبت</dt>
             <dd>
-              {pending.length.toLocaleString('fa-IR')} پیامک
+              {pending.length.toLocaleString(intlLocale())} پیامک
               {onOpenSms && (
                 <Button size="sm" variant="secondary" iconRight={<ArrowLeft size={14} />} onClick={onOpenSms}>
                   پیامک‌های بانکی
@@ -673,6 +676,10 @@ export default function AppSettingsView({ onOpenSms }) {
             )}
           </>
         )}
+      </Card>
+
+      <Card className="app-settings-card" padding="lg" icon={<Languages size={18} />} title={t('زبان')}>
+        <LanguageSwitch />
       </Card>
 
       <Card className="app-settings-card" padding="lg" icon={<Info size={18} />} title="درباره اپ">

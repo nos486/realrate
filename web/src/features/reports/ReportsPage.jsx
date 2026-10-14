@@ -9,6 +9,7 @@
  * app's web view can't print).
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import React, { useMemo, useRef, useState } from 'react';
 import { ChartColumn, FileDown } from 'lucide-react';
 import { AlertBanner, Button, FeaturePageHeader } from '../../shared/ui/index.js';
@@ -82,7 +83,7 @@ export default function ReportsPage() {
           </Button>
         )}
       />
-      <p className="report-print-meta">گزارش سال {yearLabel} · ساخته‌شده در {new Date().toLocaleDateString('fa-IR')} · RealRate</p>
+      <p className="report-print-meta">گزارش سال {yearLabel} · ساخته‌شده در {new Date().toLocaleDateString(intlLocale())} · RealRate</p>
       <PeriodSwitcher mode="year" month={month} thisMonth={thisMonth} onMonthChange={setMonth} />
       <ReportBody jy={month.jy} throughMonth={throughMonth} hideValues={hideValues} />
     </div>

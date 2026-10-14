@@ -6,6 +6,7 @@
  * left to right, as on every price chart.
  */
 
+import { intlLocale, getDir } from '../../utils/i18n.js';
 import React, { useMemo, useState } from 'react';
 import { formatPrice } from '../market/assetPrice.js';
 
@@ -13,7 +14,7 @@ const W = 200;
 const H = 64;
 const PAD_Y = 3;
 
-const dayFormat = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { month: 'short', day: 'numeric', weekday: 'short' });
+const dayFormat = new Intl.DateTimeFormat(`${intlLocale()}-u-ca-persian`, { month: 'short', day: 'numeric', weekday: 'short' });
 
 const formatValue = (v, currency) => (Number.isFinite(v) ? formatPrice(v, currency) : '-');
 
@@ -82,7 +83,7 @@ export default function TrendCandles({ candles, days, unit = '', currency = 'tom
         ))}
       </svg>
       {at && c && (
-        <span className={`trend-spark-tip ${at.cx > W / 2 ? 'is-left' : ''}`} style={{ left: `${(at.cx / W) * 100}%` }} dir="rtl">
+        <span className={`trend-spark-tip ${at.cx > W / 2 ? 'is-left' : ''}`} style={{ left: `${(at.cx / W) * 100}%` }} dir={getDir()}>
           <strong>
             {formatValue(c[3], currency)}
             {unit && <small> {unit}</small>}

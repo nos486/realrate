@@ -1,3 +1,4 @@
+import { intlLocale } from '../utils/i18n.js';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { saveTextFile } from '../shared/utils/fileExport.js';
 import { useParams, Link } from 'react-router-dom';
@@ -421,7 +422,7 @@ export default function SharedPortfolioPage() {
                 <div className="owner-info">
                   <h2>{portfolioName ? `پورتفوی «${portfolioName}»` : 'پورتفو'} • {ownerName}</h2>
                   <span className="shared-view-tag">
-                    {portfolioMetrics.items.length.toLocaleString('fa-IR')} قلم در {categoryGroups.length.toLocaleString('fa-IR')} دسته
+                    {portfolioMetrics.items.length.toLocaleString(intlLocale())} قلم در {categoryGroups.length.toLocaleString(intlLocale())} دسته
                   </span>
                 </div>
               </div>
@@ -442,9 +443,9 @@ export default function SharedPortfolioPage() {
                         {isE2ee && (
                           <span className={`portfolio-encryption-tag e2ee ${isVaultLocked ? 'locked' : 'unlocked'}`} title="داده‌ها با رمزنگاری سرتاسری محافظت شده‌اند">
                             {isVaultLocked ? (
-                              <><Lock size={12} style={{ verticalAlign: 'middle', marginLeft: '4px' }} /> قفل</>
+                              <><Lock size={12} style={{ verticalAlign: 'middle', marginInlineEnd: '4px' }} /> قفل</>
                             ) : (
-                              <><Unlock size={12} style={{ verticalAlign: 'middle', marginLeft: '4px' }} /> باز</>
+                              <><Unlock size={12} style={{ verticalAlign: 'middle', marginInlineEnd: '4px' }} /> باز</>
                             )}
                           </span>
                         )}
@@ -523,7 +524,7 @@ export default function SharedPortfolioPage() {
                     </div>
                     <div className={`stat-number gold-gradient-text ${hideValues ? 'is-masked' : ''}`}>
                       {isVaultLocked ? (
-                        <><Lock size={16} style={{ verticalAlign: 'middle', marginLeft: '4px' }} /> قفل</>
+                        <><Lock size={16} style={{ verticalAlign: 'middle', marginInlineEnd: '4px' }} /> قفل</>
                       ) : hideValues ? '****' : formatNum(portfolioMetrics.totalRealValue)}
                       {!isVaultLocked && <span className="stat-unit">تومان</span>}
                     </div>
@@ -538,14 +539,14 @@ export default function SharedPortfolioPage() {
                       <span className="stat-label">سرمایه اولیه</span>
                       <span className="count-pill">
                         {isVaultLocked ? (
-                          <><Lock size={11} style={{ verticalAlign: 'middle', marginLeft: '3px' }} /> قفل</>
-                        ) : `${portfolioMetrics.items.length.toLocaleString('fa-IR')} قلم`}
+                          <><Lock size={11} style={{ verticalAlign: 'middle', marginInlineEnd: '3px' }} /> قفل</>
+                        ) : `${portfolioMetrics.items.length.toLocaleString(intlLocale())} قلم`}
                       </span>
                     </div>
                     <div className={`stat-number ${hideValues ? 'is-masked' : ''}`}>
                       {isVaultLocked ? (
                         <span className="stat-sub" style={{ fontSize: '15px' }}>
-                          <Lock size={13} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
+                          <Lock size={13} style={{ verticalAlign: 'middle', marginInlineEnd: '4px' }} />
                           قفل است
                         </span>
                       ) : portfolioMetrics.hasAnyCost ? (
@@ -576,7 +577,7 @@ export default function SharedPortfolioPage() {
                           <div className={`stat-number ${hideValues ? 'is-masked' : ''}`}>
                             {isVaultLocked ? (
                               <span className="stat-sub" style={{ fontSize: '15px' }}>
-                                <Lock size={13} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
+                                <Lock size={13} style={{ verticalAlign: 'middle', marginInlineEnd: '4px' }} />
                                 قفل است
                               </span>
                             ) : hasData ? (

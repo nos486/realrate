@@ -19,6 +19,7 @@
  *   every open one (OpenSharesModal), and each expense's «دریافتی‌ها» (ReimbursementsModal)
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
 import { expenseCsvHeaders, expenseCsvRow } from '../utils/expenseCsv.js';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -218,7 +219,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
   const handleMove = async (target) => {
     const { group, moved } = await moveToProject(moving, target);
     setSelected((prev) => new Set([...prev].filter((id) => !moving.includes(id))));
-    toast.success(`${moved.toLocaleString('fa-IR')} هزینه به پروژه‌ی «${group.name}» منتقل شد.`);
+    toast.success(`${moved.toLocaleString(intlLocale())} هزینه به پروژه‌ی «${group.name}» منتقل شد.`);
   };
 
   const handleDelete = async (expense) => {
@@ -352,7 +353,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="جستجو در عنوان، دسته یا یادداشت..."
-                    badge={`${listed.length.toLocaleString('fa-IR')} مورد`}
+                    badge={`${listed.length.toLocaleString(intlLocale())} مورد`}
                     className="incomes-search"
                   />
                 )}
@@ -360,11 +361,11 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                 {hiddenCount > 0 && (
                   <IconButton
                     icon={showExcluded ? <Eye size={15} /> : <EyeOff size={15} />}
-                    label={showExcluded ? 'خارج از جمع: نمایش داده می‌شود' : `خارج از جمع: ${hiddenCount.toLocaleString('fa-IR')} مورد پنهان`}
+                    label={showExcluded ? 'خارج از جمع: نمایش داده می‌شود' : `خارج از جمع: ${hiddenCount.toLocaleString(intlLocale())} مورد پنهان`}
                     title={showExcluded ? 'پنهان کردن سرمایه‌گذاری، هزینه‌های پروژه‌ها و دیگر موارد خارج از جمع' : 'نمایش موارد خارج از جمع (سرمایه‌گذاری، هزینه‌های پروژه‌ها…)'}
                     active={!showExcluded}
                     pressed={!showExcluded}
-                    badge={showExcluded ? null : hiddenCount.toLocaleString('fa-IR')}
+                    badge={showExcluded ? null : hiddenCount.toLocaleString(intlLocale())}
                     onClick={() => setShowExcluded(!showExcluded)}
                   />
                 )}
@@ -407,7 +408,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                       onClick={() => setAccountFilter(accountId)}
                     >
                       {accountId === 'all' ? 'همه حساب‌ها' : accountId ? accountLabel(accountById.get(accountId)) : 'نامشخص'}
-                      <span className="cheque-filter-count">{count.toLocaleString('fa-IR')}</span>
+                      <span className="cheque-filter-count">{count.toLocaleString(intlLocale())}</span>
                     </button>
                   ))}
                 </div>
@@ -439,12 +440,12 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                   {picked.length > 0 && (
                     <div className="expense-selection-bar" role="region" aria-label="هزینه‌های انتخاب‌شده">
                       <span className="expense-selection-count">
-                        <strong>{picked.length.toLocaleString('fa-IR')}</strong> هزینه انتخاب شد
+                        <strong>{picked.length.toLocaleString(intlLocale())}</strong> هزینه انتخاب شد
                         {pickedTotal > 0 && <> · {money(pickedTotal)} تومان</>}
                       </span>
                       {picked.length < movable.length && (
                         <Button size="sm" variant="secondary" onClick={() => setSelected(new Set(movable.map((e) => e.id)))}>
-                          انتخاب همه‌ی {movable.length.toLocaleString('fa-IR')} مورد
+                          انتخاب همه‌ی {movable.length.toLocaleString(intlLocale())} مورد
                         </Button>
                       )}
                       <Button size="sm" icon={<FolderInput size={15} />} onClick={() => setMoving(picked.map((e) => e.id))}>

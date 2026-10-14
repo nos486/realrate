@@ -16,6 +16,7 @@
  * expenses recorded as «سرمایه‌گذاری»; without the expenses feature those cards are left out.
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import React from 'react';
 import { Wallet, Coins, PiggyBank, TrendingUp, DollarSign, Percent, Lightbulb, ThumbsUp, AlertTriangle, Info, BookOpen, CalendarSync, EyeOff } from 'lucide-react';
 import { MiniCard, GenericCsvExportButton } from '../../shared/ui/index.js';
@@ -54,7 +55,7 @@ function insightText(item, f) {
     case 'best-month':
       return <>بیشترین پس‌انداز در <strong>{item.month}</strong>: <strong>{f.compact(item.net)}</strong> تومان{item.rate !== null ? <> ({f.pct(item.rate)} درآمد)</> : null}.</>;
     case 'negative-months':
-      return <>در <strong>{item.count.toLocaleString('fa-IR')}</strong> ماه از {item.months.toLocaleString('fa-IR')} ماه، هزینه از درآمد بیشتر بود.</>;
+      return <>در <strong>{item.count.toLocaleString(intlLocale())}</strong> ماه از {item.months.toLocaleString(intlLocale())} ماه، هزینه از درآمد بیشتر بود.</>;
     case 'worst-month':
       return <>بیشترین کسری در <strong>{item.month}</strong>: <strong>{f.compact(-item.net)}</strong> تومان بیش از درآمد.</>;
     case 'top-category':
@@ -107,7 +108,7 @@ export default function ReportDashboard({ data, f, yearLabel, hideValues }) {
           <MiniCard icon={<PiggyBank size={14} />} title="مانده (درآمد − هزینه)" value={f.money(cash.net)} unit="تومان" color={cash.net >= 0 ? 'green' : 'rose'} className="incomes-summary-card" footer={<span>میانگین ماهانه {f.compact(cash.monthlyNet)}</span>} />
         )}
         {hasExpenses && (
-          <MiniCard icon={<Percent size={14} />} title="نرخ پس‌انداز" value={f.pct(cash.savingsRate)} color="gold" className="incomes-summary-card" footer={<span>{cash.negativeMonths ? `${cash.negativeMonths.toLocaleString('fa-IR')} ماه با کسری` : 'بدون ماه کسری'}</span>} />
+          <MiniCard icon={<Percent size={14} />} title="نرخ پس‌انداز" value={f.pct(cash.savingsRate)} color="gold" className="incomes-summary-card" footer={<span>{cash.negativeMonths ? `${cash.negativeMonths.toLocaleString(intlLocale())} ماه با کسری` : 'بدون ماه کسری'}</span>} />
         )}
         {hasExpenses && (
           <MiniCard icon={<TrendingUp size={14} />} title="سرمایه‌گذاری" value={f.money(shareYear.invested)} unit="تومان" color="blue" className="incomes-summary-card" footer={<span>{f.pct(shareYear.share)} درآمد</span>} />
@@ -228,7 +229,7 @@ export default function ReportDashboard({ data, f, yearLabel, hideValues }) {
                   <strong className={m.net < 0 ? 'text-loss' : ''}>{f.usd(m.net)}</strong>
                   <span><bdi>{m.label}</bdi>، مانده</span>
                 </div>
-                {m.unpriced > 0 && <span className="report-readout-detail">{m.unpriced.toLocaleString('fa-IR')} مورد بدون نرخ دلار</span>}
+                {m.unpriced > 0 && <span className="report-readout-detail">{m.unpriced.toLocaleString(intlLocale())} مورد بدون نرخ دلار</span>}
               </>
             )}
           />
@@ -271,7 +272,7 @@ export default function ReportDashboard({ data, f, yearLabel, hideValues }) {
                 <tr key={r.key}>
                   <th scope="row">
                     {r.monthLabel}
-                    {r.unpriced > 0 && <span className="report-unpriced-mark" title={`${r.unpriced.toLocaleString('fa-IR')} مورد بدون نرخ دلار`}>*</span>}
+                    {r.unpriced > 0 && <span className="report-unpriced-mark" title={`${r.unpriced.toLocaleString(intlLocale())} مورد بدون نرخ دلار`}>*</span>}
                   </th>
                   <td>{f.compact(r.income)}</td>
                   {hasExpenses && <td>{f.compact(r.expense)}</td>}
@@ -314,7 +315,7 @@ export default function ReportDashboard({ data, f, yearLabel, hideValues }) {
                 {investedIn.map((a) => (
                   <tr key={a.key}>
                     <th scope="row">{investedName(a)}</th>
-                    <td>{a.count.toLocaleString('fa-IR')}</td>
+                    <td>{a.count.toLocaleString(intlLocale())}</td>
                     <td>{f.compact(a.total)}</td>
                     <td>{f.pct(shareYear.invested > 0 ? (a.total / shareYear.invested) * 100 : null)}</td>
                   </tr>
@@ -338,7 +339,7 @@ export default function ReportDashboard({ data, f, yearLabel, hideValues }) {
                 {subscriptionYear.rows.map((r) => (
                   <tr key={r.id}>
                     <th scope="row">{r.name}</th>
-                    <td>{r.count.toLocaleString('fa-IR')}</td>
+                    <td>{r.count.toLocaleString(intlLocale())}</td>
                     <td>{f.compact(r.total)}</td>
                     <td>{f.pct(subscriptionYear.total > 0 ? (r.total / subscriptionYear.total) * 100 : null)}</td>
                   </tr>
@@ -346,7 +347,7 @@ export default function ReportDashboard({ data, f, yearLabel, hideValues }) {
                 {subscriptionYear.unlinked.count > 0 && (
                   <tr>
                     <th scope="row">بدون اشتراک مشخص</th>
-                    <td>{subscriptionYear.unlinked.count.toLocaleString('fa-IR')}</td>
+                    <td>{subscriptionYear.unlinked.count.toLocaleString(intlLocale())}</td>
                     <td>{f.compact(subscriptionYear.unlinked.total)}</td>
                     <td>{f.pct(subscriptionYear.total > 0 ? (subscriptionYear.unlinked.total / subscriptionYear.total) * 100 : null)}</td>
                   </tr>
@@ -355,7 +356,7 @@ export default function ReportDashboard({ data, f, yearLabel, hideValues }) {
               <tfoot>
                 <tr>
                   <th scope="row">جمع</th>
-                  <td>{subscriptionYear.count.toLocaleString('fa-IR')}</td>
+                  <td>{subscriptionYear.count.toLocaleString(intlLocale())}</td>
                   <td>{f.compact(subscriptionYear.total)}</td>
                   <td />
                 </tr>
@@ -378,7 +379,7 @@ export default function ReportDashboard({ data, f, yearLabel, hideValues }) {
                 <tr key={r.key}>
                   <th scope="row">{r.label}</th>
                   <td>{r.kind}</td>
-                  <td>{r.count.toLocaleString('fa-IR')}</td>
+                  <td>{r.count.toLocaleString(intlLocale())}</td>
                   <td>{f.compact(r.total)}</td>
                 </tr>
               ))}
@@ -393,7 +394,7 @@ export default function ReportDashboard({ data, f, yearLabel, hideValues }) {
           <li>همه‌ی خرج‌ها در هزینه‌ها ثبت می‌شوند؛ دسته‌های «خارج از جمع» (مثل سرمایه‌گذاری) و هزینه‌های پروژه‌ها در جمع‌ها حساب نمی‌شوند و در «خارج از جمع (جدا)» آمده‌اند.</li>
           <li>سرمایه‌گذاری: هزینه‌های روزمره‌ای که با دسته‌ی «سرمایه‌گذاری» ثبت شده‌اند (سهم خود شما، هزینه‌ی دلاری به نرخ روزش)؛ این هزینه‌ها در جمع هزینه‌ها حساب نمی‌شوند. به تفکیک دارایی‌ای که به پورتفو اضافه شده، وگرنه به عنوان هزینه.</li>
           <li>اشتراک‌ها: هزینه‌هایی که به یک اشتراک وصل شده‌اند («ثبت پرداخت» در اشتراک‌ها، یا انتخاب اشتراک در فرم هزینه)؛ پرداخت‌های دسته‌ی «اینترنت و اشتراک‌ها» که به اشتراکی وصل نیستند جدا آمده‌اند.</li>
-          <li>دلار: هر مورد به نرخ دلار روز خودش (نرخ ثبت‌شده، وگرنه تاریخچه‌ی قیمت)؛ مورد بی‌نرخ به نرخ امروز حساب نمی‌شود{dollars.unpriced > 0 ? ` (${dollars.unpriced.toLocaleString('fa-IR')} مورد در این سال، با * کنار نام ماه در جدول)` : ''}.</li>
+          <li>دلار: هر مورد به نرخ دلار روز خودش (نرخ ثبت‌شده، وگرنه تاریخچه‌ی قیمت)؛ مورد بی‌نرخ به نرخ امروز حساب نمی‌شود{dollars.unpriced > 0 ? ` (${dollars.unpriced.toLocaleString(intlLocale())} مورد در این سال، با * کنار نام ماه در جدول)` : ''}.</li>
         </ul>
       </ReportCard>
     </div>

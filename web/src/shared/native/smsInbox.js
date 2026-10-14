@@ -23,6 +23,7 @@
  *   brings its message back.
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import { smsEnabled } from './nativeApp.js';
 import { takeSmsRead } from './smsPlan.js';
 import { FREE_SMS_READS } from '../../config/planLimits.js';
@@ -305,7 +306,7 @@ export function addSmsMessages(messages, { recheckRecorded = false } = {}) {
     if ([tx.fingerprint, tx.key].some((id) => handled.has(id) || known.has(id))) continue;
     // The free plan reads a few messages a day and a month: the rest stay in the phone's SMS
     if (!takeSmsRead()) {
-      window.dispatchEvent(new CustomEvent('realrate:plan-limit', { detail: { message: `پلن رایگان روزی ${FREE_SMS_READS.daily.toLocaleString('fa-IR')} پیامک و ماهی ${FREE_SMS_READS.monthly.toLocaleString('fa-IR')} پیامک بانک را می‌خواند. برای خواندن بیشتر به Pro ارتقا دهید.` } }));
+      window.dispatchEvent(new CustomEvent('realrate:plan-limit', { detail: { message: `پلن رایگان روزی ${FREE_SMS_READS.daily.toLocaleString(intlLocale())} پیامک و ماهی ${FREE_SMS_READS.monthly.toLocaleString(intlLocale())} پیامک بانک را می‌خواند. برای خواندن بیشتر به Pro ارتقا دهید.` } }));
       break;
     }
     known.add(tx.fingerprint);

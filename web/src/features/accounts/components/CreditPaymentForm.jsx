@@ -15,6 +15,7 @@
  * the day («امروز»/«دیروز»/«روز دیگر»).
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React, { useState } from 'react';
 import { CreditCard } from 'lucide-react';
 import { AlertBanner, Modal, NumericInput } from '../../../shared/ui/index.js';
@@ -26,7 +27,7 @@ import { formatAmount } from '../../expenses/utils/format.js';
 import { accountLabel } from '../constants/accountDisplay.js';
 
 const digitsOnly = (v) => Number(String(v || '').replace(/[^\d]/g, '')) || 0;
-const faPct = (v) => Number(v).toLocaleString('fa-IR', { maximumFractionDigits: 2 });
+const faPct = (v) => Number(v).toLocaleString(intlLocale(), { maximumFractionDigits: 2 });
 
 /**
  * @param {{ account: object, debt?: number, installment?: { n: number, count: number, dueDate: string, amount: number }|null,

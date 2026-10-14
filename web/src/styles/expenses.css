@@ -30,7 +30,7 @@
   background: var(--bg-card);
   color: var(--text-secondary);
   font: inherit;
-  text-align: right;
+  text-align: start;
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
@@ -346,7 +346,7 @@
   font-size: 14px;
   letter-spacing: 1px;
   color: var(--text-secondary);
-  text-align: left;
+  text-align: end;
 }
 
 .account-card-stat {

@@ -1,3 +1,4 @@
+import { intlLocale, t } from '../../../utils/i18n.js';
 import React, { useState, useRef } from 'react';
 import { Calendar } from 'lucide-react';
 import { toPersianDigits } from '../../../shared/utils/formatters.js';
@@ -5,18 +6,18 @@ import { todayIso } from '../../../shared/utils/dates.js';
 import { useBackToClose } from '../../../shared/hooks/useBackToClose.js';
 
 export const PERSIAN_MONTHS = [
-  { value: '01', label: 'فروردین' },
-  { value: '02', label: 'اردیبهشت' },
-  { value: '03', label: 'خرداد' },
-  { value: '04', label: 'تیر' },
-  { value: '05', label: 'مرداد' },
-  { value: '06', label: 'شهریور' },
-  { value: '07', label: 'مهر' },
-  { value: '08', label: 'آبان' },
-  { value: '09', label: 'آذر' },
-  { value: '10', label: 'دی' },
-  { value: '11', label: 'بهمن' },
-  { value: '12', label: 'اسفند' }
+  { value: '01', label: t('فروردین') },
+  { value: '02', label: t('اردیبهشت') },
+  { value: '03', label: t('خرداد') },
+  { value: '04', label: t('تیر') },
+  { value: '05', label: t('مرداد') },
+  { value: '06', label: t('شهریور') },
+  { value: '07', label: t('مهر') },
+  { value: '08', label: t('آبان') },
+  { value: '09', label: t('آذر') },
+  { value: '10', label: t('دی') },
+  { value: '11', label: t('بهمن') },
+  { value: '12', label: t('اسفند') }
 ];
 
 export const YEARS_LIST = Array.from({ length: 18 }, (_, i) => String(1390 + i)).reverse();
@@ -241,7 +242,7 @@ export default function ShamsiDatePicker({
               >
                 {DAYS_LIST.map((d) => (
                   <option key={d} value={d}>
-                    {Number(d).toLocaleString('fa-IR')}
+                    {Number(d).toLocaleString(intlLocale())}
                   </option>
                 ))}
               </select>
@@ -273,7 +274,7 @@ export default function ShamsiDatePicker({
               >
                 {YEARS_LIST.map((y) => (
                   <option key={y} value={y}>
-                    {Number(y).toLocaleString('fa-IR')}
+                    {Number(y).toLocaleString(intlLocale())}
                   </option>
                 ))}
               </select>

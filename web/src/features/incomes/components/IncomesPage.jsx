@@ -12,6 +12,7 @@
  *   so everything else — paging, sorting, search — works in the browser
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React, { useState, useMemo } from 'react';
 import { Wallet, Plus, Tags, Eye, EyeOff } from 'lucide-react';
 import { useIncomes } from '../hooks/useIncomes.js';
@@ -264,7 +265,7 @@ export default function IncomesPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="جستجو در عنوان، دسته یا یادداشت..."
-              badge={`${listed.length.toLocaleString('fa-IR')} مورد`}
+              badge={`${listed.length.toLocaleString(intlLocale())} مورد`}
               className="incomes-search"
             />
           )}
@@ -272,11 +273,11 @@ export default function IncomesPage() {
           {split.excluded.length > 0 && (
             <IconButton
                     icon={showExcluded ? <Eye size={15} /> : <EyeOff size={15} />}
-                    label={showExcluded ? 'خارج از جمع: نمایش داده می‌شود' : `خارج از جمع: ${split.excluded.length.toLocaleString('fa-IR')} مورد پنهان`}
+                    label={showExcluded ? 'خارج از جمع: نمایش داده می‌شود' : `خارج از جمع: ${split.excluded.length.toLocaleString(intlLocale())} مورد پنهان`}
                     title={showExcluded ? 'پنهان کردن دسته‌های خارج از جمع' : 'نمایش دسته‌های خارج از جمع'}
                     active={!showExcluded}
                     pressed={!showExcluded}
-                    badge={showExcluded ? null : split.excluded.length.toLocaleString('fa-IR')}
+                    badge={showExcluded ? null : split.excluded.length.toLocaleString(intlLocale())}
                     onClick={() => setShowExcluded(!showExcluded)}
                   />
           )}

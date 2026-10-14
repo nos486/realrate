@@ -14,6 +14,8 @@
  * Shared with the web (web/src/utils/currencies.js is a symlink): no Worker bindings.
  */
 
+import { intlLocale } from './i18n.js';
+
 /** The base currency: amounts are totalled in tomans */
 export const BASE_CURRENCY = 'IRT';
 
@@ -101,7 +103,7 @@ export function currencyRateToday(code, rates = {}) {
 export function formatCurrencyNumber(value, code) {
   const n = Number(value) || 0;
   const { decimals } = currencyOf(code);
-  return decimals > 0 ? n.toLocaleString('fa-IR', { maximumFractionDigits: decimals }) : Math.round(n).toLocaleString('fa-IR');
+  return decimals > 0 ? n.toLocaleString(intlLocale(), { maximumFractionDigits: decimals }) : Math.round(n).toLocaleString(intlLocale());
 }
 
 /** An amount with its currency's name: «۲۵ یورو» / «۱۵۰٬۰۰۰ تومان» */

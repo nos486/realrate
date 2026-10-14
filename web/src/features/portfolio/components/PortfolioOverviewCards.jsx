@@ -1,3 +1,4 @@
+import { intlLocale } from '../../../utils/i18n.js';
 import React, { useMemo } from 'react';
 import { ArrowUpRight, ArrowDownRight, Lock } from 'lucide-react';
 import { CategoryIcon, formatNum } from '../utils/holdingHelpers.js';
@@ -7,7 +8,7 @@ import PortfolioHistoryChart from './PortfolioHistoryChart.jsx';
 import PortfolioPlanCards from './PortfolioPlanCards.jsx';
 import { DollarPnl } from '../../../shared/ui/DollarValue.jsx';
 
-const otherCategoriesLabel = (count) => `سایر (${count.toLocaleString('fa-IR')} دسته)`;
+const otherCategoriesLabel = (count) => `سایر (${count.toLocaleString(intlLocale())} دسته)`;
 
 export default function PortfolioOverviewCards({
   portfolioMetrics = {},
@@ -68,7 +69,7 @@ export default function PortfolioOverviewCards({
         <div className={`stat-number gold-gradient-text ${hideValues ? 'is-masked' : ''}`}>
           {isVaultLocked ? (
             <span className="locked-stat">
-              <Lock size={16} style={{ verticalAlign: 'middle', marginLeft: '4px' }} /> قفل
+              <Lock size={16} style={{ verticalAlign: 'middle', marginInlineEnd: '4px' }} /> قفل
             </span>
           ) : hideValues ? (
             '****'
@@ -103,7 +104,7 @@ export default function PortfolioOverviewCards({
           <div className={`stat-number ${hideValues ? 'is-masked' : ''}`}>
             {isVaultLocked ? (
               <span className="stat-sub" style={{ fontSize: '15px' }}>
-                <Lock size={14} style={{ verticalAlign: 'middle', marginLeft: '4px' }} /> قفل است
+                <Lock size={14} style={{ verticalAlign: 'middle', marginInlineEnd: '4px' }} /> قفل است
               </span>
             ) : hasData ? (
               <>
@@ -158,11 +159,11 @@ export default function PortfolioOverviewCards({
         <div className="stat-number">
           {isVaultLocked ? (
             <span className="locked-stat">
-              <Lock size={16} style={{ verticalAlign: 'middle', marginLeft: '4px' }} /> قفل
+              <Lock size={16} style={{ verticalAlign: 'middle', marginInlineEnd: '4px' }} /> قفل
             </span>
           ) : (
             <>
-              {holdingsCount.toLocaleString('fa-IR')}
+              {holdingsCount.toLocaleString(intlLocale())}
               <span className="stat-unit">قلم</span>
             </>
           )}
@@ -177,7 +178,7 @@ export default function PortfolioOverviewCards({
           centerLabel="ارزش کل"
           masked={hideValues}
           otherLabel={otherCategoriesLabel}
-          headerExtra={<span className="count-pill">{categoryGroups.length.toLocaleString('fa-IR')} دسته</span>}
+          headerExtra={<span className="count-pill">{categoryGroups.length.toLocaleString(intlLocale())} دسته</span>}
         />
       )}
 

@@ -148,7 +148,7 @@ export default function ExpensesTable({
       mobile: 'meta',
       render: (e) => (
         <span className="table-date-text">
-          <Calendar size={12} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
+          <Calendar size={12} style={{ verticalAlign: 'middle', marginInlineEnd: '4px' }} />
           {formatShamsiDisplay(`${e.date}T00:00:00`)}
         </span>
       ),
@@ -210,7 +210,7 @@ export default function ExpensesTable({
         <span className="table-notes-text" title={e.notes || ''}>
           {e.notes ? (
             <>
-              <MessageSquare size={12} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
+              <MessageSquare size={12} style={{ verticalAlign: 'middle', marginInlineEnd: '4px' }} />
               {e.notes}
             </>
           ) : '—'}

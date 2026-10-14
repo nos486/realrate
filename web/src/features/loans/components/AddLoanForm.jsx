@@ -14,6 +14,7 @@
  * rarely needed (the annual fee, notes, reminders) under «جزئیات بیشتر».
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Landmark, AlertCircle, Calculator } from 'lucide-react';
 import { AlertBanner, FilterPills, Input, Modal, NumericInput } from '../../../shared/ui/index.js';
@@ -34,7 +35,7 @@ import { getLoanDetail } from '../api/loanApi.js';
 import { BankPicker } from '../../../shared/banks/index.js';
 import { todayIso } from '../../../shared/utils/dates.js';
 
-const formatPersianNum = (val) => Number(val || 0).toLocaleString('fa-IR');
+const formatPersianNum = (val) => Number(val || 0).toLocaleString(intlLocale());
 
 /** How installment amounts are set, on creation (see installmentMode) */
 const INSTALLMENT_MODES = [

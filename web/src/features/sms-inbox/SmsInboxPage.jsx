@@ -14,6 +14,7 @@
  * hand-recorded expense/income of the same day, amount and kind.
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { MessageSquareText, History } from 'lucide-react';
 import { AlertBanner, Button, Card, FeaturePageHeader, FilterPills, NumericInput } from '../../shared/ui/index.js';
@@ -57,7 +58,7 @@ const SMALL_INCOME_CATEGORY = 'small_income';
 
 const DAY_OPTIONS = [
   { value: 1, label: '۲۴ ساعت' },
-  ...[7, 30, 90].map((d) => ({ value: d, label: `${d.toLocaleString('fa-IR')} روز` })),
+  ...[7, 30, 90].map((d) => ({ value: d, label: `${d.toLocaleString(intlLocale())} روز` })),
   { value: 365, label: '۱ سال' },
   { value: CUSTOM_DAYS, label: 'دلخواه' },
   { value: RANGE, label: 'بازه‌ی تاریخ' },
@@ -238,7 +239,7 @@ export default function SmsInboxPage() {
         .map((item) => ({ ...item, outcome: smsOutcome(item) }))
         .filter((item) => item.outcome));
       const fresh = Math.max(0, added - dropped - autoRecorded);
-      toast.success(`${read.toLocaleString('fa-IR')} پیامک بانکی خوانده شد؛ ${fresh.toLocaleString('fa-IR')} مورد جدید برای ثبت${autoRecorded ? ` و ${autoRecorded.toLocaleString('fa-IR')} مورد کوچک خودکار ثبت شد` : ''}.`);
+      toast.success(`${read.toLocaleString(intlLocale())} پیامک بانکی خوانده شد؛ ${fresh.toLocaleString(intlLocale())} مورد جدید برای ثبت${autoRecorded ? ` و ${autoRecorded.toLocaleString(intlLocale())} مورد کوچک خودکار ثبت شد` : ''}.`);
     } catch (err) {
       toast.error(err?.message || 'خواندن پیامک‌ها ممکن نشد.');
     } finally {
@@ -324,15 +325,15 @@ export default function SmsInboxPage() {
           </div>
         )}
         {days === CUSTOM_DAYS && !customValid && customDays !== '' && (
-          <p className="expense-form-hint is-warning">بین ۱ تا {MAX_READ_DAYS.toLocaleString('fa-IR')} روز.</p>
+          <p className="expense-form-hint is-warning">بین ۱ تا {MAX_READ_DAYS.toLocaleString(intlLocale())} روز.</p>
         )}
         {progress && (
           <p className="expense-form-hint" role="status">
             {progress.stage === 'recording'
               ? 'در حال ثبت خودکار موارد کوچک…'
               : progress.stage === 'reading'
-              ? `در حال خواندن پیامک‌ها: بازه‌ی ${progress.done.toLocaleString('fa-IR')} از ${progress.total.toLocaleString('fa-IR')} (${(progress.messages || 0).toLocaleString('fa-IR')} پیامک تا اینجا)`
-              : `در حال بررسی پیامک‌ها: ${progress.done.toLocaleString('fa-IR')} از ${progress.total.toLocaleString('fa-IR')}`}
+              ? `در حال خواندن پیامک‌ها: بازه‌ی ${progress.done.toLocaleString(intlLocale())} از ${progress.total.toLocaleString(intlLocale())} (${(progress.messages || 0).toLocaleString(intlLocale())} پیامک تا اینجا)`
+              : `در حال بررسی پیامک‌ها: ${progress.done.toLocaleString(intlLocale())} از ${progress.total.toLocaleString(intlLocale())}`}
           </p>
         )}
         {!progress && readDays > 90 && <p className="expense-form-hint">خواندن بازه‌ی طولانی ممکن است چند ثانیه طول بکشد.</p>}

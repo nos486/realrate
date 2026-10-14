@@ -2,6 +2,7 @@
  * AssetPickerModal.jsx — Search every market asset and add/remove it from a home section
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import React, { useMemo, useState } from 'react';
 import { Plus, Check, Search } from 'lucide-react';
 import Modal from '../../shared/ui/Modal.jsx';
@@ -54,7 +55,7 @@ export default function AssetPickerModal({ isOpen, onClose, section, onToggle })
       footer={
         <div className="modal-actions-right">
           <button type="button" className="btn-primary" onClick={onClose}>
-            تأیید ({selected.size.toLocaleString('fa-IR')} مورد)
+            تأیید ({selected.size.toLocaleString(intlLocale())} مورد)
           </button>
         </div>
       }

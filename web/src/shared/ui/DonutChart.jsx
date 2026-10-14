@@ -3,6 +3,7 @@
  * and the loans bank share).
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import React, { useMemo, useState } from 'react';
 import { formatCompactAmount } from '../utils/formatters.js';
 import { CHART_COLORS as DONUT_COLORS, CHART_OTHER_COLOR as OTHER_COLOR } from './chartColors.js';
@@ -15,11 +16,11 @@ const SIZE = 148;
 const OUTER_R = 72;
 const INNER_R = 50;
 
-const formatNum = (v) => Math.round(Number(v || 0)).toLocaleString('fa-IR');
-const defaultOtherLabel = (count) => `سایر (${count.toLocaleString('fa-IR')} مورد)`;
+const formatNum = (v) => Math.round(Number(v || 0)).toLocaleString(intlLocale());
+const defaultOtherLabel = (count) => `سایر (${count.toLocaleString(intlLocale())} مورد)`;
 
 const formatShare = (share) =>
-  `${(share * 100).toLocaleString('fa-IR', { maximumFractionDigits: share < 0.1 ? 1 : 0 })}٪`;
+  `${(share * 100).toLocaleString(intlLocale(), { maximumFractionDigits: share < 0.1 ? 1 : 0 })}٪`;
 
 /** SVG path of one donut segment between two angles (radians, clockwise from 12 o'clock) */
 function arcPath(start, end) {

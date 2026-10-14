@@ -15,6 +15,7 @@
  * form's balance and «پرداخت از» (portfolio funds) all read it.
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import { resolveHoldingUnitRealPrice } from '../../../utils/financialSpecs.js';
 import { toPriceId, isCustomAssetId } from '../../../utils/priceIds.js';
 import { resolveAssetDisplayName, resolveAssetUnit, resolveCategory } from '../../../config/sourceRegistry.js';
@@ -196,7 +197,7 @@ export function buildAssetLedgers({ holdings = [], transactions = [], priceMap =
         assetName,
         unit,
         deficit,
-        message: `موجودی دارایی «${assetName}» منفی است (${deficit.toLocaleString('fa-IR')} ${unit} فروش بیش از موجودی). لطفاً ثبت‌ها را بازبینی کنید.`,
+        message: `موجودی دارایی «${assetName}» منفی است (${deficit.toLocaleString(intlLocale())} ${unit} فروش بیش از موجودی). لطفاً ثبت‌ها را بازبینی کنید.`,
       });
     }
 

@@ -8,6 +8,7 @@
  * is saved by the caller (useRiskProfile) and only the latest one is kept.
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React, { useMemo, useState } from 'react';
 import { Gauge, ArrowLeft, RotateCcw, PiggyBank, ChartColumn } from 'lucide-react';
 import { AlertBanner, Button, Modal, NumericInput } from '../../../shared/ui/index.js';
@@ -23,7 +24,7 @@ import {
   scoreRisk,
 } from '../../../utils/riskProfile.js';
 
-const fa = (n, digits = 0) => Number(n || 0).toLocaleString('fa-IR', { maximumFractionDigits: digits });
+const fa = (n, digits = 0) => Number(n || 0).toLocaleString(intlLocale(), { maximumFractionDigits: digits });
 const parseAmount = (text) => Math.round(Number(toEnglishDigits(String(text || '')).replace(/[,،\s]/g, '')) || 0);
 const toman = (n) => `${fa(Math.round(n))} تومان`;
 

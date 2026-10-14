@@ -2,6 +2,7 @@
  * chequeDisplay.js — How cheque statuses and directions look in the UI
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import { ArrowDownLeft, ArrowUpRight, Clock, Landmark, CheckCircle2, XCircle, Repeat, Ban } from 'lucide-react';
 import { getChequeStatus, getChequeDirection } from '../../../utils/chequeDocument.js';
 
@@ -33,6 +34,6 @@ export function getDirectionDisplay(direction) {
 /** e.g. "۳ روز دیگر", "امروز", "۲ روز گذشته" */
 export function describeDueDays(days) {
   if (days === 0) return 'امروز';
-  const n = Math.abs(days).toLocaleString('fa-IR');
+  const n = Math.abs(days).toLocaleString(intlLocale());
   return days > 0 ? `${n} روز دیگر` : `${n} روز گذشته`;
 }

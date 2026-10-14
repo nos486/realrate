@@ -5,7 +5,9 @@
  * Worked out when a screen renders (no timer: a refresh of the tab renders it again).
  */
 
-const fa = (n) => Number(n).toLocaleString('fa-IR');
+import { intlLocale } from '../../utils/i18n.js';
+
+const fa = (n) => Number(n).toLocaleString(intlLocale());
 
 /**
  * @param {string|number|Date|null} at - an ISO time, ms or a Date

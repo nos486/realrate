@@ -15,6 +15,7 @@
  * Pure: shared by the API (which validates a saved layout) and the web app.
  */
 
+import { intlLocale } from './i18n.js';
 import { SPEC_BY_ID, normalizePriceId } from "./priceBook.js";
 
 /** The variables, in order */
@@ -316,8 +317,8 @@ export function formatFormulaValue(value, format = "number") {
 /** A value already as the card shows it (a percent × 100), in its format */
 export function formatFormulaShown(shown, format = "number") {
   if (shown === null || shown === undefined || !Number.isFinite(shown)) return "—";
-  if (format === "percent") return `${shown.toLocaleString("fa-IR", { maximumFractionDigits: 2 })}٪`;
+  if (format === "percent") return `${shown.toLocaleString(intlLocale(), { maximumFractionDigits: 2 })}٪`;
   return Math.abs(shown) >= 100
-    ? Math.round(shown).toLocaleString("fa-IR")
-    : shown.toLocaleString("fa-IR", { maximumSignificantDigits: 4 });
+    ? Math.round(shown).toLocaleString(intlLocale())
+    : shown.toLocaleString(intlLocale(), { maximumSignificantDigits: 4 });
 }

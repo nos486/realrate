@@ -3,12 +3,13 @@
  * a price in its currency and when it renews (utils/subscriptionDocument.js for the figures)
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import { categoryIcon } from '../../../shared/categories/categoryIcons.js';
 import { subscriptionCategoryOf, cycleOf } from '../../../utils/subscriptionDocument.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { formatMoney } from '../../../utils/currencies.js';
 
-const fa = (n, digits = 0) => Number(n).toLocaleString('fa-IR', { maximumFractionDigits: digits });
+const fa = (n, digits = 0) => Number(n).toLocaleString(intlLocale(), { maximumFractionDigits: digits });
 
 export const subscriptionIcon = (category) => categoryIcon(subscriptionCategoryOf(category).icon);
 

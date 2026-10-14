@@ -1,3 +1,4 @@
+import { intlLocale } from '../../utils/i18n.js';
 import React from 'react';
 
 /**
@@ -9,10 +10,10 @@ export function formatRelativeTime(isoStr) {
     const d = new Date(isoStr);
     const diffMins = Math.floor((new Date() - d) / 60000);
     if (diffMins < 1) return 'لحظاتی پیش';
-    if (diffMins < 60) return `${diffMins.toLocaleString('fa-IR')} دقیقه پیش`;
+    if (diffMins < 60) return `${diffMins.toLocaleString(intlLocale())} دقیقه پیش`;
     const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours.toLocaleString('fa-IR')} ساعت پیش`;
-    return d.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+    if (diffHours < 24) return `${diffHours.toLocaleString(intlLocale())} ساعت پیش`;
+    return d.toLocaleTimeString(intlLocale(), { hour: '2-digit', minute: '2-digit' });
   } catch {
     return 'ثبت نشده';
   }

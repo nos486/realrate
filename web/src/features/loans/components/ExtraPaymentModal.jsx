@@ -10,6 +10,7 @@
  * segmented choice with what it does under it, and the note under «جزئیات بیشتر».
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React, { useState } from 'react';
 import { DollarSign, Sparkles, CheckCircle2 } from 'lucide-react';
 import { AlertBanner, Button, FilterPills, Input, Modal } from '../../../shared/ui/index.js';
@@ -21,7 +22,7 @@ import {
 import { todayIso } from '../../../shared/utils/dates.js';
 import { BASE_CURRENCY } from '../../../utils/currencies.js';
 
-const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
+const formatNum = (v) => Number(v || 0).toLocaleString(intlLocale());
 
 /** The reduction modes, and what each does to the remaining installments */
 const REDUCTION_MODES = [

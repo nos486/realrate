@@ -18,7 +18,7 @@
 
 .vault-settings-title-icon {
   vertical-align: middle;
-  margin-left: 6px;
+  margin-inline-end: 6px;
   color: var(--accent-blue, var(--color-primary-text));
 }
 
@@ -80,13 +80,13 @@
 
 /* The passphrase (left-to-right) starts after the show/hide button, not under it */
 .vault-settings-pass .ui-input-control {
-  padding-left: 44px;
+  padding-inline-end: 44px;
 }
 
 .vault-settings-eye {
   position: absolute;
   top: 34px;
-  left: 10px;
+  inset-inline-end: 10px;
   display: inline-flex;
   padding: 4px;
   border: none;

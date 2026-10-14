@@ -13,6 +13,7 @@
  * come from the server (priceSourcesAdmin.service.js); the wording from priceSourceFormat.js.
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Radio, Sliders, Layers, RefreshCw, Zap, FlaskConical, ListTree, Star, AlertTriangle, CheckCircle2, X,
@@ -28,7 +29,7 @@ import {
   quotePrice, sharedPriceTypes, sourceMatches,
 } from '../utils/priceSourceFormat.js';
 
-const fa = (n) => Number(n || 0).toLocaleString('fa-IR');
+const fa = (n) => Number(n || 0).toLocaleString(intlLocale());
 
 /** The two groups of the page, by a source's kind */
 const GROUPS = [

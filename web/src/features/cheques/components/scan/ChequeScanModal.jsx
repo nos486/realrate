@@ -1,3 +1,4 @@
+import { intlLocale } from '../../../../utils/i18n.js';
 import React, { useRef, useState } from 'react';
 import {
   Camera,
@@ -12,7 +13,7 @@ import { Modal, Button, AlertBanner } from '../../../../shared/ui/index.js';
 import { useChequeScan } from './useChequeScan.js';
 import ChequeScanResult from './ChequeScanResult.jsx';
 
-const faNum = (n) => Number(n).toLocaleString('fa-IR');
+const faNum = (n) => Number(n).toLocaleString(intlLocale());
 
 /** "N of M scans left today", or null while unknown / unlimited */
 function QuotaLine({ quota }) {

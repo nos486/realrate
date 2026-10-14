@@ -3,6 +3,7 @@
  * (warning past 80%, over-budget past 100%)
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React from 'react';
 import { formatAmount } from '../utils/format.js';
 
@@ -16,7 +17,7 @@ export default function BudgetProgress({ label, icon = null, spent, budget, hide
         <span className="budget-progress-label">{icon}{label}</span>
         <span className="budget-progress-values">
           {money(spent)} / {money(budget)}
-          <strong> {(share * 100).toLocaleString('fa-IR', { maximumFractionDigits: 0 })}٪</strong>
+          <strong> {(share * 100).toLocaleString(intlLocale(), { maximumFractionDigits: 0 })}٪</strong>
         </span>
       </div>
       <div

@@ -9,13 +9,14 @@
  * Options and their current values come from cardOptionsOf (homeAssets.js): nothing is fetched.
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import React, { useMemo, useState } from 'react';
 import { SlidersHorizontal, RotateCcw } from 'lucide-react';
 import { Modal, Button } from '../../shared/ui/index.js';
 import { CARD_SLOT_LIMIT } from '../../utils/cardMetrics.js';
 import { formatPrice } from '../market/assetPrice.js';
 
-const fa = (n) => Number(n).toLocaleString('fa-IR');
+const fa = (n) => Number(n).toLocaleString(intlLocale());
 
 /** An option's value as it reads now */
 function valueText(option) {

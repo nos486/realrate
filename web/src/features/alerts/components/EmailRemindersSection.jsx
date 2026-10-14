@@ -126,7 +126,7 @@ export default function EmailRemindersSection() {
     <div className="account-settings-section" style={{ marginTop: '28px', borderTop: '1px solid var(--border-color, rgba(255,255,255,0.08))', paddingTop: '22px' }}>
       <div className="section-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
         <span>
-          <Mail size={18} style={{ verticalAlign: 'middle', marginLeft: '6px', display: 'inline', color: 'var(--accent-blue, #38bdf8)' }} />
+          <Mail size={18} style={{ verticalAlign: 'middle', marginInlineEnd: '6px', display: 'inline', color: 'var(--accent-blue, #38bdf8)' }} />
           یادآوری ایمیلی
         </span>
         {userEmail && (

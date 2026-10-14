@@ -9,6 +9,7 @@
  * - Reset categories to default
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   DndContext,
@@ -236,10 +237,10 @@ function AssetItemRow({
           <strong className="asset-name">{formatAssetName(asset, itemMap)}</strong>
           <span className="asset-meta">
             {asset.count > 1 ? (
-              <span className="asset-count-pill">{asset.count.toLocaleString('fa-IR')} رکورد</span>
+              <span className="asset-count-pill">{asset.count.toLocaleString(intlLocale())} رکورد</span>
             ) : null}
             <span className="asset-qty-badge">
-              {Number(asset.totalAmount).toLocaleString('fa-IR')} {asset.unit}
+              {Number(asset.totalAmount).toLocaleString(intlLocale())} {asset.unit}
             </span>
             <span className="asset-val-badge">
               {formatNum(asset.totalRealVal)} تومان
@@ -312,7 +313,7 @@ function SortableCategoryCard({
 
         <div className="group-header-right">
           <span className="portfolio-group-items-badge">
-            {assets.length.toLocaleString('fa-IR')} دارایی
+            {assets.length.toLocaleString(intlLocale())} دارایی
           </span>
           <button
             type="button"
@@ -609,7 +610,7 @@ export default function HoldingsCustomizeEditor({
             </div>
             <div className="group-header-right">
               <span className="portfolio-group-items-badge">
-                {uncategorizedAssets.length.toLocaleString('fa-IR')} دارایی
+                {uncategorizedAssets.length.toLocaleString(intlLocale())} دارایی
               </span>
             </div>
           </div>

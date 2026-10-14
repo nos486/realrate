@@ -3,6 +3,7 @@
  * existing record in the browser. Used by account settings and by the first-run setup screen.
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import React, { useState } from 'react';
 import { Lock, Eye, EyeOff } from 'lucide-react';
 import Button from '../ui/Button.jsx';
@@ -12,7 +13,7 @@ import { createVault, VAULT_MIN_PASSPHRASE_LENGTH } from './vaultStore.js';
 import { encryptAccountData } from './vaultMigration.js';
 import { useWarnBeforeUnload } from './useWarnBeforeUnload.js';
 
-const faNum = (n) => Number(n || 0).toLocaleString('fa-IR');
+const faNum = (n) => Number(n || 0).toLocaleString(intlLocale());
 
 export function PassphraseInput({ show, onToggle, ...props }) {
   return (

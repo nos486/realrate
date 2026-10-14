@@ -7,6 +7,7 @@
  * shows on phones too (the other header buttons move into the menu there).
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
@@ -18,7 +19,7 @@ import { useAlerts, dismissAlert } from './alertStore.js';
 import { runAlertAction } from './alertActions.js';
 
 const ICON = { critical: AlertOctagon, warning: AlertTriangle, info: Info };
-const faNum = (v) => Math.round(Number(v) || 0).toLocaleString('fa-IR');
+const faNum = (v) => Math.round(Number(v) || 0).toLocaleString(intlLocale());
 
 function AlertRow({ alert, hideValues, onAction }) {
   const Icon = ICON[alert.severity];

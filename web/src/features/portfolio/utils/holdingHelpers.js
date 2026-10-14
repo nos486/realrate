@@ -1,3 +1,4 @@
+import { intlLocale } from '../../../utils/i18n.js';
 import React from 'react';
 import {
   Award,
@@ -120,7 +121,7 @@ export const CATEGORY_DEFINITIONS = PORTFOLIO_CATEGORIES;
 
 export function formatNum(num) {
   if (num === null || num === undefined || isNaN(num)) return '۰';
-  return Math.round(num).toLocaleString('fa-IR');
+  return Math.round(num).toLocaleString(intlLocale());
 }
 
 export function parseInputNumber(val) {

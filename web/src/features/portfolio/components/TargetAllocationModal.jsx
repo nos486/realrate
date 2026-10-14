@@ -6,13 +6,14 @@
  * encrypted layout (utils/allocationTargets.js).
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React, { useMemo, useState } from 'react';
 import { Target, Wand2, Eraser } from 'lucide-react';
 import { AlertBanner, Button, Modal, NumericInput } from '../../../shared/ui/index.js';
 import { CategoryIcon } from '../utils/holdingHelpers.js';
 import { targetKeyOf, DRIFT_THRESHOLD } from '../utils/allocationTargets.js';
 
-const faPct = (n) => `${Number(n || 0).toLocaleString('fa-IR', { maximumFractionDigits: 1 })}٪`;
+const faPct = (n) => `${Number(n || 0).toLocaleString(intlLocale(), { maximumFractionDigits: 1 })}٪`;
 const toInput = (n) => (n > 0 ? String(n) : '');
 const parse = (text) => {
   const value = Number(String(text || '').replace(/[,،\s]/g, ''));
@@ -56,7 +57,7 @@ export default function TargetAllocationModal({ groups = [], targets = {}, onSav
       isOpen
       onClose={onClose}
       title="هدف‌گذاری ترکیب پورتفو"
-      subtitle={`سهم هدف هر دسته (جمع ۱۰۰٪)؛ اختلاف بیش از ${DRIFT_THRESHOLD.toLocaleString('fa-IR')}٪ هشدار می‌دهد`}
+      subtitle={`سهم هدف هر دسته (جمع ۱۰۰٪)؛ اختلاف بیش از ${DRIFT_THRESHOLD.toLocaleString(intlLocale())}٪ هشدار می‌دهد`}
       icon={<Target size={18} />}
       maxWidth="520px"
       footer={(

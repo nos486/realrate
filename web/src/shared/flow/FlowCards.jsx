@@ -11,6 +11,7 @@
  *   are worth today (in the month and year cards, and a project's)
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import React from 'react';
 import { Coins, Wallet, TrendingUp, TrendingDown, CalendarDays, CalendarRange, Tag, Trophy, Sigma, DollarSign } from 'lucide-react';
 import { MiniCard } from '../ui/index.js';
@@ -42,7 +43,7 @@ export function FlowDollarCard({ kind, view, hideValues = false, wide = true }) 
   );
 }
 
-const pct = (v) => `${v > 0 ? '+' : ''}${v.toLocaleString('fa-IR', { maximumFractionDigits: 0 })}٪`;
+const pct = (v) => `${v > 0 ? '+' : ''}${v.toLocaleString(intlLocale(), { maximumFractionDigits: 0 })}٪`;
 
 /**
  * @param {{ kind: 'income'|'expense', monthLabel: string, total: number, count: number,
@@ -81,7 +82,7 @@ export function FlowMonthCards({ kind, monthLabel, total, count, previousTotal, 
         value={money(total / Math.max(1, days))}
         unit="تومان"
         className="incomes-summary-card"
-        footer={<span>{count.toLocaleString('fa-IR')} {k.noun} در {days.toLocaleString('fa-IR')} روز</span>}
+        footer={<span>{count.toLocaleString(intlLocale())} {k.noun} در {days.toLocaleString(intlLocale())} روز</span>}
       />
       <MiniCard
         icon={<Tag size={14} />}
@@ -112,7 +113,7 @@ export function FlowYearCards({ kind, yearLabel, summary, topCategory, hideValue
         unit="تومان"
         color={k.color}
         className="incomes-summary-card is-primary"
-        footer={<span>{summary.count.toLocaleString('fa-IR')} {k.noun} در {summary.months.toLocaleString('fa-IR')} ماه</span>}
+        footer={<span>{summary.count.toLocaleString(intlLocale())} {k.noun} در {summary.months.toLocaleString(intlLocale())} ماه</span>}
       />
       <MiniCard
         icon={<CalendarRange size={14} />}
@@ -160,7 +161,7 @@ export function CategoryPills({ items, total, value, onChange, labelOf }) {
           onClick={() => onChange(category)}
         >
           {category === 'all' ? 'همه' : labelOf(category)}
-          <span className="cheque-filter-count">{count.toLocaleString('fa-IR')}</span>
+          <span className="cheque-filter-count">{count.toLocaleString(intlLocale())}</span>
         </button>
       ))}
     </div>

@@ -53,11 +53,11 @@
   }
   .toolbar-input-wrapper input {
     padding: 10px 12px;
-    padding-left: 50px;
+    padding-inline-end: 50px;
     font-size: 14px;
   }
   .input-affix {
-    left: 10px;
+    inset-inline-end: 10px;
     font-size: 10.5px;
   }
   .toolbar-sub-hint {
@@ -109,7 +109,7 @@
   border: 1px solid var(--border-input);
   border-radius: var(--radius-md);
   padding: 11px 14px;
-  padding-left: 60px;
+  padding-inline-end: 60px;
   color: var(--text-input);
   font-size: 15px;
   font-weight: 800;
@@ -126,7 +126,7 @@
 
 .input-affix {
   position: absolute;
-  left: 14px;
+  inset-inline-end: 14px;
   font-size: 11px;
   font-weight: 700;
   color: var(--text-muted);
@@ -136,7 +136,7 @@
 .toolbar-sub-hint {
   font-size: 10px;
   color: var(--text-muted);
-  padding-right: 2px;
+  padding-inline-start: 2px;
 }
 
 /* ── Segmented Tab Bar (Borderless, Minimal Floating Switch) ──────────────── */
@@ -471,7 +471,7 @@
 
 .search-box svg {
   position: absolute;
-  right: 14px;
+  inset-inline-start: 14px;
   color: var(--text-muted);
   pointer-events: none;
 }
@@ -482,8 +482,8 @@
   border: none !important;
   border-radius: var(--radius-full);
   padding: 10px 16px;
-  padding-right: 40px;
-  padding-left: 36px;
+  padding-inline-start: 40px;
+  padding-inline-end: 36px;
   color: var(--text-input);
   font-size: 13.5px;
   outline: none !important;
@@ -501,7 +501,7 @@
 
 .clear-search-btn {
   position: absolute;
-  left: 12px;
+  inset-inline-end: 12px;
   background: transparent;
   border: none;
   color: var(--text-muted);
@@ -600,7 +600,7 @@
 .curr-unit {
   font-size: 10px;
   color: var(--text-muted);
-  margin-right: 3px;
+  margin-inline-start: 3px;
 }
 
 .curr-ratio-tag {
@@ -758,7 +758,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  direction: rtl; /* Persian titles are RTL */
+  direction: inherit; /* Persian titles are RTL */
 }
 
 .chart-title-wrap {
@@ -807,7 +807,7 @@
   bottom: 0;
   width: 1px;
   background: rgba(255, 255, 255, 0.25);
-  border-left: 1px dashed rgba(255, 255, 255, 0.4);
+  border-inline-end: 1px dashed rgba(255, 255, 255, 0.4);
   pointer-events: none;
   transform: translateX(-50%);
 }
@@ -847,7 +847,7 @@
   z-index: 30;
   box-shadow: none;
   white-space: nowrap;
-  direction: rtl;
+  direction: inherit;
 }
 
 .tooltip-inner {
@@ -881,7 +881,7 @@
 
 .axis-label-start,
 .axis-label-end {
-  direction: rtl;
+  direction: inherit;
 }
 
 /* Technical Details Grid */

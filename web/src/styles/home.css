@@ -390,7 +390,7 @@
   font-size: 10px;
   color: var(--text-muted);
   font-weight: 400;
-  margin-right: 3px;
+  margin-inline-start: 3px;
 }
 
 .metric-sep {

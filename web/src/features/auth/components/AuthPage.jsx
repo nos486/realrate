@@ -6,6 +6,8 @@
  * away on the sign-in and sign-up forms.
  */
 
+import LanguageSwitch from '../../../shared/i18n/LanguageSwitch.jsx';
+import { intlLocale, getDir } from '../../../utils/i18n.js';
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Mail, MailCheck, KeyRound, UserPlus, LogIn, ArrowRight } from 'lucide-react';
@@ -94,7 +96,7 @@ function ResendButton({ onResend }) {
   return (
     <div className="auth-resend">
       <Button variant="secondary" block onClick={resend} disabled={seconds > 0 || busy} loading={busy}>
-        {seconds > 0 ? `ارسال دوباره (${seconds.toLocaleString('fa-IR')} ثانیه)` : 'ارسال دوباره لینک'}
+        {seconds > 0 ? `ارسال دوباره (${seconds.toLocaleString(intlLocale())} ثانیه)` : 'ارسال دوباره لینک'}
       </Button>
       {message && <span className="auth-muted" role="status">{message}</span>}
     </div>
@@ -402,12 +404,13 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="auth-page" dir="rtl">
+    <div className="auth-page" dir={getDir()}>
       <header className="auth-top">
         <button type="button" className="auth-back" onClick={() => navigate(LANDING_PATH, { replace: true })}>
           <ArrowRight size={16} />
           <span>RealRate</span>
         </button>
+        <LanguageSwitch />
       </header>
       <main className="auth-main">
         {mode === 'register' && <RegisterForm />}

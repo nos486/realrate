@@ -11,6 +11,7 @@
  * Pro only (feature `market`: its chart route is gated by it too).
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import UniversalAssetSearch from '../../components/UniversalAssetSearch.jsx';
@@ -97,7 +98,7 @@ function ExploreChart({ asset }) {
   );
 }
 
-const changeOf = (pct) => (pct ? { up: pct > 0, text: `${pct > 0 ? '▲' : '▼'} ${Math.abs(pct).toLocaleString('fa-IR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}٪` } : null);
+const changeOf = (pct) => (pct ? { up: pct > 0, text: `${pct > 0 ? '▲' : '▼'} ${Math.abs(pct).toLocaleString(intlLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}٪` } : null);
 
 /** The chart's title line: who the asset is, its live price and change, and when it last moved */
 function ChartTitle({ asset, loading }) {

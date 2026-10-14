@@ -5,11 +5,12 @@
  * pushes the page content down. Items: `{ key, title, detail, amount }`.
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronDown } from 'lucide-react';
 import AlertBanner from './AlertBanner.jsx';
 
-const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
+const formatNum = (v) => Number(v || 0).toLocaleString(intlLocale());
 
 export default function DueReminderAlert({ type = 'warning', title, items, actionLabel, onAction, onClose, hideValues = false }) {
   const [expanded, setExpanded] = useState(false);

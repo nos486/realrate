@@ -2,8 +2,8 @@
 .site-header {
   position: sticky;
   top: 0;
-  left: 0;
-  right: 0;
+  inset-inline-end: 0;
+  inset-inline-start: 0;
   width: 100%;
   z-index: 100;
   display: flex;
@@ -210,7 +210,7 @@
 .dropdown-panel {
   position: absolute;
   top: calc(100% + 8px);
-  left: 0;
+  inset-inline-end: 0;
   min-width: 220px;
   background: rgba(14, 18, 28, 0.95);
   backdrop-filter: blur(24px);
@@ -241,7 +241,7 @@
   font-size: 11px;
   color: var(--text-muted);
   direction: ltr;
-  text-align: right;
+  text-align: start;
 }
 
 .dropdown-sep {
@@ -263,7 +263,7 @@
   border: none;
   cursor: pointer;
   width: 100%;
-  text-align: right;
+  text-align: start;
   transition: var(--transition-fast);
 }
 

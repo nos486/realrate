@@ -7,6 +7,7 @@
  * release notes, then a download with progress and Android's installer.
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import React, { useEffect } from 'react';
 import { Download, ShieldCheck, RefreshCw, X } from 'lucide-react';
 import { Button, Modal, AlertBanner } from '../ui/index.js';
@@ -23,7 +24,7 @@ import {
 } from '../native/appUpdate.js';
 
 const faVersion = (v) => String(v || '').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
-const faMb = (bytes) => (Number(bytes) / 1024 / 1024).toLocaleString('fa-IR', { maximumFractionDigits: 1 });
+const faMb = (bytes) => (Number(bytes) / 1024 / 1024).toLocaleString(intlLocale(), { maximumFractionDigits: 1 });
 
 /** «نسخه‌ی … آماده است»: shown while a newer version is known, until its × (or the update) */
 export function AppUpdateBanner() {
@@ -91,7 +92,7 @@ export default function AppUpdatePrompt() {
       {downloading && (
         <div className="app-update-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}>
           <div className="app-update-progress-track"><span style={{ width: `${percent}%` }} /></div>
-          <small>در حال دانلود… {percent.toLocaleString('fa-IR')}٪</small>
+          <small>در حال دانلود… {percent.toLocaleString(intlLocale())}٪</small>
         </div>
       )}
       {status === 'ready' && (

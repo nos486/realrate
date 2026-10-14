@@ -4,6 +4,7 @@
  * that opens into everything recorded for it (`renderDetails`, AssetLedgerDetails)
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React from 'react';
 import { ChevronDown } from 'lucide-react';
 import { CategoryIcon, formatAssetName, formatNum, getItemBrand } from '../utils/holdingHelpers.js';
@@ -46,7 +47,7 @@ export default function HoldingsTable({
         <div className="asset-cell-compact">
           <span className="asset-name-text">{formatAssetName(item, itemMap)}</span>
           <span className={`item-category-pill cat-${item.category || item.assetType || 'custom'}`}>
-            <CategoryIcon category={item.category || item.assetType} size={11} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
+            <CategoryIcon category={item.category || item.assetType} size={11} style={{ verticalAlign: 'middle', marginInlineEnd: '4px' }} />
             {getItemBrand(item, item.sourceId ? { id: item.sourceId } : null)}
           </span>
         </div>
@@ -60,7 +61,7 @@ export default function HoldingsTable({
       mobile: 'meta',
       render: (item) => (
         <span className="table-qty-badge">
-          {hideValues ? '****' : `${Number(item.amount).toLocaleString('fa-IR', { maximumFractionDigits: 6 })} ${item.unit}`}
+          {hideValues ? '****' : `${Number(item.amount).toLocaleString(intlLocale(), { maximumFractionDigits: 6 })} ${item.unit}`}
         </span>
       ),
     },
@@ -162,7 +163,7 @@ export default function HoldingsTable({
       render: (item) => (
         <span className="table-date-text holdings-lots-cell">
           {lotsRange(item)}
-          <small className="holdings-entry-count">{item.entryCount.toLocaleString('fa-IR')} ثبت</small>
+          <small className="holdings-entry-count">{item.entryCount.toLocaleString(intlLocale())} ثبت</small>
         </span>
       ),
     },
@@ -190,7 +191,7 @@ export default function HoldingsTable({
               </span>
               <div className="cat-group-titles">
                 <h4 className="cat-group-name">{group.name}</h4>
-                <span className="cat-group-count">{group.items.length.toLocaleString('fa-IR')} قلم</span>
+                <span className="cat-group-count">{group.items.length.toLocaleString(intlLocale())} قلم</span>
               </div>
             </div>
 

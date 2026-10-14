@@ -8,12 +8,13 @@
  * «پرداخت» — overdue installments, and the fees paid (utils/creditAccount.js for the figures).
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React from 'react';
 import { AlertTriangle, CalendarClock, Trash2, HandCoins } from 'lucide-react';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { formatAmount } from '../../expenses/utils/format.js';
 
-const fa = (n) => Number(n).toLocaleString('fa-IR', { maximumFractionDigits: 2 });
+const fa = (n) => Number(n).toLocaleString(intlLocale(), { maximumFractionDigits: 2 });
 const day = (iso) => formatShamsiDisplay(`${iso}T00:00:00`);
 
 const STATUS_LABELS = { paid: 'پرداخت‌شده', overdue: 'معوق', due: 'سررسید امروز', upcoming: '' };

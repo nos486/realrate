@@ -9,6 +9,7 @@
  * The page header and the vault lock are ProjectsPage's (projects are their own part: /projects).
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
 import { expenseCsvHeaders, expenseCsvRow } from '../utils/expenseCsv.js';
 import React, { useMemo, useState } from 'react';
@@ -125,7 +126,7 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
     const ok = await confirm({
       title: 'حذف بخش',
       message: count
-        ? `بخش «${group.name}» و ${count.toLocaleString('fa-IR')} هزینه ثبت‌شده در آن حذف شود؟`
+        ? `بخش «${group.name}» و ${count.toLocaleString(intlLocale())} هزینه ثبت‌شده در آن حذف شود؟`
         : `بخش «${group.name}» حذف شود؟`,
       confirmLabel: 'حذف',
       danger: true,
@@ -262,7 +263,7 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="جستجو در عنوان، یادداشت یا برچسب..."
-                        badge={`${listed.length.toLocaleString('fa-IR')} مورد`}
+                        badge={`${listed.length.toLocaleString(intlLocale())} مورد`}
                         className="incomes-search"
                       />
                     )}

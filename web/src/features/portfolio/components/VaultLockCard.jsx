@@ -56,7 +56,7 @@ export default function VaultLockCard({
     <div className={`vault-lock-container ${className}`} style={style}>
       <div className="vault-lock-card">
         <div className="vault-lock-badge">
-          <Lock size={13} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
+          <Lock size={13} style={{ verticalAlign: 'middle', marginInlineEnd: '4px' }} />
           گاوصندوق E2EE
         </div>
 
@@ -96,7 +96,7 @@ export default function VaultLockCard({
             <div className="vault-unlock-error">
               <AlertTriangle
                 size={14}
-                style={{ verticalAlign: 'middle', marginLeft: '4px', display: 'inline' }}
+                style={{ verticalAlign: 'middle', marginInlineEnd: '4px', display: 'inline' }}
               />
               <span>{displayError}</span>
             </div>

@@ -13,6 +13,7 @@
  * are in the future: the full Shamsi picker).
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React, { useState } from 'react';
 import { CalendarClock, Plus, X } from 'lucide-react';
 import { AlertBanner, Button, Modal, NumericInput } from '../../../shared/ui/index.js';
@@ -23,7 +24,7 @@ import { todayIso } from '../../../shared/utils/dates.js';
 import { formatAmount } from '../../expenses/utils/format.js';
 
 const digitsOnly = (v) => Number(String(v || '').replace(/[^\d]/g, '')) || 0;
-const faPct = (v) => Number(v).toLocaleString('fa-IR', { maximumFractionDigits: 2 });
+const faPct = (v) => Number(v).toLocaleString(intlLocale(), { maximumFractionDigits: 2 });
 const shamsiOf = (iso) => gregorianToShamsi(`${iso}T00:00:00`);
 let rowSeq = 0;
 const row = (dueShamsi = '', amount = '') => ({ key: ++rowSeq, dueShamsi, amount });

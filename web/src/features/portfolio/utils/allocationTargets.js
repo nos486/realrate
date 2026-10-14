@@ -11,6 +11,8 @@
  * (shared/alerts) read it.
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
+
 /** Points (of 100) a category may be away from its target before it is flagged */
 export const DRIFT_THRESHOLD = 5;
 const COMPLETE_TOLERANCE = 0.5;
@@ -83,7 +85,7 @@ export function buildAllocation(groups = [], targets = {}, { threshold = DRIFT_T
   };
 }
 
-const pct = (n) => `${Math.abs(n).toLocaleString('fa-IR', { maximumFractionDigits: 1 })}٪`;
+const pct = (n) => `${Math.abs(n).toLocaleString(intlLocale(), { maximumFractionDigits: 1 })}٪`;
 
 /** «طلا ۸٪ بیشتر از هدف» */
 export function describeDrift(row) {

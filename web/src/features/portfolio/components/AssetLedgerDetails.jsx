@@ -10,6 +10,7 @@
  * Each entry's notes show in its own row (on phones, on a line under it).
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React from 'react';
 import {
   ArrowDownLeft, ArrowUpRight, ClipboardList, Receipt, Pencil, Trash2, Plus, Minus, AlertTriangle, MessageSquare,
@@ -29,7 +30,7 @@ const KIND = {
 const MASK = '****';
 const EPS = 1e-9;
 const kindOf = (kind, price) => (kind === 'manual' && price > 0 ? { ...KIND.manual, label: 'خرید', Icon: ArrowDownLeft } : KIND[kind] || KIND.buy);
-const qtyText = (n) => Number(n || 0).toLocaleString('fa-IR', { maximumFractionDigits: 6 });
+const qtyText = (n) => Number(n || 0).toLocaleString(intlLocale(), { maximumFractionDigits: 6 });
 const dateLabel = (d) => (d ? toPersianDigits(d) : 'موجودی اولیه');
 const signed = (v) => `${v >= 0 ? '+' : '−'}${formatNum(Math.abs(v))}`;
 
@@ -121,7 +122,7 @@ export default function AssetLedgerDetails({
             pnl = entry.pnl;
             const parts = (entry.consumed || []).map((c) => `${kindOf(c.lotKind, c.lotPrice).label} ${dateLabel(entryById.get(c.lotId)?.date || c.lotDate)}: ${qtyText(c.qty)}${c.pnl === null ? ' (بی‌قیمت)' : ` (${signed(c.pnl)})`}`);
             statusTitle = parts.join('\n');
-            status = parts.length ? `از ${parts.length.toLocaleString('fa-IR')} خرید` : '';
+            status = parts.length ? `از ${parts.length.toLocaleString(intlLocale())} خرید` : '';
           }
 
           // What a purchase was paid with, shown under it (and how holding that would be doing now)

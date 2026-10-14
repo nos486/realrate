@@ -1,3 +1,4 @@
+import { intlLocale } from '../../utils/i18n.js';
 import React, { useState, useRef } from 'react';
 import { Upload, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
 import Modal from './Modal.jsx';
@@ -138,7 +139,7 @@ export default function GenericCsvImportButton({
                 disabled={importable.length === 0}
                 onClick={handleStartImport}
               >
-                درون‌ریزی {importable.length.toLocaleString('fa-IR')} {itemLabel}
+                درون‌ریزی {importable.length.toLocaleString(intlLocale())} {itemLabel}
               </button>
             </div>
           ) : step === 'done' ? (
@@ -163,18 +164,18 @@ export default function GenericCsvImportButton({
                 <ul className="csv-import-summary-list">
                   <li>
                     <CheckCircle2 size={14} className="ok-icon" />
-                    <span>{importable.length.toLocaleString('fa-IR')} {itemLabel} آماده درون‌ریزی</span>
+                    <span>{importable.length.toLocaleString(intlLocale())} {itemLabel} آماده درون‌ریزی</span>
                   </li>
                   {skippedCount > 0 && (
                     <li>
                       <XCircle size={14} className="skip-icon" />
-                      <span>{skippedCount.toLocaleString('fa-IR')} مورد نادیده گرفته شد</span>
+                      <span>{skippedCount.toLocaleString(intlLocale())} مورد نادیده گرفته شد</span>
                     </li>
                   )}
                   {invalidCount > 0 && (
                     <li>
                       <XCircle size={14} className="skip-icon" />
-                      <span>{invalidCount.toLocaleString('fa-IR')} ردیف نامعتبر نادیده گرفته شد</span>
+                      <span>{invalidCount.toLocaleString(intlLocale())} ردیف نامعتبر نادیده گرفته شد</span>
                     </li>
                   )}
                 </ul>
@@ -192,8 +193,8 @@ export default function GenericCsvImportButton({
           <div className="csv-import-progress">
             <div className="spinner-glow"></div>
             <p>
-              در حال درون‌ریزی... ({progress.done.toLocaleString('fa-IR')} از{' '}
-              {progress.total.toLocaleString('fa-IR')})
+              در حال درون‌ریزی... ({progress.done.toLocaleString(intlLocale())} از{' '}
+              {progress.total.toLocaleString(intlLocale())})
             </p>
           </div>
         )}
@@ -202,13 +203,13 @@ export default function GenericCsvImportButton({
           <div className="csv-import-result">
             <p>
               <CheckCircle2 size={16} className="ok-icon" />
-              <span>{result.success.toLocaleString('fa-IR')} {itemLabel} با موفقیت اضافه شد.</span>
+              <span>{result.success.toLocaleString(intlLocale())} {itemLabel} با موفقیت اضافه شد.</span>
             </p>
             {result.failed > 0 && (
               <>
                 <p>
                   <AlertTriangle size={16} className="warn-icon" />
-                  <span>{result.failed.toLocaleString('fa-IR')} مورد با خطا مواجه شد:</span>
+                  <span>{result.failed.toLocaleString(intlLocale())} مورد با خطا مواجه شد:</span>
                 </p>
                 <ul className="csv-import-fail-list">
                   {result.failedNames.map((n, i) => (

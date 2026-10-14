@@ -42,7 +42,7 @@ export default function ShareLinkToggle({ portfolio, onOpenSettings }) {
           onClick={onOpenSettings}
           title="فعال‌سازی لینک اشتراک‌گذاری عمومی برای این پورتفو"
         >
-          <Share2 size={13} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
+          <Share2 size={13} style={{ verticalAlign: 'middle', marginInlineEnd: '4px' }} />
           <span>اشتراک‌گذاری</span>
         </button>
       )}

@@ -7,6 +7,7 @@
  * and the header the period's figure: average daily active users, or total sign-ups.
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ChartToggle } from '../../../shared/ui/DonutChart.jsx';
 import { getAdminGrowth } from '../api/adminApi.js';
@@ -22,7 +23,7 @@ const SERIES = [
 
 /** «۴ مهر» for a YYYY-MM-DD day (read as UTC, the server's day boundary) */
 const dayLabel = (day, withYear = false) =>
-  new Date(`${day}T12:00:00Z`).toLocaleDateString('fa-IR', { day: 'numeric', month: 'long', ...(withYear ? { year: 'numeric' } : {}) });
+  new Date(`${day}T12:00:00Z`).toLocaleDateString(intlLocale(), { day: 'numeric', month: 'long', ...(withYear ? { year: 'numeric' } : {}) });
 
 export default function AdminGrowthChart({ reloadToken = 0 }) {
   const [series, setSeries] = useState(null);

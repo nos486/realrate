@@ -18,6 +18,7 @@
  * request, which its chart then reuses), and — turned — the formula's daily chart.
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import React, { useState } from 'react';
 import { ChartCandlestick, Sigma } from 'lucide-react';
 import { CategoryIcon } from '../portfolio/utils/holdingHelpers.js';
@@ -33,7 +34,7 @@ import { FORMULA_STATS, formatFormulaShown } from '../../utils/cardFormula.js';
 const formatNum = (num, currency = 'toman') => formatPrice(num, currency);
 
 const formatPct = (v, digits = 1) =>
-  Math.abs(v).toLocaleString('fa-IR', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  Math.abs(v).toLocaleString(intlLocale(), { minimumFractionDigits: digits, maximumFractionDigits: digits });
 
 function bubbleBadge(item) {
   const hasMarket = item.market !== null && item.market !== undefined;
@@ -63,7 +64,7 @@ function AssetIcon({ asset }) {
   );
 }
 
-const staleTimeFormat = new Intl.DateTimeFormat('fa-IR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+const staleTimeFormat = new Intl.DateTimeFormat(intlLocale(), { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
 /** A price whose source hasn't updated for a while says so */
 function StaleMark({ asset }) {
@@ -125,7 +126,7 @@ function FormulaStats({ asset }) {
   return (
     <div className="pro-metrics" aria-busy={!stats}>
       {cells.map((c) => (
-        <div key={c.key} className="pro-metric" title={stats ? `${c.label} (از ${stats.days.toLocaleString('fa-IR')} روز ثبت‌شده)` : c.label}>
+        <div key={c.key} className="pro-metric" title={stats ? `${c.label} (از ${stats.days.toLocaleString(intlLocale())} روز ثبت‌شده)` : c.label}>
           <span>{c.label}</span>
           <strong><bdi>{stats ? formatFormulaShown(stats[c.key], asset.formula.format) : '…'}</bdi></strong>
         </div>
@@ -179,7 +180,7 @@ function slotTone(slot) {
 }
 
 /** An average of fewer days than its window says how many («از ۲۰۰ روز») */
-const daysNote = (window, days) => (window && days && days < AVERAGE_WINDOWS[window]?.days ? `از ${Number(days).toLocaleString('fa-IR')} روز ثبت‌شده` : '');
+const daysNote = (window, days) => (window && days && days < AVERAGE_WINDOWS[window]?.days ? `از ${Number(days).toLocaleString(intlLocale())} روز ثبت‌شده` : '');
 
 function slotText(slot) {
   if (slot.value === null) return '—';
@@ -325,7 +326,7 @@ function FullCard({ asset, isBest = false, flippable = true }) {
           {item && !hasMarket && <span className="home-price-caption">ارزش ذاتی — نرخ بازار فعلاً در دسترس نیست</span>}
           <StaleMark asset={asset} />
           {asset.updatedAt && (
-            <span className="pro-card-updated" title={new Date(asset.updatedAt).toLocaleString('fa-IR')}>
+            <span className="pro-card-updated" title={new Date(asset.updatedAt).toLocaleString(intlLocale())}>
               آخرین تغییر {timeAgo(asset.updatedAt)}
             </span>
           )}

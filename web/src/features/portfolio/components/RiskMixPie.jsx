@@ -5,10 +5,11 @@
  * (utils/riskProfile.js RISK_PROFILES[].allocation); colors come from chartColors.js.
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React from 'react';
 import { CHART_COLORS, CHART_OTHER_COLOR } from '../../../shared/ui/chartColors.js';
 
-const fa = (n) => Number(n || 0).toLocaleString('fa-IR');
+const fa = (n) => Number(n || 0).toLocaleString(intlLocale());
 
 const PIE = { size: 120, r: 54 };
 

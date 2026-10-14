@@ -4,6 +4,7 @@
  * month's total, budgets and charts — and count in the project instead. Mounted only while open.
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React, { useState } from 'react';
 import { FolderInput, FolderPlus } from 'lucide-react';
 import { AlertBanner, Button, Modal } from '../../../shared/ui/index.js';
@@ -37,7 +38,7 @@ export default function MoveToProjectModal({ count, totalToman, projects, hideVa
     }
   };
 
-  const what = count === 1 ? 'این هزینه' : `${count.toLocaleString('fa-IR')} هزینه`;
+  const what = count === 1 ? 'این هزینه' : `${count.toLocaleString(intlLocale())} هزینه`;
 
   return (
     <Modal

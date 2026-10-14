@@ -9,6 +9,7 @@
  * (shared/vault/recordLinks.js).
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React from 'react';
 import { PickerRow } from '../../../shared/form/index.js';
 import { CHEQUE_DIRECTION_OF } from '../../../utils/categoryLinks.js';
@@ -16,7 +17,7 @@ import { compareChequesByDue, isChequeOpen } from '../../../utils/chequeDocument
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { useOptionalCheques } from '../context/ChequesContext.jsx';
 
-const fa = (n) => Math.round(Number(n) || 0).toLocaleString('fa-IR');
+const fa = (n) => Math.round(Number(n) || 0).toLocaleString(intlLocale());
 
 /** «علی رضایی — ۵٬۰۰۰٬۰۰۰ تومان», due «سررسید ۱۴۰۵/۰۸/۰۱» under it */
 const chequeChoice = (cheque) => ({

@@ -22,7 +22,7 @@ body {
   background-color: var(--bg-app);
   color: var(--text-primary);
   min-height: 100vh;
-  direction: rtl;
+  direction: inherit;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -498,16 +498,16 @@ textarea:focus {
 }
 
 .ui-input-control.has-leading-icon {
-  padding-right: 38px;
+  padding-inline-start: 38px;
 }
 
 .ui-input-control.has-clear-btn {
-  padding-left: 36px;
+  padding-inline-end: 36px;
 }
 
 .ui-input-icon.leading {
   position: absolute;
-  right: 12px;
+  inset-inline-start: 12px;
   display: flex;
   align-items: center;
   color: var(--text-muted);
@@ -516,7 +516,7 @@ textarea:focus {
 
 .ui-input-clear-btn {
   position: absolute;
-  left: 10px;
+  inset-inline-end: 10px;
   background: transparent;
   border: none;
   color: var(--text-muted);
@@ -841,7 +841,7 @@ textarea:focus {
   font-size: 11px;
   color: var(--text-muted);
   direction: ltr;
-  text-align: right;
+  text-align: start;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -920,7 +920,7 @@ textarea:focus {
 .search-bar-icon {
   color: var(--text-muted);
   flex-shrink: 0;
-  margin-left: 8px;
+  margin-inline-end: 8px;
 }
 
 .search-bar-input,
@@ -953,7 +953,7 @@ input.search-bar-input:focus-visible {
   background: rgba(255, 255, 255, 0.06);
   padding: 2px 8px;
   border-radius: 6px;
-  margin-right: 6px;
+  margin-inline-start: 6px;
 }
 
 .search-bar-clear {
@@ -966,7 +966,7 @@ input.search-bar-input:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-right: 2px;
+  margin-inline-start: 2px;
   transition: color var(--transition-fast);
 }
 
@@ -1122,7 +1122,7 @@ input.search-bar-input:focus-visible {
   align-items: center;
   justify-content: center;
   gap: 7px;
-  direction: rtl;
+  direction: inherit;
   border: 1px solid var(--border-control, rgba(255, 255, 255, 0.08));
   background: var(--bg-control, rgba(255, 255, 255, 0.04));
   color: var(--text-secondary);
@@ -1421,7 +1421,7 @@ input.search-bar-input:focus-visible {
 }
 
 .rdt-mobile-stat-secondary {
-  text-align: left;
+  text-align: end;
 }
 /* Full-page loader shown by RequireAuth while the session is being checked */
 .tab-lazy-loader {

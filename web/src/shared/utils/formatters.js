@@ -2,6 +2,8 @@
  * formatters.js — Shared UI formatting utilities for numbers, currencies, and inputs
  */
 
+import { intlLocale, getLocale, t } from '../../utils/i18n.js';
+
 /**
  * Convert Persian and Arabic digits to standard ASCII digits (0-9)
  * @param {string|number} str
@@ -28,7 +30,7 @@ export function toEnglishDigits(str) {
  * @returns {string} e.g. "12.3" (rendered with Persian digits)
  */
 export function formatPct(val) {
-  return Number(val || 0).toLocaleString('fa-IR', {
+  return Number(val || 0).toLocaleString(intlLocale(), {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   });
@@ -67,30 +69,32 @@ export function formatThousands(val, allowDecimals = false) {
 /**
  * Convert standard ASCII digits (0-9) to Persian digits (۰-۹), for read-only display text —
  * never use this on a value that will be typed into or re-parsed from an editable field (e.g.
- * ShamsiDatePicker's own input), since Persian digits break that round-trip.
+ * ShamsiDatePicker's own input), since Persian digits break that round-trip. In English the
+ * digits stay as they are.
  * @param {string|number} n
  * @returns {string}
  */
 export function toPersianDigits(n) {
   if (n === null || n === undefined) return '';
+  if (getLocale() !== 'fa') return String(n);
   const pers = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
   return String(n).replace(/[0-9]/g, (w) => pers[+w]);
 }
 
-/** Short Persian amount, e.g. «۱٫۲ میلیارد» */
+/** Short amount in words, e.g. «۱٫۲ میلیارد» (1.2 billion in English) */
 export function formatCompactAmount(value) {
   const v = Number(value || 0);
   const abs = Math.abs(v);
   const units = [
-    [1e12, 'هزار میلیارد'],
-    [1e9, 'میلیارد'],
-    [1e6, 'میلیون'],
+    [1e12, t('هزار میلیارد')],
+    [1e9, t('میلیارد')],
+    [1e6, t('میلیون')],
   ];
   for (const [size, label] of units) {
     if (abs >= size) {
       const n = v / size;
-      return `${n.toLocaleString('fa-IR', { maximumFractionDigits: Math.abs(n) < 10 ? 1 : 0 })} ${label}`;
+      return `${n.toLocaleString(intlLocale(), { maximumFractionDigits: Math.abs(n) < 10 ? 1 : 0 })} ${label}`;
     }
   }
-  return Math.round(v).toLocaleString('fa-IR');
+  return Math.round(v).toLocaleString(intlLocale());
 }

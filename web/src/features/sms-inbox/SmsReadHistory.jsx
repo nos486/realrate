@@ -4,6 +4,7 @@
  * only on screen: leaving the SMS page clears it (nothing is stored).
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import React, { useState } from 'react';
 import { ArrowDownLeft, ArrowUpRight, CheckCircle2, X, ListChecks, Undo2 } from 'lucide-react';
 import { Button, Card } from '../../shared/ui/index.js';
@@ -76,7 +77,7 @@ export default function SmsReadHistory({ items, onRestore }) {
       </ul>
       {items.length > limit && (
         <Button block variant="secondary" onClick={() => setLimit((n) => n + PAGE_SIZE)}>
-          نمایش بیشتر ({(items.length - limit).toLocaleString('fa-IR')} مورد دیگر)
+          نمایش بیشتر ({(items.length - limit).toLocaleString(intlLocale())} مورد دیگر)
         </Button>
       )}
     </Card>

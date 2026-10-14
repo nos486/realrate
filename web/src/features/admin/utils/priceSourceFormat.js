@@ -6,7 +6,9 @@
  * turns them into Persian text, so the rules live in one place and are tested on their own.
  */
 
-const fa = (n, digits = 0) => Number(n || 0).toLocaleString('fa-IR', { maximumFractionDigits: digits });
+import { intlLocale } from '../../../utils/i18n.js';
+
+const fa = (n, digits = 0) => Number(n || 0).toLocaleString(intlLocale(), { maximumFractionDigits: digits });
 
 /** A source's status as the admin reads it, and its tone (a CSS modifier) */
 export const SOURCE_STATUS = {

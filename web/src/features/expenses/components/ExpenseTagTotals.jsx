@@ -5,13 +5,14 @@
  * its expenses were in dollars (each at its day's rate) and what that costs at today's rate.
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React from 'react';
 import { Tags } from 'lucide-react';
 import { formatAmount } from '../utils/format.js';
 import { DollarValueLine } from '../../../shared/ui/DollarValue.jsx';
 
 const MASK = '****';
-const faNum = (n) => Number(n || 0).toLocaleString('fa-IR');
+const faNum = (n) => Number(n || 0).toLocaleString(intlLocale());
 
 export default function ExpenseTagTotals({ byTag, totalToman = 0, activeTag = null, onSelect, hideValues = false }) {
   if (!byTag?.tags?.length) return null;
