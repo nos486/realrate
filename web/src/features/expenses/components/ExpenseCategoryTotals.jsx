@@ -6,7 +6,7 @@
  * are «بدون دسته‌بندی» ('').
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { intlLocale, t } from '../../../utils/i18n.js';
 import React from 'react';
 import { Shapes } from 'lucide-react';
 import { formatAmount } from '../utils/format.js';
@@ -16,7 +16,7 @@ const MASK = '****';
 const faNum = (n) => Number(n || 0).toLocaleString(intlLocale());
 
 /** A category's name ('' : none) */
-const projectCategoryLabel = (category) => (category ? getExpenseCategory(category).label : 'بدون دسته‌بندی');
+const projectCategoryLabel = (category) => (category ? getExpenseCategory(category).label : t('بدون دسته‌بندی'));
 
 /**
  * @param {{ items: Array<{ category: string, totalToman: number, count: number }>, totalToman?: number,
@@ -31,8 +31,8 @@ export default function ExpenseCategoryTotals({ items, totalToman = 0, active = 
   return (
     <div className="expense-side-card expense-tag-totals">
       <div className="expense-tag-totals-head">
-        <span><Shapes size={14} /> دسته‌بندی‌ها</span>
-        {active !== null && <button type="button" className="expense-tag-clear" onClick={() => onSelect(null)}>همه</button>}
+        <span><Shapes size={14} /> {t('دسته‌بندی‌ها')}</span>
+        {active !== null && <button type="button" className="expense-tag-clear" onClick={() => onSelect(null)}>{t('همه')}</button>}
       </div>
       <ul>
         {items.map((c) => (
@@ -44,8 +44,8 @@ export default function ExpenseCategoryTotals({ items, totalToman = 0, active = 
               aria-pressed={active === c.category}
             >
               <span className="expense-tag-name">{projectCategoryLabel(c.category)}</span>
-              <span className="expense-tag-count">{faNum(c.count)} مورد</span>
-              <strong className="expense-tag-sum">{hideValues ? MASK : formatAmount(c.totalToman)} <small>تومان</small></strong>
+              <span className="expense-tag-count">{t('{n} مورد', { n: faNum(c.count) })}</span>
+              <strong className="expense-tag-sum">{hideValues ? MASK : formatAmount(c.totalToman)} <small>{t('تومان')}</small></strong>
               <span className="expense-tag-bar" aria-hidden="true"><i style={{ width: `${share(c.totalToman)}%` }} /></span>
             </button>
           </li>

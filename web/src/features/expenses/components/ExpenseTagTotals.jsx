@@ -5,7 +5,7 @@
  * its expenses were in dollars (each at its day's rate) and what that costs at today's rate.
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { intlLocale, t } from '../../../utils/i18n.js';
 import React from 'react';
 import { Tags } from 'lucide-react';
 import { formatAmount } from '../utils/format.js';
@@ -22,30 +22,30 @@ export default function ExpenseTagTotals({ byTag, totalToman = 0, activeTag = nu
   return (
     <div className="expense-side-card expense-tag-totals">
       <div className="expense-tag-totals-head">
-        <span><Tags size={14} /> برچسب‌ها</span>
-        {activeTag && <button type="button" className="expense-tag-clear" onClick={() => onSelect(null)}>همه</button>}
+        <span><Tags size={14} /> {t('برچسب‌ها')}</span>
+        {activeTag && <button type="button" className="expense-tag-clear" onClick={() => onSelect(null)}>{t('همه')}</button>}
       </div>
       <ul>
-        {byTag.tags.map((t) => (
-          <li key={t.tag}>
+        {byTag.tags.map((row) => (
+          <li key={row.tag}>
             <button
               type="button"
-              className={`expense-tag-row ${activeTag && activeTag.toLowerCase() === t.tag.toLowerCase() ? 'is-active' : ''}`}
-              onClick={() => onSelect(activeTag && activeTag.toLowerCase() === t.tag.toLowerCase() ? null : t.tag)}
-              aria-pressed={Boolean(activeTag && activeTag.toLowerCase() === t.tag.toLowerCase())}
+              className={`expense-tag-row ${activeTag && activeTag.toLowerCase() === row.tag.toLowerCase() ? 'is-active' : ''}`}
+              onClick={() => onSelect(activeTag && activeTag.toLowerCase() === row.tag.toLowerCase() ? null : row.tag)}
+              aria-pressed={Boolean(activeTag && activeTag.toLowerCase() === row.tag.toLowerCase())}
             >
-              <span className="expense-tag-name">#{t.tag}</span>
-              <span className="expense-tag-count">{faNum(t.count)} مورد</span>
-              <strong className="expense-tag-sum">{money(t.totalToman)} <small>تومان</small></strong>
-              <DollarValueLine value={t.dollar.counted ? t.dollar : null} hideValues={hideValues} />
-              <span className="expense-tag-bar" aria-hidden="true"><i style={{ width: `${share(t.totalToman)}%` }} /></span>
+              <span className="expense-tag-name">#{row.tag}</span>
+              <span className="expense-tag-count">{t('{n} مورد', { n: faNum(row.count) })}</span>
+              <strong className="expense-tag-sum">{money(row.totalToman)} <small>{t('تومان')}</small></strong>
+              <DollarValueLine value={row.dollar.counted ? row.dollar : null} hideValues={hideValues} />
+              <span className="expense-tag-bar" aria-hidden="true"><i style={{ width: `${share(row.totalToman)}%` }} /></span>
             </button>
           </li>
         ))}
         {byTag.untagged.count > 0 && (
           <li className="expense-tag-untagged">
-            <span>بدون برچسب · {faNum(byTag.untagged.count)} مورد</span>
-            <strong>{money(byTag.untagged.totalToman)} <small>تومان</small></strong>
+            <span>{t('بدون برچسب · {n} مورد', { n: faNum(byTag.untagged.count) })}</span>
+            <strong>{money(byTag.untagged.totalToman)} <small>{t('تومان')}</small></strong>
             <DollarValueLine value={byTag.untagged.dollar.counted ? byTag.untagged.dollar : null} hideValues={hideValues} />
           </li>
         )}

@@ -19,10 +19,11 @@ import {
   FALLBACK_CATEGORY,
   newCategoryId,
 } from '../../utils/categoryDocument.js';
+import { t } from '../../utils/i18n.js';
 import { listCategories, saveCategories } from './categoryStore.js';
 import { categoryIcon } from './categoryIcons.js';
 
-const KIND_LABEL = { expense: 'هزینه', income: 'درآمد' };
+const KIND_TITLE = { expense: t('دسته‌های هزینه'), income: t('دسته‌های درآمد') };
 const toDraft = (c) => ({ value: c.value, label: c.label, icon: c.icon, color: c.color, hidden: c.hidden, excluded: Boolean(c.excluded), custom: c.custom });
 
 function CategoryEditor({ item, onChange, onDone }) {
@@ -30,14 +31,14 @@ function CategoryEditor({ item, onChange, onDone }) {
     <div className="category-editor">
       <Input
         id={`category-label-${item.value}`}
-        label="نام دسته"
+        label={t('نام دسته')}
         value={item.label}
         onChange={(e) => onChange({ label: e.target.value })}
         maxLength={CATEGORY_LIMITS.labelLength}
         autoFocus
       />
-      <span className="ui-input-label">رنگ</span>
-      <div className="category-color-grid" role="radiogroup" aria-label="رنگ">
+      <span className="ui-input-label">{t('رنگ')}</span>
+      <div className="category-color-grid" role="radiogroup" aria-label={t('رنگ')}>
         {CATEGORY_COLORS.map((color) => (
           <button
             key={color}
@@ -51,8 +52,8 @@ function CategoryEditor({ item, onChange, onDone }) {
           />
         ))}
       </div>
-      <span className="ui-input-label">آیکون</span>
-      <div className="category-icon-grid" role="radiogroup" aria-label="آیکون">
+      <span className="ui-input-label">{t('آیکون')}</span>
+      <div className="category-icon-grid" role="radiogroup" aria-label={t('آیکون')}>
         {CATEGORY_ICON_NAMES.map((name) => {
           const Icon = categoryIcon(name);
           return (
@@ -72,7 +73,7 @@ function CategoryEditor({ item, onChange, onDone }) {
         })}
       </div>
       <Button size="sm" variant="secondary" icon={<Check size={14} />} onClick={onDone} disabled={!item.label.trim()}>
-        تأیید
+        {t('تأیید')}
       </Button>
     </div>
   );
@@ -112,7 +113,7 @@ export default function CategoryManagerModal({ kind, onClose }) {
       await saveCategories(kind, items.filter((c) => c.label.trim()).map(({ custom: _custom, ...c }) => ({ ...c, label: c.label.trim() })));
       onClose();
     } catch (err) {
-      setError(err?.message || 'ذخیره‌ی دسته‌ها ممکن نشد.');
+      setError(err?.message || t('ذخیره‌ی دسته‌ها ممکن نشد.'));
     } finally {
       setSaving(false);
     }
@@ -122,21 +123,21 @@ export default function CategoryManagerModal({ kind, onClose }) {
     <Modal
       isOpen
       onClose={onClose}
-      title={`دسته‌های ${KIND_LABEL[kind]}`}
-      subtitle="نام، آیکون، رنگ و ترتیب؛ دسته‌ی جدید بسازید یا دسته‌هایی را که لازم ندارید پنهان کنید"
+      title={KIND_TITLE[kind]}
+      subtitle={t('نام، آیکون، رنگ و ترتیب؛ دسته‌ی جدید بسازید یا دسته‌هایی را که لازم ندارید پنهان کنید')}
       icon={<Tags size={18} />}
       maxWidth="520px"
       footer={
         <div className="modal-actions">
-          <Button variant="secondary" block disabled={saving} onClick={onClose}>انصراف</Button>
+          <Button variant="secondary" block disabled={saving} onClick={onClose}>{t('انصراف')}</Button>
           <Button block loading={saving} disabled={locked || Boolean(editing && !items.find((c) => c.value === editing)?.label.trim())} onClick={handleSave}>
-            ذخیره
+            {t('ذخیره')}
           </Button>
         </div>
       }
     >
       <div className="income-form-body">
-        {locked && <AlertBanner type="info" message="برای تغییر دسته‌ها، ابتدا اطلاعات رمزنگاری‌شده را باز کنید." />}
+        {locked && <AlertBanner type="info" message={t('برای تغییر دسته‌ها، ابتدا اطلاعات رمزنگاری‌شده را باز کنید.')} />}
         {error && <AlertBanner type="error" message={error} />}
 
         <ul className="category-manager-list">
@@ -148,35 +149,35 @@ export default function CategoryManagerModal({ kind, onClose }) {
                 <div className="category-manager-row">
                   <span className="category-manager-icon" style={{ '--swatch': item.color }}><Icon size={16} /></span>
                   <span className="category-manager-label">
-                    {item.label || 'دسته‌ی جدید'}
-                    {item.hidden && <small>پنهان</small>}
-                    {item.excluded && <small className="is-excluded">خارج از جمع</small>}
+                    {item.label || t('دسته‌ی جدید')}
+                    {item.hidden && <small>{t('پنهان')}</small>}
+                    {item.excluded && <small className="is-excluded">{t('خارج از جمع')}</small>}
                   </span>
                   <div className="row-actions-group">
                     <button
                       type="button"
                       className={`btn-table-action category-count-toggle ${item.excluded ? 'is-off' : ''}`}
-                      title={item.excluded ? 'در جمع حساب شود' : 'در جمع حساب نشود (مثل سرمایه‌گذاری یا فروش دارایی)'}
+                      title={item.excluded ? t('در جمع حساب شود') : t('در جمع حساب نشود (مثل سرمایه‌گذاری یا فروش دارایی)')}
                       aria-pressed={!item.excluded}
-                      aria-label={item.excluded ? `«${item.label}» در جمع حساب شود` : `«${item.label}» در جمع حساب نشود`}
+                      aria-label={item.excluded ? t('«{label}» در جمع حساب شود', { label: item.label }) : t('«{label}» در جمع حساب نشود', { label: item.label })}
                       onClick={() => update(item.value, { excluded: !item.excluded })}
                     >
                       <Sigma size={13} />
                     </button>
-                    <button type="button" className="btn-table-action" title="بالا" disabled={index === 0} onClick={() => move(index, -1)}>
+                    <button type="button" className="btn-table-action" title={t('بالا')} disabled={index === 0} onClick={() => move(index, -1)}>
                       <ChevronUp size={13} />
                     </button>
-                    <button type="button" className="btn-table-action" title="پایین" disabled={index === items.length - 1} onClick={() => move(index, 1)}>
+                    <button type="button" className="btn-table-action" title={t('پایین')} disabled={index === items.length - 1} onClick={() => move(index, 1)}>
                       <ChevronDown size={13} />
                     </button>
-                    <button type="button" className="btn-table-action edit" title="ویرایش" onClick={() => setEditing(editing === item.value ? null : item.value)}>
+                    <button type="button" className="btn-table-action edit" title={t('ویرایش')} onClick={() => setEditing(editing === item.value ? null : item.value)}>
                       <Pencil size={13} />
                     </button>
                     {item.custom ? (
                       <button
                         type="button"
                         className="btn-table-action delete"
-                        title="حذف (موارد ثبت‌شده در «سایر» نمایش داده می‌شوند)"
+                        title={t('حذف (موارد ثبت‌شده در «سایر» نمایش داده می‌شوند)')}
                         onClick={() => setItems((list) => list.filter((c) => c.value !== item.value))}
                       >
                         <Trash2 size={13} />
@@ -185,7 +186,7 @@ export default function CategoryManagerModal({ kind, onClose }) {
                       <button
                         type="button"
                         className="btn-table-action"
-                        title={item.hidden ? 'نمایش در فهرست انتخاب' : 'پنهان از فهرست انتخاب'}
+                        title={item.hidden ? t('نمایش در فهرست انتخاب') : t('پنهان از فهرست انتخاب')}
                         onClick={() => update(item.value, { hidden: !item.hidden })}
                       >
                         {item.hidden ? <EyeOff size={13} /> : <Eye size={13} />}
@@ -202,14 +203,13 @@ export default function CategoryManagerModal({ kind, onClose }) {
         </ul>
 
         <Button variant="secondary" icon={<Plus size={16} />} onClick={add} disabled={locked}>
-          دسته‌ی جدید
+          {t('دسته‌ی جدید')}
         </Button>
         <p className="expense-form-hint">
-          دسته‌ی حذف‌شده از موارد ثبت‌شده پاک نمی‌شود؛ آن موارد در «سایر» نمایش داده می‌شوند.
+          {t('دسته‌ی حذف‌شده از موارد ثبت‌شده پاک نمی‌شود؛ آن موارد در «سایر» نمایش داده می‌شوند.')}
         </p>
         <p className="expense-form-hint">
-          <Sigma size={12} /> با دکمه‌ی Σ دسته‌ای را از جمع کنار بگذارید: موارد آن در فهرست می‌مانند ولی در جمع، نمودارها و بودجه حساب
-          نمی‌شوند — مثل «سرمایه‌گذاری» یا «فروش دارایی». جابه‌جایی پول بین حساب‌های خودتان هزینه یا درآمد نیست: «انتقال بین حساب‌ها» در صفحه‌ی حساب‌ها.
+          <Sigma size={12} /> {t('با دکمه‌ی Σ دسته‌ای را از جمع کنار بگذارید: موارد آن در فهرست می‌مانند ولی در جمع، نمودارها و بودجه حساب نمی‌شوند — مثل «سرمایه‌گذاری» یا «فروش دارایی». جابه‌جایی پول بین حساب‌های خودتان هزینه یا درآمد نیست: «انتقال بین حساب‌ها» در صفحه‌ی حساب‌ها.')}
         </p>
       </div>
     </Modal>

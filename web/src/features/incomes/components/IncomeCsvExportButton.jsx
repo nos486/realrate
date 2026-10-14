@@ -1,10 +1,11 @@
 import React from 'react';
+import { t } from '../../../utils/i18n.js';
 import { GenericCsvExportButton } from '../../../shared/ui/index.js';
 import { getIncomeCategory } from '../constants/incomeCategories.js';
 import { currencyLabel } from '../../../utils/currencies.js';
 
 /** IncomeCsvImportButton.jsx reads the same columns back */
-const HEADERS = ['عنوان', 'دسته‌بندی', 'مبلغ', 'ارز', 'تاریخ دریافت', 'یادداشت'];
+const HEADERS = [t('عنوان'), t('دسته‌بندی'), t('مبلغ'), t('ارز'), t('تاریخ دریافت'), t('یادداشت')];
 
 /** Exports every income (all dates), fetched when clicked: its amount in its own currency */
 export default function IncomeCsvExportButton({ loadIncomes, disabled = false }) {
@@ -22,7 +23,7 @@ export default function IncomeCsvExportButton({ loadIncomes, disabled = false })
       ]}
       fileBaseName="incomes"
       disabled={disabled}
-      title="دریافت خروجی اکسل / CSV از درآمدها"
+      title={t('دریافت خروجی اکسل / CSV از درآمدها')}
     />
   );
 }

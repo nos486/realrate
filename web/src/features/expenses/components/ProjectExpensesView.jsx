@@ -9,7 +9,7 @@
  * The page header and the vault lock are ProjectsPage's (projects are their own part: /projects).
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { intlLocale, t } from '../../../utils/i18n.js';
 import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
 import { expenseCsvHeaders, expenseCsvRow } from '../utils/expenseCsv.js';
 import React, { useMemo, useState } from 'react';
@@ -94,7 +94,7 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
   const [categoryFilter, setCategoryFilter] = useState({ groupId: null, category: null });
   const activeCategory = categoryFilter.groupId === selected?.id ? categoryFilter.category : null;
   const selectCategory = (category) => setCategoryFilter({ groupId: selected?.id || null, category });
-  const tagSuggestions = useMemo(() => (selectedData?.byTag.tags || []).map((t) => t.tag), [selectedData]);
+  const tagSuggestions = useMemo(() => (selectedData?.byTag.tags || []).map((row) => row.tag), [selectedData]);
   const q = toEnglishDigits(searchQuery.trim().toLowerCase());
   const listed = useMemo(() => {
     const list = selectedData?.list || [];
@@ -124,11 +124,11 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
   const handleDeleteGroup = async (group) => {
     const count = totalsByGroup.get(group.id)?.summary.count || 0;
     const ok = await confirm({
-      title: 'حذف بخش',
+      title: t('حذف بخش'),
       message: count
-        ? `بخش «${group.name}» و ${count.toLocaleString(intlLocale())} هزینه ثبت‌شده در آن حذف شود؟`
-        : `بخش «${group.name}» حذف شود؟`,
-      confirmLabel: 'حذف',
+        ? t('بخش «{name}» و {n} هزینه ثبت‌شده در آن حذف شود؟', { name: group.name, n: count.toLocaleString(intlLocale()) })
+        : t('بخش «{name}» حذف شود؟', { name: group.name }),
+      confirmLabel: t('حذف'),
       danger: true,
     });
     if (!ok) return;
@@ -142,9 +142,9 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
 
   const handleDeleteExpense = async (expense) => {
     const ok = await confirm({
-      title: 'حذف هزینه',
-      message: `هزینه «${expense.title}» حذف شود؟`,
-      confirmLabel: 'حذف',
+      title: t('حذف هزینه'),
+      message: t('هزینه «{title}» حذف شود؟', { title: expense.title }),
+      confirmLabel: t('حذف'),
       danger: true,
     });
     if (!ok) return;
@@ -155,7 +155,7 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
     }
   };
 
-  const disabledTitle = readOnly ? 'در نسخه دمو غیرفعال است' : undefined;
+  const disabledTitle = readOnly ? t('در نسخه دمو غیرفعال است') : undefined;
 
   return (
     <>
@@ -164,24 +164,24 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
           type="error"
           message={error}
           onClose={clearError}
-          action={groups.length === 0 ? <Button size="sm" variant="secondary" onClick={fetchAll}>تلاش مجدد</Button> : null}
+          action={groups.length === 0 ? <Button size="sm" variant="secondary" onClick={fetchAll}>{t('تلاش مجدد')}</Button> : null}
         />
       )}
 
       {loading && groups.length === 0 ? (
-        <SkeletonRows rows={4} columns={3} label="در حال دریافت هزینه‌ها" />
+        <SkeletonRows rows={4} columns={3} label={t('در حال دریافت هزینه‌ها')} />
       ) : groups.length === 0 ? (
         <EmptyState
           icon={<FolderKanban size={44} strokeWidth={1.5} />}
-          title="هنوز بخشی نساخته‌اید"
-          description="برای هر پروژه یا کاری که هزینه دارد یک بخش بسازید و هزینه‌هایش را به تومان یا دلار زیر آن ثبت کنید."
+          title={t('هنوز بخشی نساخته‌اید')}
+          description={t('برای هر پروژه یا کاری که هزینه دارد یک بخش بسازید و هزینه‌هایش را به تومان یا دلار زیر آن ثبت کنید.')}
           action={!readOnly && (
-            <Button icon={<Plus size={16} />} onClick={() => setGroupForm({ group: null })}>ساخت اولین بخش</Button>
+            <Button icon={<Plus size={16} />} onClick={() => setGroupForm({ group: null })}>{t('ساخت اولین بخش')}</Button>
           )}
         />
       ) : (
         <>
-          <nav className="expense-group-switcher" aria-label="بخش‌های هزینه">
+          <nav className="expense-group-switcher" aria-label={t('بخش‌های هزینه')}>
             {groups.map((g) => {
               const s = totalsByGroup.get(g.id)?.summary;
               const active = g.id === selected?.id;
@@ -198,7 +198,7 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
                 >
                   <span className="expense-group-chip-name">{g.name}</span>
                   <span className="expense-group-chip-total">
-                    {hideValues ? '****' : formatAmount(s?.totalToman || 0)} تومان
+                    {hideValues ? '****' : formatAmount(s?.totalToman || 0)} {t('تومان')}
                   </span>
                 </button>
               );
@@ -206,7 +206,7 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
             {!readOnly && (
               <button type="button" className="expense-group-chip is-add" onClick={() => setGroupForm({ group: null })}>
                 <Plus size={16} />
-                <span className="expense-group-chip-name">بخش جدید</span>
+                <span className="expense-group-chip-name">{t('بخش جدید')}</span>
               </button>
             )}
           </nav>
@@ -240,13 +240,13 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
                       <h3>{selected.name}</h3>
                       {!readOnly && (
                         <div className="row-actions-group expense-group-actions">
-                          <button type="button" className="btn-table-action edit" title="ویرایش بخش" onClick={() => setGroupForm({ group: selected })}>
+                          <button type="button" className="btn-table-action edit" title={t('ویرایش بخش')} onClick={() => setGroupForm({ group: selected })}>
                             <Pencil size={13} strokeWidth={2} />
                           </button>
                           <button
                             type="button"
                             className={`btn-table-action delete ${deletingId === selected.id ? 'loading' : ''}`}
-                            title="حذف بخش"
+                            title={t('حذف بخش')}
                             onClick={() => handleDeleteGroup(selected)}
                             disabled={deletingId === selected.id}
                           >
@@ -262,15 +262,15 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
                       <SearchBar
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="جستجو در عنوان، یادداشت یا برچسب..."
-                        badge={`${listed.length.toLocaleString(intlLocale())} مورد`}
+                        placeholder={t('جستجو در عنوان، یادداشت یا برچسب...')}
+                        badge={t('{n} مورد', { n: listed.length.toLocaleString(intlLocale()) })}
                         className="incomes-search"
                       />
                     )}
                     <GenericCsvExportButton
                       items={listed}
                       headers={CSV_HEADERS}
-                      fileBaseName={`هزینه‌های-${selected.name}`}
+                      fileBaseName={`${t('هزینه‌های')}-${selected.name}`}
                       disabled={listed.length === 0}
                       mapRow={(e) => expenseCsvRow(e, { withCategory: true, accountById, loanById })}
                     />
@@ -281,7 +281,7 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
                       disabled={readOnly}
                       title={disabledTitle}
                     >
-                      ثبت هزینه
+                      {t('ثبت هزینه')}
                     </Button>
                   </div>
                 </div>
@@ -290,11 +290,11 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
                   {selectedData.list.length === 0 ? (
                     <EmptyState
                       icon={<HandCoins size={40} strokeWidth={1.5} />}
-                      title="هزینه‌ای در این بخش ثبت نشده"
-                      description="اولین هزینه را با عنوان، مبلغ (تومان یا دلار) و تاریخش ثبت کنید."
+                      title={t('هزینه‌ای در این بخش ثبت نشده')}
+                      description={t('اولین هزینه را با عنوان، مبلغ (تومان یا دلار) و تاریخش ثبت کنید.')}
                     />
                   ) : listed.length === 0 ? (
-                    <EmptyState title="موردی یافت نشد" description="هیچ هزینه‌ای با عبارت جستجو شده مطابقت ندارد." />
+                    <EmptyState title={t('موردی یافت نشد')} description={t('هیچ هزینه‌ای با عبارت جستجو شده مطابقت ندارد.')} />
                   ) : (
                     <>
                       <ExpensesTable
@@ -319,7 +319,7 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
                         total={listed.length}
                         loading={loading}
                         onChange={setPage}
-                        label="صفحه‌بندی هزینه‌های پروژه"
+                        label={t('صفحه‌بندی هزینه‌های پروژه')}
                       />
                     </>
                   )}

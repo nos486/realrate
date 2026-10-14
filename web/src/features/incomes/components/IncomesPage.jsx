@@ -12,7 +12,7 @@
  *   so everything else — paging, sorting, search — works in the browser
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { intlLocale, t } from '../../../utils/i18n.js';
 import React, { useState, useMemo } from 'react';
 import { Wallet, Plus, Tags, Eye, EyeOff } from 'lucide-react';
 import { useIncomes } from '../hooks/useIncomes.js';
@@ -54,9 +54,9 @@ import {
 
 const HEADER = {
   icon: <Wallet size={24} />,
-  title: 'درآمدها',
+  title: t('درآمدها'),
   help: 'incomes',
-  subtitle: 'ورودی‌ها ماه‌به‌ماه، به تفکیک منبع',
+  subtitle: t('ورودی‌ها ماه‌به‌ماه، به تفکیک منبع'),
 };
 
 const inRange = (income, { from, to }) => income.incomeDate >= from && income.incomeDate <= to;
@@ -200,9 +200,9 @@ export default function IncomesPage() {
   const { confirm } = useFeedback();
   const handleDelete = async (income) => {
     const confirmed = await confirm({
-      title: 'حذف درآمد',
-      message: `آیا از حذف درآمد «${income.title}» اطمینان دارید؟`,
-      confirmLabel: 'حذف',
+      title: t('حذف درآمد'),
+      message: t('آیا از حذف درآمد «{title}» اطمینان دارید؟', { title: income.title }),
+      confirmLabel: t('حذف'),
       danger: true,
     });
     if (!confirmed) return;
@@ -217,13 +217,13 @@ export default function IncomesPage() {
     return (
       <div className="incomes-page-container">
         <FeaturePageHeader {...HEADER} />
-        <VaultUnlockCard title="درآمدهای شما رمزنگاری شده‌اند" />
+        <VaultUnlockCard title={t('درآمدهای شما رمزنگاری شده‌اند')} />
       </div>
     );
   }
 
   const excludedFooter = split.excluded.length > 0 && (
-    <span>{formatAmountMasked(sumOf(split.excluded, rates), hideValues)} تومان خارج از جمع</span>
+    <span>{t('{amount} تومان خارج از جمع', { amount: formatAmountMasked(sumOf(split.excluded, rates), hideValues) })}</span>
   );
 
   const monthSidebar = (
@@ -243,7 +243,7 @@ export default function IncomesPage() {
         dollar={dollar}
       />
       <YearFlowChart series={series} kind="income" labelOf={labelOf} categoryOrder={categoryOrder} selectedMonth={month.jm} onOpenMonth={openMonth} hideValues={hideValues} />
-      {donutItems.length > 0 && <DonutChart title="تفکیک دسته‌ها" items={donutItems} centerLabel="جمع ماه" masked={hideValues} />}
+      {donutItems.length > 0 && <DonutChart title={t('تفکیک دسته‌ها')} items={donutItems} centerLabel={t('جمع ماه')} masked={hideValues} />}
       <ExcludedBox kind="income" items={excludedTotals} metaOf={getIncomeCategory} hideValues={hideValues} />
     </>
   );
@@ -253,10 +253,10 @@ export default function IncomesPage() {
       <div className="portfolio-table-header">
         <div className="table-title">
           <div className="table-title-main">
-            <h3>درآمدهای {monthLabel}</h3>
+            <h3>{t('درآمدهای {month}', { month: monthLabel })}</h3>
           </div>
           {counted.length > 0 && (
-            <p className="expense-month-total">جمع: <strong>{formatAmountMasked(total, hideValues)}</strong> تومان</p>
+            <p className="expense-month-total">{t('جمع:')} <strong>{formatAmountMasked(total, hideValues)}</strong> {t('تومان')}</p>
           )}
         </div>
         <div className="expense-table-tools">
@@ -264,17 +264,17 @@ export default function IncomesPage() {
             <SearchBar
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="جستجو در عنوان، دسته یا یادداشت..."
-              badge={`${listed.length.toLocaleString(intlLocale())} مورد`}
+              placeholder={t('جستجو در عنوان، دسته یا یادداشت...')}
+              badge={t('{n} مورد', { n: listed.length.toLocaleString(intlLocale()) })}
               className="incomes-search"
             />
           )}
-          <IconButton icon={<Tags size={15} />} label="دسته‌ها" onClick={() => setManagingCategories(true)} disabled={readOnly} />
+          <IconButton icon={<Tags size={15} />} label={t('دسته‌ها')} onClick={() => setManagingCategories(true)} disabled={readOnly} />
           {split.excluded.length > 0 && (
             <IconButton
                     icon={showExcluded ? <Eye size={15} /> : <EyeOff size={15} />}
-                    label={showExcluded ? 'خارج از جمع: نمایش داده می‌شود' : `خارج از جمع: ${split.excluded.length.toLocaleString(intlLocale())} مورد پنهان`}
-                    title={showExcluded ? 'پنهان کردن دسته‌های خارج از جمع' : 'نمایش دسته‌های خارج از جمع'}
+                    label={showExcluded ? t('خارج از جمع: نمایش داده می‌شود') : t('خارج از جمع: {n} مورد پنهان', { n: split.excluded.length.toLocaleString(intlLocale()) })}
+                    title={showExcluded ? t('پنهان کردن دسته‌های خارج از جمع') : t('نمایش دسته‌های خارج از جمع')}
                     active={!showExcluded}
                     pressed={!showExcluded}
                     badge={showExcluded ? null : split.excluded.length.toLocaleString(intlLocale())}
@@ -287,9 +287,9 @@ export default function IncomesPage() {
             icon={<Plus size={16} />}
             onClick={() => openForm()}
             disabled={readOnly}
-            title={readOnly ? 'در نسخه دمو غیرفعال است' : undefined}
+            title={readOnly ? t('در نسخه دمو غیرفعال است') : undefined}
           >
-            ثبت درآمد
+            {t('ثبت درآمد')}
           </Button>
         </div>
       </div>
@@ -298,18 +298,18 @@ export default function IncomesPage() {
         <CategoryPills items={shownByCategory} total={shown.length} value={categoryFilter} onChange={setCategoryFilter} labelOf={labelOf} />
 
         {loadingIncomes && scoped.length === 0 ? (
-          <SkeletonRows rows={5} columns={4} label="در حال دریافت درآمدها" />
+          <SkeletonRows rows={5} columns={4} label={t('در حال دریافت درآمدها')} />
         ) : scoped.length === 0 ? (
           <EmptyState
             icon={<Wallet size={40} strokeWidth={1.5} />}
-            title={`درآمدی در ${monthLabel} ثبت نشده`}
-            description="حقوق، فروش، اجاره و ... را با دسته‌بندی ثبت کنید تا ببینید درآمدتان از کجاست و چطور تغییر می‌کند."
-            action={!readOnly && <Button icon={<Plus size={16} />} onClick={() => openForm()}>ثبت درآمد</Button>}
+            title={t('درآمدی در {month} ثبت نشده', { month: monthLabel })}
+            description={t('حقوق، فروش، اجاره و ... را با دسته‌بندی ثبت کنید تا ببینید درآمدتان از کجاست و چطور تغییر می‌کند.')}
+            action={!readOnly && <Button icon={<Plus size={16} />} onClick={() => openForm()}>{t('ثبت درآمد')}</Button>}
           />
         ) : searching && listed.length === 0 ? (
-          <EmptyState title="موردی یافت نشد" description="هیچ درآمدی با عبارت جستجو شده مطابقت ندارد." />
+          <EmptyState title={t('موردی یافت نشد')} description={t('هیچ درآمدی با عبارت جستجو شده مطابقت ندارد.')} />
         ) : listed.length === 0 ? (
-          <EmptyState title="موردی در این فیلتر یافت نشد" description="برای این دسته درآمدی ثبت نشده است." />
+          <EmptyState title={t('موردی در این فیلتر یافت نشد')} description={t('برای این دسته درآمدی ثبت نشده است.')} />
         ) : (
           <div className={loadingIncomes ? 'is-refreshing' : ''} aria-busy={loadingIncomes}>
             <IncomesTable
@@ -323,7 +323,7 @@ export default function IncomesPage() {
               onSortChange={() => setOrder(order === 'desc' ? 'asc' : 'desc')}
               rates={rates}
             />
-            <Pagination page={page} pageSize={pageSize} total={listed.length} loading={loadingIncomes} onChange={setPage} label="صفحه‌بندی درآمدها" />
+            <Pagination page={page} pageSize={pageSize} total={listed.length} loading={loadingIncomes} onChange={setPage} label={t('صفحه‌بندی درآمدها')} />
           </div>
         )}
       </div>
@@ -341,7 +341,7 @@ export default function IncomesPage() {
           type="error"
           message={error}
           onClose={clearError}
-          action={<Button size="sm" variant="secondary" onClick={fetchIncomes}>تلاش مجدد</Button>}
+          action={<Button size="sm" variant="secondary" onClick={fetchIncomes}>{t('تلاش مجدد')}</Button>}
         />
       )}
 

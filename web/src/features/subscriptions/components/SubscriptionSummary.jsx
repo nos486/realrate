@@ -4,7 +4,7 @@
  * and the nearest renewal (utils/subscriptionDocument.js subscriptionTotals)
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { intlLocale, t } from '../../../utils/i18n.js';
 import React from 'react';
 import { CalendarSync, CalendarClock, Receipt, Repeat } from 'lucide-react';
 import { MiniCard } from '../../../shared/ui/index.js';
@@ -26,47 +26,47 @@ export default function SubscriptionSummary({ totals, monthLabel, nearest, rates
   const missing = Object.keys(foreign).filter((code) => !currencyRateToday(code, rates));
   const foreignPart = Object.keys(foreign).length > 0 && (
     <span>
-      {hideValues ? '****' : formatCurrencyAmounts(foreign)} از آن ارزی
-      {missing.length > 0 ? ` (نرخ ${missing.map(currencyLabel).join(' و ')} در دسترس نیست)` : ''}
+      {t('{amount} از آن ارزی', { amount: hideValues ? '****' : formatCurrencyAmounts(foreign) })}
+      {missing.length > 0 ? ` ${t('(نرخ {currencies} در دسترس نیست)', { currencies: missing.map(currencyLabel).join(` ${t('و')} `) })}` : ''}
     </span>
   );
   return (
     <div className="incomes-summary-grid">
       <MiniCard
         icon={<CalendarSync size={14} />}
-        title="جمع ماهانه"
+        title={t('جمع ماهانه')}
         value={money(totals.monthly.toman)}
-        unit="تومان"
+        unit={t('تومان')}
         color="gold"
         className="incomes-summary-card is-primary"
-        footer={foreignPart || <span>{fa(totals.count)} اشتراک فعال</span>}
+        footer={foreignPart || <span>{t('{n} اشتراک فعال', { n: fa(totals.count) })}</span>}
       />
       <MiniCard
         icon={<Receipt size={14} />}
-        title={`تمدیدهای ${monthLabel}`}
+        title={t('تمدیدهای {month}', { month: monthLabel })}
         value={money(totals.month.toman)}
-        unit="تومان"
+        unit={t('تومان')}
         className="incomes-summary-card"
-        footer={<span>{fa(totals.month.count)} تمدید در این ماه</span>}
+        footer={<span>{t('{n} تمدید در این ماه', { n: fa(totals.month.count) })}</span>}
       />
       <MiniCard
         icon={<Repeat size={14} />}
-        title="هزینه‌ی سالانه"
+        title={t('هزینه‌ی سالانه')}
         value={money(totals.yearly.toman)}
-        unit="تومان"
+        unit={t('تومان')}
         className="incomes-summary-card"
-        footer={<span>{fa(totals.count)} اشتراک فعال، ارزها با نرخ امروز</span>}
+        footer={<span>{t('{n} اشتراک فعال، ارزها با نرخ امروز', { n: fa(totals.count) })}</span>}
       />
       <MiniCard
         icon={<CalendarClock size={14} />}
-        title="نزدیک‌ترین تمدید"
+        title={t('نزدیک‌ترین تمدید')}
         value={nearest ? shamsiDay(nearest.view.nextRenewal) : '—'}
         className="incomes-summary-card"
         footer={nearest ? (
           <span className="incomes-summary-foot-text">
-            {nearest.sub.name}، {daysLabel(nearest.view.daysLeft)}، {hideValues ? '****' : formatSubscriptionAmount(nearest.sub.amount, nearest.sub.currency)}
+            {nearest.sub.name}{t('،')} {daysLabel(nearest.view.daysLeft)}{t('،')} {hideValues ? '****' : formatSubscriptionAmount(nearest.sub.amount, nearest.sub.currency)}
           </span>
-        ) : <span>تمدیدی در پیش نیست</span>}
+        ) : <span>{t('تمدیدی در پیش نیست')}</span>}
       />
     </div>
   );

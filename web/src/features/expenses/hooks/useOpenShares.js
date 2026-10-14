@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
+import { t } from '../../../utils/i18n.js';
 import * as api from '../../../shared/vault/vaultExpenses.js';
 
-const failed = (err) => ({ loading: false, error: err?.message || 'دریافت طلب‌ها ممکن نشد.', expenses: [] });
+const failed = (err) => ({ loading: false, error: err?.message || t('دریافت طلب‌ها ممکن نشد.'), expenses: [] });
 
 /** Shared expenses («دنگ») with something still owed back, from every section and month */
 export function useOpenShares() {

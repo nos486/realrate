@@ -15,6 +15,7 @@
 
 import React, { useState } from 'react';
 import { CalendarSync } from 'lucide-react';
+import { t } from '../../../utils/i18n.js';
 import { AlertBanner, FilterPills, Input, Modal } from '../../../shared/ui/index.js';
 import { AmountField, CategoryGrid, EntryFormActions, MoreDetails, PickerRow } from '../../../shared/form/index.js';
 import ShamsiDatePicker, { getTodayShamsi, gregorianToShamsi, shamsiToGregorian } from '../../portfolio/components/ShamsiDatePicker.jsx';
@@ -26,9 +27,9 @@ import { accountsForCurrency } from '../../../utils/accountDocument.js';
 import { normalizeCurrency } from '../../../utils/currencies.js';
 import { subscriptionIcon } from '../constants/subscriptionDisplay.js';
 
-const CATEGORY_OPTIONS = SUBSCRIPTION_CATEGORIES.map(({ value, label }) => ({ value, label, Icon: subscriptionIcon(value) }));
-const CYCLE_OPTIONS = SUBSCRIPTION_CYCLES.map(({ months, label }) => ({ value: String(months), label }));
-const RENEW_OPTIONS = [{ value: 'auto', label: 'خودکار تمدید می‌شود' }, { value: 'manual', label: 'دستی تمدید می‌کنم' }];
+const CATEGORY_OPTIONS = SUBSCRIPTION_CATEGORIES.map(({ value, label }) => ({ value, label: t(label), Icon: subscriptionIcon(value) }));
+const CYCLE_OPTIONS = SUBSCRIPTION_CYCLES.map(({ months, label }) => ({ value: String(months), label: t(label) }));
+const RENEW_OPTIONS = [{ value: 'auto', label: t('خودکار تمدید می‌شود') }, { value: 'manual', label: t('دستی تمدید می‌کنم') }];
 const amountOf = (v) => Number(String(v || '').replace(/[^\d.]/g, '')) || 0;
 const shamsiOf = (iso) => (iso ? gregorianToShamsi(`${iso}T00:00:00`) : '');
 
@@ -86,28 +87,28 @@ export default function SubscriptionForm({ subscription = null, accounts = [], o
       });
       onClose();
     } catch (err) {
-      setError(err.message || 'ذخیره‌ی اشتراک ممکن نشد.');
+      setError(err.message || t('ذخیره‌ی اشتراک ممکن نشد.'));
     }
   };
 
   const detailsFilled = [
-    ...(endShamsi ? ['پایان'] : []),
-    ...(url.trim() ? ['سایت'] : []),
-    ...(notes.trim() ? ['یادداشت'] : []),
+    ...(endShamsi ? [t('پایان')] : []),
+    ...(url.trim() ? [t('سایت')] : []),
+    ...(notes.trim() ? [t('یادداشت')] : []),
   ];
 
   return (
     <Modal
       isOpen
       onClose={onClose}
-      title={s ? 'ویرایش اشتراک' : 'اشتراک جدید'}
-      subtitle="هزینه، دوره‌ی تمدید و یادآوری قبل از تمدید"
+      title={s ? t('ویرایش اشتراک') : t('اشتراک جدید')}
+      subtitle={t('هزینه، دوره‌ی تمدید و یادآوری قبل از تمدید')}
       icon={<CalendarSync size={18} />}
       maxWidth="560px"
       onSubmit={handleSubmit}
       footer={(
         <EntryFormActions
-          submitLabel={s ? 'ذخیره تغییرات' : 'افزودن اشتراک'}
+          submitLabel={s ? t('ذخیره تغییرات') : t('افزودن اشتراک')}
           valid={isValid}
           submitting={submitting}
           onCancel={onClose}
@@ -119,7 +120,7 @@ export default function SubscriptionForm({ subscription = null, accounts = [], o
 
         <AmountField
           id="sub-amount"
-          label="هزینه‌ی هر دوره"
+          label={t('هزینه‌ی هر دوره')}
           value={amount}
           onValueChange={setAmount}
           currency={currency}
@@ -127,60 +128,60 @@ export default function SubscriptionForm({ subscription = null, accounts = [], o
           autoFocus={!s}
         />
 
-        <Input id="sub-name" label="نام اشتراک *" placeholder="مثلاً: نتفلیکس، ChatGPT، فیلیمو، اینترنت خانه" value={name}
+        <Input id="sub-name" label={t('نام اشتراک *')} placeholder={t('مثلاً: نتفلیکس، ChatGPT، فیلیمو، اینترنت خانه')} value={name}
           onChange={(e) => setName(e.target.value)} maxLength={SUBSCRIPTION_LIMITS.nameLength} required />
 
-        <CategoryGrid kind="subscription" label="دسته" options={CATEGORY_OPTIONS} value={category} onChange={setCategory} />
+        <CategoryGrid kind="subscription" label={t('دسته')} options={CATEGORY_OPTIONS} value={category} onChange={setCategory} />
 
         <div className="ui-input-group">
-          <span className="ui-input-label">دوره‌ی تمدید</span>
+          <span className="ui-input-label">{t('دوره‌ی تمدید')}</span>
           <FilterPills variant="segmented" size="sm" options={CYCLE_OPTIONS} activeValue={cycle} onChange={setCycle} />
         </div>
 
         <div className="entry-form-section">
-          <ShamsiDatePicker label="شروع (اولین پرداخت) *" value={startShamsi} onChange={setStartShamsi} />
-          <p className="expense-form-hint">تمدیدها هر دوره در همین روزِ ماه هستند. برای دوره‌ی آزمایشی، اولین پرداخت را روز پایان آزمایش بگذارید.</p>
+          <ShamsiDatePicker label={t('شروع (اولین پرداخت) *')} value={startShamsi} onChange={setStartShamsi} />
+          <p className="expense-form-hint">{t('تمدیدها هر دوره در همین روزِ ماه هستند. برای دوره‌ی آزمایشی، اولین پرداخت را روز پایان آزمایش بگذارید.')}</p>
         </div>
 
         <div className="entry-form-section">
           <div className="ui-input-group">
-            <span className="ui-input-label">تمدید</span>
+            <span className="ui-input-label">{t('تمدید')}</span>
             <FilterPills variant="segmented" size="sm" options={RENEW_OPTIONS} activeValue={renewMode} onChange={setRenewMode} />
           </div>
           {manual && (
             <>
-              <ShamsiDatePicker label="اعتبار تا (تمدید بعدی)" value={renewShamsi || shamsiOf(defaultRenewOn)} onChange={setRenewShamsi} />
-              <p className="expense-form-hint">با ثبت پرداخت تمدید، این تاریخ یک دوره جلو می‌رود؛ اگر بگذرد و تمدید نکنید، اشتراک «تمام شده» نشان داده می‌شود.</p>
+              <ShamsiDatePicker label={t('اعتبار تا (تمدید بعدی)')} value={renewShamsi || shamsiOf(defaultRenewOn)} onChange={setRenewShamsi} />
+              <p className="expense-form-hint">{t('با ثبت پرداخت تمدید، این تاریخ یک دوره جلو می‌رود؛ اگر بگذرد و تمدید نکنید، اشتراک «تمام شده» نشان داده می‌شود.')}</p>
             </>
           )}
         </div>
 
         {payAccounts.length > 0 && (
           <PickerRow
-            label="پرداخت از"
+            label={t('پرداخت از')}
             value={effectiveAccountId}
-            options={[{ value: '', label: 'نامشخص' }, ...payAccounts.map((a) => ({ value: a.id, label: accountLabel(a) }))]}
+            options={[{ value: '', label: t('نامشخص') }, ...payAccounts.map((a) => ({ value: a.id, label: accountLabel(a) }))]}
             onChange={setAccountId}
-            placeholder="نامشخص"
+            placeholder={t('نامشخص')}
           />
         )}
 
         <MoreDetails filled={detailsFilled}>
           <div className="entry-form-section">
-            <ShamsiDatePicker label="پایان" value={endShamsi} onChange={setEndShamsi} />
-            <p className="expense-form-hint">اگر تا تاریخ مشخصی است یا لغوش کرده‌اید و تا پایان دوره فعال است؛ بعد از آن تمدیدی حساب نمی‌شود.</p>
+            <ShamsiDatePicker label={t('پایان')} value={endShamsi} onChange={setEndShamsi} />
+            <p className="expense-form-hint">{t('اگر تا تاریخ مشخصی است یا لغوش کرده‌اید و تا پایان دوره فعال است؛ بعد از آن تمدیدی حساب نمی‌شود.')}</p>
           </div>
-          <Input id="sub-url" label="سایت" placeholder="https://" value={url} dir="ltr" onChange={(e) => setUrl(e.target.value)} maxLength={SUBSCRIPTION_LIMITS.urlLength} />
-          <Input id="sub-notes" as="textarea" label="یادداشت" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={SUBSCRIPTION_LIMITS.notesLength} rows={2} />
+          <Input id="sub-url" label={t('سایت')} placeholder="https://" value={url} dir="ltr" onChange={(e) => setUrl(e.target.value)} maxLength={SUBSCRIPTION_LIMITS.urlLength} />
+          <Input id="sub-notes" as="textarea" label={t('یادداشت')} value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={SUBSCRIPTION_LIMITS.notesLength} rows={2} />
         </MoreDetails>
 
         {!s && (
-          <p className="expense-form-hint">پرداخت این اشتراک (و هر تمدید خودکارش، سر موعد) در «هزینه‌ها» ثبت می‌شود، با همین مبلغ، ارز و حساب.</p>
+          <p className="expense-form-hint">{t('پرداخت این اشتراک (و هر تمدید خودکارش، سر موعد) در «هزینه‌ها» ثبت می‌شود، با همین مبلغ، ارز و حساب.')}</p>
         )}
 
         <label className="sub-form-check">
           <input type="checkbox" checked={!muted} onChange={(e) => setMuted(!e.target.checked)} />
-          <span>یادآوری قبل از تمدید (اعلان و ایمیل، طبق تنظیمات یادآوری)</span>
+          <span>{t('یادآوری قبل از تمدید (اعلان و ایمیل، طبق تنظیمات یادآوری)')}</span>
         </label>
       </div>
     </Modal>
