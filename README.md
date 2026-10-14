@@ -2,99 +2,103 @@
 
 <div align="center">
 
-**فارسی** · [English](README.en.md)
+**English** · [فارسی](README.fa.md)
 
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?style=flat-square&logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
 [![React 19](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-8-646CFF?style=flat-square&logo=vite&logoColor=white)](https://vitejs.dev/)
 [![D1](https://img.shields.io/badge/DB-Cloudflare_D1_+_KV-F38020?style=flat-square&logo=cloudflare&logoColor=white)](https://developers.cloudflare.com/d1/)
-[![Android](https://img.shields.io/badge/Android-Capacitor_8-3DDC84?style=flat-square&logo=android&logoColor=white)](docs/ANDROID.md)
+[![Android](https://img.shields.io/badge/Android-Capacitor_8-3DDC84?style=flat-square&logo=android&logoColor=white)](docs/en/ANDROID.md)
 [![Vitest](https://img.shields.io/badge/Tests-Vitest-FCC72B?style=flat-square&logo=vitest&logoColor=black)](https://vitest.dev/)
 ![License: MIT](https://img.shields.io/badge/License-MIT-34D399?style=flat-square)
 
-![RealRate — نرخ و حباب طلا، سکه و ارز](docs/screenshots/web-market.png)
+![RealRate — gold, coin and currency rates with their bubble](docs/screenshots/web-market.png)
 
 </div>
 
-**RealRate** سامانه تحلیل بازار طلا، سکه و ارز و مدیریت مالی شخصی است که روی لبه Cloudflare اجرا می‌شود:
-ارزش ذاتی و حباب طلا و سکه، نرخ ارزها و بورس، اخبار مهم بازار و تحلیل روز با هوش مصنوعی، و مدیریت پورتفو، هزینه‌ها، حساب‌ها، وام‌ها، درآمدها، چک‌ها و اشتراک‌ها با گزارش سالانه — همه با رمزنگاری سرتاسری.
-نسخه‌ی وب در [realrate.geekio.org](https://realrate.geekio.org) است و اپ اندروید (نسخه‌ی کامل با ثبت خودکار هزینه از پیامک بانک، و نسخه‌ی بدون پیامک برای فروشگاه‌هایی مثل Google Play) از [صفحه‌ی اپ](https://realrate.geekio.org/android) یا
-[آخرین Release](https://github.com/nos486/realrate/releases/latest/download/realrate.apk) دانلود می‌شود.
+**RealRate** is a market analysis and personal finance app for Iran, running on Cloudflare's edge.
+It computes the intrinsic value and the bubble of gold and coins, tracks currencies, stocks and funds, and manages
+portfolios, expenses, accounts, loans, incomes, cheques and subscriptions — all end-to-end encrypted.
+The web app is at [realrate.geekio.org](https://realrate.geekio.org); the Android app (the full build records expenses from bank SMS; a no-SMS build is made for stores such as Google Play) is on the
+[app page](https://realrate.geekio.org/android) or the [latest release](https://github.com/nos486/realrate/releases/latest/download/realrate.apk).
 
-## امکانات
+The interface is in Persian (right-to-left, Shamsi calendar, amounts in tomans).
 
-- **بازار**: ارزش ذاتی و حباب طلا و سکه (حباب سکه‌ها را خود برنامه از انس و دلار حساب می‌کند)، ۱۶ ارز و تتر، نمادهای بورس و صندوق‌ها — به‌روزرسانی خودکار (هر سورس حداکثر هر ۵ دقیقه) و صفحه‌ی اصلی قابل شخصی‌سازی (با میانگین‌ها، دارایی‌های مرتبط، کارت ترکیبی با فرمول دلخواه و «آخرین تغییر» هر قیمت) (صفحه‌ی نرخ و حباب برای کاربران Pro)
-- **پورتفو**: پورتفوهای چندگانه، تراکنش خرید/فروش با میانگین موزون، سود و زیان زنده، نمودار تاریخچه‌ی ارزش از اولین خرید تا امروز (به تومان یا دلار، با تغییر ۲۴ ساعته، ۷ روزه و ۱ ماهه روی کارت «ارزش کل»)، دسته‌های سفارشی، اشتراک عمومی
-- **هزینه‌ها**: هزینه‌های روزمره با دسته و بودجه ماهانه؛ پروژه‌ها (پروژه جای هزینه است نه دسته‌ی آن، و هر هزینه‌ی پروژه دسته‌ی خودش را دارد)؛ هر هزینه به تومان، دلار، یورو، لیر یا درهم با نرخ همان روز از تاریخچه‌ی قیمت؛ «پرداخت از» حساب (یا ارزی که در پورتفو دارید) و «تأمین از» وام؛ پرداخت اشتراک‌ها، اقساط و چک‌ها خودکار هزینه ثبت می‌شوند؛ خروجی و ورود CSV
-- **حساب‌ها**: حساب بانکی (بانک‌های ایران و بانک‌های خارجی و حساب‌های آنلاین بین‌المللی)، نقد و کیف پول، هر حساب با یک یا چند ارز و خرج این ماهِ هر ارز با معادل تومانی؛ منبع هر هزینه، تطبیق پیامک‌های بانک و «انتقال بین حساب‌ها»
-- **اعتبار بانکی** (تازه): سقف و بدهی، خرج از اعتبار، «تسویه بدهی» و «تبدیل به قسط» به‌صورت دستی (هر قسط با تاریخ و مبلغ خودش) و کارمزد تسویه و قسط‌بندی که از همین مبلغ‌ها حساب و کنار رکوردش ثبت می‌شود
-- **وام‌ها**: جدول اقساط، ثبت پرداخت قسط با تاریخ و مبلغ خودش، پنهان بودن وام‌های تسویه‌شده در فهرست، پرداخت و پرداخت اضافه، بانک‌ها با لوگو، و «مصرف وام» (هزینه‌ها و خریدهایی که با وام شد و بازده آن‌ها در برابر سود وام)
-- **درآمدها**: ثبت و گزارش به تفکیک منبع و ماه، به تومان، دلار، یورو، لیر یا درهم (نرخ از تاریخچه‌ی قیمت همان روز)؛ دسته‌هایی مثل «فروش دارایی» خارج از جمع می‌مانند؛ خروجی و ورود CSV
-- **چک‌ها**: دریافتی و صادره، سررسید، پیگیری وضعیت با سوابق، یادآوری و اسکن چک با هوش مصنوعی؛ چک روش پرداخت است نه دسته (هر چک «بابت» یک دسته و یک حساب)، و چکِ پاس‌شده خودکار درآمد یا هزینه ثبت می‌کند
-- **اشتراک‌ها** (تازه): همه‌ی اشتراک‌ها به تومان یا هر ارز دیگر با دوره‌ی تمدید، شروع و پایان؛ نوار پیشرفت دوره و روزهای مانده تا تمدید، جمع ماهانه و سالانه، ثبت پرداخت (پرداخت اشتراک‌های خودکار به‌عنوان هزینه) و یادآوری قبل از هر تمدید
-- **اخبار مهم بازار** (تازه): خبرهای دلار، طلا، نفت و اقتصاد از کانال‌های خبری، که هوش مصنوعی (Workers AI) هر دقیقه بررسی و دسته‌بندی می‌کند — بدون تبلیغ، سیگنال و تکرار؛ با اهمیت ۱ تا ۳، مهم‌ترین‌های روز و هفته و اعلان خبرهای مهم
-- **تحلیل روز با هوش مصنوعی** (تازه): خلاصه و تحلیل خبرهای امروز، ارتباطشان و آنچه باید زیر نظر گرفت — بدون پیش‌بینی قیمت؛ آخرین تحلیل در صفحه‌ی اول سایت هم دیده می‌شود
-- **گزارش سالانه** (تازه): سال شمسی در یک صفحه — درآمد و هزینه، نرخ پس‌انداز، سهم سرمایه‌گذاری از درآمد، ارزش دلاری و نکته‌های سال؛ خروجی PDF و CSV
-- **اپ اندروید**: ناوبری پایین و «ثبت سریع»، خواندن خودکار پیامک برداشت و واریز بانک (بدون خروج متن پیامک از گوشی)، ثبت سریع و خودکار هزینه‌های کوچک، اثر انگشت و کار آفلاین؛ هر ریلیز علاوه بر `realrate.apk` فایل‌های نسخه‌دار `realrate-<نسخه>.apk`، نسخه‌ی بدون پیامک `realrate-nosms-<نسخه>.apk` (بدون مجوز پیامک) و `realrate-nosms-<نسخه>.aab` (بسته‌ی Google Play) دارد
-- **رمزنگاری سرتاسری**: همه داده‌های مالی روی دستگاه کاربر رمز می‌شوند؛ سرور فقط متن رمزشده را می‌بیند. سایت هم مثل اپ نسخه‌ی رمزشده‌ی داده‌ها را روی دستگاه نگه می‌دارد: تب‌ها سریع باز می‌شوند و بدون اینترنت هم می‌شود ثبت کرد
-- **حساب کاربری و مدیریت**: ورود با گوگل یا ایمیل، حساب دمو، پنل مدیریت (کاربران، گروه‌ها و دسترسی به ویژگی‌ها، کاربران اپ و نسخه‌هایشان، سورس‌های قیمت)
+## Features
 
-جزئیات: [docs/FEATURES.md](docs/FEATURES.md)
+- **Market**: intrinsic value and bubble of gold and coins (the coins' bubbles computed by the app from the ounce and the dollar), 16 currencies and USDT, Tehran Stock Exchange symbols and funds — updated automatically (each source at most every 5 minutes), on a home page each user lays out (averages, linked assets, cards combining assets with a formula, and when each price last changed, «آخرین تغییر») (the rates page is for Pro users)
+- **Portfolio**: multiple portfolios, buy/sell transactions with weighted average cost, live profit and loss, a value-history chart from the first purchase to today (in tomans or dollars, with the 24-hour, 7-day and 1-month change on the «total value» card), custom categories, public sharing
+- **Expenses**: everyday expenses by category with monthly budgets; projects (a project is where an expense is, not its category, so each project expense keeps its own category); each expense in tomans, dollars, euros, lira or dirhams at that day's rate from the price history; the account that paid («پرداخت از», or that currency held in a portfolio) and the loan that funded it («تأمین از»); subscription, installment and cheque payments recorded as expenses automatically; CSV export and import
+- **Accounts**: bank accounts (Iranian banks, foreign banks and international online accounts), cash and wallets, each in one or more currencies with this month's spending per currency and its toman approximation; the source of every expense, the match for bank SMS, and transfers between accounts («انتقال بین حساب‌ها»)
+- **Bank credit** (new): the limit and the debt, spending from the credit, «تسویه بدهی» and «تبدیل به قسط» by hand (each installment with its own day and amount), and the settlement and installment fees worked out from those amounts and kept with their record
+- **Loans**: installment schedule, paying an installment with its own day and amount, extra payments, settled loans hidden from the list by default, banks with logos, and loan usage (what the loan paid for, and how those purchases did against the loan's rate)
+- **Incomes**: by source and month, in tomans, dollars, euros, lira or dirhams (rate from that day's price history); categories such as «فروش دارایی» stay out of the totals; CSV export and import
+- **Cheques**: received and issued, due dates, status tracking with history, reminders, and AI cheque scanning; a cheque is a way of paying, not a category (each has its «بابت» category and an account), and a cleared cheque records its income or expense
+- **Subscriptions** (new): every subscription in tomans or another currency with its renewal cycle, start and end; the period's progress bar and days to renewal, the monthly and yearly total, recording a payment (auto-renewing ones recorded as expenses), and a reminder before each renewal
+- **Market news** (new): dollar, gold, oil and economy news from news channels, checked and sorted every minute by AI (Workers AI) — no ads, signals or duplicates; importance 1–3, the day's and week's top stories, and notifications for the important ones
+- **AI day's analysis** (new): what today's news says, how the stories connect and what to watch — no price predictions; the latest analysis is also on the website's landing page
+- **Yearly report** (new): a Shamsi year on one page — income and expenses, savings rate, the share of income invested, dollar value and the year's highlights; PDF and CSV export
+- **Android app**: bottom navigation and quick add, automatic reading of bank withdrawal and deposit SMS (the text never leaves the phone), one-tap and automatic recording of small expenses, fingerprint unlock, offline use; each release carries `realrate.apk` plus version-named `realrate-<version>.apk`, the no-SMS build `realrate-nosms-<version>.apk` (no SMS permission) and `realrate-nosms-<version>.aab` (Google Play bundle)
+- **End-to-end encryption**: all financial data is encrypted on the user's device; the server only sees ciphertext. The website, like the app, keeps an encrypted copy of the data on the device: tabs open fast and entries can be made offline
+- **Accounts and admin**: Google or email sign-in, a demo account, an admin panel (users, groups and feature access, Android app users and their versions, price sources)
 
-## تصاویر
+Details: [docs/en/FEATURES.md](docs/en/FEATURES.md)
 
-| پورتفو و نمودار تاریخچه‌ی ارزش | هزینه‌های روزمره |
+## Screenshots
+
+| Portfolio and its value history | Everyday expenses |
 | :---: | :---: |
-| ![پورتفو](docs/screenshots/web-portfolio.png) | ![هزینه‌ها](docs/screenshots/web-expenses.png) |
-| وام‌ها و اقساط | گزارش سالانه |
-| ![وام‌ها](docs/screenshots/web-loans.png) | ![گزارش سالانه](docs/screenshots/web-report.png) |
+| ![Portfolio](docs/screenshots/web-portfolio.png) | ![Expenses](docs/screenshots/web-expenses.png) |
+| Loans | Yearly report |
+| ![Loans](docs/screenshots/web-loans.png) | ![Yearly report](docs/screenshots/web-report.png) |
 
 <div align="center">
 
-| خانه‌ی اپ | هزینه‌ها | پورتفو | وام‌ها |
+| App home | Expenses | Portfolio | Loans |
 | :---: | :---: | :---: | :---: |
-| <img src="docs/screenshots/app-home.png" width="200" alt="خانه‌ی اپ"> | <img src="docs/screenshots/app-expenses.png" width="200" alt="هزینه‌ها در اپ"> | <img src="docs/screenshots/app-portfolio.png" width="200" alt="پورتفو در اپ"> | <img src="docs/screenshots/app-loans.png" width="200" alt="وام‌ها در اپ"> |
+| <img src="docs/screenshots/app-home.png" width="200" alt="App home"> | <img src="docs/screenshots/app-expenses.png" width="200" alt="Expenses in the app"> | <img src="docs/screenshots/app-portfolio.png" width="200" alt="Portfolio in the app"> | <img src="docs/screenshots/app-loans.png" width="200" alt="Loans in the app"> |
 
 </div>
 
-## شروع سریع
+## Quick start
 
 ```bash
 git clone https://github.com/nos486/realrate.git
 cd realrate
 npm install
-npm run dev    # API: http://localhost:8787 — وب: http://localhost:5173
+npm run dev    # API: http://localhost:8787 — web: http://localhost:5173
 npm test
 ```
 
-اجرای محلی چیزی جز wrangler لازم ندارد (D1 و KV محلی): [docs/SETUP.md](docs/SETUP.md).
+Running locally needs only wrangler (local D1 and KV): [docs/en/SETUP.md](docs/en/SETUP.md).
 
-## استقرار
+## Deployment
 
-مرج در `main` همه‌چیز را خودکار منتشر می‌کند: فرانت‌اند روی Cloudflare Pages، بک‌اند با Cloudflare Workers Builds، و APK امضاشده‌ی اندروید در [Releases](https://github.com/nos486/realrate/releases) (GitHub Actions).
-انتشار دستی بک‌اند در صورت نیاز: `npm run api:deploy`.
-راهنمای کامل (D1 و KV، ورود با گوگل، ایمیل، Pages، Workers، کلید امضای اندروید): [docs/SETUP.md](docs/SETUP.md)
+A merge into `main` deploys everything: the frontend to Cloudflare Pages, the backend with Cloudflare Workers Builds, and a
+signed Android APK to [Releases](https://github.com/nos486/realrate/releases) (GitHub Actions).
+Manual backend deploy when needed: `npm run api:deploy`.
+Full guide (D1 and KV, Google sign-in, email, Pages, Workers, the Android signing key): [docs/en/SETUP.md](docs/en/SETUP.md)
 
-## مستندات
+## Documentation
 
-| سند | موضوع |
+| Document | Topic |
 | :--- | :--- |
-| [FEATURES.md](docs/FEATURES.md) | شرح کامل امکانات |
-| [SETUP.md](docs/SETUP.md) | راه‌اندازی محلی، پیکربندی و استقرار |
-| [PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md) | ساختار مخزن و فایل‌های مشترک |
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | معماری و جریان داده (انگلیسی) |
-| [API.md](docs/API.md) | مرجع REST API (انگلیسی) |
-| [E2EE_VAULT.md](docs/E2EE_VAULT.md) | رمزنگاری سرتاسری حساب، همگام‌سازی و نسخه‌ی آفلاین |
-| [ANDROID.md](docs/ANDROID.md) | اپ اندروید: ساخت، امضا، انتشار، پیامک بانک، اثر انگشت، آفلاین |
-| [BANK_SMS.md](docs/BANK_SMS.md) | قالب پیامک بانک‌ها و افزودن بانک جدید |
-| [BANK_STATEMENT_IMPORT.md](docs/BANK_STATEMENT_IMPORT.md) | ورود صورت‌حساب همراه بانک و افزودن بانک |
-| [EXPENSES.md](docs/EXPENSES.md) | ساختار داده‌ی هزینه‌ها، حساب‌ها، بودجه و «تأمین از» |
-| [DESIGN.md](docs/DESIGN.md) | استاندارد رنگ‌ها و چیدمان صفحه‌ها |
-| [ADDING_NEW_ASSET.md](docs/ADDING_NEW_ASSET.md) | افزودن دارایی جدید |
-| [ADDING_NEW_PRICE_SOURCE.md](docs/ADDING_NEW_PRICE_SOURCE.md) | افزودن سورس قیمت |
+| [FEATURES.md](docs/en/FEATURES.md) | Every feature in detail |
+| [SETUP.md](docs/en/SETUP.md) | Local setup, configuration and deployment |
+| [PROJECT_STRUCTURE.md](docs/en/PROJECT_STRUCTURE.md) | Repository layout and shared files |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Architecture and data flow |
+| [API.md](docs/API.md) | REST API reference |
+| [E2EE_VAULT.md](docs/en/E2EE_VAULT.md) | Account-wide end-to-end encryption, sync and the offline copy |
+| [ANDROID.md](docs/en/ANDROID.md) | Android app: build, signing, releases, bank SMS, fingerprint, offline |
+| [BANK_SMS.md](docs/en/BANK_SMS.md) | Bank SMS templates and adding a bank |
+| [BANK_STATEMENT_IMPORT.md](docs/en/BANK_STATEMENT_IMPORT.md) | Mobile-bank statement import and adding a bank |
+| [EXPENSES.md](docs/en/EXPENSES.md) | Expense, account, budget and loan-funding data model |
+| [DESIGN.md](docs/en/DESIGN.md) | Color and layout standard |
+| [ADDING_NEW_ASSET.md](docs/en/ADDING_NEW_ASSET.md) | Adding an asset |
+| [ADDING_NEW_PRICE_SOURCE.md](docs/en/ADDING_NEW_PRICE_SOURCE.md) | Adding a price source |
 
-نسخه‌ی انگلیسی همه‌ی مستندات: [docs/en](docs/en/README.md)
+All English documents: [docs/en](docs/en/README.md)
 
-## لایسنس
+## License
 
 MIT

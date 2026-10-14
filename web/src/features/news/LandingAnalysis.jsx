@@ -6,6 +6,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
+import { hasNews as localeHasNews } from '../../utils/i18n.js';
 import NewsAnalysisCard from './NewsAnalysisCard.jsx';
 import { getNewsAnalysisCard } from './newsApi.js';
 
@@ -13,7 +14,11 @@ import { getNewsAnalysisCard } from './newsApi.js';
  * @param {{ head: React.ReactNode, className?: string, id?: string }} props the section's heading
  * and look: the whole section shows only once there is an analysis
  */
-export default function LandingAnalysis({ head, className = '', id }) {
+export default function LandingAnalysis(props) {
+  return localeHasNews() ? <LandingAnalysisContent {...props} /> : null;
+}
+
+function LandingAnalysisContent({ head, className = '', id }) {
   const ref = useRef(null);
   const [analysis, setAnalysis] = useState(null);
 

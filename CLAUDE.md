@@ -4,7 +4,7 @@ Guidance for Claude Code in this repository.
 
 RealRate (realrate.geekio.org) is a market-analysis and personal-finance app for Iran: intrinsic value and bubble of gold and coins, currencies, TSE symbols and funds, AI-curated news and a daily AI analysis (Workers AI); plus end-to-end encrypted portfolios, expenses, budgets, accounts, loans, incomes, cheques and a yearly report. The Android app also records expenses from bank SMS.
 
-npm-workspaces monorepo: `api/` is a framework-less Cloudflare Worker (D1 + KV + Workers AI); `web/` is a React 19 + Vite SPA/PWA, also packaged as the Android app with Capacitor (`web/android`, id `ir.realrate.app`). UI is Persian only: RTL, Shamsi dates with Persian digits, amounts in **tomans** (records may use other currencies; totals in tomans), Tehran days, dark flat theme. UI strings and CHANGELOG entries are Persian. Docs index: the table in `README.en.md`.
+npm-workspaces monorepo: `api/` is a framework-less Cloudflare Worker (D1 + KV + Workers AI); `web/` is a React 19 + Vite SPA/PWA, also packaged as the Android app with Capacitor (`web/android`, id `ir.realrate.app`). UI is Persian only: RTL, Shamsi dates with Persian digits, amounts in **tomans** (records may use other currencies; totals in tomans), Tehran days, dark flat theme. UI strings and CHANGELOG entries are Persian. Docs index: the table in `README.md` (English; Persian: `README.fa.md`).
 
 ## Commands
 

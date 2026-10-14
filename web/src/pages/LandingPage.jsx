@@ -12,7 +12,7 @@
  * No prices are shown: nothing here is stale when cached or crawled. Styles: styles/landing.css.
  */
 import LanguageSwitch from '../shared/i18n/LanguageSwitch.jsx';
-import { getDir, getLocale, t } from '../utils/i18n.js';
+import { getDir, getLocale, hasNews, t } from '../utils/i18n.js';
 import React, { useCallback, useState } from 'react';
 import {
   TrendingUp,
@@ -49,7 +49,7 @@ const FEATURES = [
   { Icon: Wallet, tone: 'green', title: t('هزینه و بودجه'), text: t('هزینه‌های روزمره با دسته و بودجه‌ی ماهانه، حساب‌ها و پروژه‌ها.'), href: '/features' },
   { Icon: Landmark, tone: 'cyan', title: t('درآمد، وام و چک'), text: t('اقساط و سررسیدها، درآمدهای ثابت و چک‌ها با یادآوری.'), href: '/features/loans' },
   { Icon: ChartColumn, tone: 'violet', title: t('گزارش سالانه'), text: t('درآمد و هزینه، پس‌انداز و سرمایه‌گذاری سال در یک صفحه؛ خروجی PDF.'), href: '/features' },
-  { Icon: Newspaper, tone: 'rose', title: t('اخبار و تحلیل هوش مصنوعی'), text: t('فقط خبرهایی که روی بازار اثر دارند، و تحلیل هر روز.'), href: '/features' },
+  { Icon: Newspaper, tone: 'rose', title: t('اخبار و تحلیل هوش مصنوعی'), text: t('فقط خبرهایی که روی بازار اثر دارند، و تحلیل هر روز.'), href: '/features', news: true },
 ];
 
 /** Why trust it with your money */
@@ -185,7 +185,7 @@ export default function LandingPage() {
           <div className="lp-container lp-hero-inner">
             <span className="lp-pill">
               <Sparkles size={14} aria-hidden="true" />
-              {t('تازه: اخبار بازار، تحلیل روز با هوش مصنوعی و گزارش سالانه')}
+              {hasNews() ? t('تازه: اخبار بازار، تحلیل روز با هوش مصنوعی و گزارش سالانه') : t('تازه: گزارش سالانه و نسخه‌ی انگلیسی')}
             </span>
             <h1>
               {t('پول و دارایی‌هایت را')}
@@ -209,7 +209,7 @@ export default function LandingPage() {
           <div className="lp-container">
             <SectionHead eyebrow={t('امکانات')} title={t('همه‌ی کارهای مالی در یک جا')} text={t('از قیمت لحظه‌ای بازار تا گزارش آخر سال.')} />
             <div className="lp-features">
-              {FEATURES.map(({ Icon, tone, title, text, href }) => (
+              {FEATURES.filter((f) => !f.news || hasNews()).map(({ Icon, tone, title, text, href }) => (
                 <a key={title} href={href} className="lp-feature">
                   <span className={`lp-feature-icon is-${tone}`}><Icon size={20} aria-hidden="true" /></span>
                   <h3>{title}</h3>

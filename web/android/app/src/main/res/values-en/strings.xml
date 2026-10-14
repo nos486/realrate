@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="widget_empty">No data; tap to open the app</string>
+    <string name="widget_refresh">Refresh</string>
+    <string name="widget_settings">Choose assets</string>
+    <string name="widget_label">RealRate, prices and news</string>
+    <string name="widget_description">Prices of your favorite assets and smart news, updated every 10 minutes</string>
+    <string name="widget_news_label">Smart news</string>
+</resources>

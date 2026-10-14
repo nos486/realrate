@@ -72,7 +72,7 @@ export const SEO_LOCALES = {
       title: 'RealRate | See your assets at their real value',
       description: 'See the real value of gold, coins and currencies, and manage your portfolio, expenses, loans, cheques and income. Free, open source and end-to-end encrypted.',
       h1: 'See your money and assets in one place, at their real value',
-      intro: 'Real value and bubble of gold and coins, currencies and stocks, a portfolio, expenses, income, loans and cheques, with a yearly report and the market news that matter. Free, open source and encrypted on your own device.',
+      intro: 'Real value and bubble of gold and coins, currencies and stocks, a portfolio, expenses, income, loans and cheques, with a yearly report. Free, open source and encrypted on your own device.',
       featuresTitle: 'Everything about your money in one place',
     },
     c: {
