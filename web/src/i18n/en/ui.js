@@ -25,7 +25,7 @@ export default {
   'دریافت قیمت‌ها از سرور ناموفق بود.': 'Could not load prices from the server.',
   'بر مبنای دلار ({rate} $)': 'Based on the dollar ({rate} $)',
   '{price} دلار': '{price} USD',
-  '{pct}٪ بالاتر از ارزش طلای سکه': '{pct}% above the coin’s gold value',
+  '{pct}٪ بالاتر از ارزش طلای سکه': "{pct}% above the coin's gold value",
   'ارزش ذاتی (محاسبه از انس و دلار)': 'Intrinsic value (computed from the ounce and the dollar)',
   'نماد: {symbol} • {source}': 'Symbol: {symbol} • {source}',
   'نماد: {symbol}': 'Symbol: {symbol}',

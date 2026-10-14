@@ -6,6 +6,7 @@
  */
 
 import { PRICE_SOURCES_CONFIG } from "./sources.config.js";
+import { msg } from "../domain/i18n.js";
 import {
   CATEGORIES_CONFIG,
   CATEGORY_MAP,
@@ -174,7 +175,7 @@ export function resolveAssetDisplayWithSource(assetId, rawItem = null) {
  * @param {string} [fallbackUnit="واحد"]
  * @returns {string}
  */
-export function resolveAssetUnit(assetId, rawItem = null, fallbackUnit = "واحد") {
+export function resolveAssetUnit(assetId, rawItem = null, fallbackUnit = msg("واحد")) {
   const item = rawItem ? { ...rawItem, id: assetId || rawItem.id } : assetId;
   return getItemUnit(item, null, fallbackUnit);
 }

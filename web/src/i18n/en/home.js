@@ -3,7 +3,7 @@
  */
 
 export default {
-  'دلار': 'USD',
+  'دلار': "Dollar",
   'طلای ۱۸': '18k gold',
   'سکه امامی': 'Emami coin',
   'نرخ‌های امروز — رفتن به بازار': 'Today\'s rates — go to the market',
@@ -28,8 +28,8 @@ export default {
   'نقره': 'Silver',
   'ارز': 'Currency',
   'رمزارز': 'Crypto',
-  'بورس': 'Stock market',
-  'صندوق': 'Funds',
+  'بورس': "Stock exchange",
+  'صندوق': "Fund",
   'افزودن به «{title}»': 'Add to "{title}"',
   'بخش': 'Section',
   'هر دارایی بازار — طلا، سکه، ارز، رمزارز، نماد بورس یا صندوق — را می‌توانید اضافه کنید.': 'You can add any market asset: gold, coins, currencies, crypto, stock symbols or funds.',
@@ -65,7 +65,7 @@ export default {
   'بدون': 'None',
   'مقدار امروز:': 'Today\'s value:',
   '(مقدار فرمول × ۱۰۰)': '(formula value × 100)',
-  'عدد': 'Number',
+  'عدد': "piece",
   'درصد': 'Percent',
   '۳۰ روز': '30 days',
   'یک سال': 'One year',

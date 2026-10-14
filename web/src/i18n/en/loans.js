@@ -141,7 +141,7 @@ export default {
   'تعداد اقساط پرداخت‌شده': 'Number of paid installments',
   'دریافت خروجی اکسل / CSV از وام‌ها': 'Export loans to Excel / CSV',
   'ردیف {n}': 'Row {n}',
-  'وام': 'loan',
+  'وام': "Loan",
 
   // Funding card
   'ارزش امروز خریدهای پورتفو': 'Today’s value of portfolio purchases',
@@ -151,7 +151,7 @@ export default {
   'تا امروز بازده این خریدها از سود وام بیشتر بوده است.': 'So far these purchases have returned more than the loan’s interest.',
   'تا امروز بازده این خریدها از سود وام کمتر بوده؛ وام بیش از سودش هزینه داشته است.': 'So far these purchases have returned less than the loan’s interest; the loan has cost more than it earned.',
   'خرید پورتفو، {amount} {unit}': 'Portfolio purchase, {amount} {unit}',
-  'واحد': 'units',
+  'واحد': "unit",
   'مصرف وام': 'Loan usage',
   '{pct}٪ خرج شده': '{pct}% spent',
   'خرج شده': 'Spent',

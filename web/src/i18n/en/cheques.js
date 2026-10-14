@@ -143,7 +143,7 @@ export default {
   'مثلاً: به حساب ملت واریز شد': 'e.g. Deposited into my Mellat account',
 
   // AI scan
-  'اسکن چک با هوش مصنوعی': 'Scan cheque with AI',
+  'اسکن چک با هوش مصنوعی': "AI cheque scan",
   'اسکن چک': 'Scan cheque',
   'استخراج هوشمند اطلاعات چک بانکی از تصویر': 'Smart extraction of bank cheque details from a photo',
   'سهمیه امروز شما ({limit} اسکن) تمام شده است؛ فردا دوباره می‌توانید اسکن کنید.': 'You have used today’s quota ({limit} scans). You can scan again tomorrow.',

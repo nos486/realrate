@@ -92,12 +92,37 @@ export function findUntranslated(src) {
   return out;
 }
 
-/** Source files (not symlinks, not tests) under a directory */
+/**
+ * Data files whose Persian names, units, badges and labels are translated at display time instead of
+ * line by line: the Worker shares these files and only speaks Persian, so the web looks each name up
+ * in web/src/i18n/en/catalog.js (displayEngine.js, the asset registry, bank registry helpers).
+ * api/tests/unit/catalogI18n.test.js checks that every displayed name has an English entry.
+ */
+export const DATA_FILES = new Set([
+  'api/src/config/banks.config.js',
+  'api/src/config/categories.config.js',
+  'api/src/config/features.js',
+  'api/src/config/news.config.js',
+  'api/src/config/planLimits.js',
+  'api/src/config/sources.config.js',
+  'api/src/config/tgjuCatalog.js',
+  'api/src/config/usageLimits.js',
+  'api/src/domain/specs/bubble.spec.js',
+  'api/src/domain/specs/cash.spec.js',
+  'api/src/domain/specs/coin.spec.js',
+  'api/src/domain/specs/commodity.spec.js',
+  'api/src/domain/specs/crypto.spec.js',
+  'api/src/domain/specs/forex.spec.js',
+  'api/src/domain/specs/gold.spec.js',
+  'api/src/domain/specs/silver.spec.js',
+].map((p) => path.join(ROOT, p)));
+
+/** Source files (not symlinks, not tests, not data files) under a directory */
 export function listSources(dir) {
   const files = [];
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
-    if (entry.isSymbolicLink()) continue;
+    if (entry.isSymbolicLink() || DATA_FILES.has(full)) continue;
     if (entry.isDirectory()) files.push(...listSources(full));
     else if (/\.(js|jsx|mjs)$/.test(entry.name)) files.push(full);
   }
@@ -105,8 +130,8 @@ export function listSources(dir) {
 }
 
 /** Left in Persian: the admin panel is for the site owner only */
-export const SKIP = [path.join(ROOT, 'web/src/features/admin'), path.join(ROOT, 'web/src/pages/AdminApp.jsx')];
-export const isSkipped = (file) => file.startsWith(DICTIONARY_PREFIX) || SKIP.some((p) => file.startsWith(p));
+export const ADMIN_PATHS = [path.join(ROOT, 'web/src/features/admin'), path.join(ROOT, 'web/src/pages/AdminApp.jsx')];
+export const isSkipped = (file) => file.startsWith(DICTIONARY_PREFIX) || ADMIN_PATHS.some((p) => file.startsWith(p));
 
 /** The directories whose Persian texts reach the screen: the web app and the code it shares with the API */
 export const SCAN_ROOTS = ['web/src', 'api/src/domain', 'api/src/config'].map((p) => path.join(ROOT, p));

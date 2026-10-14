@@ -83,7 +83,7 @@ export default {
   'هیچ تراکنشی در فایل پیدا نشد.': 'No transactions were found in the file.',
   'حساب مقابل انتقال را انتخاب کنید.': 'Choose the other account of the transfer.',
   'حساب مقابل نمی‌تواند همین حساب باشد.': 'The other account cannot be this same account.',
-  'انتقال بین حساب‌ها': 'Transfer between accounts',
+  'انتقال بین حساب‌ها': "Transfer between accounts",
   'دریافت از حساب خودم': 'Received from my own account',
   'ورودی از فایل {bankLabel}': 'Imported from the {bankLabel} file',
   'ساعت {time}': 'Time {time}',
@@ -136,8 +136,8 @@ export default {
   'عنوان درآمد نباید بیشتر از {titleLength} کاراکتر باشد.': 'The income title can be at most {titleLength} characters.',
   'مبلغ درآمد باید عددی بزرگتر از صفر باشد.': 'The income amount must be a number greater than zero.',
   'تاریخ دریافت درآمد نامعتبر است.': 'The income date is not valid.',
-  درآمد: 'income',
-  هزینه: 'expense',
+  درآمد: "Income",
+  هزینه: "Expense",
   'این {what} را بخش «{label}» ثبت کرده؛ از همان صفحه تغییرش دهید.': 'This {what} was recorded by "{label}"; change it from that page.',
 
   // Cheques

@@ -7,7 +7,7 @@
  * A dollar-priced asset keeps `currency: "usd"` and `priceUsd` (its own price, assetPrice.js).
  */
 
-import { intlLocale, t } from '../../utils/i18n.js';
+import { intlLocale, msg, t } from '../../utils/i18n.js';
 import { SPEC_BY_ID } from '../../utils/priceBook.js';
 import { toPriceId } from '../../utils/priceIds.js';
 import { CATEGORY_MAP } from '../../config/categories.config.js';
@@ -25,8 +25,10 @@ function describe(item) {
   // A coin's bubble (tgju): its percent of the coin's gold value
   if (p.bubbleOf && p.bubblePct !== undefined) return t('{pct}٪ بالاتر از ارزش طلای سکه', { pct: fa(p.bubblePct, 1) });
   if (p.derived === 'intrinsic') return t('ارزش ذاتی (محاسبه از انس و دلار)');
-  if (p.symbol) return p.sourceName ? t('نماد: {symbol} • {source}', { symbol: p.symbol, source: p.sourceName }) : t('نماد: {symbol}', { symbol: p.symbol });
-  return p.sourceName || '';
+  if (p.symbol) return p.sourceName
+      ? t('نماد: {symbol} • {source}', { symbol: p.symbol, source: t(p.sourceName) })
+      : t('نماد: {symbol}', { symbol: p.symbol });
+  return t(p.sourceName || '');
 }
 
 /**
@@ -41,20 +43,23 @@ export function toAsset(item) {
   const aliases = [...new Set([
     ...(spec?.aliases || []),
     item.name,
+    t(item.name), // the English name too, so English search finds it
     symbol,
     spec?.code,
     ...(isFund && symbol ? [`صندوق ${symbol}`] : []), // i18n-ignore
   ].filter(Boolean))];
   return {
     ...item,
+    name: t(item.name),
+    unit: item.unit ? t(item.unit) : item.unit,
     currency: currencyOf(item),
     priceUsd: currencyOf(item) === 'usd' ? Number(item.priceUsd) || null : null,
     code: spec?.code || '',
     symbol,
     flag: spec?.flag || '',
-    badge: CATEGORY_MAP[item.category]?.badge || spec?.badge || t('دارایی'),
+    badge: t(CATEGORY_MAP[item.category]?.badge || spec?.badge || msg('دارایی')),
     isFund,
-    sourceName: p.sourceName || '',
+    sourceName: t(p.sourceName || ''),
     changePercent: p.changePercent ?? null,
     intrinsicPrice: p.intrinsic ?? null,
     bubblePct: p.bubblePct ?? null,

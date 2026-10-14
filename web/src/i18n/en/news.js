@@ -5,7 +5,7 @@
 export default {
   'فلزات': 'Metals',
   'نفت و انرژی': 'Oil and energy',
-  'بورس و شاخص': 'Stocks and index',
+  'بورس و شاخص': "Stock market and index",
   'اقتصاد': 'Economy',
   'سیاسی و امنیتی': 'Politics and security',
   '{day}، {time}': '{day}, {time}',

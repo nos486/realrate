@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 import {
   BANKS,
   BANK_TYPES,
@@ -6,9 +7,21 @@ import {
   matchBankIdByName,
   normalizeBankName,
 } from '../../config/banks.config.js';
-import { t } from '../../utils/i18n.js';
 
 export { BANKS, BANK_TYPES, getBankById, isCustomBankId, matchBankIdByName };
+
+/** The dictionary key of a bank's short name: short names are common words (مسکن, شهر), so they are keyed apart from other texts */
+const SHORT_NAME_KEY = 'بانک · '; // i18n-ignore
+
+/** A standard bank's full name in the active language (English: its registry `enName` via the catalog) */
+export const bankName = (bank) => t(bank.name);
+
+/** A standard bank's compact name in the active language */
+export const bankShortName = (bank) => {
+  const key = SHORT_NAME_KEY + bank.shortName;
+  const text = t(key);
+  return text === key ? bank.shortName : text;
+};
 
 /** Public URL of a standard bank's logo, or null when it has none (`noLogo`: shown by its initial) */
 export function bankLogoUrl(id) {
@@ -43,8 +56,8 @@ export function resolveBank(ref, customBanks = []) {
     return {
       key: standard.id,
       id: standard.id,
-      name: standard.name,
-      shortName: standard.shortName,
+      name: bankName(standard),
+      shortName: bankShortName(standard),
       logo: bankLogoUrl(standard.id),
       kind: 'standard',
     };
@@ -66,6 +79,6 @@ export function resolveBank(ref, customBanks = []) {
 /** Standard banks grouped for pickers, legacy (dissolved) banks left out */
 export function getBankGroups() {
   return Object.entries(BANK_TYPES)
-    .map(([type, label]) => ({ type, label, banks: BANKS.filter((b) => b.type === type && !b.legacy) }))
+    .map(([type, label]) => ({ type, label: t(label), banks: BANKS.filter((b) => b.type === type && !b.legacy) }))
     .filter((group) => group.banks.length > 0);
 }
