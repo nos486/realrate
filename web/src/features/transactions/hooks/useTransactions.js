@@ -33,6 +33,7 @@ import {
 } from '../../../shared/vault/vaultPortfolioItems.js';
 import { markLegacyVaultUnlocked } from '../../../shared/vault/vaultStore.js';
 import { toIsoDay } from '../../../shared/vault/vaultRecordMeta.js';
+import { t } from '../../../utils/i18n.js';
 
 /** Display fields shown with every transaction (from the asset id) */
 function withDisplayFields(tx) {
@@ -211,7 +212,7 @@ export function useTransactions(activePortfolio, externalVaultKey = null, { from
   // Add transaction
   const addTransaction = async (txData) => {
     if (isVaultLocked) {
-      throw new Error("پورتفو قفل است، ابتدا آن را باز کنید.");
+      throw new Error(t('پورتفو قفل است، ابتدا آن را باز کنید.'));
     }
     if (!activePortfolio?.id) return null;
     setSubmitting(true);
@@ -256,7 +257,7 @@ export function useTransactions(activePortfolio, externalVaultKey = null, { from
   // Update transaction
   const updateTransaction = async (id, txData) => {
     if (isVaultLocked) {
-      throw new Error("پورتفو قفل است، ابتدا آن را باز کنید.");
+      throw new Error(t('پورتفو قفل است، ابتدا آن را باز کنید.'));
     }
     if (!activePortfolio?.id || !id) return null;
     setSubmitting(true);
@@ -299,7 +300,7 @@ export function useTransactions(activePortfolio, externalVaultKey = null, { from
   // Delete transaction
   const deleteTransaction = async (id) => {
     if (isVaultLocked) {
-      throw new Error("پورتفو قفل است، ابتدا آن را باز کنید.");
+      throw new Error(t('پورتفو قفل است، ابتدا آن را باز کنید.'));
     }
     if (!activePortfolio?.id || !id) return false;
     setDeletingId(id);

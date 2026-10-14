@@ -8,7 +8,7 @@
  * bad news for expenses (red).
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t, plural } from '../../utils/i18n.js';
 import React, { useMemo, useState } from 'react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
 import { formatCompactAmount } from '../utils/formatters.js';
@@ -17,11 +17,11 @@ import { formatShamsiYear } from './flowYear.js';
 
 const OTHER_KEY = '__other__';
 const KIND = {
-  income: { noun: 'درآمد', otherLabel: 'سایر منابع' },
-  expense: { noun: 'هزینه', otherLabel: 'سایر دسته‌ها' },
+  income: { noun: t('درآمد'), nouns: plural(2, t('درآمد'), t('درآمدها')), otherLabel: t('سایر منابع') },
+  expense: { noun: t('هزینه'), nouns: plural(2, t('هزینه'), t('هزینه‌ها')), otherLabel: t('سایر دسته‌ها') },
 };
 
-const formatPct = (v) => `${Math.abs(v).toLocaleString(intlLocale(), { maximumFractionDigits: Math.abs(v) < 10 ? 1 : 0 })}٪`;
+const formatPct = (v) => t('{count}٪', { count: Math.abs(v).toLocaleString(intlLocale(), { maximumFractionDigits: Math.abs(v) < 10 ? 1 : 0 }) });
 
 /** One stack per category: `order` first (the donut's, so colors match), then by total; extras fold into gray */
 function buildStacks(series, order, labelOf, otherLabel) {
@@ -81,11 +81,9 @@ export default function YearFlowChart({ series, kind, labelOf, categoryOrder = [
   return (
     <div className={`portfolio-stat-card monthly-income-chart flow-year-chart ${large ? 'is-large' : ''}`}>
       <div className="stat-header">
-        <span className="stat-label">{meta.noun} از ابتدای سال {formatShamsiYear(year)}</span>
+        <span className="stat-label">{t('{noun} از ابتدای سال {year}', { noun: meta.nouns, year: formatShamsiYear(year) })}</span>
         <span className="monthly-income-avg-label">
-          <span className="monthly-income-avg-key" aria-hidden="true" />
-          میانگین {amount(average)}
-        </span>
+          <span className="monthly-income-avg-key" aria-hidden="true" />{t('میانگین {amount}', { amount: amount(average) })}</span>
       </div>
 
       <div className="monthly-income-readout" aria-live="polite">
@@ -93,18 +91,18 @@ export default function YearFlowChart({ series, kind, labelOf, categoryOrder = [
           <strong>{amount(month.total)}</strong>
           <span>
             <bdi>{month.label}</bdi>
-            {month.count > 0 && <>{'، '}<bdi>{month.count.toLocaleString(intlLocale())} مورد</bdi></>}
+            {month.count > 0 && <>{t('، ')}<bdi>{plural(month.count, t('{count} مورد', { count: month.count.toLocaleString(intlLocale()) }), t('{count} موارد', { count: month.count.toLocaleString(intlLocale()) }))}</bdi></>}
           </span>
         </div>
         {month.change !== null ? (
-          <span className={`monthly-income-change ${tone(month.change)}`} title="نسبت به ماه قبل">
+          <span className={`monthly-income-change ${tone(month.change)}`} title={t('نسبت به ماه قبل')}>
             {month.change >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
             {month.change >= 0 ? '+' : '−'}
             {formatPct(month.change)}
-            <small>نسبت به ماه قبل</small>
+            <small>{t('نسبت به ماه قبل')}</small>
           </span>
         ) : (
-          <span className="flow-year-total">جمع سال: <strong>{amount(total)}</strong></span>
+          <span className="flow-year-total">{t('جمع سال:')}{' '}<strong>{amount(total)}</strong></span>
         )}
       </div>
 
@@ -121,7 +119,9 @@ export default function YearFlowChart({ series, kind, labelOf, categoryOrder = [
               if (onOpenMonth && (i === activeIndex || window.matchMedia?.('(hover: hover)').matches)) onOpenMonth(m.jm);
               setActiveIndex(i);
             }}
-            aria-label={`${m.label}: ${hideValues ? 'مبلغ پنهان' : formatCompactAmount(m.total)}${m.change !== null ? `، ${m.change >= 0 ? 'افزایش' : 'کاهش'} ${formatPct(m.change)} نسبت به ماه قبل` : ''}`}
+            aria-label={m.change !== null
+              ? t('{label}: {amount}، {direction} {pct} نسبت به ماه قبل', { label: m.label, amount: hideValues ? t('مبلغ پنهان') : formatCompactAmount(m.total), direction: m.change >= 0 ? t('افزایش') : t('کاهش'), pct: formatPct(m.change) })
+              : t('{label}: {amount}', { label: m.label, amount: hideValues ? t('مبلغ پنهان') : formatCompactAmount(m.total) })}
             aria-pressed={i === index}
           >
             {m.change !== null && m.total > 0 && (
@@ -147,7 +147,7 @@ export default function YearFlowChart({ series, kind, labelOf, categoryOrder = [
       </div>
 
       {stacks.length > 0 && (
-        <ul className="monthly-income-legend" aria-label={`ترکیب ${meta.noun} ${month.label}`}>
+        <ul className="monthly-income-legend" aria-label={t('ترکیب {noun} {month}', { noun: meta.nouns, month: month.label })}>
           {stacks.map((st) => (
             <li key={st.key} className={activeStack && activeStack !== st.key ? 'is-dimmed' : ''} onMouseEnter={() => setActiveStack(st.key)} onMouseLeave={() => setActiveStack(null)}>
               <span className="monthly-income-swatch" style={{ background: st.color }} aria-hidden="true" />

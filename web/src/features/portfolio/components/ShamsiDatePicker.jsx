@@ -153,7 +153,7 @@ export default function ShamsiDatePicker({
   onChange,
   onChangeIso,
   onTodayClick,
-  label = 'تاریخ خرید',
+  label = t('تاریخ خرید'),
   className = ''
 }) {
   const [showPicker, setShowPicker] = useState(false);
@@ -187,15 +187,15 @@ export default function ShamsiDatePicker({
           type="button"
           className="btn-set-today"
           onClick={handleSetToday}
-          title="تنظیم تاریخ امروز"
+          title={t('تنظیم تاریخ امروز')}
         >
-          ⚡ امروز
+          {t('⚡ امروز')}
         </button>
       </div>
       <div className="date-input-wrap">
         <input
           type="text"
-          placeholder="مثلاً ۱۴۰۳/۱۱/۲۰ یا آبان ۱۴۰۳"
+          placeholder={t('مثلاً ۱۴۰۳/۱۱/۲۰ یا آبان ۱۴۰۳')}
           value={displayShamsi}
           onChange={(e) => {
             const val = e.target.value;
@@ -209,7 +209,7 @@ export default function ShamsiDatePicker({
           type="button"
           className={`btn-toggle-datepicker ${showPicker ? 'active' : ''}`}
           onClick={() => setShowPicker((prev) => !prev)}
-          title="انتخاب از تقویم"
+          title={t('انتخاب از تقویم')}
         >
           <Calendar size={15} />
         </button>
@@ -234,7 +234,7 @@ export default function ShamsiDatePicker({
           <div className="date-selector-row">
             {/* Day Select */}
             <div className="date-select-col">
-              <span className="select-col-label">روز:</span>
+              <span className="select-col-label">{t('روز:')}</span>
               <select
                 value={parseShamsiDate(value).day}
                 onChange={(e) => handleDatePartChange('day', e.target.value)}
@@ -250,7 +250,7 @@ export default function ShamsiDatePicker({
 
             {/* Month Select */}
             <div className="date-select-col">
-              <span className="select-col-label">ماه:</span>
+              <span className="select-col-label">{t('ماه:')}</span>
               <select
                 value={parseShamsiDate(value).month}
                 onChange={(e) => handleDatePartChange('month', e.target.value)}
@@ -266,7 +266,7 @@ export default function ShamsiDatePicker({
 
             {/* Year Select */}
             <div className="date-select-col">
-              <span className="select-col-label">سال:</span>
+              <span className="select-col-label">{t('سال:')}</span>
               <select
                 value={parseShamsiDate(value).year}
                 onChange={(e) => handleDatePartChange('year', e.target.value)}
@@ -287,7 +287,7 @@ export default function ShamsiDatePicker({
               className="btn-date-today-mini"
               onClick={handleSetToday}
             >
-              امروز
+              {t('امروز')}
             </button>
             <button
               type="button"
@@ -303,16 +303,16 @@ export default function ShamsiDatePicker({
                   nativeDateRef.current?.click();
                 }
               }}
-              title="تقویم سیستم"
+              title={t('تقویم سیستم')}
             >
-              تقویم
+              {t('تقویم')}
             </button>
             <button
               type="button"
               className="btn-date-done-mini"
               onClick={() => setShowPicker(false)}
             >
-              تأیید
+              {t('تأیید')}
             </button>
           </div>
         </div>

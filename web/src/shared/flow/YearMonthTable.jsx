@@ -4,11 +4,11 @@
  * month
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
 import React from 'react';
 import { formatAmountMasked } from './flowFormat.js';
 
-const formatPct = (v) => `${Math.abs(v).toLocaleString(intlLocale(), { maximumFractionDigits: Math.abs(v) < 10 ? 1 : 0 })}٪`;
+const formatPct = (v) => t('{count}٪', { count: Math.abs(v).toLocaleString(intlLocale(), { maximumFractionDigits: Math.abs(v) < 10 ? 1 : 0 }) });
 
 /**
  * @param {{ series: Array<object>, kind: 'income'|'expense', onOpenMonth?: (jm: number) => void,
@@ -22,19 +22,19 @@ export default function YearMonthTable({ series, kind, onOpenMonth, hideValues =
     <div className="portfolio-table-card flow-month-table">
       <div className="portfolio-table-header">
         <div className="table-title">
-          <div className="table-title-main"><h3>ماه‌به‌ماه</h3></div>
-          <p className="expense-month-total">جمع: <strong>{formatAmountMasked(total, hideValues)}</strong> تومان</p>
+          <div className="table-title-main"><h3>{t('ماه‌به‌ماه')}</h3></div>
+          <p className="expense-month-total">{t('جمع:')}{' '}<strong>{formatAmountMasked(total, hideValues)}</strong>{' '}{t('تومان')}</p>
         </div>
       </div>
       <div className="table-card-body">
         <table className="flow-month-grid">
           <thead>
             <tr>
-              <th>ماه</th>
-              <th>جمع (تومان)</th>
-              <th>نسبت به ماه قبل</th>
-              <th className="flow-share-col">سهم از سال</th>
-              <th>تعداد</th>
+              <th>{t('ماه')}</th>
+              <th>{t('جمع (تومان)')}</th>
+              <th>{t('نسبت به ماه قبل')}</th>
+              <th className="flow-share-col">{t('سهم از سال')}</th>
+              <th>{t('تعداد')}</th>
             </tr>
           </thead>
           <tbody>

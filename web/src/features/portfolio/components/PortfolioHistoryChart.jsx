@@ -8,7 +8,7 @@
  * public price history; nothing about the portfolio is sent out.
  */
 
-import { intlLocale, getDir } from '../../../utils/i18n.js';
+import { intlLocale, getDir, t } from '../../../utils/i18n.js';
 import React, { useMemo, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { CHART_COLORS } from '../../../shared/ui/chartColors.js';
@@ -23,26 +23,26 @@ const PAD_Y = 12;
 const GRID = 3;
 
 const RANGES = [
-  { value: '30', label: '۱ ماه' },
-  { value: '90', label: '۳ ماه' },
-  { value: '365', label: '۱ سال' },
-  { value: '0', label: 'همه' },
+  { value: '30', label: t('۱ ماه') },
+  { value: '90', label: t('۳ ماه') },
+  { value: '365', label: t('۱ سال') },
+  { value: '0', label: t('همه') },
 ];
 const UNITS = [
-  { value: 'toman', label: 'تومان' },
-  { value: 'usd', label: 'دلار' },
+  { value: 'toman', label: t('تومان') },
+  { value: 'usd', label: t('دلار') },
 ];
 const CHANGES = [
-  { span: 1, label: '۲۴ ساعت' },
-  { span: 7, label: '۷ روز' },
-  { span: 30, label: '۱ ماه' },
+  { span: 1, label: t('۲۴ ساعت') },
+  { span: 7, label: t('۷ روز') },
+  { span: 30, label: t('۱ ماه') },
 ];
 
 const dayFormat = new Intl.DateTimeFormat(`${intlLocale()}-u-ca-persian`, { year: 'numeric', month: 'short', day: 'numeric' });
 const dayLabel = (iso) => dayFormat.format(new Date(`${iso}T12:00:00+03:30`));
 const compact = new Intl.NumberFormat(intlLocale(), { notation: 'compact', maximumFractionDigits: 1 });
-const fmt = (v, unit) => (Number.isFinite(v) ? Math.round(v).toLocaleString(intlLocale()) : '-') + (unit === 'usd' ? ' $' : ' تومان');
-const signed = (pct) => `${pct >= 0 ? '+' : '−'}${formatPct(Math.abs(pct))}٪`;
+const fmt = (v, unit) => (Number.isFinite(v) ? Math.round(v).toLocaleString(intlLocale()) : '-') + (unit === 'usd' ? ' $' : t(' تومان'));
+const signed = (pct) => t('{sign}{pct}٪', { sign: pct >= 0 ? '+' : '−', pct: formatPct(Math.abs(pct)) });
 
 /** A compact segmented control: one pill per option, the active one filled */
 function Segmented({ options, value, onChange, label }) {
@@ -104,8 +104,8 @@ export default function PortfolioHistoryChart({ assets, hideValues = false }) {
       <div className="portfolio-history-panel">
         <p className="portfolio-history-note">
           {full
-            ? 'تاریخچه‌ی ارزش از فردا نمایش داده می‌شود؛ همه‌ی ثبت‌ها مال امروزند.'
-            : 'برای دیدن تاریخچه‌ی ارزش، تاریخ خرید دارایی‌ها را ثبت کنید.'}
+            ? t('تاریخچه‌ی ارزش از فردا نمایش داده می‌شود؛ همه‌ی ثبت‌ها مال امروزند.')
+            : t('برای دیدن تاریخچه‌ی ارزش، تاریخ خرید دارایی‌ها را ثبت کنید.')}
         </p>
       </div>
     );
@@ -144,7 +144,7 @@ export default function PortfolioHistoryChart({ assets, hideValues = false }) {
         type="button"
         className="portfolio-history-toggle"
         aria-expanded={open}
-        aria-label="تاریخچه ارزش پورتفو"
+        aria-label={t('تاریخچه ارزش پورتفو')}
         onClick={() => setOpen((v) => !v)}
       >
         <span className="portfolio-history-chips">
@@ -158,12 +158,12 @@ export default function PortfolioHistoryChart({ assets, hideValues = false }) {
       {open && (
         <div className="portfolio-history-body">
           <div className="portfolio-history-controls">
-            <Segmented options={RANGES} value={range} onChange={setRange} label="بازه" />
-            <Segmented options={UNITS} value={unit} onChange={setUnit} label="واحد" />
+            <Segmented options={RANGES} value={range} onChange={setRange} label={t('بازه')} />
+            <Segmented options={UNITS} value={unit} onChange={setUnit} label={t('واحد')} />
           </div>
 
           {hideValues ? (
-            <p className="portfolio-history-note">مقادیر پنهان است.</p>
+            <p className="portfolio-history-note">{t('مقادیر پنهان است.')}</p>
           ) : canPlot ? (
             <div className="portfolio-history-chart" dir="ltr">
               <div className="portfolio-history-axis-y" aria-hidden="true">
@@ -174,7 +174,7 @@ export default function PortfolioHistoryChart({ assets, hideValues = false }) {
               <div
                 className="portfolio-history-plot"
                 role="img"
-                aria-label={`ارزش پورتفو از ${dayLabel(series.days[0])} تا امروز`}
+                aria-label={t('ارزش پورتفو از {dayLabel} تا امروز', { dayLabel: dayLabel(series.days[0]) })}
                 onPointerMove={pick}
                 onPointerDown={pick}
                 onPointerLeave={() => setHover(null)}
@@ -199,22 +199,22 @@ export default function PortfolioHistoryChart({ assets, hideValues = false }) {
               </div>
               <div className="portfolio-history-axis-x" aria-hidden="true">
                 <span>{dayLabel(series.days[0])}</span>
-                <span>امروز</span>
+                <span>{t('امروز')}</span>
               </div>
             </div>
           ) : (
-            <p className="portfolio-history-note">برای این بازه هنوز داده‌ی کافی نیست.</p>
+            <p className="portfolio-history-note">{t('برای این بازه هنوز داده‌ی کافی نیست.')}</p>
           )}
 
           {(loading || full.estimated) && !hideValues && (
             <p className="portfolio-history-note">
-              {loading ? 'در حال دریافت تاریخچه قیمت…' : 'برای بعضی دارایی‌ها تاریخچه قیمت کامل نیست؛ ارزش آن روزها با نزدیک‌ترین قیمت معلوم برآورد شده است.'}
+              {loading ? t('در حال دریافت تاریخچه قیمت…') : t('برای بعضی دارایی‌ها تاریخچه قیمت کامل نیست؛ ارزش آن روزها با نزدیک‌ترین قیمت معلوم برآورد شده است.')}
             </p>
           )}
           {full.datedByCreation && !hideValues && (
-            <p className="portfolio-history-note">برای ثبت‌هایی که تاریخ ندارند، روز ثبت در برنامه حساب شده است.</p>
+            <p className="portfolio-history-note">{t('برای ثبت‌هایی که تاریخ ندارند، روز ثبت در برنامه حساب شده است.')}</p>
           )}
-          <p className="portfolio-history-note">تغییر، فقط اثر قیمت‌هاست؛ خرید و فروش جزو سود حساب نمی‌شود.</p>
+          <p className="portfolio-history-note">{t('تغییر، فقط اثر قیمت‌هاست؛ خرید و فروش جزو سود حساب نمی‌شود.')}</p>
         </div>
       )}
     </div>

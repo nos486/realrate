@@ -4,7 +4,7 @@
  * that opens into everything recorded for it (`renderDetails`, AssetLedgerDetails)
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { intlLocale, t, plural } from '../../../utils/i18n.js';
 import React from 'react';
 import { ChevronDown } from 'lucide-react';
 import { CategoryIcon, formatAssetName, formatNum, getItemBrand } from '../utils/holdingHelpers.js';
@@ -31,7 +31,7 @@ export default function HoldingsTable({
     if (item.lastDate === item.firstDate) return <bdi>{toPersianDigits(item.firstDate)}</bdi>;
     return (
       <>
-        <bdi>{toPersianDigits(item.firstDate)}</bdi> تا <bdi>{toPersianDigits(item.lastDate)}</bdi>
+        <bdi>{toPersianDigits(item.firstDate)}</bdi>{' '}{t('تا')}{' '}<bdi>{toPersianDigits(item.lastDate)}</bdi>
       </>
     );
   };
@@ -39,7 +39,7 @@ export default function HoldingsTable({
   const columns = [
     {
       key: 'asset',
-      header: 'دارایی',
+      header: t('دارایی'),
       thClassName: 'th-asset',
       tdClassName: 'td-asset',
       mobile: 'title',
@@ -55,7 +55,7 @@ export default function HoldingsTable({
     },
     {
       key: 'qty',
-      header: 'مقدار',
+      header: t('مقدار'),
       thClassName: 'th-qty',
       tdClassName: 'td-qty',
       mobile: 'meta',
@@ -67,7 +67,7 @@ export default function HoldingsTable({
     },
     {
       key: 'buyPrice',
-      header: 'میانگین قیمت خرید',
+      header: t('میانگین قیمت خرید'),
       thClassName: 'th-buy-price',
       tdClassName: 'td-buy-price',
       // Hidden on mobile — visible only in the full desktop table, per record.
@@ -78,21 +78,21 @@ export default function HoldingsTable({
               <span className={`cell-val ${hideValues ? 'is-masked' : ''}`}>
                 {hideValues ? '****' : formatNum(item.buyPrice)}
               </span>
-              <span className="cell-unit">تومان</span>
+              <span className="cell-unit">{t('تومان')}</span>
             </div>
             {item.partialCost && (
-              <span className="cell-native-sub" title="بخشی از موجودی قیمت خرید ندارد و در میانگین و سود/زیان حساب نشده است">
-                (بخشی بی‌قیمت)
+              <span className="cell-native-sub" title={t('بخشی از موجودی قیمت خرید ندارد و در میانگین و سود/زیان حساب نشده است')}>
+                {t('(بخشی بی‌قیمت)')}
               </span>
             )}
           </div>
         ) : (
-          <span className="table-notes-text" title="قیمت خرید وارد نشده است">—</span>
+          <span className="table-notes-text" title={t('قیمت خرید وارد نشده است')}>—</span>
         ),
     },
     {
       key: 'realPrice',
-      header: 'ارزش روز واحد',
+      header: t('ارزش روز واحد'),
       thClassName: 'th-real-price',
       tdClassName: 'td-real-price',
       render: (item) => {
@@ -101,10 +101,10 @@ export default function HoldingsTable({
         return (
           <>
             <div className="cell-currency-wrap">
-              <span className={`cell-val real-val ${hideValues ? 'is-masked' : ''}`} title="محاسبه مستقیم بر مبنای ارزش واقعی">
+              <span className={`cell-val real-val ${hideValues ? 'is-masked' : ''}`} title={t('محاسبه مستقیم بر مبنای ارزش واقعی')}>
                 {hideValues ? '****' : formatNum(item.unitRealPrice)}
               </span>
-              <span className="cell-unit">تومان</span>
+              <span className="cell-unit">{t('تومان')}</span>
             </div>
             {usd > 0 && <span className="cell-usd-price"><bdi>${formatPrice(usd, 'usd')}</bdi></span>}
           </>
@@ -113,7 +113,7 @@ export default function HoldingsTable({
     },
     {
       key: 'totalVal',
-      header: 'ارزش کل',
+      header: t('ارزش کل'),
       thClassName: 'th-total-val',
       tdClassName: 'td-total-val',
       mobile: 'stat',
@@ -122,13 +122,13 @@ export default function HoldingsTable({
           <strong className={`cell-val-bold gold-text ${hideValues ? 'is-masked' : ''}`}>
             {hideValues ? '****' : formatNum(item.itemRealVal)}
           </strong>
-          <span className="cell-unit">تومان</span>
+          <span className="cell-unit">{t('تومان')}</span>
         </div>
       ),
     },
     {
       key: 'pnl',
-      header: 'سود / زیان',
+      header: t('سود / زیان'),
       thClassName: 'th-pnl',
       tdClassName: 'td-pnl',
       mobile: 'stat-secondary',
@@ -138,32 +138,32 @@ export default function HoldingsTable({
           <div className={`table-pnl-cell ${isProfit ? 'profit' : 'loss'}`}>
             <div className="pnl-cell-main">
               <span className={`pnl-amount ${hideValues ? 'is-masked' : ''}`}>
-                {hideValues ? '****' : `${isProfit ? '+' : ''}${formatNum(item.itemPnl)} تومان`}
+                {hideValues ? '****' : t('{sign}{amount} تومان', { sign: isProfit ? '+' : '', amount: formatNum(item.itemPnl) })}
               </span>
               <span className="pnl-pct-badge">
-                {hideValues ? '****' : `(${isProfit ? '+' : ''}${formatPct(Math.abs(item.itemPnlPct || 0))}٪)`}
+                {hideValues ? '****' : t('({sign}{pct}٪)', { sign: isProfit ? '+' : '', pct: formatPct(Math.abs(item.itemPnlPct || 0)) })}
               </span>
             </div>
             {item.realizedPnl !== null && item.realizedPnl !== undefined && !hideValues && (
               <span className={`pnl-native-sub ${item.realizedPnl >= 0 ? 'profit' : 'loss'}`}>
-                تحقق‌یافته: {item.realizedPnl >= 0 ? '+' : '−'}{formatNum(Math.abs(item.realizedPnl))} تومان
+                {t('تحقق‌یافته: {sign}{amount} تومان', { sign: item.realizedPnl >= 0 ? '+' : '−', amount: formatNum(Math.abs(item.realizedPnl)) })}
               </span>
             )}
           </div>
         ) : (
-          <span className="table-notes-text" title="بدون قیمت خرید در سود و زیان محاسبه نمی‌شود">—</span>
+          <span className="table-notes-text" title={t('بدون قیمت خرید در سود و زیان محاسبه نمی‌شود')}>—</span>
         );
       },
     },
     {
       key: 'date',
-      header: 'تاریخ‌ها',
+      header: t('تاریخ‌ها'),
       thClassName: 'th-date',
       tdClassName: 'td-date',
       render: (item) => (
         <span className="table-date-text holdings-lots-cell">
           {lotsRange(item)}
-          <small className="holdings-entry-count">{item.entryCount.toLocaleString(intlLocale())} ثبت</small>
+          <small className="holdings-entry-count">{plural(item.entryCount, t('{count} ثبت', { count: item.entryCount.toLocaleString(intlLocale()) }), t('{count} ثبت‌ها', { count: item.entryCount.toLocaleString(intlLocale()) }))}</small>
         </span>
       ),
     },
@@ -191,27 +191,27 @@ export default function HoldingsTable({
               </span>
               <div className="cat-group-titles">
                 <h4 className="cat-group-name">{group.name}</h4>
-                <span className="cat-group-count">{group.items.length.toLocaleString(intlLocale())} قلم</span>
+                <span className="cat-group-count">{plural(group.items.length, t('{count} قلم', { count: group.items.length.toLocaleString(intlLocale()) }), t('{count} قلم‌ها', { count: group.items.length.toLocaleString(intlLocale()) }))}</span>
               </div>
             </div>
 
             <div className="cat-header-subtotals">
               <div className="cat-subtotal-val">
-                <span className="subtotal-label">ارزش:</span>
+                <span className="subtotal-label">{t('ارزش:')}</span>
                 <strong className={`subtotal-amount ${hideValues ? 'is-masked' : ''}`}>
                   {hideValues ? '****' : formatNum(group.totalRealValue)}
                 </strong>
-                <span className="subtotal-unit">تومان</span>
+                <span className="subtotal-unit">{t('تومان')}</span>
               </div>
 
               {group.hasCostedItems && (
                 <div className={`cat-subtotal-pnl ${group.totalPnl >= 0 ? 'profit' : 'loss'}`}>
-                  <span className="subtotal-pnl-label">سود/زیان:</span>
+                  <span className="subtotal-pnl-label">{t('سود/زیان:')}</span>
                   <strong>
-                    {hideValues ? '**** تومان' : `${group.totalPnl >= 0 ? '+' : ''}${formatNum(group.totalPnl)} تومان`}
+                    {hideValues ? t('**** تومان') : t('{sign}{amount} تومان', { sign: group.totalPnl >= 0 ? '+' : '', amount: formatNum(group.totalPnl) })}
                   </strong>
                   <span className="subtotal-pnl-pct">
-                    {hideValues ? '(****)' : `(${group.totalPnl >= 0 ? '+' : ''}${formatPct(Math.abs(group.totalPnlPct))}٪)`}
+                    {hideValues ? '(****)' : t('({sign}{pct}٪)', { sign: group.totalPnl >= 0 ? '+' : '', pct: formatPct(Math.abs(group.totalPnlPct)) })}
                   </span>
                 </div>
               )}

@@ -9,6 +9,7 @@ import {
   deletePortfolioLayoutRecord,
 } from '../../../shared/vault/vaultPortfolioLayout.js';
 import { normalizePortfolioLayout } from '../portfolioLayoutModel.js';
+import { t } from '../../../utils/i18n.js';
 
 const SAVE_DELAY_MS = 600;
 
@@ -48,7 +49,7 @@ export function usePortfolioLayout(portfolio, activeVaultKey, isVaultLocked) {
       })
       .catch((err) => {
         if (cancelled) return;
-        setSaveError(err.message || 'خطا در دریافت چیدمان دسته‌ها');
+        setSaveError(err.message || t('خطا در دریافت چیدمان دسته‌ها'));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -79,7 +80,7 @@ export function usePortfolioLayout(portfolio, activeVaultKey, isVaultLocked) {
       }
       setSaveError('');
     } catch (err) {
-      setSaveError(err.message || 'ذخیره چیدمان دسته‌بندی‌ها ناموفق بود.');
+      setSaveError(err.message || t('ذخیره چیدمان دسته‌بندی‌ها ناموفق بود.'));
     }
   }, [portfolioId, activeVaultKey]);
 

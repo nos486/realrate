@@ -8,7 +8,7 @@
  * is saved by the caller (useRiskProfile) and only the latest one is kept.
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { intlLocale, t } from '../../../utils/i18n.js';
 import React, { useMemo, useState } from 'react';
 import { Gauge, ArrowLeft, RotateCcw, PiggyBank, ChartColumn } from 'lucide-react';
 import { AlertBanner, Button, Modal, NumericInput } from '../../../shared/ui/index.js';
@@ -25,8 +25,8 @@ import {
 } from '../../../utils/riskProfile.js';
 
 const fa = (n, digits = 0) => Number(n || 0).toLocaleString(intlLocale(), { maximumFractionDigits: digits });
-const parseAmount = (text) => Math.round(Number(toEnglishDigits(String(text || '')).replace(/[,،\s]/g, '')) || 0);
-const toman = (n) => `${fa(Math.round(n))} تومان`;
+const parseAmount = (text) => Math.round(Number(toEnglishDigits(String(text || '')).replace(/[,،\s]/g, '')) || 0); // i18n-ignore
+const toman = (n) => t('{amount} تومان', { amount: fa(Math.round(n)) });
 
 const GAUGE = { w: 240, h: 130, cx: 120, cy: 120, r: 100, thick: 26 };
 const gaugePoint = (r, pct) => {
@@ -46,7 +46,7 @@ function RiskGauge({ score }) {
   };
   const [nx, ny] = gaugePoint(r - thick - 6, score);
   return (
-    <svg className="risk-gauge" width={w} height={h} viewBox={`0 0 ${w} ${h}`} role="img" aria-label={`درصد ریسک‌پذیری ${fa(score, 1)}`}>
+    <svg className="risk-gauge" width={w} height={h} viewBox={`0 0 ${w} ${h}`} role="img" aria-label={t('درصد ریسک‌پذیری {pct}', { pct: fa(score, 1) })}>
       {RISK_PROFILES.map((p, i) => (
         <path key={p.id} d={arc(p.from + 0.6, p.to - 0.6)} className="risk-gauge-band" style={{ opacity: 0.25 + (0.75 * (i + 1)) / RISK_PROFILES.length }}>
           <title>{p.title}</title>
@@ -95,7 +95,7 @@ export default function RiskToleranceModal({ portfolioValue = 0, result = null, 
       setDone(saved);
       setStep('result');
     } catch (err) {
-      setError(err?.message || 'ذخیرهٔ نتیجه ناموفق بود.');
+      setError(err?.message || t('ذخیرهٔ نتیجه ناموفق بود.'));
     } finally {
       setSaving(false);
     }
@@ -117,35 +117,29 @@ export default function RiskToleranceModal({ portfolioValue = 0, result = null, 
   if (step === 'intro') {
     body = (
       <div className="risk-step">
-        <h3 className="risk-heading">چقدر ریسک‌پذیر هستید؟</h3>
-        <p className="risk-text">
-          در هر سرمایه‌گذاری امکان زیان وجود دارد. برای انتخاب سبد مناسب باید سطح ریسک‌پذیری شما مشخص شود.
-          با پاسخ به {fa(RISK_RATIOS.length)} سؤال کوتاه ریسک‌پذیری خود را بسنجید.
-        </p>
+        <h3 className="risk-heading">{t('چقدر ریسک‌پذیر هستید؟')}</h3>
+        <p className="risk-text">{t('در هر سرمایه‌گذاری امکان زیان وجود دارد. برای انتخاب سبد مناسب باید سطح ریسک‌پذیری شما مشخص شود. با پاسخ به {count} سؤال کوتاه ریسک‌پذیری خود را بسنجید.', { count: fa(RISK_RATIOS.length) })}</p>
         <label className="risk-label" htmlFor="risk-total">
-          {portfolioAmount > 0 ? 'دارایی‌ای که آزمون برای آن انجام می‌شود (پیش‌فرض: ارزش این پورتفو)' : 'این پورتفو خالی است؛ مبلغ دارایی‌ای که آزمون برای آن انجام می‌شود را وارد کنید'}
+          {portfolioAmount > 0 ? t('دارایی‌ای که آزمون برای آن انجام می‌شود (پیش‌فرض: ارزش این پورتفو)') : t('این پورتفو خالی است؛ مبلغ دارایی‌ای که آزمون برای آن انجام می‌شود را وارد کنید')}
         </label>
-        <NumericInput id="risk-total" value={totalText} onValueChange={setTotalText} placeholder="۰" affix="تومان" />
+        <NumericInput id="risk-total" value={totalText} onValueChange={setTotalText} placeholder={t('۰')} affix={t('تومان')} />
         {portfolioAmount > 0 && total !== portfolioAmount && (
-          <button type="button" className="risk-link" onClick={() => setTotalText(formatThousands(String(portfolioAmount)))}>
-            برگشت به ارزش پورتفو ({toman(portfolioAmount)})
-          </button>
+          <button type="button" className="risk-link" onClick={() => setTotalText(formatThousands(String(portfolioAmount)))}>{t('برگشت به ارزش پورتفو ({amount})', { amount: toman(portfolioAmount) })}</button>
         )}
       </div>
     );
     footer = (
       <div className="modal-actions">
-        {done && <Button variant="secondary" block onClick={() => setStep('result')}>نتیجهٔ قبلی</Button>}
-        <Button block disabled={!(total > 0)} onClick={() => setStep('guide')}>شروع آزمون</Button>
+        {done && <Button variant="secondary" block onClick={() => setStep('result')}>{t('نتیجهٔ قبلی')}</Button>}
+        <Button block disabled={!(total > 0)} onClick={() => setStep('guide')}>{t('شروع آزمون')}</Button>
       </div>
     );
   } else if (step === 'guide') {
     body = (
       <div className="risk-step">
-        <h3 className="risk-heading">دستورالعمل آزمون</h3>
+        <h3 className="risk-heading">{t('دستورالعمل آزمون')}</h3>
         <p className="risk-text">
-          با کشیدن اسلایدر به چپ و راست مشخص کنید حاضرید چند درصد از دارایی خود را در هر موقعیت در معرض ریسک قرار دهید.
-          در هر سؤال شانس سود و زیان ۵۰٪ است و فقط نسبت سود به زیان فرق می‌کند.
+          {t('با کشیدن اسلایدر به چپ و راست مشخص کنید حاضرید چند درصد از دارایی خود را در هر موقعیت در معرض ریسک قرار دهید. در هر سؤال شانس سود و زیان ۵۰٪ است و فقط نسبت سود به زیان فرق می‌کند.')}
         </p>
         <div className="risk-guide-art" aria-hidden="true">
           <PiggyBank size={44} />
@@ -156,8 +150,8 @@ export default function RiskToleranceModal({ portfolioValue = 0, result = null, 
     );
     footer = (
       <div className="modal-actions">
-        <Button variant="secondary" block onClick={() => setStep('intro')}>برگشت</Button>
-        <Button block iconRight={<ArrowLeft size={16} />} onClick={() => { setSlider(0); setStep(0); }}>فهمیدم! شروع کن</Button>
+        <Button variant="secondary" block onClick={() => setStep('intro')}>{t('برگشت')}</Button>
+        <Button block iconRight={<ArrowLeft size={16} />} onClick={() => { setSlider(0); setStep(0); }}>{t('فهمیدم! شروع کن')}</Button>
       </div>
     );
   } else if (isQuestion) {
@@ -166,53 +160,52 @@ export default function RiskToleranceModal({ portfolioValue = 0, result = null, 
     const { loss, gain } = outcomeOf(amount, ratio);
     body = (
       <div className="risk-step">
-        <div className="risk-progress">سؤال {fa(step + 1)} از {fa(RISK_RATIOS.length)}</div>
-        <h3 className="risk-heading">میزان ریسک ۱ به {fa(ratio, 2)}</h3>
+        <div className="risk-progress">{t('سؤال {pct} از {count}', { pct: fa(step + 1), count: fa(RISK_RATIOS.length) })}</div>
+        <h3 className="risk-heading">{t('میزان ریسک ۱ به {pct}', { pct: fa(ratio, 2) })}</h3>
         <p className="risk-text">
-          به ازای هر <strong className="risk-loss">۱ تومان</strong> ریسک می‌توانید <strong className="risk-gain">{fa(ratio, 2)} تومان</strong> سود کنید.
-          احتمال سود ۵۰٪ و احتمال زیان ۵۰٪ است. با اسلایدر میزان ریسک خود را تعیین کنید.
+          {t('به ازای هر')}{' '}<strong className="risk-loss">{t('۱ تومان')}</strong>{' '}{t('ریسک می‌توانید')}{' '}<strong className="risk-gain">{t('{amount} تومان', { amount: fa(ratio, 2) })}</strong>{' '}{t('سود کنید. احتمال سود ۵۰٪ و احتمال زیان ۵۰٪ است. با اسلایدر میزان ریسک خود را تعیین کنید.')}
         </p>
         <input
           type="range" dir="ltr" className="risk-slider" min="0" max={RISK_SLIDER_STEPS} step="1"
-          value={slider} aria-label="میزان ریسک" onChange={(e) => setSlider(Number(e.target.value))}
+          value={slider} aria-label={t('میزان ریسک')} onChange={(e) => setSlider(Number(e.target.value))}
         />
         <p className="risk-outcome">
-          حاضرم <strong className="risk-loss">{toman(loss)}</strong> زیان را بپذیرم تا شانس{' '}
-          <strong className="risk-gain">{toman(gain)}</strong> سود داشته باشم.
+          {t('حاضرم')}{' '}<strong className="risk-loss">{toman(loss)}</strong>{' '}{t('زیان را بپذیرم تا شانس')}{' '}
+          <strong className="risk-gain">{toman(gain)}</strong>{' '}{t('سود داشته باشم.')}
         </p>
         {error && <AlertBanner type="error" message={error} />}
       </div>
     );
     footer = (
       <div className="modal-actions">
-        <Button variant="secondary" block disabled={saving} onClick={back}>برگشت</Button>
-        <Button block loading={saving} onClick={confirmAnswer}>{step === RISK_RATIOS.length - 1 ? 'تأیید و نتیجه' : 'تأیید و بعدی'}</Button>
+        <Button variant="secondary" block disabled={saving} onClick={back}>{t('برگشت')}</Button>
+        <Button block loading={saving} onClick={confirmAnswer}>{step === RISK_RATIOS.length - 1 ? t('تأیید و نتیجه') : t('تأیید و بعدی')}</Button>
       </div>
     );
   } else {
     const score = done?.score ?? scoreRisk(answers, total);
     body = (
       <div className="risk-step risk-result">
-        <h3 className="risk-heading">نتیجهٔ آزمون</h3>
+        <h3 className="risk-heading">{t('نتیجهٔ آزمون')}</h3>
         <RiskGauge score={score} />
-        <div className="risk-score">درصد ریسک‌پذیری شما: <strong>{fa(score, 1)}٪</strong></div>
+        <div className="risk-score">{t('درصد ریسک‌پذیری شما:')}{' '}<strong>{t('{pct}٪', { pct: fa(score, 1) })}</strong></div>
         <h4 className="risk-profile-title">{profile.title}</h4>
         <p className="risk-text">{profile.text}</p>
-        <h4 className="risk-subtitle">ترکیب پیشنهادی برای این سطح</h4>
+        <h4 className="risk-subtitle">{t('ترکیب پیشنهادی برای این سطح')}</h4>
         <RiskMixPie items={mixItems} />
-        <p className="risk-note">این ترکیب فقط یک راهنمای آموزشی بر پایهٔ پاسخ‌های شماست و توصیهٔ سرمایه‌گذاری نیست.</p>
+        <p className="risk-note">{t('این ترکیب فقط یک راهنمای آموزشی بر پایهٔ پاسخ‌های شماست و توصیهٔ سرمایه‌گذاری نیست.')}</p>
       </div>
     );
     footer = (
       <div className="modal-actions">
-        <Button variant="secondary" block onClick={onClose}>بستن</Button>
-        {!readOnly && <Button block icon={<RotateCcw size={15} />} onClick={start}>از نو</Button>}
+        <Button variant="secondary" block onClick={onClose}>{t('بستن')}</Button>
+        {!readOnly && <Button block icon={<RotateCcw size={15} />} onClick={start}>{t('از نو')}</Button>}
       </div>
     );
   }
 
   return (
-    <Modal isOpen onClose={onClose} title="آزمون ریسک‌پذیری" icon={<Gauge size={18} />} maxWidth="520px" footer={footer}>
+    <Modal isOpen onClose={onClose} title={t('آزمون ریسک‌پذیری')} icon={<Gauge size={18} />} maxWidth="520px" footer={footer}>
       {body}
     </Modal>
   );

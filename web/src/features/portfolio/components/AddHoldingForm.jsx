@@ -17,7 +17,7 @@
  * resolves truthy once saved).
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { intlLocale, t } from '../../../utils/i18n.js';
 import React, { useState, useEffect, useRef } from 'react';
 import { Coins } from 'lucide-react';
 import { FilterPills, Input, Modal, NumericInput } from '../../../shared/ui/index.js';
@@ -41,8 +41,8 @@ import { fundingLoanOptions } from '../../../utils/loanFunding.js';
 
 /** «خرید / موجودی» here, «فروش» in the transaction form */
 const SIDE_OPTIONS = [
-  { value: 'buy', label: 'خرید / موجودی' },
-  { value: 'sell', label: 'فروش' },
+  { value: 'buy', label: t('خرید / موجودی') },
+  { value: 'sell', label: t('فروش') },
 ];
 
 const formatNum = (v) => Number(v || 0).toLocaleString(intlLocale());
@@ -61,7 +61,7 @@ export default function AddHoldingForm({
   const pricing = usePricing();
   const [selectedAssetId, setSelectedAssetId] = useState('gold_18k');
   const [customName, setCustomName] = useState('');
-  const [customUnit, setCustomUnit] = useState('واحد');
+  const [customUnit, setCustomUnit] = useState(t('واحد'));
   const [customCurrentPrice, setCustomCurrentPrice] = useState('');
   const [amount, setAmount] = useState('');
   const [buyPrice, setBuyPrice] = useState('');
@@ -106,7 +106,7 @@ export default function AddHoldingForm({
         setReferenceAsset({
           id: toPriceId(refId),
           name: resolveAssetDisplayName(refId) || refId,
-          unit: resolveAssetUnit(refId) || 'واحد',
+          unit: resolveAssetUnit(refId) || t('واحد'),
           category: getItemCategory(refId),
         });
         setReferenceQuantity(String(editingHolding.referenceQuantity));
@@ -123,11 +123,11 @@ export default function AddHoldingForm({
 
       if (editingHolding.category === 'custom' || editingHolding.assetType === 'custom') {
         setCustomName(editingHolding.assetName || editingHolding.name || '');
-        setCustomUnit(editingHolding.unit || 'واحد');
+        setCustomUnit(editingHolding.unit || t('واحد'));
         setCustomCurrentPrice(editingHolding.customPrice ? String(editingHolding.customPrice) : '');
       } else {
         setCustomName('');
-        setCustomUnit('واحد');
+        setCustomUnit(t('واحد'));
         setCustomCurrentPrice('');
       }
 
@@ -148,7 +148,7 @@ export default function AddHoldingForm({
       const presetId = presetAsset?.assetId && !isCustomAssetId(presetAsset.assetId) ? presetAsset.assetId : '';
       setSelectedAssetId(presetId || 'gold_18k');
       setCustomName('');
-      setCustomUnit('واحد');
+      setCustomUnit(t('واحد'));
       setCustomCurrentPrice('');
       setAmount('');
       setBuyPrice('');
@@ -171,7 +171,7 @@ export default function AddHoldingForm({
       setSelectedAssetId('custom');
       setSelectedBourseSymbol(null);
       setCustomName(asset.name || '');
-      setCustomUnit(asset.unit || 'واحد');
+      setCustomUnit(asset.unit || t('واحد'));
       if (asset.price > 0) setCustomCurrentPrice(String(Math.round(asset.price)));
       return;
     }
@@ -182,7 +182,7 @@ export default function AddHoldingForm({
       ? { symbol: asset.symbol, name: asset.name, priceToman: asset.price, isFund: Boolean(asset.isFund) }
       : null);
     setCustomName(asset.name || '');
-    setCustomUnit(asset.unit || 'واحد');
+    setCustomUnit(asset.unit || t('واحد'));
     setCustomCurrentPrice(asset.price > 0 ? String(Math.round(asset.price)) : '');
   };
 
@@ -263,28 +263,28 @@ export default function AddHoldingForm({
   const isModalCustom = selectedCategory === 'custom' || selectedAssetId?.startsWith('custom_');
 
   const selectedAssetTitle = isModalBourse
-    ? (selectedBourseSymbol?.symbol ? `${selectedBourseSymbol.symbol} (${selectedBourseSymbol.name || 'سهام بورس'})` : customName || 'سهام بورس')
-    : (isModalCustom ? (customName || 'دارایی شخصی') : (selectedBookAsset?.name || customName || selectedAssetId || 'انتخاب نشده'));
+    ? (selectedBourseSymbol?.symbol ? `${selectedBourseSymbol.symbol} (${selectedBourseSymbol.name || t('سهام بورس')})` : customName || t('سهام بورس'))
+    : (isModalCustom ? (customName || t('دارایی شخصی')) : (selectedBookAsset?.name || customName || selectedAssetId || t('انتخاب نشده')));
 
-  const unitLabel = selectedBookAsset?.unit || getItemUnit(selectedAssetId, null, isModalFund ? 'واحد' : (isModalBourse ? 'برگ سهام' : (customUnit || 'واحد')));
+  const unitLabel = selectedBookAsset?.unit || getItemUnit(selectedAssetId, null, isModalFund ? t('واحد') : (isModalBourse ? t('برگ سهام') : (customUnit || t('واحد'))));
 
   const detailsFilled = [
-    ...(fundingLoans.some((l) => l.id === loanId) ? ['وام'] : []),
-    ...(notes.trim() ? ['یادداشت'] : []),
+    ...(fundingLoans.some((l) => l.id === loanId) ? [t('وام')] : []),
+    ...(notes.trim() ? [t('یادداشت')] : []),
   ];
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={!submitting ? onClose : undefined}
-      title={editingHolding ? 'ویرایش خرید' : 'ثبت در پورتفو'}
+      title={editingHolding ? t('ویرایش خرید') : t('ثبت در پورتفو')}
       icon={<Coins size={18} />}
       maxWidth="500px"
       className="asset-modal-box"
       onSubmit={handleSubmit}
       footer={
         <EntryFormActions
-          submitLabel={editingHolding ? 'ذخیره تغییرات' : 'ثبت خرید'}
+          submitLabel={editingHolding ? t('ذخیره تغییرات') : t('ثبت خرید')}
           valid={isAmountValid}
           submitting={submitting}
           onCancel={onClose}
@@ -293,7 +293,7 @@ export default function AddHoldingForm({
       }
     >
       <div className="entry-form-body portfolio-entry-form">
-        {saved && <p className="entry-form-saved" role="status">«{saved}» ثبت شد؛ خرید بعدی را وارد کنید.</p>}
+        {saved && <p className="entry-form-saved" role="status">{t('«{saved}» ثبت شد؛ خرید بعدی را وارد کنید.', { saved })}</p>}
 
         {/* The one entry form: buy here, sell in the transaction form */}
         {!editingHolding && onSwitchToSell && (
@@ -314,7 +314,7 @@ export default function AddHoldingForm({
 
         <div className="ui-input-group portfolio-entry-asset">
           <div className="portfolio-entry-asset-head">
-            <span className="ui-input-label">دارایی</span>
+            <span className="ui-input-label">{t('دارایی')}</span>
             <span className="portfolio-entry-asset-chosen">{selectedAssetTitle}</span>
           </div>
           <UniversalAssetSearch
@@ -331,20 +331,20 @@ export default function AddHoldingForm({
             <div className="preview-card-header">
               <div className="preview-symbol-info">
                 <span className={`bourse-active-badge ${isModalFund ? 'fund-active-badge' : ''}`}>
-                  {isModalFund ? 'بورس اوراق بهادار تهران (صندوق)' : 'بورس اوراق بهادار تهران (سهام)'}
+                  {isModalFund ? t('بورس اوراق بهادار تهران (صندوق)') : t('بورس اوراق بهادار تهران (سهام)')}
                 </span>
                 <strong className="preview-symbol-code">
                   {selectedBourseSymbol?.symbol ||
                     (selectedAssetId === 'bourse_fund'
-                      ? 'صندوق'
+                      ? t('صندوق')
                       : selectedAssetId === 'bourse'
-                        ? 'سهام'
+                        ? t('سهام')
                         : selectedAssetId.replace('bourse_', ''))}
                 </strong>
                 <span className="preview-company-name">
                   {selectedBourseSymbol?.name ||
                     customName ||
-                    (isModalFund ? 'صندوق‌های سرمایه‌گذاری بورس' : 'سهام بورس ایران')}
+                    (isModalFund ? t('صندوق‌های سرمایه‌گذاری بورس') : t('سهام بورس ایران'))}
                 </span>
               </div>
               <button
@@ -354,22 +354,18 @@ export default function AddHoldingForm({
                   setSelectedAssetId('gold_18k');
                   setSelectedBourseSymbol(null);
                   setCustomName('');
-                  setCustomUnit('گرم');
+                  setCustomUnit(t('گرم'));
                   setCustomCurrentPrice('');
                 }}
               >
-                تغییر دارایی
+                {t('تغییر دارایی')}
               </button>
             </div>
             {selectedBourseSymbol?.priceToman > 0 && (
               <div className="preview-card-footer">
-                <span className="preview-price-label">آخرین قیمت معامله:</span>
-                <strong className="preview-price-num">
-                  {formatNum(selectedBourseSymbol.priceToman)} تومان
-                </strong>
-                <span className="preview-price-rial">
-                  ({Number(selectedBourseSymbol.priceToman * 10).toLocaleString(intlLocale())} ریال)
-                </span>
+                <span className="preview-price-label">{t('آخرین قیمت معامله:')}</span>
+                <strong className="preview-price-num">{t('{amount} تومان', { amount: formatNum(selectedBourseSymbol.priceToman) })}</strong>
+                <span className="preview-price-rial">{t('({count} ریال)', { count: Number(selectedBourseSymbol.priceToman * 10).toLocaleString(intlLocale()) })}</span>
               </div>
             )}
           </div>
@@ -381,8 +377,8 @@ export default function AddHoldingForm({
             <Input
               id="holding-custom-name"
               className="flex-1"
-              label="نام دارایی شخصی"
-              placeholder="مثلاً زمین دماوند، خودرو، نقاشی..."
+              label={t('نام دارایی شخصی')}
+              placeholder={t('مثلاً زمین دماوند، خودرو، نقاشی...')}
               value={customName}
               onChange={(e) => setCustomName(e.target.value)}
               required
@@ -390,8 +386,8 @@ export default function AddHoldingForm({
             <Input
               id="holding-custom-unit"
               className="flex-1"
-              label="واحد شمارش"
-              placeholder="مثلاً متر، عدد، تن، سهم..."
+              label={t('واحد شمارش')}
+              placeholder={t('مثلاً متر، عدد، تن، سهم...')}
               value={customUnit}
               onChange={(e) => setCustomUnit(e.target.value)}
               required
@@ -402,11 +398,11 @@ export default function AddHoldingForm({
         <AmountField
           key={`amount-${round}`}
           id="holding-amount"
-          label="مقدار"
+          label={t('مقدار')}
           unit={unitLabel}
           value={amount}
           onValueChange={setAmount}
-          placeholder={`مثلاً ${isModalBourse ? (isModalFund ? '۵۰۰' : '۱۰۰۰') : unitLabel === 'گرم' ? '۱۵.۵' : '۲'}`}
+          placeholder={t('مثلاً {example}', { example: isModalBourse ? (isModalFund ? t('۵۰۰') : t('۱۰۰۰')) : unitLabel === t('گرم') ? t('۱۵.۵') : t('۲') })}
           autoFocus={!editingHolding}
         />
 
@@ -414,13 +410,13 @@ export default function AddHoldingForm({
         {!referenceAsset && (
           <AmountField
             id="holding-buy-price"
-            label={`قیمت خرید هر ${unitLabel} (تومان، اختیاری)`}
-            unit="تومان"
+            label={t('قیمت خرید هر {unit} (تومان، اختیاری)', { unit: unitLabel })}
+            unit={t('تومان')}
             value={buyPrice}
             onValueChange={setBuyPrice}
             allowDecimals={false}
             required={false}
-            placeholder={isModalBourse ? 'قیمت خرید هر سهم' : 'مبلغ هر واحد'}
+            placeholder={isModalBourse ? t('قیمت خرید هر سهم') : t('مبلغ هر واحد')}
           />
         )}
 
@@ -440,10 +436,10 @@ export default function AddHoldingForm({
         {/* Custom or Bourse Asset: Current Market Price field */}
         {(isModalCustom || isModalBourse) && (
           <div className="ui-input-group">
-            <label htmlFor="holding-current-price" className="ui-input-label">قیمت روز واحد (تومان)</label>
+            <label htmlFor="holding-current-price" className="ui-input-label">{t('قیمت روز واحد (تومان)')}</label>
             <NumericInput
               id="holding-current-price"
-              placeholder="جهت محاسبه زنده ارزش و سود/زیان"
+              placeholder={t('جهت محاسبه زنده ارزش و سود/زیان')}
               value={customCurrentPrice}
               onValueChange={setCustomCurrentPrice}
               className="form-input"
@@ -451,8 +447,8 @@ export default function AddHoldingForm({
             />
             <span className="field-sub-note">
               {isModalBourse
-                ? 'به صورت خودکار با آخرین قیمت معاملات بازار بورس هماهنگ می‌شود.'
-                : 'اختیاری؛ در صورت خالی بودن، برابر با قیمت خرید در نظر گرفته می‌شود.'}
+                ? t('به صورت خودکار با آخرین قیمت معاملات بازار بورس هماهنگ می‌شود.')
+                : t('اختیاری؛ در صورت خالی بودن، برابر با قیمت خرید در نظر گرفته می‌شود.')}
             </span>
           </div>
         )}
@@ -463,11 +459,11 @@ export default function AddHoldingForm({
             value={buyDate}
             onChange={setBuyDate}
             onTodayClick={handleTodayClick}
-            label="تاریخ خرید (شمسی، اختیاری)"
+            label={t('تاریخ خرید (شمسی، اختیاری)')}
           />
           {!(parseInputNumber(buyPrice) > 0) && !referenceAsset && (
             <span className="field-sub-note">
-              بدون قیمت خرید، موجودی ثبت می‌شود و در سود/زیان حساب نمی‌شود؛ بدون تاریخ، «موجودی اولیه» است و فروش‌ها اول از آن کم می‌شوند.
+              {t('بدون قیمت خرید، موجودی ثبت می‌شود و در سود/زیان حساب نمی‌شود؛ بدون تاریخ، «موجودی اولیه» است و فروش‌ها اول از آن کم می‌شوند.')}
             </span>
           )}
         </div>
@@ -475,20 +471,20 @@ export default function AddHoldingForm({
         <MoreDetails key={`details-${opened}`} filled={detailsFilled}>
           {fundingLoans.length > 0 && (
             <PickerRow
-              label="تأمین از"
+              label={t('تأمین از')}
               value={loanId}
               options={[
-                { value: '', label: 'پول خودم' },
+                { value: '', label: t('پول خودم') },
                 ...fundingLoans.map((l) => ({ value: l.id, label: l.title })),
               ]}
               onChange={setLoanId}
-              placeholder="پول خودم"
+              placeholder={t('پول خودم')}
             />
           )}
           <Input
             id="holding-notes"
-            label="یادداشت یا توضیحات"
-            placeholder="مثلاً خرید از بورس یا بازار تهران..."
+            label={t('یادداشت یا توضیحات')}
+            placeholder={t('مثلاً خرید از بورس یا بازار تهران...')}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
           />

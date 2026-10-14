@@ -7,6 +7,7 @@ import { buildHoldingsCsv } from '../utils/holdingsCsv.js';
 import { todayIso } from '../../../shared/utils/dates.js';
 import { saveTextFile } from '../../../shared/utils/fileExport.js';
 import { safeFilenamePart } from '../../../shared/utils/csv.js';
+import { t } from '../../../utils/i18n.js';
 
 export default function CsvExportButton({ assets = [], portfolioName = 'portfolio', disabled = false }) {
   const empty = !assets.some((a) => a.entries?.length);
@@ -21,8 +22,8 @@ export default function CsvExportButton({ assets = [], portfolioName = 'portfoli
       type="button"
       className="btn-export-csv icon-only"
       onClick={handleExportCSV}
-      title="خروجی CSV از همه‌ی ثبت‌های این پورتفو (خرید، فروش، پرداخت)"
-      aria-label="خروجی CSV"
+      title={t('خروجی CSV از همه‌ی ثبت‌های این پورتفو (خرید، فروش، پرداخت)')}
+      aria-label={t('خروجی CSV')}
       disabled={disabled || empty}
     >
       <Download size={15} strokeWidth={2} />

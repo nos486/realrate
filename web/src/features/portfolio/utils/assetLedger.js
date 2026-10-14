@@ -15,7 +15,7 @@
  * form's balance and «پرداخت از» (portfolio funds) all read it.
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { intlLocale, t } from '../../../utils/i18n.js';
 import { resolveHoldingUnitRealPrice } from '../../../utils/financialSpecs.js';
 import { toPriceId, isCustomAssetId } from '../../../utils/priceIds.js';
 import { resolveAssetDisplayName, resolveAssetUnit, resolveCategory } from '../../../config/sourceRegistry.js';
@@ -27,7 +27,7 @@ export const OUTFLOW_TYPES = new Set(['sell', 'spend']);
 
 /** «1405/7/4», «۱۴۰۵/۰۷/۰۴» or «2026-09-26» → «2026-09-26»; '' when not a date */
 export function sortableDate(value) {
-  const digits = String(value || '').replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+  const digits = String(value || '').replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)); // i18n-ignore
   const match = digits.match(/^(\d{4})[/.-](\d{1,2})[/.-](\d{1,2})/);
   if (!match) return '';
   let [year, month, day] = match.slice(1).map(Number);
@@ -58,7 +58,7 @@ function collectEntries(holdings, transactions, priceMap) {
     group.entries.push(entry);
     // The first name, unit and type seen win (a record with its own name over the catalog's)
     for (const key of ['assetName', 'unit', 'assetType', 'sourceId']) {
-      if (!group.meta[key] && meta[key] && meta[key] !== 'واحد' && meta[key] !== 'custom') group.meta[key] = meta[key];
+      if (!group.meta[key] && meta[key] && meta[key] !== 'واحد' && meta[key] !== t('واحد') && meta[key] !== 'custom') group.meta[key] = meta[key]; // i18n-ignore
     }
   };
 
@@ -197,7 +197,7 @@ export function buildAssetLedgers({ holdings = [], transactions = [], priceMap =
         assetName,
         unit,
         deficit,
-        message: `موجودی دارایی «${assetName}» منفی است (${deficit.toLocaleString(intlLocale())} ${unit} فروش بیش از موجودی). لطفاً ثبت‌ها را بازبینی کنید.`,
+        message: t('موجودی دارایی «{assetName}» منفی است ({count} {unit} فروش بیش از موجودی). لطفاً ثبت‌ها را بازبینی کنید.', { assetName, count: deficit.toLocaleString(intlLocale()), unit }),
       });
     }
 
