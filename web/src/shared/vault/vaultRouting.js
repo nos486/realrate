@@ -3,6 +3,7 @@
  */
 
 import { whenVaultReady, VaultLockedError } from './vaultStore.js';
+import { t } from '../../utils/i18n.js';
 
 /**
  * @returns {Promise<boolean>} true when the account vault is on and unlocked (use the encrypted
@@ -17,7 +18,7 @@ export async function shouldUseVault() {
     case 'locked':
       throw new VaultLockedError();
     case 'error':
-      throw new Error(state.error || 'وضعیت رمزنگاری حساب مشخص نیست؛ اتصال اینترنت را بررسی کنید.');
+      throw new Error(state.error || t('وضعیت رمزنگاری حساب مشخص نیست؛ اتصال اینترنت را بررسی کنید.'));
     default:
       return false;
   }

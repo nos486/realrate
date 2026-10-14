@@ -3,6 +3,7 @@
  * Interfaces with RealRate Cloudflare Worker API via httpClient
  */
 
+import { t } from '../../../utils/i18n.js';
 import { httpClient } from '../../../shared/api/httpClient.js';
 import { routeThroughVault } from '../../../shared/vault/vaultRouting.js';
 import * as vaultLoans from '../../../shared/vault/vaultLoans.js';
@@ -31,7 +32,7 @@ async function createLoanRest(loanData) {
  * @returns {Promise<{ success: boolean, loan: object }>}
  */
 async function getLoanDetailRest(loanId) {
-  if (!loanId) throw new Error('شناسه وام الزامی است');
+  if (!loanId) throw new Error(t('شناسه وام الزامی است'));
   return httpClient.get(`/api/loans/${encodeURIComponent(loanId)}`);
 }
 
@@ -42,7 +43,7 @@ async function getLoanDetailRest(loanId) {
  * @returns {Promise<{ success: boolean, loan: object }>}
  */
 async function updateLoanRest(loanId, loanData) {
-  if (!loanId) throw new Error('شناسه وام الزامی است');
+  if (!loanId) throw new Error(t('شناسه وام الزامی است'));
   return httpClient.put(`/api/loans/${encodeURIComponent(loanId)}`, loanData);
 }
 
@@ -52,7 +53,7 @@ async function updateLoanRest(loanId, loanData) {
  * @returns {Promise<{ success: boolean, message: string }>}
  */
 async function deleteLoanRest(loanId) {
-  if (!loanId) throw new Error('شناسه وام الزامی است');
+  if (!loanId) throw new Error(t('شناسه وام الزامی است'));
   return httpClient.delete(`/api/loans/${encodeURIComponent(loanId)}`);
 }
 
@@ -67,7 +68,7 @@ async function deleteLoanRest(loanId) {
  * @returns {Promise<{ success: boolean, installment: object, cascadedCount?: number, cascadedTotal?: number, cascadedInstallments?: Array }>}
  */
 async function markInstallmentPaidRest(loanId, installmentId, details = {}) {
-  if (!loanId || !installmentId) throw new Error('شناسه وام و قسط الزامی است');
+  if (!loanId || !installmentId) throw new Error(t('شناسه وام و قسط الزامی است'));
   return httpClient.put(
     `/api/loans/${encodeURIComponent(loanId)}/installments/${encodeURIComponent(installmentId)}`,
     {
@@ -86,7 +87,7 @@ async function markInstallmentPaidRest(loanId, installmentId, details = {}) {
  * @returns {Promise<{ success: boolean, installment: object }>}
  */
 async function unmarkInstallmentPaidRest(loanId, installmentId) {
-  if (!loanId || !installmentId) throw new Error('شناسه وام و قسط الزامی است');
+  if (!loanId || !installmentId) throw new Error(t('شناسه وام و قسط الزامی است'));
   return httpClient.put(
     `/api/loans/${encodeURIComponent(loanId)}/installments/${encodeURIComponent(installmentId)}`,
     { isPaid: false }
@@ -106,7 +107,7 @@ async function unmarkInstallmentPaidRest(loanId, installmentId) {
  * @returns {Promise<{ success: boolean, loan: object }>}
  */
 async function bulkDistributeInstallmentsRest(loanId, knownAmounts, totalRepaymentAmount) {
-  if (!loanId) throw new Error('شناسه وام الزامی است');
+  if (!loanId) throw new Error(t('شناسه وام الزامی است'));
   const body = { knownAmounts: knownAmounts || {} };
   if (totalRepaymentAmount !== undefined && totalRepaymentAmount !== null) {
     body.totalRepaymentAmount = Number(totalRepaymentAmount);
@@ -128,7 +129,7 @@ async function bulkDistributeInstallmentsRest(loanId, knownAmounts, totalRepayme
  * @returns {Promise<{ success: boolean, fullyPaidOff: boolean, extraPayment: object, loan: object }>}
  */
 async function addLoanExtraPaymentRest(loanId, paymentData) {
-  if (!loanId) throw new Error('شناسه وام الزامی است');
+  if (!loanId) throw new Error(t('شناسه وام الزامی است'));
   return httpClient.post(
     `/api/loans/${encodeURIComponent(loanId)}/extra-payments`,
     paymentData
@@ -141,7 +142,7 @@ async function addLoanExtraPaymentRest(loanId, paymentData) {
  * @returns {Promise<{ success: boolean, count: number, extraPayments: Array }>}
  */
 async function getLoanExtraPaymentsRest(loanId) {
-  if (!loanId) throw new Error('شناسه وام الزامی است');
+  if (!loanId) throw new Error(t('شناسه وام الزامی است'));
   return httpClient.get(`/api/loans/${encodeURIComponent(loanId)}/extra-payments`);
 }
 

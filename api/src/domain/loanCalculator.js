@@ -14,6 +14,8 @@
  * Gregorian months have different lengths.
  */
 
+import { t } from './i18n.js';
+
 /**
  * Converts a Gregorian (year, month, day) into its Jalali (Persian) equivalent.
  * Uses the platform's ICU Persian calendar (already relied on elsewhere in this codebase
@@ -289,16 +291,16 @@ export function solveAnnualRateFromKnownPayments({
   const interval = parseInt(intervalMonths, 10) || 1;
 
   if (p <= 0) {
-    throw new Error('مبلغ اصل وام باید عددی بزرگتر از صفر باشد.');
+    throw new Error(t('مبلغ اصل وام باید عددی بزرگتر از صفر باشد.'));
   }
   if (n < 2) {
-    throw new Error('این محاسبه به حداقل ۲ قسط (قسط اول و حداقل یک قسط بعدی) نیاز دارد.');
+    throw new Error(t('این محاسبه به حداقل ۲ قسط (قسط اول و حداقل یک قسط بعدی) نیاز دارد.'));
   }
   if (a1 <= 0 || a2 <= 0) {
-    throw new Error('مبلغ قسط اول و مبلغ اقساط بعدی باید عددی بزرگتر از صفر باشند.');
+    throw new Error(t('مبلغ قسط اول و مبلغ اقساط بعدی باید عددی بزرگتر از صفر باشند.'));
   }
   if (a1 >= p) {
-    throw new Error('مبلغ قسط اول نمی‌تواند از (یا برابر با) کل اصل وام بیشتر باشد.');
+    throw new Error(t('مبلغ قسط اول نمی‌تواند از (یا برابر با) کل اصل وام بیشتر باشد.'));
   }
 
   const remainingCount = n - 1;
@@ -320,7 +322,7 @@ export function solveAnnualRateFromKnownPayments({
     expansions++;
   }
   if (fHi < 0) {
-    throw new Error('برای این ترکیب از مبلغ اقساط، نرخ سود معتبری پیدا نشد. لطفاً مقادیر را بررسی کنید.');
+    throw new Error(t('برای این ترکیب از مبلغ اقساط، نرخ سود معتبری پیدا نشد. لطفاً مقادیر را بررسی کنید.'));
   }
 
   for (let i = 0; i < 100 && hi - lo > 1e-6; i++) {
@@ -382,13 +384,13 @@ export function solveAnnualRateFromTotalRepayment({
   const interval = parseInt(intervalMonths, 10) || 1;
 
   if (p <= 0) {
-    throw new Error('مبلغ اصل وام باید عددی بزرگتر از صفر باشد.');
+    throw new Error(t('مبلغ اصل وام باید عددی بزرگتر از صفر باشد.'));
   }
   if (n <= 0) {
-    throw new Error('تعداد اقساط باید عددی بزرگتر از صفر باشد.');
+    throw new Error(t('تعداد اقساط باید عددی بزرگتر از صفر باشد.'));
   }
   if (total < p) {
-    throw new Error('کل مبلغ قابل بازپرداخت نمی‌تواند کمتر از مبلغ اصل وام باشد.');
+    throw new Error(t('کل مبلغ قابل بازپرداخت نمی‌تواند کمتر از مبلغ اصل وام باشد.'));
   }
 
   const targetInstallment = total / n;
@@ -414,7 +416,7 @@ export function solveAnnualRateFromTotalRepayment({
     expansions++;
   }
   if (fHi < 0) {
-    throw new Error('برای این مبلغ کل بازپرداخت، نرخ سود معتبری پیدا نشد. لطفاً مقادیر را بررسی کنید.');
+    throw new Error(t('برای این مبلغ کل بازپرداخت، نرخ سود معتبری پیدا نشد. لطفاً مقادیر را بررسی کنید.'));
   }
 
   for (let i = 0; i < 100 && hi - lo > 1e-6; i++) {
@@ -626,7 +628,7 @@ export function calculatePayoffScheduleFixedAmount({
 
   if (balance <= 0) return [];
   if (pmt <= 0) {
-    throw new Error("مبلغ قسط ثابت باید بزرگتر از صفر باشد.");
+    throw new Error(t("مبلغ قسط ثابت باید بزرگتر از صفر باشد."));
   }
 
   const r = rate > 0 ? (rate / 100) * (interval / 12) : 0;
@@ -634,7 +636,7 @@ export function calculatePayoffScheduleFixedAmount({
   // Validate that payment exceeds initial period interest to avoid infinite loop
   const initialInterest = r > 0 ? Math.round(balance * r) : 0;
   if (r > 0 && pmt <= initialInterest) {
-    throw new Error("مبلغ قسط ثابت کمتر یا مساوی بهره دوره‌ای است و وام هرگز تسویه نخواهد شد.");
+    throw new Error(t("مبلغ قسط ثابت کمتر یا مساوی بهره دوره‌ای است و وام هرگز تسویه نخواهد شد."));
   }
 
   const parsedStart = parseDateParts(startDateIso);
@@ -645,7 +647,7 @@ export function calculatePayoffScheduleFixedAmount({
   while (balance > 0) {
     iteration++;
     if (iteration > MAX_ITERATIONS) {
-      throw new Error("تعداد اقساط محاسبه‌شده از سقف مجاز (۱۲۰۰ قسط) فراتر رفت.");
+      throw new Error(t("تعداد اقساط محاسبه‌شده از سقف مجاز (۱۲۰۰ قسط) فراتر رفت."));
     }
 
     const installmentNumber = anchor + iteration;
@@ -655,7 +657,7 @@ export function calculatePayoffScheduleFixedAmount({
 
     let principalPortion = pmt - interestPortion;
     if (principalPortion <= 0 && balance > 0) {
-      throw new Error("مبلغ قسط ثابت کمتر یا مساوی بهره دوره‌ای است و وام هرگز تسویه نخواهد شد.");
+      throw new Error(t("مبلغ قسط ثابت کمتر یا مساوی بهره دوره‌ای است و وام هرگز تسویه نخواهد شد."));
     }
 
     let remainingBalanceAfter = 0;
@@ -1156,7 +1158,7 @@ export function distributeInstallmentAmounts({ loan, paidInstallments = [], know
     : baseline.reduce((sum, i) => sum + i.totalAmount, 0);
 
   if (totalRepaymentOverride !== undefined && totalRepaymentOverride !== null && baselineTotalRepayment < effectivePrincipal) {
-    throw new Error('مبلغ کل بازپرداخت نمی‌تواند کمتر از مبلغ اصل وام باشد.');
+    throw new Error(t('مبلغ کل بازپرداخت نمی‌تواند کمتر از مبلغ اصل وام باشد.'));
   }
 
   const paidByNumber = new Map();
@@ -1181,7 +1183,7 @@ export function distributeInstallmentAmounts({ loan, paidInstallments = [], know
   const leftoverPool = baselineTotalRepayment - paidTotal - touchedTotal;
 
   if (untouchedCount > 0 && leftoverPool < 0) {
-    throw new Error('مجموع مبالغ واردشده از کل مبلغ قابل بازپرداخت وام بیشتر است.');
+    throw new Error(t('مجموع مبالغ واردشده از کل مبلغ قابل بازپرداخت وام بیشتر است.'));
   }
 
   // Assign each untouched installment's totalAmount so their SUM is EXACTLY leftoverPool — not

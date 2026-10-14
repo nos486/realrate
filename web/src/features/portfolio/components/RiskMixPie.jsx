@@ -5,7 +5,7 @@
  * (utils/riskProfile.js RISK_PROFILES[].allocation); colors come from chartColors.js.
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { intlLocale, t } from '../../../utils/i18n.js';
 import React from 'react';
 import { CHART_COLORS, CHART_OTHER_COLOR } from '../../../shared/ui/chartColors.js';
 
@@ -35,12 +35,12 @@ export default function RiskMixPie({ items }) {
   };
   return (
     <div className="risk-mix">
-      <svg width={PIE.size} height={PIE.size} viewBox={`0 0 ${PIE.size} ${PIE.size}`} role="img" aria-label="ترکیب پیشنهادی">
-        {slices.map((s) => <path key={s.key} d={path(s)} fill={s.color}><title>{`${s.label}: ${fa(s.value)}٪`}</title></path>)}
+      <svg width={PIE.size} height={PIE.size} viewBox={`0 0 ${PIE.size} ${PIE.size}`} role="img" aria-label={t('ترکیب پیشنهادی')}>
+        {slices.map((s) => <path key={s.key} d={path(s)} fill={s.color}><title>{t('{label}: {pct}٪', { label: s.label, pct: fa(s.value) })}</title></path>)}
       </svg>
       <ul className="risk-mix-legend">
         {slices.map((s) => (
-          <li key={s.key}><i style={{ background: s.color }} /> {s.label} <strong>{fa(s.value)}٪</strong></li>
+          <li key={s.key}><i style={{ background: s.color }} /> {s.label} <strong>{t('{pct}٪', { pct: fa(s.value) })}</strong></li>
         ))}
       </ul>
     </div>

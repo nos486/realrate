@@ -18,6 +18,8 @@
  * switching to a custom layout. «سایر» is `g_other`.
  */
 
+import { t } from './i18n.js';
+
 export const PORTFOLIO_LAYOUT_VERSION = 1;
 
 export const PORTFOLIO_LAYOUT_LIMITS = {
@@ -89,7 +91,7 @@ export function sanitizePortfolioLayout(input) {
       items.push(assetKey);
     }
 
-    groups.push({ id, title: title || 'دسته جدید', icon, items });
+    groups.push({ id, title: title || t('دسته جدید'), icon, items });
   }
 
   const targets = sanitizeTargets(input.targets);

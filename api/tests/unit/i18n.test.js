@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import { t, msg, plural, registerMessages, setActiveLocale, getLocale, getDir, intlLocale } from '../../src/domain/i18n.js';
-import { extractKeys, findUntranslated, listSources, SCAN_ROOTS, DICTIONARY_DIR } from '../../../web/scripts/i18n-scan.mjs';
+import { extractKeys, findUntranslated, listSources, SCAN_ROOTS, DICTIONARY_DIR, isSkipped } from '../../../web/scripts/i18n-scan.mjs';
 
 describe('t', () => {
   beforeEach(() => {
@@ -78,7 +78,7 @@ describe('English dictionaries', () => {
     const missing = new Set();
     for (const dir of SCAN_ROOTS) {
       for (const file of listSources(dir)) {
-        if (file.startsWith(DICTIONARY_DIR)) continue;
+        if (isSkipped(file)) continue;
         for (const key of extractKeys(fs.readFileSync(file, 'utf8'))) {
           if (/[؀-ۿ]/.test(key) && dictionary[key] === undefined) missing.add(key);
         }

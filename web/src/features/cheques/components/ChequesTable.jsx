@@ -3,6 +3,7 @@
  */
 
 import React from 'react';
+import { t } from '../../../utils/i18n.js';
 import { Calendar, CheckCircle2, ClipboardList, Pencil, Trash2 } from 'lucide-react';
 import { ResponsiveDataTable } from '../../../shared/ui/index.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
@@ -20,13 +21,13 @@ export default function ChequesTable({ cheques, onTrack, onClear, onEdit, onDele
   const columns = [
     {
       key: 'counterparty',
-      header: 'طرف حساب',
+      header: t('طرف حساب'),
       mobile: 'title',
       render: (cheque) => {
         const { Icon, label, tone } = getDirectionDisplay(cheque.direction);
         return (
           <button type="button" className="cheque-title-btn" onClick={() => onTrack(cheque)}>
-            <span className={`cheque-direction-icon is-${tone}`} title={`چک ${label}`}>
+            <span className={`cheque-direction-icon is-${tone}`} title={t('چک {kind}', { kind: label })}>
               <Icon size={13} strokeWidth={2.4} />
             </span>
             <span className="cheque-title-text">{cheque.counterparty}</span>
@@ -36,7 +37,7 @@ export default function ChequesTable({ cheques, onTrack, onClear, onEdit, onDele
     },
     {
       key: 'due',
-      header: 'سررسید',
+      header: t('سررسید'),
       mobile: 'meta',
       render: (cheque) => {
         const days = daysUntilDue(cheque, today);
@@ -56,13 +57,13 @@ export default function ChequesTable({ cheques, onTrack, onClear, onEdit, onDele
     },
     {
       key: 'status',
-      header: 'وضعیت',
+      header: t('وضعیت'),
       mobile: 'meta',
       render: (cheque) => <ChequeStatusBadge status={cheque.status} />,
     },
     {
       key: 'bank',
-      header: 'بانک',
+      header: t('بانک'),
       render: (cheque) => {
         const bank = resolveBank({ bankId: cheque.bankId, lenderName: cheque.bankName }, customBanks);
         if (bank.kind === 'none') return <span className="table-notes-text">—</span>;
@@ -76,7 +77,7 @@ export default function ChequesTable({ cheques, onTrack, onClear, onEdit, onDele
     },
     {
       key: 'amount',
-      header: 'مبلغ',
+      header: t('مبلغ'),
       mobile: 'stat',
       render: (cheque) => {
         const { tone } = getDirectionDisplay(cheque.direction);
@@ -85,14 +86,14 @@ export default function ChequesTable({ cheques, onTrack, onClear, onEdit, onDele
             <strong className={`cell-val-bold cheque-amount is-${tone} ${hideValues ? 'is-masked' : ''}`}>
               {hideValues ? '****' : formatNum(cheque.amount)}
             </strong>
-            <span className="cell-unit">تومان</span>
+            <span className="cell-unit">{t('تومان')}</span>
           </div>
         );
       },
     },
     {
       key: 'actions',
-      header: 'عملیات',
+      header: t('عملیات'),
       mobile: 'actions',
       render: (cheque) => (
         <div className="row-actions-group">
@@ -100,28 +101,28 @@ export default function ChequesTable({ cheques, onTrack, onClear, onEdit, onDele
             <button
               type="button"
               className={`btn-table-action cheque-clear-btn ${clearingId === cheque.id ? 'loading' : ''}`}
-              title="پاس شد (با تاریخ امروز)"
-              aria-label={`پاس شدن چک ${cheque.counterparty}`}
+              title={t('پاس شد (با تاریخ امروز)')}
+              aria-label={t('پاس شدن چک {name}', { name: cheque.counterparty })}
               onClick={() => onClear(cheque)}
               disabled={clearingId === cheque.id}
             >
               <CheckCircle2 size={13} strokeWidth={2.2} />
-              <span>پاس شد</span>
+              <span>{t('پاس شد')}</span>
             </button>
           )}
-          <button type="button" className="btn-table-action" title="پیگیری و مشاهده وضعیت" aria-label="پیگیری" onClick={() => onTrack(cheque)}>
+          <button type="button" className="btn-table-action" title={t('پیگیری و مشاهده وضعیت')} aria-label={t('پیگیری')} onClick={() => onTrack(cheque)}>
             <ClipboardList size={13} strokeWidth={2} />
           </button>
           {!readOnly && (
             <>
-              <button type="button" className="btn-table-action edit" title="ویرایش چک" aria-label="ویرایش" onClick={() => onEdit(cheque)}>
+              <button type="button" className="btn-table-action edit" title={t('ویرایش چک')} aria-label={t('ویرایش')} onClick={() => onEdit(cheque)}>
                 <Pencil size={13} strokeWidth={2} />
               </button>
               <button
                 type="button"
                 className={`btn-table-action delete ${deletingId === cheque.id ? 'loading' : ''}`}
-                title="حذف چک"
-                aria-label="حذف"
+                title={t('حذف چک')}
+                aria-label={t('حذف')}
                 onClick={() => onDelete(cheque)}
                 disabled={deletingId === cheque.id}
               >

@@ -7,6 +7,7 @@ import { useCustomBanks } from './useCustomBanks.js';
 import { useFeedback } from '../ui/FeedbackProvider.jsx';
 import { useBackToClose } from '../hooks/useBackToClose.js';
 import TextField from '../ui/TextField.jsx';
+import { t } from '../../utils/i18n.js';
 
 const BANK_GROUPS = getBankGroups();
 
@@ -15,7 +16,7 @@ const BANK_GROUPS = getBankGroups();
  * new custom bank. Controlled: `value` / `onChange` carry `{ bankId, lenderName }`, the same
  * pair every bank-referencing record stores.
  */
-export default function BankPicker({ value, onChange, label = 'بانک / وام‌دهنده', optional = true, id = 'bank-picker' }) {
+export default function BankPicker({ value, onChange, label = t('بانک / وام‌دهنده'), optional = true, id = 'bank-picker' }) {
   const { customBanks, addBank, removeBank } = useCustomBanks();
   const { confirm, toast } = useFeedback();
   const [open, setOpen] = useState(false);
@@ -55,11 +56,11 @@ export default function BankPicker({ value, onChange, label = 'بانک / وام
     try {
       const bank = await addBank(trimmedQuery);
       if (bank) {
-        toast.success(`بانک «${bank.name}» اضافه شد.`);
+        toast.success(t('بانک «{name}» اضافه شد.', { name: bank.name }));
         choose({ bankId: bank.id, lenderName: bank.name });
       }
     } catch (err) {
-      toast.error(err.message || 'خطا در افزودن بانک');
+      toast.error(err.message || t('خطا در افزودن بانک'));
     } finally {
       setAdding(false);
     }
@@ -67,9 +68,9 @@ export default function BankPicker({ value, onChange, label = 'بانک / وام
 
   const handleRemove = async (bank) => {
     const ok = await confirm({
-      title: 'حذف بانک سفارشی',
-      message: `بانک «${bank.name}» از فهرست بانک‌های شما حذف شود؟ وام‌هایی که با این بانک ثبت شده‌اند نامش را حفظ می‌کنند.`,
-      confirmLabel: 'حذف',
+      title: t('حذف بانک سفارشی'),
+      message: t('بانک «{name}» از فهرست بانک‌های شما حذف شود؟ وام‌هایی که با این بانک ثبت شده‌اند نامش را حفظ می‌کنند.', { name: bank.name }),
+      confirmLabel: t('حذف'),
       danger: true,
     });
     if (!ok) return;
@@ -77,7 +78,7 @@ export default function BankPicker({ value, onChange, label = 'بانک / وام
       await removeBank(bank.id);
       if (value?.bankId === bank.id) onChange?.({ bankId: '', lenderName: bank.name });
     } catch (err) {
-      toast.error(err.message || 'خطا در حذف بانک');
+      toast.error(err.message || t('خطا در حذف بانک'));
     }
   };
 
@@ -85,7 +86,7 @@ export default function BankPicker({ value, onChange, label = 'بانک / وام
     <div className={`bank-picker ${open ? 'is-open' : ''}`}>
       <label className="bank-picker-label" htmlFor={id}>
         {label}
-        {optional && <span className="bank-picker-optional"> (اختیاری)</span>}
+        {optional && <span className="bank-picker-optional"> ({t('اختیاری')})</span>}
       </label>
 
       <button
@@ -101,7 +102,7 @@ export default function BankPicker({ value, onChange, label = 'بانک / وام
       >
         <BankLogo bank={selected} size={28} />
         <span className={`bank-picker-value ${hasSelection ? '' : 'is-placeholder'}`}>
-          {hasSelection ? selected.name : 'انتخاب بانک'}
+          {hasSelection ? selected.name : t('انتخاب بانک')}
         </span>
         <ChevronDown size={16} className="bank-picker-chevron" />
       </button>
@@ -124,8 +125,8 @@ export default function BankPicker({ value, onChange, label = 'بانک / وام
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="جستجو یا نام بانک جدید…"
-              aria-label="جستجوی بانک"
+              placeholder={t('جستجو یا نام بانک جدید…')}
+              aria-label={t('جستجوی بانک')}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
@@ -138,13 +139,13 @@ export default function BankPicker({ value, onChange, label = 'بانک / وام
           <div className="bank-picker-scroll">
             {hasSelection && !q && (
               <button type="button" className="bank-picker-clear" onClick={() => choose({ bankId: '', lenderName: '' })}>
-                بدون بانک
+                {t('بدون بانک')}
               </button>
             )}
 
             {filteredCustom.length > 0 && (
               <section className="bank-picker-group">
-                <h5>بانک‌های سفارشی من</h5>
+                <h5>{t('بانک‌های سفارشی من')}</h5>
                 <div className="bank-picker-grid">
                   {filteredCustom.map((bank) => {
                     const resolved = resolveBank({ bankId: bank.id }, customBanks);
@@ -158,8 +159,8 @@ export default function BankPicker({ value, onChange, label = 'بانک / وام
                           type="button"
                           className="bank-option-remove"
                           onClick={() => handleRemove(bank)}
-                          aria-label={`حذف بانک ${bank.name}`}
-                          title="حذف از فهرست"
+                          aria-label={t('حذف بانک {name}', { name: bank.name })}
+                          title={t('حذف از فهرست')}
                         >
                           <X size={12} />
                         </button>
@@ -187,7 +188,7 @@ export default function BankPicker({ value, onChange, label = 'بانک / وام
             ))}
 
             {filteredGroups.length === 0 && filteredCustom.length === 0 && !canAddQuery && (
-              <p className="bank-picker-empty">بانکی با این نام پیدا نشد.</p>
+              <p className="bank-picker-empty">{t('بانکی با این نام پیدا نشد.')}</p>
             )}
           </div>
 
@@ -195,11 +196,11 @@ export default function BankPicker({ value, onChange, label = 'بانک / وام
             {canAddQuery ? (
               <button type="button" className="bank-picker-add" onClick={handleAdd} disabled={adding}>
                 <Plus size={15} />
-                افزودن «{trimmedQuery}» به‌عنوان بانک سفارشی
+                {t('افزودن «{name}» به‌عنوان بانک سفارشی', { name: trimmedQuery })}
               </button>
             ) : (
               <span className="bank-picker-hint">
-                بانک مورد نظر در فهرست نیست؟ نامش را در جستجو بنویسید تا به بانک‌های شما اضافه شود.
+                {t('بانک مورد نظر در فهرست نیست؟ نامش را در جستجو بنویسید تا به بانک‌های شما اضافه شود.')}
               </span>
             )}
           </div>

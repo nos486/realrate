@@ -11,7 +11,7 @@
  * locking or logging out clears it.
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
 import {
   deriveE2eeKey,
   generateE2eeSalt,
@@ -92,7 +92,7 @@ export function bumpVaultEpoch() {
 
 export class VaultLockedError extends Error {
   constructor() {
-    super('رمزنگاری سرتاسری حساب قفل است؛ ابتدا با رمز عبور آن را باز کنید.');
+    super(t('رمزنگاری سرتاسری حساب قفل است؛ ابتدا با رمز عبور آن را باز کنید.'));
     this.name = 'VaultLockedError';
     this.code = 'VAULT_LOCKED';
   }
@@ -177,7 +177,7 @@ export function loadVault(userId, { force = false } = {}) {
         setState({ status: 'off', vault: null });
         return state;
       }
-      setState({ status: 'error', error: err.message || 'خطا در دریافت وضعیت رمزنگاری' });
+      setState({ status: 'error', error: err.message || t('خطا در دریافت وضعیت رمزنگاری') });
       return state;
     })
     .finally(() => {
@@ -195,7 +195,7 @@ export async function whenVaultReady() {
 /** @returns {Promise<boolean>} false when the passphrase is wrong */
 export async function unlockVault(passphrase) {
   const vault = state.vault;
-  if (!vault) throw new Error('رمزنگاری سرتاسری برای این حساب فعال نیست.');
+  if (!vault) throw new Error(t('رمزنگاری سرتاسری برای این حساب فعال نیست.'));
   const kek = await deriveE2eeKey(String(passphrase || ''), vault.salt);
   const raw = await unwrapRawKey(kek, vault.wrappedKey);
   if (!raw) return false;
@@ -296,7 +296,7 @@ export async function resetAccountVault({ password } = {}) {
 
 function assertPassphrase(passphrase) {
   if (String(passphrase || '').length < VAULT_MIN_PASSPHRASE_LENGTH) {
-    throw new Error(`رمز عبور رمزنگاری باید حداقل ${VAULT_MIN_PASSPHRASE_LENGTH.toLocaleString(intlLocale())} کاراکتر باشد.`);
+    throw new Error(t('رمز عبور رمزنگاری باید حداقل {n} کاراکتر باشد.', { n: VAULT_MIN_PASSPHRASE_LENGTH.toLocaleString(intlLocale()) }));
   }
 }
 
@@ -319,10 +319,10 @@ export async function createVault(passphrase) {
 export async function changeVaultPassphrase(currentPassphrase, newPassphrase) {
   assertPassphrase(newPassphrase);
   const vault = state.vault;
-  if (!vault) throw new Error('رمزنگاری سرتاسری برای این حساب فعال نیست.');
+  if (!vault) throw new Error(t('رمزنگاری سرتاسری برای این حساب فعال نیست.'));
   const oldKek = await deriveE2eeKey(String(currentPassphrase || ''), vault.salt);
   const raw = await unwrapRawKey(oldKek, vault.wrappedKey);
-  if (!raw) throw new Error('رمز عبور فعلی نادرست است.');
+  if (!raw) throw new Error(t('رمز عبور فعلی نادرست است.'));
 
   const salt = generateE2eeSalt();
   const newKek = await deriveE2eeKey(newPassphrase, salt);

@@ -14,6 +14,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { t } from '../../../utils/i18n.js';
 import { useRefreshHandler } from '../../../shared/refresh/pageRefresh.js';
 import { useAuth } from '../../auth/index.js';
 import { useVault } from '../../../shared/vault/useVault.js';
@@ -81,7 +82,7 @@ export function useDailyExpenses(month, { enabled = true, year = false } = {}) {
       const projectIds = new Set(groups.filter((g) => g.type !== 'daily').map((g) => g.id));
       setProjectItems(res.expenses.filter((e) => projectIds.has(e.groupId)));
     } catch (err) {
-      if (isLatest()) setError(err.message || 'خطا در بارگذاری هزینه‌های روزمره');
+      if (isLatest()) setError(err.message || t('خطا در بارگذاری هزینه‌های روزمره'));
     } finally {
       if (isLatest()) setLoading(false);
     }
@@ -145,7 +146,7 @@ export function useDailyExpenses(month, { enabled = true, year = false } = {}) {
       setExpenses((prev) => prev.filter((e) => e.id !== expenseId));
       setProjectItems((prev) => prev.filter((e) => e.id !== expenseId));
     } catch (err) {
-      setError(err.message || 'خطا در حذف هزینه');
+      setError(err.message || t('خطا در حذف هزینه'));
       throw err;
     } finally {
       setDeletingId(null);
@@ -164,7 +165,7 @@ export function useDailyExpenses(month, { enabled = true, year = false } = {}) {
       const group = typeof target === 'string'
         ? projects.find((g) => g.id === target)
         : (await api.saveExpenseGroup({ name: target?.name, type: 'project' })).group;
-      if (!group) throw new Error('پروژه پیدا نشد.');
+      if (!group) throw new Error(t('پروژه پیدا نشد.'));
       if (typeof target !== 'string') setProjects((prev) => [...prev, group]);
       const wanted = new Set(ids);
       const moved = await api.moveExpenses(expensesRef.current.filter((e) => wanted.has(e.id)), group.id);

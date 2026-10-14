@@ -5,6 +5,7 @@
 
 import React, { useState } from 'react';
 import { Target } from 'lucide-react';
+import { t } from '../../../utils/i18n.js';
 import { AlertBanner, Button, Modal, NumericInput } from '../../../shared/ui/index.js';
 import { parseInputNumber } from '../../portfolio/utils/holdingHelpers.js';
 import { useCategories } from '../../../shared/categories/useCategories.js';
@@ -29,7 +30,7 @@ export default function BudgetForm({ budgets = {}, onSubmit, onClose, submitting
       await onSubmit(next);
       onClose();
     } catch (err) {
-      setSubmitError(err.message || 'خطا در ذخیره بودجه');
+      setSubmitError(err.message || t('خطا در ذخیره بودجه'));
     }
   };
 
@@ -45,7 +46,7 @@ export default function BudgetForm({ budgets = {}, onSubmit, onClose, submitting
           value={values[key] || ''}
           onValueChange={set(key)}
           allowDecimals={false}
-          placeholder="بدون بودجه"
+          placeholder={t('بدون بودجه')}
           className="ui-input-control"
         />
       </div>
@@ -56,21 +57,21 @@ export default function BudgetForm({ budgets = {}, onSubmit, onClose, submitting
     <Modal
       isOpen
       onClose={onClose}
-      title="بودجه ماهانه"
-      subtitle="سقف خرج هر ماه، به تومان؛ برای هر ماه همین بودجه‌ها در نظر گرفته می‌شود"
+      title={t('بودجه ماهانه')}
+      subtitle={t('سقف خرج هر ماه، به تومان؛ برای هر ماه همین بودجه‌ها در نظر گرفته می‌شود')}
       icon={<Target size={18} />}
       maxWidth="600px"
       onSubmit={handleSubmit}
       footer={
         <div className="modal-actions">
-          <Button variant="secondary" block disabled={submitting} onClick={onClose}>انصراف</Button>
-          <Button type="submit" block loading={submitting} disabled={submitting}>ذخیره بودجه</Button>
+          <Button variant="secondary" block disabled={submitting} onClick={onClose}>{t('انصراف')}</Button>
+          <Button type="submit" block loading={submitting} disabled={submitting}>{t('ذخیره بودجه')}</Button>
         </div>
       }
     >
       <div className="income-form-body">
         {submitError && <AlertBanner type="error" message={submitError} />}
-        {field('total', 'کل ماه')}
+        {field('total', t('کل ماه'))}
         <div className="budget-grid">
           {categories.map(({ value, label, Icon }) => field(value, label, Icon))}
         </div>

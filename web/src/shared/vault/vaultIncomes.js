@@ -22,6 +22,7 @@ import { putRecord, recordDateOf, backfillRecordDates, repairRecordDates } from 
 import { encryptVaultRecord, decryptVaultRecord, decryptVaultRecords } from './vaultStore.js';
 import { syncRecordLinks, releaseRecordLinks } from './recordLinks.js';
 import { recordOwnerOf, ownedRecordMessage } from '../../utils/recordOwners.js';
+import { t } from '../../utils/i18n.js';
 
 const KIND = 'income';
 
@@ -163,7 +164,7 @@ function assertNotOwned(income, asOwner) {
  */
 export async function updateIncome(incomeId, incomeData, { asOwner = false } = {}) {
   const existing = await findIncome(incomeId);
-  if (!existing) throw new IncomeValidationError('درآمد مورد نظر یافت نشد.', 404);
+  if (!existing) throw new IncomeValidationError(t('درآمد مورد نظر یافت نشد.'), 404);
   assertNotOwned(existing, asOwner);
   const income = { ...existing, ...parseIncomeInput(incomeData), updatedAt: new Date().toISOString() };
   return { success: true, income: await save(income, existing) };

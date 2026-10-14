@@ -7,7 +7,7 @@
  * would run, so it does not depend on React.
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
 import { createAlert } from '../../utils/alerts.js';
 import { buildChequeReminders, getChequeDirection, CHEQUE_REMINDER_DAYS } from '../../utils/chequeDocument.js';
 import { subscriptionView, SUBSCRIPTION_REMINDER_DAYS } from '../../utils/subscriptionDocument.js';
@@ -20,7 +20,14 @@ export const LOAN_REMINDER_DAYS = 7;
 
 const faNum = (v) => Number(v || 0).toLocaleString(intlLocale());
 const dayDiff = (from, to) => Math.round((Date.parse(to) - Date.parse(from)) / DAY);
-const describeDays = (days) => (days === 0 ? 'امروز' : days > 0 ? `${faNum(days)} روز دیگر` : `${faNum(-days)} روز گذشته`);
+const describeDays = (days) => {
+  if (days === 0) return t('امروز');
+  if (days === 1) return t('۱ روز دیگر');
+  if (days === -1) return t('۱ روز گذشته');
+  return days > 0 ? t('{n} روز دیگر', { n: faNum(days) }) : t('{n} روز گذشته', { n: faNum(-days) });
+};
+/** One key for a single item, one with the count for several (English plural); Persian reads the same */
+const countTitle = (n, one, many) => (n === 1 ? one : many);
 
 /**
  * Loan installments: overdue (critical) and due within LOAN_REMINDER_DAYS (warning)
@@ -39,7 +46,7 @@ export function loanAlerts(loans = [], today) {
     const item = {
       key: `${loan.id}_${inst.installmentNumber}`,
       title: loan.title,
-      detail: `قسط ${faNum(inst.installmentNumber)}، سررسید ${formatShamsiDisplay(due)}، ${describeDays(days)}`,
+      detail: t('قسط {n}، سررسید {due}، {when}', { n: faNum(inst.installmentNumber), due: formatShamsiDisplay(due), when: describeDays(days) }),
       amount: inst.totalAmount,
       due,
       loanId: loan.id,
@@ -56,19 +63,19 @@ export function loanAlerts(loans = [], today) {
       id: 'loan:overdue',
       source: 'loan',
       severity: 'critical',
-      title: `${faNum(overdue.length)} قسط معوق`,
+      title: countTitle(overdue.length, t('۱ قسط معوق'), t('{n} قسط معوق', { n: faNum(overdue.length) })),
       items: overdue,
       dueDate: overdue[0].due,
-      action: { label: 'مشاهده و تسویه', path: pathOf(overdue) },
+      action: { label: t('مشاهده و تسویه'), path: pathOf(overdue) },
     }),
     upcoming.length && createAlert({
       id: 'loan:upcoming',
       source: 'loan',
       severity: 'warning',
-      title: `${faNum(upcoming.length)} قسط تا ${faNum(LOAN_REMINDER_DAYS)} روز آینده`,
+      title: countTitle(upcoming.length, t('۱ قسط تا {days} روز آینده', { days: faNum(LOAN_REMINDER_DAYS) }), t('{n} قسط تا {days} روز آینده', { n: faNum(upcoming.length), days: faNum(LOAN_REMINDER_DAYS) })),
       items: upcoming,
       dueDate: upcoming[0].due,
-      action: { label: 'مشاهده اقساط', path: pathOf(upcoming) },
+      action: { label: t('مشاهده اقساط'), path: pathOf(upcoming) },
     }),
   ].filter(Boolean);
 }
@@ -82,7 +89,7 @@ export function chequeAlerts(cheques = [], today) {
   const toItem = (c) => ({
     key: c.id,
     title: c.counterparty,
-    detail: `چک ${getChequeDirection(c.direction).label}، سررسید ${formatShamsiDisplay(`${c.dueDate}T00:00:00`)}، ${describeDays(c.days)}`,
+    detail: t('چک {direction}، سررسید {due}، {when}', { direction: getChequeDirection(c.direction).label, due: formatShamsiDisplay(`${c.dueDate}T00:00:00`), when: describeDays(c.days) }),
     amount: c.amount,
   });
   const action = (label) => ({ label, path: appPath('/cheques') });
@@ -91,19 +98,19 @@ export function chequeAlerts(cheques = [], today) {
       id: 'cheque:overdue',
       source: 'cheque',
       severity: 'critical',
-      title: `${faNum(overdue.length)} چک سررسیدگذشته`,
+      title: countTitle(overdue.length, t('۱ چک سررسیدگذشته'), t('{n} چک سررسیدگذشته', { n: faNum(overdue.length) })),
       items: overdue.map(toItem),
       dueDate: overdue[0].dueDate,
-      action: action('پیگیری چک‌ها'),
+      action: action(t('پیگیری چک‌ها')),
     }),
     upcoming.length && createAlert({
       id: 'cheque:upcoming',
       source: 'cheque',
       severity: 'warning',
-      title: `${faNum(upcoming.length)} چک تا ${faNum(CHEQUE_REMINDER_DAYS)} روز آینده`,
+      title: countTitle(upcoming.length, t('۱ چک تا {days} روز آینده', { days: faNum(CHEQUE_REMINDER_DAYS) }), t('{n} چک تا {days} روز آینده', { n: faNum(upcoming.length), days: faNum(CHEQUE_REMINDER_DAYS) })),
       items: upcoming.map(toItem),
       dueDate: upcoming[0].dueDate,
-      action: action('مشاهده چک‌ها'),
+      action: action(t('مشاهده چک‌ها')),
     }),
   ].filter(Boolean);
 }
@@ -124,10 +131,11 @@ export function subscriptionAlerts(subscriptions = [], today, rates = {}) {
     const foreign = isForeignCurrency(sub.currency);
     const money = foreign ? formatMoney(sub.amount, sub.currency) : null;
     const rate = currencyRateToday(sub.currency, rates);
+    const when = { date: formatShamsiDisplay(`${view.nextRenewal}T00:00:00`), when: describeDays(view.daysLeft) };
     const item = {
       key: `${sub.id}_${view.nextRenewal}`,
       title: sub.name,
-      detail: `${view.state === 'expired' ? 'اعتبار تا' : 'تمدید'} ${formatShamsiDisplay(`${view.nextRenewal}T00:00:00`)}، ${describeDays(view.daysLeft)}${money ? `، ${money}` : ''}`,
+      detail: `${view.state === 'expired' ? t('اعتبار تا {date}، {when}', when) : t('تمدید {date}، {when}', when)}${money ? `${t('،')} ${money}` : ''}`,
       amount: !foreign ? sub.amount : rate > 0 ? Math.round(sub.amount * rate) : undefined,
       due: view.nextRenewal,
     };
@@ -142,24 +150,24 @@ export function subscriptionAlerts(subscriptions = [], today, rates = {}) {
       id: 'subscription:expired',
       source: 'subscription',
       severity: 'critical',
-      title: `${faNum(expired.length)} اشتراک تمدید نشده`,
+      title: countTitle(expired.length, t('۱ اشتراک تمدید نشده'), t('{n} اشتراک تمدید نشده', { n: faNum(expired.length) })),
       items: expired,
       dueDate: expired[0].due,
-      action: action('تمدید اشتراک‌ها'),
+      action: action(t('تمدید اشتراک‌ها')),
     }),
     upcoming.length && createAlert({
       id: 'subscription:upcoming',
       source: 'subscription',
       severity: 'warning',
-      title: `${faNum(upcoming.length)} تمدید اشتراک تا ${faNum(SUBSCRIPTION_REMINDER_DAYS)} روز آینده`,
+      title: countTitle(upcoming.length, t('۱ تمدید اشتراک تا {days} روز آینده', { days: faNum(SUBSCRIPTION_REMINDER_DAYS) }), t('{n} تمدید اشتراک تا {days} روز آینده', { n: faNum(upcoming.length), days: faNum(SUBSCRIPTION_REMINDER_DAYS) })),
       items: upcoming,
       dueDate: upcoming[0].due,
-      action: action('مشاهده اشتراک‌ها'),
+      action: action(t('مشاهده اشتراک‌ها')),
     }),
   ].filter(Boolean);
 }
 
-const faPct = (n) => `${Math.abs(n).toLocaleString(intlLocale(), { maximumFractionDigits: 1 })}٪`;
+const faPct = (n) => `${Math.abs(n).toLocaleString(intlLocale(), { maximumFractionDigits: 1 })}${t('٪')}`;
 
 /**
  * A portfolio: categories drifted from their targets, and assets sold beyond what was held
@@ -170,7 +178,7 @@ const faPct = (n) => `${Math.abs(n).toLocaleString(intlLocale(), { maximumFracti
 export function portfolioAlerts(portfolio, allocation, warnings = [], { threshold = 5 } = {}) {
   if (!portfolio?.id) return [];
   const path = appPath(`/portfolio/${portfolio.id}`);
-  const name = portfolio.name || 'پورتفو';
+  const name = portfolio.name || t('پورتفو');
   const drifted = allocation?.drifted || [];
   return [
     drifted.length && createAlert({
@@ -178,23 +186,23 @@ export function portfolioAlerts(portfolio, allocation, warnings = [], { threshol
       source: 'portfolio',
       severity: 'warning',
       scope: portfolio.id,
-      title: `ترکیب «${name}» بیش از ${faNum(threshold)}٪ از هدف فاصله گرفته`,
+      title: t('ترکیب «{name}» بیش از {n}٪ از هدف فاصله گرفته', { name, n: faNum(threshold) }),
       items: drifted.map((r) => ({
         key: r.targetKey,
         title: r.name,
-        detail: `اکنون ${faPct(r.currentPct)}، هدف ${faPct(r.targetPct)} (${faPct(r.diff)} ${r.diff > 0 ? 'بیشتر' : 'کمتر'})`,
+        detail: t('اکنون {current}، هدف {target} ({diff} {dir})', { current: faPct(r.currentPct), target: faPct(r.targetPct), diff: faPct(r.diff), dir: r.diff > 0 ? t('بیشتر') : t('کمتر') }),
       })),
-      action: { label: 'مشاهده پورتفو', path },
+      action: { label: t('مشاهده پورتفو'), path },
     }),
     warnings.length && createAlert({
       id: `portfolio:deficit:${portfolio.id}`,
       source: 'portfolio',
       severity: 'warning',
       scope: portfolio.id,
-      title: `فروش بیش از موجودی در «${name}»`,
+      title: t('فروش بیش از موجودی در «{name}»', { name }),
       message: warnings.map((w) => w.message).join(' '),
-      items: warnings.map((w) => ({ key: w.assetId, title: w.assetName, detail: `${faNum(w.deficit)} ${w.unit} بیش از موجودی` })),
-      action: { label: 'بازبینی ثبت‌ها', path },
+      items: warnings.map((w) => ({ key: w.assetId, title: w.assetName, detail: t('{n} {unit} بیش از موجودی', { n: faNum(w.deficit), unit: w.unit }) })),
+      action: { label: t('بازبینی ثبت‌ها'), path },
     }),
   ].filter(Boolean);
 }

@@ -16,6 +16,8 @@
  * and the API, like the other domain modules.
  */
 
+import { t } from './i18n.js';
+
 const ID_RE = /^[A-Za-z0-9_-]{1,80}$/;
 const MAX_ASSET_ID = 160;
 const MAX_NAME = 80;
@@ -32,11 +34,11 @@ export function validatePortfolioLink(raw) {
   const portfolioId = text(raw.portfolioId);
   const txId = text(raw.txId);
   const assetId = text(raw.assetId);
-  if (!ID_RE.test(portfolioId) || !ID_RE.test(txId)) return { error: 'پورتفوی انتخاب‌شده نامعتبر است.' };
+  if (!ID_RE.test(portfolioId) || !ID_RE.test(txId)) return { error: t('پورتفوی انتخاب‌شده نامعتبر است.') };
   // eslint-disable-next-line no-control-regex
-  if (!assetId || assetId.length > MAX_ASSET_ID || /[\u0000-\u001f]/.test(assetId)) return { error: 'دارایی انتخاب‌شده نامعتبر است.' };
+  if (!assetId || assetId.length > MAX_ASSET_ID || /[\u0000-\u001f]/.test(assetId)) return { error: t('دارایی انتخاب‌شده نامعتبر است.') };
   const quantity = Number(raw.quantity);
-  if (!Number.isFinite(quantity) || quantity <= 0 || quantity > 1e15) return { error: 'مقدار دارایی باید بیشتر از صفر باشد.' };
+  if (!Number.isFinite(quantity) || quantity <= 0 || quantity > 1e15) return { error: t('مقدار دارایی باید بیشتر از صفر باشد.') };
   return {
     link: {
       portfolioId,

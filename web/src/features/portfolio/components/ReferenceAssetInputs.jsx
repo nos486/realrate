@@ -9,6 +9,7 @@ import {
   resolveSelectedAsset,
 } from '../utils/holdingHelpers.js';
 import { useTradeDayPrice, tradeDayPriceNote } from '../hooks/useTradeDayPrice.js';
+import { t } from '../../../utils/i18n.js';
 
 /**
  * Shared "paid / swapped with another asset" inputs, used identically by AddHoldingForm
@@ -34,7 +35,7 @@ export default function ReferenceAssetInputs({
   referencePriceToman,
   onReferencePriceChange,
   newAssetAmount = 0,
-  newAssetUnitLabel = 'واحد',
+  newAssetUnitLabel = t('واحد'),
   // false when editing an existing record: its saved reference price reflects the ORIGINAL
   // trade date and must never be silently overwritten by today's live price.
   autoFillPrice = true,
@@ -92,7 +93,7 @@ export default function ReferenceAssetInputs({
     return (
       <button type="button" className="btn-add-reference-asset" onClick={() => setExpanded(true)}>
         <ArrowLeftRight size={13} />
-        <span>پرداخت یا تهاتر با دارایی دیگر (دلار، طلا، سهام و ...)</span>
+        <span>{t('پرداخت یا تهاتر با دارایی دیگر (دلار، طلا، سهام و ...)')}</span>
       </button>
     );
   }
@@ -107,13 +108,13 @@ export default function ReferenceAssetInputs({
       <div className="reference-asset-card-header">
         <span className="reference-asset-card-title">
           <ArrowLeftRight size={13} />
-          پرداخت / تهاتر با دارایی دیگر
+          {t('پرداخت / تهاتر با دارایی دیگر')}
         </span>
         <button
           type="button"
           className="btn-remove-reference"
           onClick={handleClear}
-          title="لغو و بازگشت به ثبت تومانی ساده"
+          title={t('لغو و بازگشت به ثبت تومانی ساده')}
         >
           <X size={13} />
         </button>
@@ -123,36 +124,34 @@ export default function ReferenceAssetInputs({
         <UniversalAssetSearch
           mode="picker"
           onSelect={handlePick}
-          placeholder="جستجوی دارایی پرداختی (دلار، طلا، سهام و ...)"
+          placeholder={t('جستجوی دارایی پرداختی (دلار، طلا، سهام و ...)')}
         />
       ) : (
         <>
           <div className="reference-asset-selected-pill">
             <span>{referenceAsset.name}</span>
-            <button type="button" onClick={handleChangeAsset} title="تغییر دارایی مرجع">
+            <button type="button" onClick={handleChangeAsset} title={t('تغییر دارایی مرجع')}>
               <X size={11} />
             </button>
           </div>
 
           <div className="form-row-dual">
             <div className="form-item flex-1">
-              <label>مقدار کل {referenceAsset.name} پرداخت‌شده ({referenceAsset.unit})</label>
+              <label>{t('مقدار کل {name} پرداخت‌شده ({unit})', { name: referenceAsset.name, unit: referenceAsset.unit })}</label>
               <NumericInput
                 value={referenceQuantity}
                 onValueChange={onReferenceQuantityChange}
                 allowDecimals={true}
-                placeholder="مثلاً ۵"
+                placeholder={t('مثلاً ۵')}
                 className="form-input"
               />
             </div>
             <div className="form-item flex-1">
-              <label>
-                قیمت هر {referenceAsset.unit} {referenceAsset.name} در زمان معامله (تومان)
-                <button
+              <label>{t('قیمت هر {unit} {name} در زمان معامله (تومان)', { unit: referenceAsset.unit, name: referenceAsset.name })}<button
                   type="button"
                   className="btn-fx-rate-refresh"
-                  title="قیمت در تاریخ معامله"
-                  aria-label="قیمت در تاریخ معامله"
+                  title={t('قیمت در تاریخ معامله')}
+                  aria-label={t('قیمت در تاریخ معامله')}
                   onClick={dayPrice.refill}
                 >
                   <RefreshCw size={11} />
@@ -162,7 +161,7 @@ export default function ReferenceAssetInputs({
                 value={referencePriceToman}
                 onValueChange={handlePriceChange}
                 allowDecimals={false}
-                placeholder="قیمت واحد به تومان"
+                placeholder={t('قیمت واحد به تومان')}
                 className="form-input"
               />
               {tradeDayPriceNote(dayPrice.source) && <span className="field-sub-note">{tradeDayPriceNote(dayPrice.source)}</span>}
@@ -171,10 +170,9 @@ export default function ReferenceAssetInputs({
 
           {totalToman > 0 && (
             <div className="currency-cost-preview">
-              معادل تومانی کل: <strong>{formatNum(totalToman)} تومان</strong>
+              {t('معادل تومانی کل:')}{' '}<strong>{t('{amount} تومان', { amount: formatNum(totalToman) })}</strong>
               {perUnitToman > 0 && (
-                <>
-                  {' '}— هر {newAssetUnitLabel}: <strong>{formatNum(perUnitToman)} تومان</strong>
+                <>{' '}{t('— هر {unit}:', { unit: newAssetUnitLabel })}{' '}<strong>{t('{amount} تومان', { amount: formatNum(perUnitToman) })}</strong>
                 </>
               )}
             </div>

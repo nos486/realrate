@@ -19,10 +19,11 @@
 
 import { isValidIsoDate } from './isoDate.js';
 import { isCategoryValue } from './categoryDocument.js';
+import { t } from './i18n.js';
 
 export const CHEQUE_DIRECTIONS = [
-  { value: 'received', label: 'دریافتی' },
-  { value: 'issued', label: 'صادره' },
+  { value: 'received', label: t('دریافتی') },
+  { value: 'issued', label: t('صادره') },
 ];
 
 /**
@@ -30,12 +31,12 @@ export const CHEQUE_DIRECTIONS = [
  * `directions`: which kind of cheque the status applies to.
  */
 export const CHEQUE_STATUSES = [
-  { value: 'pending', label: 'در انتظار سررسید', open: true, directions: ['received', 'issued'] },
-  { value: 'deposited', label: 'در جریان وصول', open: true, directions: ['received'] },
-  { value: 'cleared', label: 'پاس شده', open: false, directions: ['received', 'issued'] },
-  { value: 'bounced', label: 'برگشتی', open: false, directions: ['received', 'issued'] },
-  { value: 'transferred', label: 'واگذار شده', open: false, directions: ['received'] },
-  { value: 'cancelled', label: 'باطل / عودت', open: false, directions: ['received', 'issued'] },
+  { value: 'pending', label: t('در انتظار سررسید'), open: true, directions: ['received', 'issued'] },
+  { value: 'deposited', label: t('در جریان وصول'), open: true, directions: ['received'] },
+  { value: 'cleared', label: t('پاس شده'), open: false, directions: ['received', 'issued'] },
+  { value: 'bounced', label: t('برگشتی'), open: false, directions: ['received', 'issued'] },
+  { value: 'transferred', label: t('واگذار شده'), open: false, directions: ['received'] },
+  { value: 'cancelled', label: t('باطل / عودت'), open: false, directions: ['received', 'issued'] },
 ];
 
 export const CHEQUE_LIMITS = {
@@ -75,8 +76,8 @@ const DIRECTION_VALUES = new Set(CHEQUE_DIRECTIONS.map((d) => d.value));
 /** Persian / Arabic-Indic digits → ASCII */
 export function toAsciiDigits(value) {
   return String(value ?? '')
-    .replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
-    .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
+    .replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))) // i18n-ignore
+    .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))); // i18n-ignore
 }
 
 export { isValidIsoDate };
@@ -122,50 +123,50 @@ function sanitizeHistory(history, fallbackStatus, fallbackDate) {
  */
 export function validateChequeInput(body = {}, { today } = {}) {
   const direction = body.direction;
-  if (!DIRECTION_VALUES.has(direction)) return { error: 'نوع چک (دریافتی یا صادره) نامعتبر است.' };
+  if (!DIRECTION_VALUES.has(direction)) return { error: t('نوع چک (دریافتی یا صادره) نامعتبر است.') };
 
   const status = body.status === undefined || body.status === '' ? 'pending' : body.status;
   const statusDef = STATUS_BY_VALUE.get(status);
-  if (!statusDef) return { error: 'وضعیت چک نامعتبر است.' };
+  if (!statusDef) return { error: t('وضعیت چک نامعتبر است.') };
   if (!statusDef.directions.includes(direction)) {
-    return { error: `وضعیت «${statusDef.label}» برای چک ${getChequeDirection(direction).label} معتبر نیست.` };
+    return { error: t('وضعیت «{status}» برای چک {direction} معتبر نیست.', { status: statusDef.label, direction: getChequeDirection(direction).label }) };
   }
 
   const amount = Number(toAsciiDigits(body.amount).replace(/,/g, ''));
-  if (!Number.isFinite(amount) || amount <= 0) return { error: 'مبلغ چک باید عددی بزرگتر از صفر باشد.' };
-  if (amount > CHEQUE_LIMITS.maxAmount) return { error: 'مبلغ چک بیش از حد مجاز است.' };
+  if (!Number.isFinite(amount) || amount <= 0) return { error: t('مبلغ چک باید عددی بزرگتر از صفر باشد.') };
+  if (amount > CHEQUE_LIMITS.maxAmount) return { error: t('مبلغ چک بیش از حد مجاز است.') };
 
   const dueDate = text(body.dueDate);
-  if (!isValidIsoDate(dueDate)) return { error: 'تاریخ سررسید چک نامعتبر است.' };
+  if (!isValidIsoDate(dueDate)) return { error: t('تاریخ سررسید چک نامعتبر است.') };
 
   const issueDate = text(body.issueDate);
-  if (issueDate && !isValidIsoDate(issueDate)) return { error: 'تاریخ صدور چک نامعتبر است.' };
+  if (issueDate && !isValidIsoDate(issueDate)) return { error: t('تاریخ صدور چک نامعتبر است.') };
 
   const counterparty = text(body.counterparty);
   if (!counterparty) {
-    return { error: direction === 'received' ? 'نام صادرکننده چک الزامی است.' : 'نام گیرنده چک الزامی است.' };
+    return { error: direction === 'received' ? t('نام صادرکننده چک الزامی است.') : t('نام گیرنده چک الزامی است.') };
   }
   if (counterparty.length > CHEQUE_LIMITS.counterpartyLength) {
-    return { error: `نام طرف حساب نباید بیشتر از ${CHEQUE_LIMITS.counterpartyLength} کاراکتر باشد.` };
+    return { error: t('نام طرف حساب نباید بیشتر از {counterpartyLength} کاراکتر باشد.', { counterpartyLength: CHEQUE_LIMITS.counterpartyLength }) };
   }
 
   const bankId = text(body.bankId);
   const bankName = text(body.bankName);
   if (bankId.length > CHEQUE_LIMITS.bankIdLength || bankName.length > CHEQUE_LIMITS.bankNameLength) {
-    return { error: 'نام بانک بیش از حد طولانی است.' };
+    return { error: t('نام بانک بیش از حد طولانی است.') };
   }
 
   const chequeNumber = toAsciiDigits(text(body.chequeNumber)).replace(/\s+/g, '');
   if (chequeNumber && (chequeNumber.length > CHEQUE_LIMITS.chequeNumberLength || !CHEQUE_NUMBER_RE.test(chequeNumber))) {
-    return { error: 'شماره چک فقط می‌تواند شامل رقم باشد.' };
+    return { error: t('شماره چک فقط می‌تواند شامل رقم باشد.') };
   }
 
   const sayadId = toAsciiDigits(text(body.sayadId)).replace(/[\s-]+/g, '');
-  if (sayadId && !SAYAD_RE.test(sayadId)) return { error: 'شناسه صیادی باید ۱۶ رقم باشد.' };
+  if (sayadId && !SAYAD_RE.test(sayadId)) return { error: t('شناسه صیادی باید ۱۶ رقم باشد.') };
 
   const notes = text(body.notes);
   if (notes.length > CHEQUE_LIMITS.notesLength) {
-    return { error: `یادداشت نباید بیشتر از ${CHEQUE_LIMITS.notesLength} کاراکتر باشد.` };
+    return { error: t('یادداشت نباید بیشتر از {notesLength} کاراکتر باشد.', { notesLength: CHEQUE_LIMITS.notesLength }) };
   }
 
   const fallbackDate = isValidIsoDate(today) ? today : issueDate || dueDate;

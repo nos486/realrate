@@ -11,10 +11,10 @@
  * - The app's version and its updates: automatic check on/off, «بررسی به‌روزرسانی» (shared/native/appUpdate.js)
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
+import { toPersianDigits } from '../../shared/utils/formatters.js';
 import React, { useEffect, useState } from 'react';
 import LanguageSwitch from '../../shared/i18n/LanguageSwitch.jsx';
-import { t } from '../../utils/i18n.js';
 import { useFeature } from '../../shared/features/useFeature.js';
 import ProLockedCard from '../../shared/plan/ProLockedCard.jsx';
 import { Languages, Smartphone, MessageSquareText, Trash2, Fingerprint, Info, ArrowLeft, RefreshCw, Download, Bell, LayoutGrid, Plus, X } from 'lucide-react';
@@ -68,8 +68,8 @@ function SmsBankSettings({ settings }) {
   const off = new Set(settings.disabledBanks);
   return (
     <div className="app-setting-banks">
-      <strong>بانک‌ها</strong>
-      <p>پیامک‌های کدام بانک‌ها خوانده شود؟ بانکی را که خاموش کنید، پیامکش خوانده نمی‌شود و اعلانی نمی‌آید.</p>
+      <strong>{t('بانک‌ها')}</strong>
+      <p>{t('پیامک‌های کدام بانک‌ها خوانده شود؟ بانکی را که خاموش کنید، پیامکش خوانده نمی‌شود و اعلانی نمی‌آید.')}</p>
       <ul>
         {BANK_SMS_TEMPLATES.map(({ bankId, senders = [] }) => {
           const bank = resolveBank({ bankId });
@@ -78,9 +78,9 @@ function SmsBankSettings({ settings }) {
               <BankLogo bank={bank} size={28} />
               <span className="app-setting-bank-name">
                 <b>{bank.name || bank.shortName}</b>
-                <small dir="ltr">{senders.join('، ')}</small>
+                <small dir="ltr">{senders.join(t('، '))}</small>
               </span>
-              <Switch checked={!off.has(bankId)} onChange={(on) => setSmsBankEnabled(bankId, on)} label={`خواندن پیامک ${bank.shortName}`} />
+              <Switch checked={!off.has(bankId)} onChange={(on) => setSmsBankEnabled(bankId, on)} label={t('خواندن پیامک {bank}', { bank: bank.shortName })} />
             </li>
           );
         })}
@@ -99,12 +99,12 @@ function Switch({ checked, onChange, disabled, label }) {
 }
 
 function formatTime(ms) {
-  if (!ms) return 'هنوز خوانده نشده';
+  if (!ms) return t('هنوز خوانده نشده');
   return new Date(ms).toLocaleString(intlLocale(), { dateStyle: 'medium', timeStyle: 'short' });
 }
 
 const faNum = (n) => Number(n || 0).toLocaleString(intlLocale());
-const digits = (v) => Number(String(v ?? '').replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[^\d]/g, '')) || 0;
+const digits = (v) => Number(String(v ?? '').replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[^\d]/g, '')) || 0; // i18n-ignore
 
 /** Small withdrawals: recorded by themselves up to an amount, the «ثبت سریع» button, and the category used for them */
 function SmsRecordSettings({ settings }) {
@@ -119,33 +119,33 @@ function SmsRecordSettings({ settings }) {
     <div className="app-setting-block">
       <div className="app-setting-row">
         <div>
-          <strong>ثبت خودکار هزینه‌های کوچک</strong>
-          <p>برداشت‌های تا مبلغ زیر، بدون پرسیدن، در هزینه‌های روزمره ثبت می‌شوند (وقتی اطلاعات رمزنگاری‌شده باز است).</p>
+          <strong>{t('ثبت خودکار هزینه‌های کوچک')}</strong>
+          <p>{t('برداشت‌های تا مبلغ زیر، بدون پرسیدن، در هزینه‌های روزمره ثبت می‌شوند (وقتی اطلاعات رمزنگاری‌شده باز است).')}</p>
         </div>
-        <Switch checked={settings.autoRecord} onChange={(on) => setSmsSettings({ autoRecord: on })} label="ثبت خودکار هزینه‌های کوچک" />
+        <Switch checked={settings.autoRecord} onChange={(on) => setSmsSettings({ autoRecord: on })} label={t('ثبت خودکار هزینه‌های کوچک')} />
       </div>
       {settings.autoRecord && (
         <div className="app-setting-field">
-          <label htmlFor="sms-auto-max">تا مبلغ</label>
+          <label htmlFor="sms-auto-max">{t('تا مبلغ')}</label>
           <NumericInput
             id="sms-auto-max"
             value={max}
             onValueChange={setMax}
             onBlur={saveMax}
-            affix="تومان"
+            affix={t('تومان')}
           />
         </div>
       )}
       <div className="app-setting-row">
         <div>
-          <strong>دکمه‌ی «ثبت سریع»</strong>
-          <p>کنار برداشت‌های تا {faNum(QUICK_RECORD_MAX)} تومان در صفحه‌ی پیامک‌ها، به‌جای «ثبت»، دکمه‌ای می‌آید که بدون فرم و با یک ضربه ثبت می‌کند.</p>
+          <strong>{t('دکمه‌ی «ثبت سریع»')}</strong>
+          <p>{t('کنار برداشت‌های تا {max} تومان در صفحه‌ی پیامک‌ها، به‌جای «ثبت»، دکمه‌ای می‌آید که بدون فرم و با یک ضربه ثبت می‌کند.', { max: faNum(QUICK_RECORD_MAX) })}</p>
         </div>
-        <Switch checked={settings.quickRecord} onChange={(on) => setSmsSettings({ quickRecord: on })} label="دکمه‌ی ثبت سریع" />
+        <Switch checked={settings.quickRecord} onChange={(on) => setSmsSettings({ quickRecord: on })} label={t('دکمه‌ی ثبت سریع')} />
       </div>
       <div className="app-setting-field">
-        <span>دسته‌ی ثبت خودکار و «ثبت سریع»</span>
-        <div className="app-category-chips" role="radiogroup" aria-label="دسته‌ی هزینه">
+        <span>{t('دسته‌ی ثبت خودکار و «ثبت سریع»')}</span>
+        <div className="app-category-chips" role="radiogroup" aria-label={t('دسته‌ی هزینه')}>
           {categories.map(({ value, label, Icon, color }) => (
             <button
               key={value}
@@ -162,7 +162,7 @@ function SmsRecordSettings({ settings }) {
           ))}
         </div>
         <small>
-          ثبت خودکار و «ثبت سریع» در «{getExpenseCategory(settings.recordCategory).label}» ثبت می‌کنند. بعداً می‌توانید دسته را در فهرست هزینه‌ها عوض کنید.
+          {t('ثبت خودکار و «ثبت سریع» در «{category}» ثبت می‌کنند. بعداً می‌توانید دسته را در فهرست هزینه‌ها عوض کنید.', { category: getExpenseCategory(settings.recordCategory).label })}
         </small>
       </div>
     </div>
@@ -182,26 +182,26 @@ function SmsIncomeRecordSettings({ settings }) {
     <div className="app-setting-block">
       <div className="app-setting-row">
         <div>
-          <strong>ثبت خودکار واریزهای کوچک</strong>
-          <p>واریزهای تا مبلغ زیر، بدون پرسیدن، به‌عنوان درآمد در دسته‌ی انتخابی ثبت می‌شوند (وقتی اطلاعات رمزنگاری‌شده باز است). واریزهای بزرگ‌تر در صفحه‌ی پیامک‌ها می‌مانند تا خودتان تعیین کنید (درآمد، وام، دنگ یا انتقال).</p>
+          <strong>{t('ثبت خودکار واریزهای کوچک')}</strong>
+          <p>{t('واریزهای تا مبلغ زیر، بدون پرسیدن، به‌عنوان درآمد در دسته‌ی انتخابی ثبت می‌شوند (وقتی اطلاعات رمزنگاری‌شده باز است). واریزهای بزرگ‌تر در صفحه‌ی پیامک‌ها می‌مانند تا خودتان تعیین کنید (درآمد، وام، دنگ یا انتقال).')}</p>
         </div>
-        <Switch checked={settings.autoRecordIncome} onChange={(on) => setSmsSettings({ autoRecordIncome: on })} label="ثبت خودکار واریزهای کوچک" />
+        <Switch checked={settings.autoRecordIncome} onChange={(on) => setSmsSettings({ autoRecordIncome: on })} label={t('ثبت خودکار واریزهای کوچک')} />
       </div>
       {settings.autoRecordIncome && (
         <>
           <div className="app-setting-field">
-            <label htmlFor="sms-auto-income-max">تا مبلغ</label>
+            <label htmlFor="sms-auto-income-max">{t('تا مبلغ')}</label>
             <NumericInput
               id="sms-auto-income-max"
               value={max}
               onValueChange={setMax}
               onBlur={saveMax}
-              affix="تومان"
+              affix={t('تومان')}
             />
           </div>
           <div className="app-setting-field">
-            <span>دسته‌ی واریزهای خودکار</span>
-            <div className="app-category-chips" role="radiogroup" aria-label="دسته‌ی درآمد">
+            <span>{t('دسته‌ی واریزهای خودکار')}</span>
+            <div className="app-category-chips" role="radiogroup" aria-label={t('دسته‌ی درآمد')}>
               {categories.map(({ value, label, Icon, color }) => (
                 <button
                   key={value}
@@ -218,7 +218,7 @@ function SmsIncomeRecordSettings({ settings }) {
               ))}
             </div>
             <small>
-              واریزهای کوچک در «{getIncomeCategory(settings.incomeCategory).label}» ثبت می‌شوند. بعداً می‌توانید دسته را در فهرست درآمدها عوض کنید.
+              {t('واریزهای کوچک در «{category}» ثبت می‌شوند. بعداً می‌توانید دسته را در فهرست درآمدها عوض کنید.', { category: getIncomeCategory(settings.incomeCategory).label })}
             </small>
           </div>
         </>
@@ -227,7 +227,7 @@ function SmsIncomeRecordSettings({ settings }) {
   );
 }
 
-const faVersion = (v) => String(v || '').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[d]);
+const faVersion = (v) => toPersianDigits(String(v || ''));
 
 /** «به‌روزرسانی»: automatic check on/off, and a check right now */
 function AppUpdateSettings() {
@@ -238,29 +238,29 @@ function AppUpdateSettings() {
 
   const handleCheck = async () => {
     const result = await checkForUpdate({ manual: true });
-    if (result.status === 'latest') toast.success('آخرین نسخه‌ی اپ نصب است.');
-    else if (result.status === 'error') toast.error(result.error || 'بررسی به‌روزرسانی ممکن نشد.');
+    if (result.status === 'latest') toast.success(t('آخرین نسخه‌ی اپ نصب است.'));
+    else if (result.status === 'error') toast.error(result.error || t('بررسی به‌روزرسانی ممکن نشد.'));
   };
 
   return (
     <>
       <div className="app-setting-row">
         <div>
-          <strong>بررسی خودکار به‌روزرسانی</strong>
-          <p>با باز شدن اپ، اگر نسخه‌ی جدیدی منتشر شده باشد خبر می‌دهد تا با یک ضربه دانلود و نصب شود.</p>
+          <strong>{t('بررسی خودکار به‌روزرسانی')}</strong>
+          <p>{t('با باز شدن اپ، اگر نسخه‌ی جدیدی منتشر شده باشد خبر می‌دهد تا با یک ضربه دانلود و نصب شود.')}</p>
         </div>
-        <Switch checked={update.settings.auto} onChange={setAutoUpdateCheck} label="بررسی خودکار به‌روزرسانی" />
+        <Switch checked={update.settings.auto} onChange={setAutoUpdateCheck} label={t('بررسی خودکار به‌روزرسانی')} />
       </div>
       <div className="app-setting-row">
         <div>
-          <strong>{hasUpdate ? `نسخه‌ی ${faVersion(update.release.version)} آماده است` : 'به‌روزرسانی'}</strong>
-          <p>{update.settings.lastCheck ? `آخرین بررسی: ${formatTime(update.settings.lastCheck)}` : 'هنوز بررسی نشده'}</p>
+          <strong>{hasUpdate ? t('نسخه‌ی {version} آماده است', { version: faVersion(update.release.version) }) : t('به‌روزرسانی')}</strong>
+          <p>{update.settings.lastCheck ? t('آخرین بررسی: {time}', { time: formatTime(update.settings.lastCheck) }) : t('هنوز بررسی نشده')}</p>
         </div>
         {hasUpdate ? (
-          <Button size="sm" icon={<Download size={14} />} onClick={openUpdatePrompt}>به‌روزرسانی</Button>
+          <Button size="sm" icon={<Download size={14} />} onClick={openUpdatePrompt}>{t('به‌روزرسانی')}</Button>
         ) : (
           <Button size="sm" variant="secondary" icon={<RefreshCw size={14} />} loading={checking} onClick={handleCheck}>
-            بررسی به‌روزرسانی
+            {t('بررسی به‌روزرسانی')}
           </Button>
         )}
       </div>
@@ -284,14 +284,14 @@ function WidgetSettings() {
     // The first pick starts from the list shown until now, so a default isn't lost by surprise
     const base = chosen.length ? chosen : WIDGET_DEFAULT_ITEMS;
     if (add && base.length >= WIDGET_MAX_ITEMS) {
-      toast.error(`حداکثر ${faNum(WIDGET_MAX_ITEMS)} مورد در ویجت جا می‌شود.`);
+      toast.error(t('حداکثر {max} مورد در ویجت جا می‌شود.', { max: faNum(WIDGET_MAX_ITEMS) }));
       return;
     }
     save(add ? [...base, id] : base.filter((x) => x !== id));
   };
   const handlePin = async () => {
     const requested = await requestPinWidget();
-    if (!requested) toast.info('ویجت را از لیست ویجت‌های گوشی (نگه داشتن روی صفحه‌ی اصلی ← ویجت‌ها ← RealRate) اضافه کنید.');
+    if (!requested) toast.info(t('ویجت را از لیست ویجت‌های گوشی (نگه داشتن روی صفحه‌ی اصلی ← ویجت‌ها ← RealRate) اضافه کنید.'));
   };
 
   return (
@@ -299,8 +299,8 @@ function WidgetSettings() {
       className="app-settings-card"
       padding="lg"
       icon={<LayoutGrid size={18} />}
-      title="ویجت صفحه‌ی اصلی"
-      subtitle="قیمت دارایی‌های موردعلاقه و خبرهای هوش مصنوعی را بدون باز کردن اپ روی صفحه‌ی اصلی گوشی ببین. ویجت خودش را هر ۱۰ دقیقه و با ضربه روی دکمه‌ی تازه‌سازی به‌روز می‌کند."
+      title={t('ویجت صفحه‌ی اصلی')}
+      subtitle={t('قیمت دارایی‌های موردعلاقه و خبرهای هوش مصنوعی را بدون باز کردن اپ روی صفحه‌ی اصلی گوشی ببین. ویجت خودش را هر ۱۰ دقیقه و با ضربه روی دکمه‌ی تازه‌سازی به‌روز می‌کند.')}
     >
       {WIDGET_KINDS.map((kind) => (
         <div className="app-setting-row" key={kind.key}>
@@ -309,19 +309,19 @@ function WidgetSettings() {
             <p>{kind.hint}</p>
           </div>
           <Button size="sm" variant="secondary" icon={<Plus size={14} />} onClick={handlePin}>
-            افزودن
+            {t('افزودن')}
           </Button>
         </div>
       ))}
       <div className="app-setting-block">
-        <strong>دارایی‌های ویجت</strong>
-        <p>{chosen.length ? 'به ترتیب نمایش:' : 'تا انتخاب نکنی، این‌ها نشان داده می‌شوند:'}</p>
+        <strong>{t('دارایی‌های ویجت')}</strong>
+        <p>{chosen.length ? t('به ترتیب نمایش:') : t('تا انتخاب نکنی، این‌ها نشان داده می‌شوند:')}</p>
         <div className="app-category-chips">
           {shown.map((id) => (
             <span className="app-category-chip is-active" key={id}>
               {pricing?.getAsset?.(id)?.name || id}
               {chosen.length > 0 && (
-                <button type="button" className="app-chip-remove" aria-label="حذف" onClick={() => toggle(id, false)}>
+                <button type="button" className="app-chip-remove" aria-label={t('حذف')} onClick={() => toggle(id, false)}>
                   <X size={12} />
                 </button>
               )}
@@ -329,12 +329,12 @@ function WidgetSettings() {
           ))}
         </div>
         <Button size="sm" variant="secondary" icon={<Plus size={14} />} onClick={() => setPicking(true)}>
-          انتخاب دارایی‌ها
+          {t('انتخاب دارایی‌ها')}
         </Button>
       </div>
       <AssetPickerModal
         isOpen={picking}
-        section={{ title: 'ویجت', items: shown }}
+        section={{ title: t('ویجت'), items: shown }}
         onClose={() => setPicking(false)}
         onToggle={toggle}
       />
@@ -343,10 +343,10 @@ function WidgetSettings() {
 }
 
 const DUE_LEAD_OPTIONS = [
-  { days: 7, label: '۷ روز قبل' },
-  { days: 3, label: '۳ روز قبل' },
-  { days: 1, label: '۱ روز قبل' },
-  { days: 0, label: 'روز سررسید' },
+  { days: 7, label: t('۷ روز قبل') },
+  { days: 3, label: t('۳ روز قبل') },
+  { days: 1, label: t('۱ روز قبل') },
+  { days: 0, label: t('روز سررسید') },
 ];
 
 function DueNotificationSettings() {
@@ -363,7 +363,7 @@ function DueNotificationSettings() {
       const res = await requestNotificationPermission();
       setPermission(res);
       if (res !== 'granted') {
-        toast.error('مجوز ارسال اعلان به برنامه داده نشده است.');
+        toast.error(t('مجوز ارسال اعلان به برنامه داده نشده است.'));
         return;
       }
     }
@@ -389,9 +389,9 @@ function DueNotificationSettings() {
     const res = await requestNotificationPermission();
     setPermission(res);
     if (res === 'granted') {
-      toast.success('مجوز ارسال اعلان فعال شد.');
+      toast.success(t('مجوز ارسال اعلان فعال شد.'));
     } else {
-      toast.error('مجوز ارسال اعلان رد شد.');
+      toast.error(t('مجوز ارسال اعلان رد شد.'));
     }
   };
 
@@ -400,18 +400,18 @@ function DueNotificationSettings() {
       className="app-settings-card"
       padding="lg"
       icon={<Bell size={18} />}
-      title="یادآوری سررسید"
-      subtitle="اعلان روی همین گوشی برای اقساط وام و چک‌ها. عناوین و مبالغ فقط روی گوشی پردازش می‌شوند."
+      title={t('یادآوری سررسید')}
+      subtitle={t('اعلان روی همین گوشی برای اقساط وام و چک‌ها. عناوین و مبالغ فقط روی گوشی پردازش می‌شوند.')}
     >
       <div className="app-setting-row">
         <div>
-          <strong>اعلان‌های سررسید روی گوشی</strong>
-          <p>ارسال اعلان در ساعت ۰۹:۰۰ صبح روزهای انتخابی قبل از سررسید و صبح بعد از سررسید برای موارد معوق.</p>
+          <strong>{t('اعلان‌های سررسید روی گوشی')}</strong>
+          <p>{t('ارسال اعلان در ساعت ۰۹:۰۰ صبح روزهای انتخابی قبل از سررسید و صبح بعد از سررسید برای موارد معوق.')}</p>
         </div>
         <Switch
           checked={settings.enabled}
           onChange={handleToggleEnabled}
-          label="اعلان‌های سررسید روی گوشی"
+          label={t('اعلان‌های سررسید روی گوشی')}
         />
       </div>
 
@@ -419,10 +419,10 @@ function DueNotificationSettings() {
         <div style={{ marginTop: '12px' }}>
           <AlertBanner
             type="warning"
-            message="مجوز ارسال اعلان به برنامه داده نشده است."
+            message={t('مجوز ارسال اعلان به برنامه داده نشده است.')}
             action={
               <Button size="sm" variant="secondary" onClick={handleRequestPermission}>
-                درخواست مجوز
+                {t('درخواست مجوز')}
               </Button>
             }
           />
@@ -433,7 +433,7 @@ function DueNotificationSettings() {
         <>
           <div style={{ marginTop: '16px' }}>
             <strong style={{ fontSize: '13px', display: 'block', marginBottom: '8px' }}>
-              زمان ارسال اعلان:
+              {t('زمان ارسال اعلان:')}
             </strong>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               {DUE_LEAD_OPTIONS.map((opt) => {
@@ -463,13 +463,13 @@ function DueNotificationSettings() {
 
           <div className="app-setting-row" style={{ marginTop: '14px', borderTop: '1px solid var(--border-color, rgba(255,255,255,0.06))', paddingTop: '14px' }}>
             <div>
-              <strong>نمایش مبلغ در اعلان</strong>
-              <p>در صورت فعال بودن، مبلغ هر قسط، چک یا درآمد در متن اعلان نشان داده می‌شود (در حالت حریم خصوصی پنهان می‌ماند).</p>
+              <strong>{t('نمایش مبلغ در اعلان')}</strong>
+              <p>{t('در صورت فعال بودن، مبلغ هر قسط، چک یا درآمد در متن اعلان نشان داده می‌شود (در حالت حریم خصوصی پنهان می‌ماند).')}</p>
             </div>
             <Switch
               checked={settings.showAmount}
               onChange={handleToggleShowAmount}
-              label="نمایش مبلغ در اعلان"
+              label={t('نمایش مبلغ در اعلان')}
             />
           </div>
         </>
@@ -494,21 +494,21 @@ function SmsRecordsCleanup({ vaultUnlocked }) {
       const found = await findSmsRecords(fromIso, toIso);
       const count = found.expenses.length + found.incomes.length;
       if (!count) {
-        toast.success('در این بازه ثبت خودکاری از پیامک نیست.');
+        toast.success(t('در این بازه ثبت خودکاری از پیامک نیست.'));
         return;
       }
       const ok = await confirm({
-        title: 'حذف ثبت‌های خودکار پیامک',
-        message: `${found.expenses.length.toLocaleString(intlLocale())} هزینه و ${found.incomes.length.toLocaleString(intlLocale())} درآمد که از پیامک بانک ساخته شده‌اند حذف می‌شوند. موردهای دستی دست نمی‌خورند. ادامه می‌دهید؟`,
-        confirmLabel: 'حذف',
+        title: t('حذف ثبت‌های خودکار پیامک'),
+        message: t('{expenses} هزینه و {incomes} درآمد که از پیامک بانک ساخته شده‌اند حذف می‌شوند. موردهای دستی دست نمی‌خورند. ادامه می‌دهید؟', { expenses: found.expenses.length.toLocaleString(intlLocale()), incomes: found.incomes.length.toLocaleString(intlLocale()) }),
+        confirmLabel: t('حذف'),
         danger: true,
       });
       if (!ok) return;
       const deleted = await deleteSmsRecords(found);
       bumpVaultEpoch();
-      toast.success(`${deleted.toLocaleString(intlLocale())} مورد حذف شد.`);
+      toast.success(t('{n} مورد حذف شد.', { n: deleted.toLocaleString(intlLocale()) }));
     } catch (err) {
-      toast.error(err?.message || 'حذف ممکن نشد.');
+      toast.error(err?.message || t('حذف ممکن نشد.'));
     } finally {
       setBusy(false);
     }
@@ -519,18 +519,18 @@ function SmsRecordsCleanup({ vaultUnlocked }) {
       className="app-settings-card"
       padding="lg"
       icon={<Trash2 size={18} />}
-      title="حذف ثبت‌های خودکار پیامک"
-      subtitle="هزینه‌ها و درآمدهایی که خودکار از پیامک بانک ساخته شده‌اند، در یک بازه حذف می‌شوند. موردهای واردشده با دست هرگز حذف نمی‌شوند."
+      title={t('حذف ثبت‌های خودکار پیامک')}
+      subtitle={t('هزینه‌ها و درآمدهایی که خودکار از پیامک بانک ساخته شده‌اند، در یک بازه حذف می‌شوند. موردهای واردشده با دست هرگز حذف نمی‌شوند.')}
     >
       <div className="sms-read-range">
-        <DateField label="از تاریخ" value={fromShamsi} onChange={setFromShamsi} />
-        <DateField label="تا تاریخ" value={toShamsi} onChange={setToShamsi} />
-        {!valid && <p className="expense-form-hint is-warning">تاریخ «از» باید پیش از «تا» (یا همان روز) باشد.</p>}
+        <DateField label={t('از تاریخ')} value={fromShamsi} onChange={setFromShamsi} />
+        <DateField label={t('تا تاریخ')} value={toShamsi} onChange={setToShamsi} />
+        {!valid && <p className="expense-form-hint is-warning">{t('تاریخ «از» باید پیش از «تا» (یا همان روز) باشد.')}</p>}
       </div>
-      {!vaultUnlocked && <AlertBanner type="info" message="برای حذف، ابتدا اطلاعات رمزنگاری‌شده را باز کنید." />}
+      {!vaultUnlocked && <AlertBanner type="info" message={t('برای حذف، ابتدا اطلاعات رمزنگاری‌شده را باز کنید.')} />}
       <div className="app-setting-actions">
         <Button size="sm" variant="danger" icon={<Trash2 size={14} />} onClick={handleDelete} loading={busy} disabled={!valid || !vaultUnlocked}>
-          شمارش و حذف
+          {t('شمارش و حذف')}
         </Button>
       </div>
     </Card>
@@ -570,10 +570,10 @@ export default function AppSettingsView({ onOpenSms }) {
     const { permission: next } = await enableSmsReading();
     setPermission(next);
     if (next !== 'granted') {
-      toast.error('اجازه‌ی خواندن پیامک داده نشد. می‌توانید از تنظیمات گوشی (برنامه‌ها ← RealRate ← مجوزها) آن را بدهید.', { duration: 8000 });
+      toast.error(t('اجازه‌ی خواندن پیامک داده نشد. می‌توانید از تنظیمات گوشی (برنامه‌ها ← RealRate ← مجوزها) آن را بدهید.'), { duration: 8000 });
       return;
     }
-    toast.success('از این پس پیامک‌های بانک خودکار خوانده می‌شوند.');
+    toast.success(t('از این پس پیامک‌های بانک خودکار خوانده می‌شوند.'));
   };
 
   const handleBiometric = async (on) => {
@@ -581,13 +581,13 @@ export default function AppSettingsView({ onOpenSms }) {
     try {
       if (on) {
         await enableBiometric();
-        toast.success('از این پس اطلاعات رمزنگاری‌شده با اثر انگشت باز می‌شود.');
+        toast.success(t('از این پس اطلاعات رمزنگاری‌شده با اثر انگشت باز می‌شود.'));
       } else {
         await disableBiometric();
       }
       setBio((b) => ({ ...b, enabled: on }));
     } catch (err) {
-      if (err?.code !== 'CANCELED') toast.error(err?.message || 'فعال کردن اثر انگشت ممکن نشد.');
+      if (err?.code !== 'CANCELED') toast.error(err?.message || t('فعال کردن اثر انگشت ممکن نشد.'));
     } finally {
       setBio((b) => ({ ...b, busy: false }));
     }
@@ -597,22 +597,22 @@ export default function AppSettingsView({ onOpenSms }) {
 
   return (
     <div className="app-settings-page">
-      <FeaturePageHeader icon={<Smartphone size={24} />} title="تنظیمات اپ" subtitle="پیامک‌های بانکی، اثر انگشت و نسخه‌ی اپ" />
+      <FeaturePageHeader icon={<Smartphone size={24} />} title={t('تنظیمات اپ')} subtitle={t('پیامک‌های بانکی، اثر انگشت و نسخه‌ی اپ')} />
 
       {smsEnabled() && (
         <Card
           className="app-settings-card"
           padding="lg"
           icon={<MessageSquareText size={18} />}
-          title="پیامک‌های بانکی"
-          subtitle="برداشت‌ها و واریزها از پیامک بانک خوانده می‌شوند تا فقط دسته‌شان را انتخاب کنید. متن پیامک‌ها روی گوشی می‌ماند."
+          title={t('پیامک‌های بانکی')}
+          subtitle={t('برداشت‌ها و واریزها از پیامک بانک خوانده می‌شوند تا فقط دسته‌شان را انتخاب کنید. متن پیامک‌ها روی گوشی می‌ماند.')}
         >
           <div className="app-setting-row">
             <div>
-              <strong>خواندن خودکار و اعلان</strong>
-              <p>فقط با رسیدن پیامک برداشت یا واریز اعلانی می‌آید (پیامک‌های دیگر خوانده نمی‌شوند)؛ با ضربه روی آن، مبلغ و تاریخ آماده‌ی ثبت است.</p>
+              <strong>{t('خواندن خودکار و اعلان')}</strong>
+              <p>{t('فقط با رسیدن پیامک برداشت یا واریز اعلانی می‌آید (پیامک‌های دیگر خوانده نمی‌شوند)؛ با ضربه روی آن، مبلغ و تاریخ آماده‌ی ثبت است.')}</p>
             </div>
-            <Switch checked={settings.auto && permission === 'granted'} onChange={handleAuto} label="خواندن خودکار پیامک" />
+            <Switch checked={settings.auto && permission === 'granted'} onChange={handleAuto} label={t('خواندن خودکار پیامک')} />
           </div>
 
           <SmsBankSettings settings={settings} />
@@ -621,18 +621,18 @@ export default function AppSettingsView({ onOpenSms }) {
           <SmsIncomeRecordSettings key={`income-${settings.autoRecordIncomeMax}`} settings={settings} />
 
           {permission === 'denied' && (
-            <AlertBanner type="warning" message="اجازه‌ی خواندن پیامک داده نشده است. از تنظیمات گوشی (برنامه‌ها ← RealRate ← مجوزها ← پیامک) آن را بدهید." />
+            <AlertBanner type="warning" message={t('اجازه‌ی خواندن پیامک داده نشده است. از تنظیمات گوشی (برنامه‌ها ← RealRate ← مجوزها ← پیامک) آن را بدهید.')} />
           )}
 
           <dl className="app-setting-facts">
-            <dt>آخرین خواندن</dt>
+            <dt>{t('آخرین خواندن')}</dt>
             <dd>{formatTime(settings.lastRead)}</dd>
-            <dt>منتظر ثبت</dt>
+            <dt>{t('منتظر ثبت')}</dt>
             <dd>
-              {pending.length.toLocaleString(intlLocale())} پیامک
+              {t('{n} پیامک', { n: pending.length.toLocaleString(intlLocale()) })}
               {onOpenSms && (
                 <Button size="sm" variant="secondary" iconRight={<ArrowLeft size={14} />} onClick={onOpenSms}>
-                  پیامک‌های بانکی
+                  {t('پیامک‌های بانکی')}
                 </Button>
               )}
             </dd>
@@ -645,34 +645,34 @@ export default function AppSettingsView({ onOpenSms }) {
       <DueNotificationSettings />
 
       {hasWidget ? <WidgetSettings /> : (
-        <ProLockedCard title="ویجت" text="ویجت صفحه‌ی اصلی گوشی در پلن رایگان بسته است؛ با Pro قیمت‌ها، خبر و تحلیل را روی صفحه‌ی گوشی ببینید." />
+        <ProLockedCard title={t('ویجت')} text={t('ویجت صفحه‌ی اصلی گوشی در پلن رایگان بسته است؛ با Pro قیمت‌ها، خبر و تحلیل را روی صفحه‌ی گوشی ببینید.')} />
       )}
 
       <Card
         className="app-settings-card"
         padding="lg"
         icon={<Fingerprint size={18} />}
-        title="اثر انگشت"
-        subtitle="یک بار با رمز عبور رمزنگاری باز کنید؛ از آن به بعد اثر انگشت کافی است. کلید روی همین گوشی و در بخش امن اندروید نگه داشته می‌شود."
+        title={t('اثر انگشت')}
+        subtitle={t('یک بار با رمز عبور رمزنگاری باز کنید؛ از آن به بعد اثر انگشت کافی است. کلید روی همین گوشی و در بخش امن اندروید نگه داشته می‌شود.')}
       >
         {!bio.available ? (
-          <AlertBanner type="info" message="اثر انگشت یا تشخیص چهره روی این گوشی فعال نیست (از تنظیمات گوشی اضافه کنید)." />
+          <AlertBanner type="info" message={t('اثر انگشت یا تشخیص چهره روی این گوشی فعال نیست (از تنظیمات گوشی اضافه کنید).')} />
         ) : (
           <>
             <div className="app-setting-row">
               <div>
-                <strong>باز کردن با اثر انگشت</strong>
-                <p>{bio.enabled ? 'فعال است.' : 'غیرفعال'}</p>
+                <strong>{t('باز کردن با اثر انگشت')}</strong>
+                <p>{bio.enabled ? t('فعال است.') : t('غیرفعال')}</p>
               </div>
               <Switch
                 checked={bio.enabled}
                 onChange={handleBiometric}
                 disabled={bio.busy || (!bio.enabled && !vaultUnlocked)}
-                label="باز کردن با اثر انگشت"
+                label={t('باز کردن با اثر انگشت')}
               />
             </div>
             {!bio.enabled && !vaultUnlocked && (
-              <AlertBanner type="info" message="برای فعال کردن، ابتدا اطلاعات رمزنگاری‌شده را با رمز عبور باز کنید." />
+              <AlertBanner type="info" message={t('برای فعال کردن، ابتدا اطلاعات رمزنگاری‌شده را با رمز عبور باز کنید.')} />
             )}
           </>
         )}
@@ -682,16 +682,16 @@ export default function AppSettingsView({ onOpenSms }) {
         <LanguageSwitch />
       </Card>
 
-      <Card className="app-settings-card" padding="lg" icon={<Info size={18} />} title="درباره اپ">
+      <Card className="app-settings-card" padding="lg" icon={<Info size={18} />} title={t('درباره اپ')}>
         {selfUpdateEnabled() && <AppUpdateSettings />}
         <dl className="app-setting-facts">
-          <dt>نسخه</dt>
+          <dt>{t('نسخه')}</dt>
           <dd dir="ltr">{version || '—'}</dd>
-          <dt>حریم خصوصی</dt>
+          <dt>{t('حریم خصوصی')}</dt>
           <dd dir="ltr"><a href="https://realrate.geekio.org/privacy" target="_blank" rel="noopener noreferrer">realrate.geekio.org/privacy</a></dd>
           {packageId && (
             <>
-              <dt>نام پکیج</dt>
+              <dt>{t('نام پکیج')}</dt>
               <dd dir="ltr">{packageId}</dd>
             </>
           )}
@@ -701,12 +701,12 @@ export default function AppSettingsView({ onOpenSms }) {
           <>
             <AlertBanner
               type="info"
-              message="این نسخه بدون پیامک است. برای داشتن ویژگی‌های بیشتر (مثل خواندن خودکار پیامک بانک) نسخه‌ی گیت‌هاب را نصب کنید."
+              message={t('این نسخه بدون پیامک است. برای داشتن ویژگی‌های بیشتر (مثل خواندن خودکار پیامک بانک) نسخه‌ی گیت‌هاب را نصب کنید.')}
             />
             <dl className="app-setting-facts">
-              <dt>پروژه در گیت‌هاب</dt>
+              <dt>{t('پروژه در گیت‌هاب')}</dt>
               <dd dir="ltr"><a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">github.com/nos486/realrate</a></dd>
-              <dt>دانلود آخرین نسخه</dt>
+              <dt>{t('دانلود آخرین نسخه')}</dt>
               <dd dir="ltr"><a href={`${GITHUB_URL}/releases/latest`} target="_blank" rel="noopener noreferrer">github.com/nos486/realrate/releases/latest</a></dd>
             </dl>
           </>

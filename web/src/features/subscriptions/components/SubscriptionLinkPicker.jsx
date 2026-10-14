@@ -9,6 +9,7 @@
  */
 
 import React from 'react';
+import { t, intlLocale } from '../../../utils/i18n.js';
 import { FilterPills } from '../../../shared/ui/index.js';
 import { SUBSCRIPTION_CYCLES } from '../../../utils/subscriptionDocument.js';
 import { normalizeCurrency } from '../../../utils/currencies.js';
@@ -16,7 +17,7 @@ import { useOptionalSubscriptions } from '../context/SubscriptionsContext.jsx';
 import { isNewSubscription, newSubscriptionLink } from '../../../shared/links/linkValues.js';
 
 const NEW = '__new__';
-const CYCLE_OPTIONS = SUBSCRIPTION_CYCLES.map(({ months, label }) => ({ value: String(months), label }));
+const CYCLE_OPTIONS = SUBSCRIPTION_CYCLES.map(({ months, label }) => ({ value: String(months), label: t(label) }));
 
 /**
  * @param {{ value: string|{ create: { cycleMonths: number } }|null, onChange: (value: unknown) => void,
@@ -27,7 +28,7 @@ export default function SubscriptionLinkPicker({ value, onChange, onFill, title 
   const all = useOptionalSubscriptions();
   const choices = all
     .filter((s) => s.status !== 'cancelled' || s.id === keepId)
-    .sort((a, b) => String(a.name).localeCompare(String(b.name), 'fa'));
+    .sort((a, b) => String(a.name).localeCompare(String(b.name), intlLocale()));
   const creating = isNewSubscription(value);
 
   const pick = (id) => {
@@ -39,12 +40,12 @@ export default function SubscriptionLinkPicker({ value, onChange, onFill, title 
 
   return (
     <div className="ui-input-group">
-      <span className="ui-input-label">کدام اشتراک</span>
+      <span className="ui-input-label">{t('کدام اشتراک')}</span>
       <FilterPills
         options={[
-          { value: '', label: 'هیچ‌کدام' },
+          { value: '', label: t('هیچ‌کدام') },
           ...choices.map((s) => ({ value: s.id, label: s.name })),
-          { value: NEW, label: '+ اشتراک جدید' },
+          { value: NEW, label: t('+ اشتراک جدید') },
         ]}
         activeValue={creating ? NEW : value || ''}
         onChange={pick}
@@ -60,7 +61,7 @@ export default function SubscriptionLinkPicker({ value, onChange, onFill, title 
             size="sm"
           />
           <p className="expense-form-hint">
-            با ثبت این هزینه، اشتراکی به نام «{title.trim() || '…'}» با همین مبلغ و دوره ساخته می‌شود و این پرداخت اولینِ آن است؛ جزئیاتش را بعداً در «اشتراک‌ها» ویرایش کنید.
+            {t('با ثبت این هزینه، اشتراکی به نام «{title}» با همین مبلغ و دوره ساخته می‌شود و این پرداخت اولینِ آن است؛ جزئیاتش را بعداً در «اشتراک‌ها» ویرایش کنید.', { title: title.trim() || '…' })}
           </p>
         </>
       )}

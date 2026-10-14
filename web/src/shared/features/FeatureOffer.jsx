@@ -13,6 +13,7 @@ import { Button } from '../ui/Button.jsx';
 import { useFeedback } from '../ui/FeedbackProvider.jsx';
 import { useAuth } from '../../features/auth/index.js';
 import { getFeatureAccess, requestGroup, cancelGroupRequest } from './featureAccessApi.js';
+import { t } from '../../utils/i18n.js';
 
 /**
  * @param {object} props
@@ -52,10 +53,10 @@ export default function FeatureOffer({ feature, title, subtitle = '', benefits =
     setBusy(true);
     try {
       const res = await requestGroup(group.key);
-      toast.success(res?.message || 'درخواست ثبت شد.');
+      toast.success(res?.message || t('درخواست ثبت شد.'));
       await load();
     } catch (err) {
-      toast.error(err?.message || 'ثبت درخواست ممکن نشد.');
+      toast.error(err?.message || t('ثبت درخواست ممکن نشد.'));
     } finally {
       setBusy(false);
     }
@@ -68,7 +69,7 @@ export default function FeatureOffer({ feature, title, subtitle = '', benefits =
       await cancelGroupRequest(group.key);
       await load();
     } catch (err) {
-      toast.error(err?.message || 'لغو درخواست ممکن نشد.');
+      toast.error(err?.message || t('لغو درخواست ممکن نشد.'));
     } finally {
       setBusy(false);
     }
@@ -90,28 +91,28 @@ export default function FeatureOffer({ feature, title, subtitle = '', benefits =
       )}
 
       <div className="feature-offer-action">
-        {!access && !failed && <p className="feature-offer-note">در حال بررسی دسترسی…</p>}
+        {!access && !failed && <p className="feature-offer-note">{t('در حال بررسی دسترسی…')}</p>}
         {failed && (
-          <Button variant="secondary" onClick={load}>تلاش دوباره</Button>
+          <Button variant="secondary" onClick={load}>{t('تلاش دوباره')}</Button>
         )}
         {access && group?.allowRequests && !group.requested && !isDemo && (
           <Button icon={<Crown size={16} />} onClick={ask} loading={busy}>
-            درخواست عضویت در {group.name}
+            {t('درخواست عضویت در {name}', { name: group.name })}
           </Button>
         )}
         {access && group?.requested && (
           <>
             <p className="feature-offer-note is-pending">
               <Clock size={16} aria-hidden="true" />
-              <span>درخواست شما ثبت شده است؛ پس از تأیید مدیر این بخش برایتان باز می‌شود.</span>
+              <span>{t('درخواست شما ثبت شده است؛ پس از تأیید مدیر این بخش برایتان باز می‌شود.')}</span>
             </p>
-            <Button variant="ghost" size="sm" onClick={cancel} loading={busy}>لغو درخواست</Button>
+            <Button variant="ghost" size="sm" onClick={cancel} loading={busy}>{t('لغو درخواست')}</Button>
           </>
         )}
         {access && (!group || (!group.allowRequests && !group.requested)) && (
           <p className="feature-offer-note">
             <Lock size={16} aria-hidden="true" />
-            <span>این بخش فعلاً برای حساب شما فعال نیست.</span>
+            <span>{t('این بخش فعلاً برای حساب شما فعال نیست.')}</span>
           </p>
         )}
       </div>

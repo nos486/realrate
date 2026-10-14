@@ -20,6 +20,7 @@ import { httpClient } from '../api/httpClient.js';
 import { compareVersions } from '../../utils/clientInfo.js';
 import { selfUpdateEnabled } from './nativeApp.js';
 import { AppUpdate } from './nativePlugins.js';
+import { t } from '../../utils/i18n.js';
 
 const SETTINGS_KEY = 'realrate_app_update';
 export const APP_UPDATE_EVENT = 'realrate:app-update';
@@ -133,7 +134,7 @@ export async function checkForUpdate({ manual = false, launch = false } = {}) {
       setState({ status: 'latest', release, installedVersion: version, open: false });
     }
   } catch (err) {
-    setState({ status: manual ? 'error' : 'idle', error: err?.message || 'بررسی به‌روزرسانی ممکن نشد.' });
+    setState({ status: manual ? 'error' : 'idle', error: err?.message || t('بررسی به‌روزرسانی ممکن نشد.') });
   }
   return state;
 }
@@ -200,7 +201,7 @@ export async function downloadAndInstall() {
     await openInstaller();
   } catch (err) {
     if (err?.code === 'CANCELED') return;
-    setState({ status: 'error', error: err?.message || 'به‌روزرسانی ناموفق بود.' });
+    setState({ status: 'error', error: err?.message || t('به‌روزرسانی ناموفق بود.') });
   }
 }
 
@@ -219,7 +220,7 @@ export async function resumeUpdate() {
     try {
       await openInstaller();
     } catch (err) {
-      setState({ status: 'error', error: err?.message || 'به‌روزرسانی ناموفق بود.' });
+      setState({ status: 'error', error: err?.message || t('به‌روزرسانی ناموفق بود.') });
     }
     return true;
   }

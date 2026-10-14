@@ -5,6 +5,7 @@
 
 import React, { useState } from 'react';
 import { FolderKanban } from 'lucide-react';
+import { t } from '../../../utils/i18n.js';
 import { AlertBanner, Button, Input, Modal, NumericInput } from '../../../shared/ui/index.js';
 import { parseInputNumber } from '../../portfolio/utils/holdingHelpers.js';
 import { EXPENSE_LIMITS } from '../../../utils/expenseDocument.js';
@@ -24,7 +25,7 @@ export default function ExpenseGroupForm({ group = null, onSubmit, onClose, subm
       await onSubmit({ name: name.trim(), notes: notes.trim(), type: group?.type || 'project', budget: parseInputNumber(budget) || null });
       onClose();
     } catch (err) {
-      setSubmitError(err.message || 'خطا در ذخیره بخش');
+      setSubmitError(err.message || t('خطا در ذخیره بخش'));
     }
   };
 
@@ -32,16 +33,16 @@ export default function ExpenseGroupForm({ group = null, onSubmit, onClose, subm
     <Modal
       isOpen
       onClose={onClose}
-      title={group ? 'ویرایش بخش' : 'بخش هزینه جدید'}
-      subtitle="مثلاً یک پروژه، سفر یا بازسازی خانه؛ هزینه‌هایش را زیر آن ثبت کنید"
+      title={group ? t('ویرایش بخش') : t('بخش هزینه جدید')}
+      subtitle={t('مثلاً یک پروژه، سفر یا بازسازی خانه؛ هزینه‌هایش را زیر آن ثبت کنید')}
       icon={<FolderKanban size={18} />}
       maxWidth="480px"
       onSubmit={handleSubmit}
       footer={
         <div className="modal-actions">
-          <Button variant="secondary" block disabled={submitting} onClick={onClose}>انصراف</Button>
+          <Button variant="secondary" block disabled={submitting} onClick={onClose}>{t('انصراف')}</Button>
           <Button type="submit" block loading={submitting} disabled={!isValid}>
-            {group ? 'ذخیره تغییرات' : 'ساخت بخش'}
+            {group ? t('ذخیره تغییرات') : t('ساخت بخش')}
           </Button>
         </div>
       }
@@ -50,8 +51,8 @@ export default function ExpenseGroupForm({ group = null, onSubmit, onClose, subm
         {submitError && <AlertBanner type="error" message={submitError} />}
         <Input
           id="expense-group-name"
-          label="نام بخش *"
-          placeholder="مثلاً: پروژه بازسازی آشپزخانه"
+          label={t('نام بخش *')}
+          placeholder={t('مثلاً: پروژه بازسازی آشپزخانه')}
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={EXPENSE_LIMITS.nameLength}
@@ -59,14 +60,14 @@ export default function ExpenseGroupForm({ group = null, onSubmit, onClose, subm
           required
         />
         <div className="ui-input-group">
-          <label htmlFor="expense-group-budget" className="ui-input-label">بودجه کل (تومان، اختیاری)</label>
+          <label htmlFor="expense-group-budget" className="ui-input-label">{t('بودجه کل (تومان، اختیاری)')}</label>
           <div className="ui-input-wrapper">
             <NumericInput
               id="expense-group-budget"
               value={budget}
               onValueChange={setBudget}
               allowDecimals={false}
-              placeholder="مثلاً ۴۰۰,۰۰۰,۰۰۰"
+              placeholder={t('مثلاً ۴۰۰,۰۰۰,۰۰۰')}
               className="ui-input-control"
             />
           </div>
@@ -74,8 +75,8 @@ export default function ExpenseGroupForm({ group = null, onSubmit, onClose, subm
         <Input
           id="expense-group-notes"
           as="textarea"
-          label="توضیحات (اختیاری)"
-          placeholder="هدف، بودجه تقریبی یا هر نکته‌ای درباره این بخش"
+          label={t('توضیحات (اختیاری)')}
+          placeholder={t('هدف، بودجه تقریبی یا هر نکته‌ای درباره این بخش')}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           maxLength={EXPENSE_LIMITS.notesLength}

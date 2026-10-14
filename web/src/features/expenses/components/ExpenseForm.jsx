@@ -42,6 +42,7 @@
 
 import React, { useState } from 'react';
 import { CircleDashed, Receipt } from 'lucide-react';
+import { t } from '../../../utils/i18n.js';
 import { AlertBanner, FilterPills, Input, Modal, NumericInput } from '../../../shared/ui/index.js';
 import { AmountField, CategoryGrid, DateField, EntryFormActions, MoreDetails, PickerRow, rememberCategory, recentCategories } from '../../../shared/form/index.js';
 import {
@@ -88,9 +89,9 @@ function readLastAccount() {
 
 /** How it was paid: from an account (or cash), with a cheque, or with a loan's money */
 const PAY_WITH = {
-  account: { value: 'account', label: 'حساب یا نقد' },
-  cheque: { value: 'cheque', label: 'چک' },
-  loan: { value: 'loan', label: 'وام' },
+  account: { value: 'account', label: t('حساب یا نقد') },
+  cheque: { value: 'cheque', label: t('چک') },
+  loan: { value: 'loan', label: t('وام') },
 };
 
 /** A portfolio among the «پرداخت از» choices (an account's is its id) */
@@ -99,12 +100,12 @@ const FUND_PREFIX = 'pf:';
 const NEW_ACCOUNT = '__new_account__';
 
 const SHARE_OPTIONS = [
-  { value: 'own', label: 'همه‌اش سهم من' },
-  { value: 'shared', label: 'با دیگران (دنگ)' },
+  { value: 'own', label: t('همه‌اش سهم من') },
+  { value: 'shared', label: t('با دیگران (دنگ)') },
 ];
 
 /** No category: only an expense in a project (it is named by its title) */
-const NO_CATEGORY = { value: '', label: 'بدون دسته‌بندی', Icon: CircleDashed };
+const NO_CATEGORY = { value: '', label: t('بدون دسته‌بندی'), Icon: CircleDashed };
 
 /** A new everyday expense starts in the category used last, else «خوراک و خواربار» */
 function startingCategory() {
@@ -338,20 +339,20 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
       if (next) startNext(savedTitle);
       else onClose();
     } catch (err) {
-      setSubmitError(err.message || 'خطا در ذخیره هزینه');
+      setSubmitError(err.message || t('خطا در ذخیره هزینه'));
     }
   };
 
   // «پرداخت از»: the accounts holding its currency, and that currency held in a portfolio
   const payFromOptions = [
-    ...(accountRequired ? [] : [{ value: '', label: 'نامشخص' }]),
+    ...(accountRequired ? [] : [{ value: '', label: t('نامشخص') }]),
     ...payAccounts.map((a) => ({ value: a.id, label: accountLabel(a) })),
     ...(fundAsset ? funds.filter((f) => f.amount > 0 || f.portfolioId === fundId).map((f) => ({
       value: `${FUND_PREFIX}${f.portfolioId}`,
-      label: `پورتفو «${f.portfolioName}»`,
-      hint: `موجودی ${formatNum(f.amount)} ${unit}`,
+      label: t('پورتفو «{name}»', { name: f.portfolioName }),
+      hint: t('موجودی {amount} {unit}', { amount: formatNum(f.amount), unit }),
     })) : []),
-    ...(accountsEnabled ? [{ value: NEW_ACCOUNT, label: '+ حساب جدید' }] : []),
+    ...(accountsEnabled ? [{ value: NEW_ACCOUNT, label: t('+ حساب جدید') }] : []),
   ];
   const payFrom = fund ? `${FUND_PREFIX}${fund.portfolioId}` : effectiveAccountId;
   const choosePayFrom = (value) => {
@@ -364,9 +365,9 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
     setAccountId(portfolioId ? '' : value);
   };
   const detailsFilled = [
-    ...(sharing ? ['دنگ'] : []),
-    ...(projectId && tags.length > 0 ? ['برچسب'] : []),
-    ...(notes.trim() ? ['یادداشت'] : []),
+    ...(sharing ? [t('دنگ')] : []),
+    ...(projectId && tags.length > 0 ? [t('برچسب')] : []),
+    ...(notes.trim() ? [t('یادداشت')] : []),
   ];
 
   return (
@@ -374,14 +375,14 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
     <Modal
       isOpen
       onClose={onClose}
-      title={expense ? 'ویرایش هزینه' : project ? 'ثبت هزینه' : 'ثبت هزینه روزمره'}
-      subtitle={project ? `در پروژه «${project.name}»` : 'در هزینه‌های روزمره'}
+      title={expense ? t('ویرایش هزینه') : project ? t('ثبت هزینه') : t('ثبت هزینه روزمره')}
+      subtitle={project ? t('در پروژه «{name}»', { name: project.name }) : t('در هزینه‌های روزمره')}
       icon={<Receipt size={18} />}
       maxWidth="560px"
       onSubmit={handleSubmit}
       footer={
         <EntryFormActions
-          submitLabel={expense ? 'ذخیره تغییرات' : 'ثبت هزینه'}
+          submitLabel={expense ? t('ذخیره تغییرات') : t('ثبت هزینه')}
           valid={isValid}
           submitting={submitting}
           onCancel={onClose}
@@ -391,7 +392,7 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
     >
       <div className="entry-form-body">
         {submitError && <AlertBanner type="error" message={submitError} />}
-        {saved && <p className="entry-form-saved" role="status">«{saved}» ثبت شد؛ هزینه‌ی بعدی را وارد کنید.</p>}
+        {saved && <p className="entry-form-saved" role="status">{t('«{title}» ثبت شد؛ هزینه‌ی بعدی را وارد کنید.', { title: saved })}</p>}
 
         <AmountField
           key={round}
@@ -400,7 +401,7 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
           onValueChange={setAmount}
           currency={currency}
           onCurrencyChange={setCurrency}
-          placeholder={isForeign ? 'مثلاً ۲۵۰' : 'مثلاً ۱۵,۰۰۰,۰۰۰'}
+          placeholder={isForeign ? t('مثلاً ۲۵۰') : t('مثلاً ۱۵,۰۰۰,۰۰۰')}
           autoFocus={!expense}
         >
           {showsRate && <DayRateHint unit={unit} rate={dayRate} state={rateFill} toman={tomanPreview} portfolio={needsDayRate} />}
@@ -431,20 +432,20 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
 
         <Input
           id="expense-title"
-          label={category ? 'عنوان (اختیاری)' : 'عنوان هزینه *'}
-          placeholder={category ? `خالی: «${getExpenseCategory(category).label}»` : 'مثلاً: خرید کاشی، دستمزد نقاش'}
+          label={category ? t('عنوان (اختیاری)') : t('عنوان هزینه *')}
+          placeholder={category ? t('خالی: «{label}»', { label: getExpenseCategory(category).label }) : t('مثلاً: خرید کاشی، دستمزد نقاش')}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           maxLength={EXPENSE_LIMITS.titleLength}
           required={!category}
         />
 
-        <DateField label="تاریخ هزینه *" value={dateShamsi} onChange={setDateShamsi} />
+        <DateField label={t('تاریخ هزینه *')} value={dateShamsi} onChange={setDateShamsi} />
 
         <div className="entry-form-section">
           {payOptions.length > 1 && (
             <div className="ui-input-group">
-              <span className="ui-input-label">پرداخت با</span>
+              <span className="ui-input-label">{t('پرداخت با')}</span>
               <FilterPills variant="segmented" size="sm" options={payOptions} activeValue={paidWith} onChange={setPayWith} />
             </div>
           )}
@@ -453,25 +454,25 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
           )}
           {paidWith === 'loan' && (
             <PickerRow
-              label="کدام وام"
+              label={t('کدام وام')}
               value={loanChosen ? loanId : ''}
               options={fundingLoans.map((l) => ({ value: l.id, label: l.title }))}
               onChange={setLoanId}
             >
-              <p className="expense-form-hint">از پول این وام خرج شده؛ در «وام‌ها» جزو خرج‌شده‌ی آن حساب می‌شود.</p>
+              <p className="expense-form-hint">{t('از پول این وام خرج شده؛ در «وام‌ها» جزو خرج‌شده‌ی آن حساب می‌شود.')}</p>
             </PickerRow>
           )}
           {paidWith !== 'cheque' && (payFromOptions.length > 1 || accountRequired) && (
-            <PickerRow label="پرداخت از" value={payFrom} options={payFromOptions} onChange={choosePayFrom} placeholder={accountRequired ? 'یک حساب انتخاب کنید' : 'نامشخص'}>
+            <PickerRow label={t('پرداخت از')} value={payFrom} options={payFromOptions} onChange={choosePayFrom} placeholder={accountRequired ? t('یک حساب انتخاب کنید') : t('نامشخص')}>
               {accountRequired && !effectiveAccountId && (
-                <p className="expense-form-hint is-warning">هر هزینه باید به یک حساب وصل باشد؛ حسابی را انتخاب کنید یا «حساب جدید» بسازید.</p>
+                <p className="expense-form-hint is-warning">{t('هر هزینه باید به یک حساب وصل باشد؛ حسابی را انتخاب کنید یا «حساب جدید» بسازید.')}</p>
               )}
-              {fundAsset && loadingFunds && <p className="expense-form-hint">در حال خواندن موجودی {unit} پورتفوها…</p>}
+              {fundAsset && loadingFunds && <p className="expense-form-hint">{t('در حال خواندن موجودی {unit} پورتفوها…', { unit })}</p>}
               {fund && (
                 <p className={`expense-form-hint ${fundAfter < 0 ? 'is-warning' : ''}`}>
-                  از موجودی {unit} «{fund.portfolioName}» کم می‌شود (تراکنش «پرداخت هزینه»؛ سود یا زیانش نسبت به قیمت خرید در پورتفو ثبت می‌شود).
-                  {' '}موجودی پس از پرداخت: <strong>{formatNum(fundAfter)}</strong> {unit}
-                  {fundAfter < 0 && ' — بیشتر از موجودی است.'}
+                  {t('از موجودی {unit} «{name}» کم می‌شود (تراکنش «پرداخت هزینه»؛ سود یا زیانش نسبت به قیمت خرید در پورتفو ثبت می‌شود).', { unit, name: fund.portfolioName })}
+                  {' '}{t('موجودی پس از پرداخت:')} <strong>{formatNum(fundAfter)}</strong> {unit}
+                  {fundAfter < 0 && ` ${t('— بیشتر از موجودی است.')}`}
                 </p>
               )}
             </PickerRow>
@@ -480,22 +481,22 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
 
         {projectOptions.length > 0 && (
           <PickerRow
-            label="پروژه"
+            label={t('پروژه')}
             value={projectId}
             options={[
-              { value: '', label: 'روزمره (بدون پروژه)' },
+              { value: '', label: t('روزمره (بدون پروژه)') },
               ...projectOptions.map((p) => ({ value: p.id, label: p.name })),
             ]}
             onChange={changeProject}
           >
-            {project && <p className="expense-form-hint">فقط در جمع همین پروژه حساب می‌شود، نه در جمع ماه و بودجه.</p>}
+            {project && <p className="expense-form-hint">{t('فقط در جمع همین پروژه حساب می‌شود، نه در جمع ماه و بودجه.')}</p>}
           </PickerRow>
         )}
 
         <MoreDetails filled={detailsFilled}>
           {canShare && (
             <div className="ui-input-group">
-              <span className="ui-input-label">سهم</span>
+              <span className="ui-input-label">{t('سهم')}</span>
               <FilterPills variant="segmented" options={SHARE_OPTIONS} activeValue={shared ? 'shared' : 'own'} onChange={(v) => setShared(v === 'shared')} size="sm" />
               {shared && (
                 <>
@@ -505,23 +506,23 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
                       value={myShare}
                       onValueChange={setMyShare}
                       allowDecimals={allowsDecimals(currency)}
-                      placeholder={`سهم خودم (${unit})`}
+                      placeholder={t('سهم خودم ({unit})', { unit })}
                       className="ui-input-control"
-                      aria-label="سهم من"
+                      aria-label={t('سهم من')}
                     />
                   </div>
                   <p className="expense-form-hint">
                     {amountNum > 0 && myShare.trim() !== '' && shareNum < amountNum ? (
                       <>
-                        فقط <strong>{formatNum(shareNum)}</strong> هزینه‌ی شما حساب می‌شود؛ <strong>{formatNum(amountNum - shareNum)}</strong>{' '}
-                        {unit} طلب از دیگران است و دریافتش درآمد حساب نمی‌شود.
+                        {t('فقط')} <strong>{formatNum(shareNum)}</strong> {t('هزینه‌ی شما حساب می‌شود؛')} <strong>{formatNum(amountNum - shareNum)}</strong>{' '}
+                        {unit} {t('طلب از دیگران است و دریافتش درآمد حساب نمی‌شود.')}
                       </>
                     ) : amountNum > 0 && shareNum >= amountNum ? (
-                      'سهم شما باید کمتر از مبلغ کل باشد.'
+                      t('سهم شما باید کمتر از مبلغ کل باشد.')
                     ) : (
-                      'مبلغ بالا کل پرداختی است؛ سهم خودتان را بنویسید (صفر: همه برای دیگران بود).'
+                      t('مبلغ بالا کل پرداختی است؛ سهم خودتان را بنویسید (صفر: همه برای دیگران بود).')
                     )}
-                    {received > 0 && ` تا حالا ${formatNum(received)} دریافت شده.`}
+                    {received > 0 && ` ${t('تا حالا {n} دریافت شده.', { n: formatNum(received) })}`}
                   </p>
                 </>
               )}
@@ -533,8 +534,8 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
           <Input
             id="expense-notes"
             as="textarea"
-            label="یادداشت"
-            placeholder="فروشنده، شماره فاکتور، توضیحات..."
+            label={t('یادداشت')}
+            placeholder={t('فروشنده، شماره فاکتور، توضیحات...')}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             maxLength={EXPENSE_LIMITS.notesLength}

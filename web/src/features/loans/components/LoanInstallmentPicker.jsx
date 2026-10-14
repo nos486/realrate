@@ -7,7 +7,7 @@
  * saving the expense marks that installment paid (shared/vault/recordLinks.js).
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { t, intlLocale } from '../../../utils/i18n.js';
 import React from 'react';
 import { FilterPills } from '../../../shared/ui/index.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
@@ -33,28 +33,28 @@ export default function LoanInstallmentPicker({ value, onChange, onFill }) {
     if (value?.loanId === loanId) return onChange(value);
     if (!inst) return onChange(null);
     onChange({ loanId, installmentId: installmentIdOf(inst) });
-    onFill?.({ title: `قسط ${loan.title}`, amount: Number(inst.totalAmount) || 0, currency: 'IRT' });
+    onFill?.({ title: t('قسط {name}', { name: loan.title }), amount: Number(inst.totalAmount) || 0, currency: 'IRT' });
   };
 
   const chosen = choices.find((l) => l.id === value?.loanId);
   const next = chosen?.nextDueInstallment;
   return (
     <div className="ui-input-group">
-      <span className="ui-input-label">قسط کدام وام</span>
+      <span className="ui-input-label">{t('قسط کدام وام')}</span>
       {choices.length > 0 ? (
         <FilterPills
-          options={[{ value: '', label: 'هیچ‌کدام' }, ...choices.map((l) => ({ value: l.id, label: l.title }))]}
+          options={[{ value: '', label: t('هیچ‌کدام') }, ...choices.map((l) => ({ value: l.id, label: l.title }))]}
           activeValue={value?.loanId || ''}
           onChange={pick}
           size="sm"
           className="income-category-picker"
         />
       ) : (
-        <p className="expense-form-hint">وامی با قسط پرداخت‌نشده ندارید.</p>
+        <p className="expense-form-hint">{t('وامی با قسط پرداخت‌نشده ندارید.')}</p>
       )}
       {chosen && next && installmentIdOf(next) === value?.installmentId && (
         <p className="expense-form-hint">
-          قسط {fa(next.installmentNumber)} به مبلغ {fa(next.totalAmount)} تومان، سررسید {formatShamsiDisplay(`${next.dueDate}T00:00:00`)} — با ثبت، پرداخت‌شده علامت می‌خورد.
+          {t('قسط {number} به مبلغ {amount} تومان، سررسید {date} — با ثبت، پرداخت‌شده علامت می‌خورد.', { number: fa(next.installmentNumber), amount: fa(next.totalAmount), date: formatShamsiDisplay(`${next.dueDate}T00:00:00`) })}
         </p>
       )}
     </div>

@@ -7,7 +7,7 @@
  * expense keeps its own section); `onChanged` lets the opener reload.
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { intlLocale, t } from '../../../utils/i18n.js';
 import React, { useState } from 'react';
 import { useUsdAt } from '../../market/dailyHistory.js';
 import { HandCoins, ChevronLeft } from 'lucide-react';
@@ -36,8 +36,8 @@ export function OpenSharesList({ expenses, onPick, amountLimit = null, hideValue
               <span>
                 <strong>{e.title}</strong>
                 <small>
-                  {formatShamsiDisplay(`${e.date}T00:00:00`)} · مانده‌ی طلب {hideValues ? '****' : formatAmount(remaining, e.currency)} {unit}
-                  {tooMuch && ' — کمتر از این واریز'}
+                  {formatShamsiDisplay(`${e.date}T00:00:00`)} · {t('مانده‌ی طلب {amount} {unit}', { amount: hideValues ? '****' : formatAmount(remaining, e.currency), unit })}
+                  {tooMuch && ` ${t('— کمتر از این واریز')}`}
                 </small>
               </span>
               <ChevronLeft size={16} />
@@ -67,11 +67,11 @@ export default function OpenSharesModal({ accounts = [], usdToman = 0, hideValue
       <Modal
         isOpen={!selected}
         onClose={onClose}
-        title="طلب‌های دنگ"
+        title={t('طلب‌های دنگ')}
         subtitle={
           expenses.length
-            ? `${summary.openCount.toLocaleString(intlLocale())} هزینه · مانده ${hideValues ? '****' : formatAmount(summary.remainingToman)} تومان`
-            : 'هزینه‌هایی که برای دیگران هم پرداخت کرده‌اید'
+            ? t('{n} هزینه · مانده {amount} تومان', { n: summary.openCount.toLocaleString(intlLocale()), amount: hideValues ? '****' : formatAmount(summary.remainingToman) })
+            : t('هزینه‌هایی که برای دیگران هم پرداخت کرده‌اید')
         }
         icon={<HandCoins size={18} />}
         maxWidth="480px"
@@ -79,12 +79,12 @@ export default function OpenSharesModal({ accounts = [], usdToman = 0, hideValue
         <div className="loan-deposit-body">
           {error && <AlertBanner type="error" message={error} />}
           {loading && !expenses.length ? (
-            <SkeletonRows rows={3} columns={2} label="در حال دریافت طلب‌ها" />
+            <SkeletonRows rows={3} columns={2} label={t('در حال دریافت طلب‌ها')} />
           ) : expenses.length === 0 ? (
             <EmptyState
               icon={<HandCoins size={36} strokeWidth={1.5} />}
-              title="طلب بازی نیست"
-              description="هزینه‌ای که برای دیگران هم پرداخت کردید را با «سهم: با دیگران (دنگ)» ثبت کنید؛ فقط سهم خودتان هزینه حساب می‌شود."
+              title={t('طلب بازی نیست')}
+              description={t('هزینه‌ای که برای دیگران هم پرداخت کردید را با «سهم: با دیگران (دنگ)» ثبت کنید؛ فقط سهم خودتان هزینه حساب می‌شود.')}
             />
           ) : (
             <OpenSharesList expenses={expenses} onPick={setSelected} hideValues={hideValues} />

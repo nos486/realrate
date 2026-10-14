@@ -25,20 +25,20 @@
  * server would only ever see what the user agreed to send.
  */
 
-import { intlLocale } from './i18n.js';
+import { intlLocale, t } from './i18n.js';
 
 export const ALERT_SEVERITIES = ['critical', 'warning', 'info'];
 const SEVERITY_RANK = { critical: 0, warning: 1, info: 2 };
 
 /** Who raises alerts; `email` marks the ones that may be emailed (money that is due) */
 export const ALERT_SOURCES = {
-  loan: { label: 'اقساط وام', email: true },
-  cheque: { label: 'چک‌ها', email: true },
-  subscription: { label: 'اشتراک‌ها', email: true },
-  budget: { label: 'بودجه', email: false },
-  portfolio: { label: 'پورتفو', email: false },
-  app: { label: 'برنامه', email: false },
-  system: { label: 'اطلاعیه‌ها', email: false },
+  loan: { label: t('اقساط وام'), email: true },
+  cheque: { label: t('چک‌ها'), email: true },
+  subscription: { label: t('اشتراک‌ها'), email: true },
+  budget: { label: t('بودجه'), email: false },
+  portfolio: { label: t('پورتفو'), email: false },
+  app: { label: t('برنامه'), email: false },
+  system: { label: t('اطلاعیه‌ها'), email: false },
 };
 
 export const ALERT_LIMITS = { title: 120, message: 500, items: 50 };
@@ -138,12 +138,12 @@ export function buildEmailDigest(alerts = [], { includeAmounts = false, appUrl =
   const sorted = [...alerts].sort(compareAlerts);
   const subject = sorted.length === 1
     ? `RealRate: ${sorted[0].title}`
-    : `RealRate: ${faNum(sorted.length)} هشدار مهم`;
+    : t('RealRate: {count} هشدار مهم', { count: faNum(sorted.length) });
   const lines = [];
   for (const a of sorted) {
-    lines.push(`• ${a.title}${includeAmounts && a.amount ? ` — ${faNum(a.amount)} تومان` : ''}`);
+    lines.push(`• ${a.title}${includeAmounts && a.amount ? t(' — {amount} تومان', { amount: faNum(a.amount) }) : ''}`);
     for (const item of a.items || []) {
-      lines.push(`   - ${item.title}${item.detail ? `، ${item.detail}` : ''}${includeAmounts && item.amount ? ` — ${faNum(item.amount)} تومان` : ''}`);
+      lines.push(`   - ${item.title}${item.detail ? `${t('،')} ${item.detail}` : ''}${includeAmounts && item.amount ? t(' — {amount} تومان', { amount: faNum(item.amount) }) : ''}`);
     }
     if (a.action?.path && appUrl) lines.push(`   ${appUrl.replace(/\/$/, '')}${a.action.path}`);
   }

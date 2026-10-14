@@ -1,4 +1,4 @@
-import { intlLocale } from '../../../utils/i18n.js';
+import { intlLocale, t, plural } from '../../../utils/i18n.js';
 import React, { useMemo } from 'react';
 import { ArrowUpRight, ArrowDownRight, Lock } from 'lucide-react';
 import { CategoryIcon, formatNum } from '../utils/holdingHelpers.js';
@@ -8,7 +8,7 @@ import PortfolioHistoryChart from './PortfolioHistoryChart.jsx';
 import PortfolioPlanCards from './PortfolioPlanCards.jsx';
 import { DollarPnl } from '../../../shared/ui/DollarValue.jsx';
 
-const otherCategoriesLabel = (count) => `سایر (${count.toLocaleString(intlLocale())} دسته)`;
+const otherCategoriesLabel = (count) => plural(count, t('سایر ({count} دسته)', { count: count.toLocaleString(intlLocale()) }), t('سایر ({count} دسته‌ها)', { count: count.toLocaleString(intlLocale()) }));
 
 export default function PortfolioOverviewCards({
   portfolioMetrics = {},
@@ -63,31 +63,31 @@ export default function PortfolioOverviewCards({
       {/* Card 1: Total Real Value */}
       <div className="portfolio-stat-card main-val">
         <div className="stat-header">
-          <span className="stat-label">ارزش کل</span>
-          <span className="real-pill">ارزش روز</span>
+          <span className="stat-label">{t('ارزش کل')}</span>
+          <span className="real-pill">{t('ارزش روز')}</span>
         </div>
         <div className={`stat-number gold-gradient-text ${hideValues ? 'is-masked' : ''}`}>
           {isVaultLocked ? (
             <span className="locked-stat">
-              <Lock size={16} style={{ verticalAlign: 'middle', marginInlineEnd: '4px' }} /> قفل
+              <Lock size={16} style={{ verticalAlign: 'middle', marginInlineEnd: '4px' }} />{' '}{t('قفل')}
             </span>
           ) : hideValues ? (
             '****'
           ) : (
             formatNum(portfolioMetrics.totalRealValue)
           )}
-          {!isVaultLocked && <span className="stat-unit">تومان</span>}
+          {!isVaultLocked && <span className="stat-unit">{t('تومان')}</span>}
         </div>
         <div className="stat-sub">
           {isVaultLocked
-            ? 'گاوصندوق قفل است'
-            : `سرمایه اولیه: ${
-                hasData
-                  ? hideValues
-                    ? '**** تومان'
-                    : `${formatNum(portfolioMetrics.totalCost)} تومان`
-                  : 'ثبت‌نشده'
-              }`}
+            ? t('گاوصندوق قفل است')
+            : t('سرمایه اولیه: {cost}', {
+              cost: hasData
+                ? hideValues
+                  ? t('**** تومان')
+                  : t('{amount} تومان', { amount: formatNum(portfolioMetrics.totalCost) })
+                : t('ثبت‌نشده'),
+            })}
         </div>
         {!isVaultLocked && historyAssets.length > 0 && (
           <PortfolioHistoryChart assets={historyAssets} hideValues={hideValues} />
@@ -97,22 +97,22 @@ export default function PortfolioOverviewCards({
       {/* Card 2: Total PnL */}
       <div className={`portfolio-stat-card pnl-card ${cardStatusClass}`}>
         <div className="stat-header">
-          <span className="stat-label">سود / زیان کل</span>
+          <span className="stat-label">{t('سود / زیان کل')}</span>
         </div>
 
         <div className="stat-pnl-row">
           <div className={`stat-number ${hideValues ? 'is-masked' : ''}`}>
             {isVaultLocked ? (
               <span className="stat-sub" style={{ fontSize: '15px' }}>
-                <Lock size={14} style={{ verticalAlign: 'middle', marginInlineEnd: '4px' }} /> قفل است
+                <Lock size={14} style={{ verticalAlign: 'middle', marginInlineEnd: '4px' }} />{' '}{t('قفل است')}
               </span>
             ) : hasData ? (
               <>
                 {hideValues ? '****' : `${isProfit ? '+' : ''}${formatNum(portfolioMetrics.totalPnl)}`}
-                <span className="stat-unit">تومان</span>
+                <span className="stat-unit">{t('تومان')}</span>
               </>
             ) : (
-              <span className="stat-sub" style={{ fontSize: '15px' }}>بدون قیمت خرید</span>
+              <span className="stat-sub" style={{ fontSize: '15px' }}>{t('بدون قیمت خرید')}</span>
             )}
           </div>
 
@@ -123,17 +123,17 @@ export default function PortfolioOverviewCards({
               ) : (
                 <ArrowDownRight size={13} style={{ verticalAlign: 'middle' }} />
               )}
-              {hideValues ? '****' : `${isProfit ? '+' : ''}${formatPct(Math.abs(portfolioMetrics.totalPnlPct || 0))}٪`}
+              {hideValues ? '****' : t('{sign}{pct}٪', { sign: isProfit ? '+' : '', pct: formatPct(Math.abs(portfolioMetrics.totalPnlPct || 0)) })}
             </span>
           )}
         </div>
 
         <div className="stat-sub">
           {isVaultLocked
-            ? 'گاوصندوق قفل است'
+            ? t('گاوصندوق قفل است')
             : hasData
-            ? 'از زمان خرید اولیه'
-            : 'محاسبه به نرخ روز'}
+            ? t('از زمان خرید اولیه')
+            : t('محاسبه به نرخ روز')}
         </div>
 
         {!isVaultLocked && dollarPnl && (
@@ -142,11 +142,11 @@ export default function PortfolioOverviewCards({
 
         {!isVaultLocked && realizedPnl !== null && (
           <div className="stat-sub realized-pnl-row">
-            سود/زیان تحقق‌یافته (فروش‌ها):{' '}
+            {t('سود/زیان تحقق‌یافته (فروش‌ها):')}{' '}
             <strong className={realizedPnl >= 0 ? 'profit-text' : 'loss-text'}>
               {hideValues ? '****' : `${realizedPnl > 0 ? '+' : ''}${formatNum(realizedPnl)}`}
             </strong>{' '}
-            تومان
+            {t('تومان')}
           </div>
         )}
       </div>
@@ -154,17 +154,17 @@ export default function PortfolioOverviewCards({
       {/* Card 3: Item Count */}
       <div className="portfolio-stat-card action-card">
         <div className="stat-header">
-          <span className="stat-label">تعداد اقلام</span>
+          <span className="stat-label">{t('تعداد اقلام')}</span>
         </div>
         <div className="stat-number">
           {isVaultLocked ? (
             <span className="locked-stat">
-              <Lock size={16} style={{ verticalAlign: 'middle', marginInlineEnd: '4px' }} /> قفل
+              <Lock size={16} style={{ verticalAlign: 'middle', marginInlineEnd: '4px' }} />{' '}{t('قفل')}
             </span>
           ) : (
             <>
               {holdingsCount.toLocaleString(intlLocale())}
-              <span className="stat-unit">قلم</span>
+              <span className="stat-unit">{t('قلم')}</span>
             </>
           )}
         </div>
@@ -173,12 +173,12 @@ export default function PortfolioOverviewCards({
       {/* Card 4: Asset allocation donut */}
       {categoryGroups.length > 0 && (portfolioMetrics.totalRealValue || 0) > 0 && !isVaultLocked && (
         <DonutChart
-          title="ترکیب دارایی‌ها"
+          title={t('ترکیب دارایی‌ها')}
           items={allocationItems}
-          centerLabel="ارزش کل"
+          centerLabel={t('ارزش کل')}
           masked={hideValues}
           otherLabel={otherCategoriesLabel}
-          headerExtra={<span className="count-pill">{categoryGroups.length.toLocaleString(intlLocale())} دسته</span>}
+          headerExtra={<span className="count-pill">{plural(categoryGroups.length, t('{count} دسته', { count: categoryGroups.length.toLocaleString(intlLocale()) }), t('{count} دسته‌ها', { count: categoryGroups.length.toLocaleString(intlLocale()) }))}</span>}
         />
       )}
 

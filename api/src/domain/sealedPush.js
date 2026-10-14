@@ -10,6 +10,7 @@
  */
 
 import { REMINDER_KINDS } from './reminders.js';
+import { t } from './i18n.js';
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 export const DEVICE_ID_RE = /^[a-zA-Z0-9_\-.]{8,64}$/;
@@ -125,8 +126,8 @@ export async function unsealPayload(key, sealedString) {
  */
 export async function decryptNotificationPayload({ rawText = '', key = null } = {}) {
   const fallback = {
-    title: 'یادآوری سررسید',
-    body: 'یک سررسید امروز دارید',
+    title: t('یادآوری سررسید'),
+    body: t('یک سررسید امروز دارید'),
     path: '/',
     isFallback: true,
   };
@@ -156,33 +157,33 @@ export async function decryptNotificationPayload({ rawText = '', key = null } = 
  */
 export function validatePushSubscriptionInput(input) {
   if (!input || typeof input !== 'object') {
-    return { error: 'داده‌های اشتراک اعلان معتبر نیست.' };
+    return { error: t('داده‌های اشتراک اعلان معتبر نیست.') };
   }
 
   const deviceId = String(input.deviceId || '').trim();
   if (!DEVICE_ID_RE.test(deviceId)) {
-    return { error: 'شناسه دستگاه نامعتبر است.' };
+    return { error: t('شناسه دستگاه نامعتبر است.') };
   }
 
   const sub = input.subscription;
   if (!sub || typeof sub !== 'object') {
-    return { error: 'مشخصات اشتراک مرورگر الزامی است.' };
+    return { error: t('مشخصات اشتراک مرورگر الزامی است.') };
   }
 
   const endpoint = String(sub.endpoint || '').trim();
   if (!endpoint || !endpoint.startsWith('https://') || endpoint.length > 1024) {
-    return { error: 'آدرس اشتراک اعلان (endpoint) نامعتبر است.' };
+    return { error: t('آدرس اشتراک اعلان (endpoint) نامعتبر است.') };
   }
 
   const keys = sub.keys;
   if (!keys || typeof keys !== 'object') {
-    return { error: 'کلیدهای رمزنگاری اشتراک الزامی است.' };
+    return { error: t('کلیدهای رمزنگاری اشتراک الزامی است.') };
   }
 
   const p256dh = String(keys.p256dh || '').trim();
   const auth = String(keys.auth || '').trim();
   if (!p256dh || !auth) {
-    return { error: 'کلیدهای p256dh و auth الزامی هستند.' };
+    return { error: t('کلیدهای p256dh و auth الزامی هستند.') };
   }
 
   return {
@@ -204,67 +205,67 @@ export function validatePushSubscriptionInput(input) {
  */
 export function validatePushRemindersInput(input) {
   if (!input || typeof input !== 'object') {
-    return { error: 'ورودی یادآوری‌های اعلان نامعتبر است.' };
+    return { error: t('ورودی یادآوری‌های اعلان نامعتبر است.') };
   }
 
   const deviceId = String(input.deviceId || '').trim();
   if (!DEVICE_ID_RE.test(deviceId)) {
-    return { error: 'شناسه دستگاه نامعتبر است.' };
+    return { error: t('شناسه دستگاه نامعتبر است.') };
   }
 
   if (!Array.isArray(input.items)) {
-    return { error: 'لیست موارد باید آرایه باشد.' };
+    return { error: t('لیست موارد باید آرایه باشد.') };
   }
 
   if (input.items.length > 64) {
-    return { error: 'حداکثر ۶۴ مورد در یک درخواست قابل ثبت است.' };
+    return { error: t('حداکثر ۶۴ مورد در یک درخواست قابل ثبت است.') };
   }
 
   const validatedItems = [];
   for (let idx = 0; idx < input.items.length; idx++) {
     const item = input.items[idx];
     if (!item || typeof item !== 'object') {
-      return { error: `مورد ${idx + 1} نامعتبر است.` };
+      return { error: t('مورد {n} نامعتبر است.', { n: idx + 1 }) };
     }
 
     const kind = String(item.kind || '').trim();
     if (!PUSH_KINDS.includes(kind)) {
-      return { error: `نوع مورد ${idx + 1} نامعتبر است.` };
+      return { error: t('نوع مورد {n} نامعتبر است.', { n: idx + 1 }) };
     }
 
     const recordId = String(item.recordId || '').trim();
     if (!recordId || recordId.length > 64) {
-      return { error: `شناسه رکورد مورد ${idx + 1} نامعتبر است.` };
+      return { error: t('شناسه رکورد مورد {n} نامعتبر است.', { n: idx + 1 }) };
     }
 
     const dueDate = String(item.dueDate || '').trim();
     if (!ISO_DATE_RE.test(dueDate)) {
-      return { error: `تاریخ سررسید مورد ${idx + 1} نامعتبر است.` };
+      return { error: t('تاریخ سررسید مورد {n} نامعتبر است.', { n: idx + 1 }) };
     }
 
     const reason = String(item.reason || '').trim();
     if (!PUSH_REASONS.includes(reason) && !LEAD_REASON_RE.test(reason)) {
-      return { error: `علت اعلان مورد ${idx + 1} نامعتبر است.` };
+      return { error: t('علت اعلان مورد {n} نامعتبر است.', { n: idx + 1 }) };
     }
 
     const fireDate = String(item.fireDate || '').trim();
     if (!ISO_DATE_RE.test(fireDate)) {
-      return { error: `تاریخ ارسال اعلان مورد ${idx + 1} نامعتبر است.` };
+      return { error: t('تاریخ ارسال اعلان مورد {n} نامعتبر است.', { n: idx + 1 }) };
     }
 
     const sealed = String(item.sealed || '').trim();
     if (!sealed || sealed.length > 4096) {
-      return { error: `بسته رمزنگاری‌شده مورد ${idx + 1} نامعتبر یا بیش از حد بزرگ است.` };
+      return { error: t('بسته رمزنگاری‌شده مورد {n} نامعتبر یا بیش از حد بزرگ است.', { n: idx + 1 }) };
     }
 
     // Ensure sealed is a JSON with iv and data
     try {
       const parsed = JSON.parse(sealed);
       if (!parsed.iv || !parsed.data) {
-        return { error: `بسته رمزنگاری‌شده مورد ${idx + 1} باید شامل iv و data باشد.` };
+        return { error: t('بسته رمزنگاری‌شده مورد {n} باید شامل iv و data باشد.', { n: idx + 1 }) };
       }
     } catch {
-      return { error: `فرمت بسته رمزنگاری‌شده مورد ${idx + 1} نامعتبر است.` };
+      return { error: t('فرمت بسته رمزنگاری‌شده مورد {n} نامعتبر است.', { n: idx + 1 }) };
     }
 
     validatedItems.push({

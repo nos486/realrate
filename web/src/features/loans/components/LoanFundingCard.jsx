@@ -7,7 +7,7 @@
  * yearly rate next to the loan's own interest rate — is the loan paying for itself?
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { t, intlLocale } from '../../../utils/i18n.js';
 import React, { useEffect, useState } from 'react';
 import { useRefreshToken } from '../../../shared/refresh/pageRefresh.js';
 import { useUsdAt } from '../../market/dailyHistory.js';
@@ -27,7 +27,7 @@ import { usePricing } from '../../market/index.js';
 
 const LIST_LIMIT = 5;
 const formatNum = (v) => Math.round(Number(v) || 0).toLocaleString(intlLocale());
-const formatPct = (v) => `${v > 0 ? '+' : ''}${(Math.round(v * 10) / 10).toLocaleString(intlLocale())}٪`;
+const formatPct = (v) => `${v > 0 ? '+' : ''}${(Math.round(v * 10) / 10).toLocaleString(intlLocale())}${t('٪')}`;
 
 /** The holdings' gain against the loan's yearly rate (loanInvestmentReturn) */
 function InvestmentReturn({ result, loanRate, money }) {
@@ -35,28 +35,28 @@ function InvestmentReturn({ result, loanRate, money }) {
   return (
     <div className="loan-funding-return">
       <div className="loan-funding-return-row">
-        <span>ارزش امروز خریدهای پورتفو</span>
-        <strong>{money(result.value)} تومان</strong>
+        <span>{t('ارزش امروز خریدهای پورتفو')}</span>
+        <strong>{t('{amount} تومان', { amount: money(result.value) })}</strong>
       </div>
       <div className="loan-funding-return-row">
-        <span>سود / زیان</span>
+        <span>{t('سود / زیان')}</span>
         <strong className={result.gain >= 0 ? 'is-gain' : 'is-loss'}>
-          {money(Math.abs(result.gain))} تومان {result.gainPct !== null && `(${formatPct(result.gainPct)})`}
+          {t('{amount} تومان', { amount: money(Math.abs(result.gain)) })} {result.gainPct !== null && `(${formatPct(result.gainPct)})`}
         </strong>
       </div>
       {result.annualPct !== null && (
         <div className="loan-funding-return-row">
-          <span>بازده سالانه در برابر سود وام</span>
+          <span>{t('بازده سالانه در برابر سود وام')}</span>
           <strong>
-            {formatPct(result.annualPct)} <small>در برابر {(Math.round(loanRate * 10) / 10).toLocaleString(intlLocale())}٪</small>
+            {formatPct(result.annualPct)} <small>{t('در برابر {rate}٪', { rate: (Math.round(loanRate * 10) / 10).toLocaleString(intlLocale()) })}</small>
           </strong>
         </div>
       )}
       {beats !== null && (
         <p className={`loan-funding-verdict ${beats ? 'is-gain' : 'is-loss'}`}>
           {beats
-            ? 'تا امروز بازده این خریدها از سود وام بیشتر بوده است.'
-            : 'تا امروز بازده این خریدها از سود وام کمتر بوده؛ وام بیش از سودش هزینه داشته است.'}
+            ? t('تا امروز بازده این خریدها از سود وام بیشتر بوده است.')
+            : t('تا امروز بازده این خریدها از سود وام کمتر بوده؛ وام بیش از سودش هزینه داشته است.')}
         </p>
       )}
     </div>
@@ -78,7 +78,7 @@ function ItemTitle({ item }) {
     return (
       <span className="loan-funding-item-title">
         {item.source.assetName}
-        <small>خرید پورتفو، {formatNum(item.source.amount)} {item.source.unit || 'واحد'}</small>
+        <small>{t('خرید پورتفو، {amount} {unit}', { amount: formatNum(item.source.amount), unit: item.source.unit || t('واحد') })}</small>
       </span>
     );
   }
@@ -131,13 +131,13 @@ export default function LoanFundingCard({ loan, hideValues = false }) {
   const pct = usage.principal > 0 ? Math.min(100, Math.round((usage.spent / usage.principal) * 100)) : 0;
 
   return (
-    <section className="loan-funding-card" aria-label="مصرف وام">
+    <section className="loan-funding-card" aria-label={t('مصرف وام')}>
       <header className="loan-funding-head">
         <span className="loan-funding-title">
           <Wallet size={15} />
-          مصرف وام
+          {t('مصرف وام')}
         </span>
-        <span className="loan-funding-pct">{formatNum(pct)}٪ خرج شده</span>
+        <span className="loan-funding-pct">{t('{pct}٪ خرج شده', { pct: formatNum(pct) })}</span>
       </header>
 
       <div className="loan-progress-track">
@@ -146,12 +146,12 @@ export default function LoanFundingCard({ loan, hideValues = false }) {
 
       <dl className="loan-funding-stats">
         <div>
-          <dt>خرج شده</dt>
-          <dd>{money(usage.spent)} تومان</dd>
+          <dt>{t('خرج شده')}</dt>
+          <dd>{t('{amount} تومان', { amount: money(usage.spent) })}</dd>
         </div>
         <div>
-          <dt>{usage.overspent > 0 ? 'بیش از اصل وام' : 'مانده‌ی خرج‌نشده'}</dt>
-          <dd className={usage.overspent > 0 ? 'is-over' : ''}>{money(usage.overspent || usage.remaining)} تومان</dd>
+          <dt>{usage.overspent > 0 ? t('بیش از اصل وام') : t('مانده‌ی خرج‌نشده')}</dt>
+          <dd className={usage.overspent > 0 ? 'is-over' : ''}>{t('{amount} تومان', { amount: money(usage.overspent || usage.remaining) })}</dd>
         </div>
       </dl>
 
@@ -159,7 +159,7 @@ export default function LoanFundingCard({ loan, hideValues = false }) {
 
       {usage.count === 0 ? (
         <p className="loan-funding-empty">
-          هنوز خرجی از این وام ثبت نشده. هنگام ثبت هزینه یا خرید دارایی در پورتفو، «تأمین از» را روی این وام بگذارید تا اینجا دیده شود.
+          {t('هنوز خرجی از این وام ثبت نشده. هنگام ثبت هزینه یا خرید دارایی در پورتفو، «تأمین از» را روی این وام بگذارید تا اینجا دیده شود.')}
         </p>
       ) : (
         <ul className="loan-funding-list">
@@ -167,11 +167,11 @@ export default function LoanFundingCard({ loan, hideValues = false }) {
             <li key={`${item.kind}:${item.id}`}>
               <ItemTitle item={item} />
               <span className="loan-funding-item-date">{item.date ? formatShamsiDisplay(`${item.date}T00:00:00`) : '—'}</span>
-              <strong>{money(item.toman)} تومان</strong>
+              <strong>{t('{amount} تومان', { amount: money(item.toman) })}</strong>
             </li>
           ))}
           {usage.count > LIST_LIMIT && (
-            <li className="loan-funding-more">و {formatNum(usage.count - LIST_LIMIT)} مورد دیگر</li>
+            <li className="loan-funding-more">{t('و {n} مورد دیگر', { n: formatNum(usage.count - LIST_LIMIT) })}</li>
           )}
         </ul>
       )}

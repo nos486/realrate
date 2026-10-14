@@ -59,6 +59,7 @@ import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 import { useDemo } from '../../demo/index.js';
 import TextField from '../../../shared/ui/TextField.jsx';
+import { t } from '../../../utils/i18n.js';
 
 const HoldingsView = forwardRef(function HoldingsView(
   { activePortfolio, portfolios, loadingPortfolios = false, fetchPortfolios, deletePortfolio, onVaultLockChange, toolbarSlot = null },
@@ -282,42 +283,42 @@ const HoldingsView = forwardRef(function HoldingsView(
       return;
     }
     const confirmed = await confirm({
-      title: 'حذف تراکنش',
-      message: 'این تراکنش حذف شود؟',
-      confirmLabel: 'حذف',
+      title: t('حذف تراکنش'),
+      message: t('این تراکنش حذف شود؟'),
+      confirmLabel: t('حذف'),
       danger: true,
     });
     if (!confirmed) return;
     try {
-      if (await deleteTransaction(entry.id)) toast.success('تراکنش حذف شد.');
-      else toast.error('حذف تراکنش انجام نشد.');
+      if (await deleteTransaction(entry.id)) toast.success(t('تراکنش حذف شد.'));
+      else toast.error(t('حذف تراکنش انجام نشد.'));
     } catch (err) {
-      toast.error(err.message || 'خطا در حذف تراکنش');
+      toast.error(err.message || t('خطا در حذف تراکنش'));
     }
   };
 
   const handleDeleteHolding = async (id) => {
     const confirmed = await confirm({
-      title: 'حذف ثبت دستی',
-      message: 'این ثبت دستی از پورتفو حذف شود؟',
-      confirmLabel: 'حذف',
+      title: t('حذف ثبت دستی'),
+      message: t('این ثبت دستی از پورتفو حذف شود؟'),
+      confirmLabel: t('حذف'),
       danger: true,
     });
     if (!confirmed) return;
     try {
       const ok = await deleteHolding(id);
-      if (ok) toast.success('ثبت دستی حذف شد.');
-      else toast.error('حذف دارایی انجام نشد.');
+      if (ok) toast.success(t('ثبت دستی حذف شد.'));
+      else toast.error(t('حذف دارایی انجام نشد.'));
     } catch (err) {
-      toast.error(err.message || 'خطا در حذف دارایی');
+      toast.error(err.message || t('خطا در حذف دارایی'));
     }
   };
 
   const handleDeleteActivePortfolio = async (portfolioId) => {
     const confirmed = await confirm({
-      title: 'حذف پورتفو',
-      message: 'آیا از حذف این پورتفو اطمینان دارید؟ تمام دارایی‌ها و تراکنش‌های آن حذف خواهد شد و این کار قابل بازگشت نیست.',
-      confirmLabel: 'حذف پورتفو',
+      title: t('حذف پورتفو'),
+      message: t('آیا از حذف این پورتفو اطمینان دارید؟ تمام دارایی‌ها و تراکنش‌های آن حذف خواهد شد و این کار قابل بازگشت نیست.'),
+      confirmLabel: t('حذف پورتفو'),
       danger: true,
     });
     if (!confirmed) return;
@@ -332,7 +333,7 @@ const HoldingsView = forwardRef(function HoldingsView(
           <Search size={14} className="portfolio-search-icon" />
           <TextField
             type="text"
-            placeholder="جستجو در اقلام پورتفو..."
+            placeholder={t('جستجو در اقلام پورتفو...')}
             value={holdingsFilterQuery}
             onChange={(e) => setHoldingsFilterQuery(e.target.value)}
             className="portfolio-search-input"
@@ -342,7 +343,7 @@ const HoldingsView = forwardRef(function HoldingsView(
               type="button"
               className="portfolio-search-clear"
               onClick={() => setHoldingsFilterQuery('')}
-              title="پاک کردن جستجو"
+              title={t('پاک کردن جستجو')}
             >
               <X size={12} />
             </button>
@@ -357,11 +358,11 @@ const HoldingsView = forwardRef(function HoldingsView(
             className={`btn-portfolio-customize ${isCustomizing ? 'is-active' : ''}`}
             onClick={handleToggleCustomize}
             disabled={readOnly}
-            title={readOnly ? 'در نسخه دمو غیرفعال است' : (isCustomizing ? 'پایان شخصی‌سازی دسته‌ها' : 'شخصی‌سازی دسته‌ها')}
-            aria-label="شخصی‌سازی دسته‌ها"
+            title={readOnly ? t('در نسخه دمو غیرفعال است') : (isCustomizing ? t('پایان شخصی‌سازی دسته‌ها') : t('شخصی‌سازی دسته‌ها'))}
+            aria-label={t('شخصی‌سازی دسته‌ها')}
           >
             <SlidersHorizontal size={14} />
-            <span>{isCustomizing ? 'پایان ویرایش' : 'شخصی‌سازی دسته‌ها'}</span>
+            <span>{isCustomizing ? t('پایان ویرایش') : t('شخصی‌سازی دسته‌ها')}</span>
           </button>
         )}
 
@@ -379,8 +380,8 @@ const HoldingsView = forwardRef(function HoldingsView(
             className="btn-portfolio-settings icon-only"
             onClick={() => setSettingsModalOpen(true)}
             disabled={readOnly}
-            title={readOnly ? 'در نسخه دمو غیرفعال است' : 'تنظیمات پورتفو'}
-            aria-label="تنظیمات پورتفو"
+            title={readOnly ? t('در نسخه دمو غیرفعال است') : t('تنظیمات پورتفو')}
+            aria-label={t('تنظیمات پورتفو')}
           >
             <Settings size={15} strokeWidth={2} />
           </button>
@@ -419,14 +420,14 @@ const HoldingsView = forwardRef(function HoldingsView(
             {/* Until the portfolio list itself has loaded there is nothing to show — never flash
                 "portfolio is empty" at a user who has holdings */}
             {(loadingPortfolios && !activePortfolio) || (loadingHoldings && holdings.length === 0) ? (
-              <SkeletonRows rows={5} columns={6} label="در حال دریافت دارایی‌های پورتفو" />
+              <SkeletonRows rows={5} columns={6} label={t('در حال دریافت دارایی‌های پورتفو')} />
             ) : isVaultLocked ? (
               <VaultLockCard
                 portfolioName={activePortfolio?.name}
                 onUnlock={unlockVault}
                 error={vaultUnlockError}
                 loading={unlockingVault}
-                description={accountManaged ? 'این پورتفو با رمزنگاری سرتاسری حساب محافظت می‌شود. رمز عبور رمزنگاری حساب را وارد کنید — همه پورتفوها، وام‌ها و درآمدها با هم باز می‌شوند.' : null}
+                description={accountManaged ? t('این پورتفو با رمزنگاری سرتاسری حساب محافظت می‌شود. رمز عبور رمزنگاری حساب را وارد کنید — همه پورتفوها، وام‌ها و درآمدها با هم باز می‌شوند.') : null}
               />
             ) : portfolioMetrics.items.length === 0 ? (
               <div className="portfolio-empty-state">
@@ -434,12 +435,12 @@ const HoldingsView = forwardRef(function HoldingsView(
                 <div className="empty-icon">
                   <Briefcase size={44} strokeWidth={1.5} color="#64748b" />
                 </div>
-                <h4>پورتفو خالی است</h4>
+                <h4>{t('پورتفو خالی است')}</h4>
                 <p>
-                  خرید و فروش طلا، سکه، ارز یا سهام را ثبت کنید، یا موجودی‌ای را که دارید دستی وارد کنید.
+                  {t('خرید و فروش طلا، سکه، ارز یا سهام را ثبت کنید، یا موجودی‌ای را که دارید دستی وارد کنید.')}
                 </p>
                 <Button icon={<Plus size={16} />} onClick={handleOpenAdd} disabled={readOnly}>
-                  ثبت دارایی
+                  {t('ثبت دارایی')}
                 </Button>
               </div>
             ) : isCustomizing ? (

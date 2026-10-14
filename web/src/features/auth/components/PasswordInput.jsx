@@ -1,3 +1,4 @@
+import { t } from '../../../utils/i18n.js';
 import React, { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 
@@ -21,7 +22,7 @@ export default function PasswordInput({ id, label, hint, error, ...inputProps })
           type="button"
           className="auth-password-toggle"
           onClick={() => setVisible((v) => !v)}
-          aria-label={visible ? 'پنهان کردن رمز' : 'نمایش رمز'}
+          aria-label={visible ? t('پنهان کردن رمز') : t('نمایش رمز')}
           aria-pressed={visible}
         >
           {visible ? <EyeOff size={16} /> : <Eye size={16} />}

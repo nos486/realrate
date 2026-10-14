@@ -12,7 +12,7 @@
  * No prices are shown: nothing here is stale when cached or crawled. Styles: styles/landing.css.
  */
 import LanguageSwitch from '../shared/i18n/LanguageSwitch.jsx';
-import { getDir, getLocale } from '../utils/i18n.js';
+import { getDir, getLocale, t } from '../utils/i18n.js';
 import React, { useCallback, useState } from 'react';
 import {
   TrendingUp,
@@ -44,22 +44,22 @@ const GITHUB_URL = 'https://github.com/nos486/realrate';
 
 /** What the app does: one line each, each to its own page */
 const FEATURES = [
-  { Icon: Scale, tone: 'gold', title: 'بازار و حباب', text: 'ارزش ذاتی و حباب طلا و سکه، ارزها، تتر و بورس — به‌روز و خودکار.', href: '/features/gold-coin-bubble' },
-  { Icon: PieChart, tone: 'blue', title: 'پورتفو', text: 'همه‌ی دارایی‌ها در یک جا، با سود و زیان زنده و میانگین خرید.', href: '/features/portfolio' },
-  { Icon: Wallet, tone: 'green', title: 'هزینه و بودجه', text: 'هزینه‌های روزمره با دسته و بودجه‌ی ماهانه، حساب‌ها و پروژه‌ها.', href: '/features' },
-  { Icon: Landmark, tone: 'cyan', title: 'درآمد، وام و چک', text: 'اقساط و سررسیدها، درآمدهای ثابت و چک‌ها با یادآوری.', href: '/features/loans' },
-  { Icon: ChartColumn, tone: 'violet', title: 'گزارش سالانه', text: 'درآمد و هزینه، پس‌انداز و سرمایه‌گذاری سال در یک صفحه؛ خروجی PDF.', href: '/features' },
-  { Icon: Newspaper, tone: 'rose', title: 'اخبار و تحلیل هوش مصنوعی', text: 'فقط خبرهایی که روی بازار اثر دارند، و تحلیل هر روز.', href: '/features' },
+  { Icon: Scale, tone: 'gold', title: t('بازار و حباب'), text: t('ارزش ذاتی و حباب طلا و سکه، ارزها، تتر و بورس — به‌روز و خودکار.'), href: '/features/gold-coin-bubble' },
+  { Icon: PieChart, tone: 'blue', title: t('پورتفو'), text: t('همه‌ی دارایی‌ها در یک جا، با سود و زیان زنده و میانگین خرید.'), href: '/features/portfolio' },
+  { Icon: Wallet, tone: 'green', title: t('هزینه و بودجه'), text: t('هزینه‌های روزمره با دسته و بودجه‌ی ماهانه، حساب‌ها و پروژه‌ها.'), href: '/features' },
+  { Icon: Landmark, tone: 'cyan', title: t('درآمد، وام و چک'), text: t('اقساط و سررسیدها، درآمدهای ثابت و چک‌ها با یادآوری.'), href: '/features/loans' },
+  { Icon: ChartColumn, tone: 'violet', title: t('گزارش سالانه'), text: t('درآمد و هزینه، پس‌انداز و سرمایه‌گذاری سال در یک صفحه؛ خروجی PDF.'), href: '/features' },
+  { Icon: Newspaper, tone: 'rose', title: t('اخبار و تحلیل هوش مصنوعی'), text: t('فقط خبرهایی که روی بازار اثر دارند، و تحلیل هر روز.'), href: '/features' },
 ];
 
 /** Why trust it with your money */
 const PILLARS = [
-  { Icon: Lock, title: 'فقط برای خودت', text: 'داده‌های مالی روی دستگاه خودت رمز می‌شوند؛ سرور فقط متن رمزشده را می‌بیند.', link: { href: '/features/encryption', label: 'رمزنگاری سرتاسری' } },
-  { Icon: Smartphone, title: 'اپ اندروید', text: 'پیامک بانک را خودش می‌خواند و هزینه را ثبت می‌کند — متن پیامک از گوشی بیرون نمی‌رود.', link: { href: '/android', label: 'دانلود اپ' } },
-  { Icon: Code2, title: 'رایگان و متن‌باز', text: 'بدون تبلیغ و ردیاب تجاری؛ کد کامل در گیت‌هاب است و هر کس می‌تواند بررسی‌اش کند.', link: { href: GITHUB_URL, label: 'کد در GitHub', external: true } },
+  { Icon: Lock, title: t('فقط برای خودت'), text: t('داده‌های مالی روی دستگاه خودت رمز می‌شوند؛ سرور فقط متن رمزشده را می‌بیند.'), link: { href: '/features/encryption', label: t('رمزنگاری سرتاسری') } },
+  { Icon: Smartphone, title: t('اپ اندروید'), text: t('پیامک بانک را خودش می‌خواند و هزینه را ثبت می‌کند — متن پیامک از گوشی بیرون نمی‌رود.'), link: { href: '/android', label: t('دانلود اپ') } },
+  { Icon: Code2, title: t('رایگان و متن‌باز'), text: t('بدون تبلیغ و ردیاب تجاری؛ کد کامل در گیت‌هاب است و هر کس می‌تواند بررسی‌اش کند.'), link: { href: GITHUB_URL, label: t('کد در GitHub'), external: true } },
 ];
 
-const PROMISES = ['رایگان', 'رمزنگاری سرتاسری', 'وب و اندروید'];
+const PROMISES = [t('رایگان'), t('رمزنگاری سرتاسری'), t('وب و اندروید')];
 
 // Clean standard GitHub SVG icon
 function GithubIcon({ size = 18, className = '' }) {
@@ -143,13 +143,13 @@ export default function LandingPage() {
     <div className="lp-actions">
       <button type="button" className="lp-btn lp-btn-primary" onClick={enterApp}>
         <GoogleLogo size={18} />
-        <span>{user ? 'ورود به برنامه' : 'شروع رایگان با گوگل'}</span>
+        <span>{user ? t('ورود به برنامه') : t('شروع رایگان با گوگل')}</span>
         <ArrowLeft size={17} />
       </button>
       {DEMO_ENABLED && !user && (
         <button type="button" className="lp-btn lp-btn-ghost" onClick={handleDemoClick} disabled={enteringDemo}>
           <Sparkles size={17} />
-          <span>{enteringDemo ? 'در حال ورود…' : 'دیدن نسخه‌ی دمو'}</span>
+          <span>{enteringDemo ? t('در حال ورود…') : t('دیدن نسخه‌ی دمو')}</span>
         </button>
       )}
     </div>
@@ -161,19 +161,19 @@ export default function LandingPage() {
 
       <header className="lp-header">
         <div className="lp-container lp-header-inner">
-          <a href="/" className="lp-brand" aria-label="RealRate — صفحه‌ی اصلی">
+          <a href="/" className="lp-brand" aria-label={t('RealRate — صفحه‌ی اصلی')}>
             <span className="lp-brand-icon"><TrendingUp size={18} /></span>
             <span>RealRate</span>
           </a>
-          <nav className="lp-nav" aria-label="منوی اصلی">
-            <a href="/features">امکانات</a>
-            <a href="/android">اپ اندروید</a>
-            <a href="/faq">سؤالات</a>
-            <a href="/about">درباره</a>
+          <nav className="lp-nav" aria-label={t('منوی اصلی')}>
+            <a href="/features">{t('امکانات')}</a>
+            <a href="/android">{t('اپ اندروید')}</a>
+            <a href="/faq">{t('سؤالات')}</a>
+            <a href="/about">{t('درباره')}</a>
           </nav>
           <LanguageSwitch className="lp-language" />
           <button type="button" className="lp-btn lp-btn-small" onClick={enterApp}>
-            <span>ورود</span>
+            <span>{t('ورود')}</span>
             <ChevronLeft size={15} />
           </button>
         </div>
@@ -185,19 +185,18 @@ export default function LandingPage() {
           <div className="lp-container lp-hero-inner">
             <span className="lp-pill">
               <Sparkles size={14} aria-hidden="true" />
-              تازه: اخبار بازار، تحلیل روز با هوش مصنوعی و گزارش سالانه
+              {t('تازه: اخبار بازار، تحلیل روز با هوش مصنوعی و گزارش سالانه')}
             </span>
             <h1>
-              پول و دارایی‌هایت را
+              {t('پول و دارایی‌هایت را')}
               <br />
-              <span className="lp-accent">یک‌جا و واقعی</span> ببین
+              <span className="lp-accent">{t('یک‌جا و واقعی')}</span> {t('ببین')}
             </h1>
             <p className="lp-lead">
-              ارزش واقعی طلا و ارز، پورتفو، هزینه‌ها، درآمد، وام و چک — با گزارش سالانه و خبرهای مهم بازار.
-              رایگان، متن‌باز و رمزنگاری‌شده روی دستگاه خودت.
+              {t('ارزش واقعی طلا و ارز، پورتفو، هزینه‌ها، درآمد، وام و چک — با گزارش سالانه و خبرهای مهم بازار. رایگان، متن‌باز و رمزنگاری‌شده روی دستگاه خودت.')}
             </p>
             {startButtons}
-            <ul className="lp-promises" aria-label="ویژگی‌های اصلی">
+            <ul className="lp-promises" aria-label={t('ویژگی‌های اصلی')}>
               {PROMISES.map((p) => (
                 <li key={p}><Check size={15} aria-hidden="true" />{p}</li>
               ))}
@@ -208,7 +207,7 @@ export default function LandingPage() {
         {/* 2. What it does */}
         <section id="features" className="lp-section">
           <div className="lp-container">
-            <SectionHead eyebrow="امکانات" title="همه‌ی کارهای مالی در یک جا" text="از قیمت لحظه‌ای بازار تا گزارش آخر سال." />
+            <SectionHead eyebrow={t('امکانات')} title={t('همه‌ی کارهای مالی در یک جا')} text={t('از قیمت لحظه‌ای بازار تا گزارش آخر سال.')} />
             <div className="lp-features">
               {FEATURES.map(({ Icon, tone, title, text, href }) => (
                 <a key={title} href={href} className="lp-feature">
@@ -219,7 +218,7 @@ export default function LandingPage() {
               ))}
             </div>
             <a href="/features" className="lp-more">
-              <span>همه‌ی امکانات</span>
+              <span>{t('همه‌ی امکانات')}</span>
               <ArrowLeft size={15} />
             </a>
           </div>
@@ -231,9 +230,9 @@ export default function LandingPage() {
           className="lp-section lp-section-tint"
           head={(
             <SectionHead
-              eyebrow="هوش مصنوعی"
-              title="تحلیل امروز بازار"
-              text="هوش مصنوعی خبرهای مهم امروز را با هم می‌خواند: چه شد و چرا برای بازار مهم است — بدون پیش‌بینی قیمت."
+              eyebrow={t('هوش مصنوعی')}
+              title={t('تحلیل امروز بازار')}
+              text={t('هوش مصنوعی خبرهای مهم امروز را با هم می‌خواند: چه شد و چرا برای بازار مهم است — بدون پیش‌بینی قیمت.')}
             />
           )}
         />
@@ -241,7 +240,7 @@ export default function LandingPage() {
         {/* 4. Why */}
         <section id="why" className="lp-section">
           <div className="lp-container">
-            <SectionHead eyebrow="چرا RealRate" title="امن، همراه و آزاد" />
+            <SectionHead eyebrow={t('چرا RealRate')} title={t('امن، همراه و آزاد')} />
             <div className="lp-pillars">
               {PILLARS.map(({ Icon, title, text, link }) => (
                 <div key={title} className="lp-pillar">
@@ -262,7 +261,7 @@ export default function LandingPage() {
         {/* 5. Questions */}
         <section id="faq" className="lp-section">
           <div className="lp-container lp-narrow">
-            <SectionHead eyebrow="سؤالات" title="پرسش‌های پرتکرار" />
+            <SectionHead eyebrow={t('سؤالات')} title={t('پرسش‌های پرتکرار')} />
             <div className="lp-faq">
               {LANDING_FAQS.map((faq) => (
                 <details key={faq.q} className="lp-faq-item">
@@ -272,7 +271,7 @@ export default function LandingPage() {
               ))}
             </div>
             <a href="/faq" className="lp-more">
-              <span>همه‌ی سؤالات</span>
+              <span>{t('همه‌ی سؤالات')}</span>
               <ArrowLeft size={15} />
             </a>
           </div>
@@ -282,8 +281,8 @@ export default function LandingPage() {
         <section className="lp-section">
           <div className="lp-container">
             <div className="lp-cta">
-              <h2>همین حالا رایگان شروع کن</h2>
-              <p>چند ثانیه با حساب گوگل — بدون کارت بانکی و بدون تبلیغ.</p>
+              <h2>{t('همین حالا رایگان شروع کن')}</h2>
+              <p>{t('چند ثانیه با حساب گوگل — بدون کارت بانکی و بدون تبلیغ.')}</p>
               {startButtons}
             </div>
           </div>
@@ -297,20 +296,20 @@ export default function LandingPage() {
               <span className="lp-brand-icon"><TrendingUp size={16} /></span>
               <span>RealRate</span>
             </a>
-            <p>ابزار رایگان و متن‌باز برای دیدن ارزش واقعی دارایی‌ها و مدیریت مالی شخصی.</p>
+            <p>{t('ابزار رایگان و متن‌باز برای دیدن ارزش واقعی دارایی‌ها و مدیریت مالی شخصی.')}</p>
           </div>
-          <nav className="lp-footer-links" aria-label="پیوندها">
-            <a href="/features">امکانات</a>
-            <a href="/android">اپ اندروید</a>
-            <a href="/about">درباره</a>
-            <a href="/faq">سؤالات</a>
-            <a href="/privacy">حریم خصوصی</a>
-            {DEMO_ENABLED && <a href="/demo">دمو</a>}
+          <nav className="lp-footer-links" aria-label={t('پیوندها')}>
+            <a href="/features">{t('امکانات')}</a>
+            <a href="/android">{t('اپ اندروید')}</a>
+            <a href="/about">{t('درباره')}</a>
+            <a href="/faq">{t('سؤالات')}</a>
+            <a href="/privacy">{t('حریم خصوصی')}</a>
+            {DEMO_ENABLED && <a href="/demo">{t('دمو')}</a>}
             <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">GitHub</a>
           </nav>
         </div>
         <div className="lp-container lp-footer-bottom">
-          © {toPersianDigits('2026')} RealRate · متن‌باز با مجوز MIT
+          © {toPersianDigits('2026')} RealRate · {t('متن‌باز با مجوز MIT')}
         </div>
       </footer>
     </div>

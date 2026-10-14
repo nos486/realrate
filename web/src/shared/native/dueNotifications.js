@@ -5,7 +5,7 @@
  * All decrypted data (titles, amounts, counterparties) stays entirely on the device.
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
 import { reminderOf, occurrencesBetween, reminderCanBeOverdue } from '../../utils/reminders.js';
 import { isNativeApp } from './nativeApp.js';
 import { isPrivacyMode } from '../../hooks/usePrivacyMode.js';
@@ -76,28 +76,28 @@ export function addDaysIso(isoDate, days) {
 }
 
 /**
- * Build notification title and body text in Persian.
+ * Build notification title and body text in the app language.
  */
 function buildNotificationText({ kind, title, counterparty, direction, amount, currency, autoRenew, reason, leadDays, showAmount }) {
   let headline = '';
   if (kind === 'loan') {
-    if (reason === 'overdue') headline = 'قسط وام سررسیدش گذشته است';
-    else if (reason === 'due' || leadDays === 0) headline = 'قسط وام امروز سررسید است';
-    else if (leadDays === 1) headline = 'قسط وام فردا سررسید می‌شود';
-    else headline = `قسط وام در ${faNum(leadDays)} روز آینده سررسید می‌شود`;
+    if (reason === 'overdue') headline = t('قسط وام سررسیدش گذشته است');
+    else if (reason === 'due' || leadDays === 0) headline = t('قسط وام امروز سررسید است');
+    else if (leadDays === 1) headline = t('قسط وام فردا سررسید می‌شود');
+    else headline = t('قسط وام در {n} روز آینده سررسید می‌شود', { n: faNum(leadDays) });
   } else if (kind === 'cheque') {
-    const dirLabel = direction === 'issued' ? 'چک صادره' : direction === 'received' ? 'چک دریافتی' : 'چک';
-    if (reason === 'overdue') headline = `${dirLabel} سررسیدش گذشته است`;
-    else if (reason === 'due' || leadDays === 0) headline = `${dirLabel} امروز سررسید است`;
-    else if (leadDays === 1) headline = `${dirLabel} فردا سررسید می‌شود`;
-    else headline = `${dirLabel} در ${faNum(leadDays)} روز آینده سررسید می‌شود`;
+    const dirLabel = direction === 'issued' ? t('چک صادره') : direction === 'received' ? t('چک دریافتی') : t('چک');
+    if (reason === 'overdue') headline = t('{dir} سررسیدش گذشته است', { dir: dirLabel });
+    else if (reason === 'due' || leadDays === 0) headline = t('{dir} امروز سررسید است', { dir: dirLabel });
+    else if (leadDays === 1) headline = t('{dir} فردا سررسید می‌شود', { dir: dirLabel });
+    else headline = t('{dir} در {n} روز آینده سررسید می‌شود', { dir: dirLabel, n: faNum(leadDays) });
   } else if (kind === 'subscription') {
     // Renewed by itself it is charged; by hand it runs out
-    const verb = autoRenew ? 'تمدید می‌شود' : 'تمام می‌شود';
-    if (reason === 'overdue') headline = 'اشتراک تمدید نشده و تمام شده است';
-    else if (reason === 'due' || leadDays === 0) headline = `اشتراک امروز ${verb}`;
-    else if (leadDays === 1) headline = `اشتراک فردا ${verb}`;
-    else headline = `اشتراک ${faNum(leadDays)} روز دیگر ${verb}`;
+    const verb = autoRenew ? t('تمدید می‌شود') : t('تمام می‌شود');
+    if (reason === 'overdue') headline = t('اشتراک تمدید نشده و تمام شده است');
+    else if (reason === 'due' || leadDays === 0) headline = t('اشتراک امروز {verb}', { verb });
+    else if (leadDays === 1) headline = t('اشتراک فردا {verb}', { verb });
+    else headline = t('اشتراک {n} روز دیگر {verb}', { n: faNum(leadDays), verb });
   }
 
   const namePart = (counterparty || title || '').trim();
@@ -120,7 +120,7 @@ function planRecord({ kind, record, reminder, text, path }, { today, maxDate, le
   const out = [];
   const overdueAllowed = reminderCanBeOverdue(reminder);
   const push = (dueDate, reason, d, fireAt) => {
-    const t = buildNotificationText({ kind, ...text, reason, leadDays: d, showAmount });
+    const note = buildNotificationText({ kind, ...text, reason, leadDays: d, showAmount });
     out.push({
       id: notificationId(kind, record.id, dueDate, reason === 'overdue' ? 'overdue' : `${reason}_${d}`),
       kind,
@@ -129,8 +129,8 @@ function planRecord({ kind, record, reminder, text, path }, { today, maxDate, le
       reason,
       leadDays: d,
       fireAt,
-      title: t.title,
-      body: t.body,
+      title: note.title,
+      body: note.body,
       extra: { kind: 'due', path, recordId: record.id, dueDate, reason },
     });
   };

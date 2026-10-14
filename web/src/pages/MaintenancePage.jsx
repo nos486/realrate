@@ -6,7 +6,7 @@
  * signed-in user can sign out. Uses the sign-in pages' shell so it matches their look.
  */
 
-import { getDir } from '../utils/i18n.js';
+import { getDir, t } from '../utils/i18n.js';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Wrench, LogIn, LogOut } from 'lucide-react';
@@ -25,22 +25,22 @@ export default function MaintenancePage() {
               <Wrench size={22} />
             </span>
             <div>
-              <h1>در حال به‌روزرسانی</h1>
-              <p>RealRate موقتاً در دسترس نیست</p>
+              <h1>{t('در حال به‌روزرسانی')}</h1>
+              <p>{t('RealRate موقتاً در دسترس نیست')}</p>
             </div>
           </div>
           <p className="maintenance-message">{maintenance?.message}</p>
-          <p className="maintenance-note">اطلاعات شما محفوظ است. لطفاً کمی بعد دوباره سر بزنید.</p>
+          <p className="maintenance-note">{t('اطلاعات شما محفوظ است. لطفاً کمی بعد دوباره سر بزنید.')}</p>
           <div className="maintenance-actions">
             {user ? (
               <button type="button" className="auth-link-btn" onClick={logout}>
                 <LogOut size={14} />
-                خروج از حساب
+                {t('خروج از حساب')}
               </button>
             ) : (
               <Link to={AUTH_PATHS.login} className="auth-link-btn">
                 <LogIn size={14} />
-                ورود مدیر
+                {t('ورود مدیر')}
               </Link>
             )}
           </div>

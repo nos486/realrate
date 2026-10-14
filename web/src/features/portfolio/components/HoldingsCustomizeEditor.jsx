@@ -9,7 +9,7 @@
  * - Reset categories to default
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { intlLocale, t, plural } from '../../../utils/i18n.js';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   DndContext,
@@ -96,15 +96,15 @@ function IconPicker({ currentIcon, onSelect }) {
         type="button"
         className="portfolio-icon-picker-trigger"
         onClick={() => setOpen((prev) => !prev)}
-        title="انتخاب آیکون دسته"
-        aria-label="انتخاب آیکون دسته"
+        title={t('انتخاب آیکون دسته')}
+        aria-label={t('انتخاب آیکون دسته')}
       >
         <CategoryIcon category={currentIcon || 'custom'} size={18} />
         <ChevronDown size={11} className="picker-arrow" />
       </button>
 
       {open && (
-        <div className="portfolio-icon-popover" role="dialog" aria-label="انتخاب آیکون">
+        <div className="portfolio-icon-popover" role="dialog" aria-label={t('انتخاب آیکون')}>
           <div className="portfolio-icon-grid">
             {AVAILABLE_CATEGORY_ICONS.map((opt) => (
               <button
@@ -151,16 +151,16 @@ function MoveMenu({ assetKey, currentGroupId, groups, onMove }) {
         type="button"
         className="portfolio-move-btn"
         onClick={() => setOpen((prev) => !prev)}
-        title="انتقال به دسته دیگر"
-        aria-label="انتقال به دسته دیگر"
+        title={t('انتقال به دسته دیگر')}
+        aria-label={t('انتقال به دسته دیگر')}
       >
         <ArrowRightLeft size={13} />
-        <span className="hide-on-mobile">انتقال</span>
+        <span className="hide-on-mobile">{t('انتقال')}</span>
       </button>
 
       {open && (
         <div className="portfolio-move-popover" role="menu">
-          <div className="portfolio-move-popover-title">انتقال دارایی به دسته:</div>
+          <div className="portfolio-move-popover-title">{t('انتقال دارایی به دسته:')}</div>
           <div className="portfolio-move-popover-list">
             {groups.map((g) => {
               const isCurrent = g.id === currentGroupId;
@@ -177,7 +177,7 @@ function MoveMenu({ assetKey, currentGroupId, groups, onMove }) {
                 >
                   <CategoryIcon category={g.icon || 'custom'} size={15} />
                   <span>{g.title}</span>
-                  {isCurrent && <span className="current-indicator">(فعلی)</span>}
+                  {isCurrent && <span className="current-indicator">{t('(فعلی)')}</span>}
                 </button>
               );
             })}
@@ -191,7 +191,7 @@ function MoveMenu({ assetKey, currentGroupId, groups, onMove }) {
                 }}
               >
                 <Sparkles size={15} />
-                <span>سایر (بدون دسته)</span>
+                <span>{t('سایر (بدون دسته)')}</span>
               </button>
             )}
           </div>
@@ -224,7 +224,7 @@ function AssetItemRow({
           type="button"
           ref={setActivatorNodeRef}
           className="portfolio-asset-grip"
-          aria-label={`جابه‌جایی ${asset.name}`}
+          aria-label={t('جابه‌جایی {asset}', { asset: asset.name })}
           {...attributes}
           {...listeners}
         >
@@ -237,14 +237,12 @@ function AssetItemRow({
           <strong className="asset-name">{formatAssetName(asset, itemMap)}</strong>
           <span className="asset-meta">
             {asset.count > 1 ? (
-              <span className="asset-count-pill">{asset.count.toLocaleString(intlLocale())} رکورد</span>
+              <span className="asset-count-pill">{plural(asset.count, t('{count} رکورد', { count: asset.count.toLocaleString(intlLocale()) }), t('{count} رکوردها', { count: asset.count.toLocaleString(intlLocale()) }))}</span>
             ) : null}
             <span className="asset-qty-badge">
               {Number(asset.totalAmount).toLocaleString(intlLocale())} {asset.unit}
             </span>
-            <span className="asset-val-badge">
-              {formatNum(asset.totalRealVal)} تومان
-            </span>
+            <span className="asset-val-badge">{t('{amount} تومان', { amount: formatNum(asset.totalRealVal) })}</span>
           </span>
         </div>
       </div>
@@ -290,7 +288,7 @@ function SortableCategoryCard({
             type="button"
             ref={setActivatorNodeRef}
             className="portfolio-group-grip"
-            aria-label={`جابه‌جایی دسته ${group.title}`}
+            aria-label={t('جابه‌جایی دسته {group}', { group: group.title })}
             {...attributes}
             {...listeners}
           >
@@ -305,22 +303,20 @@ function SortableCategoryCard({
             className="portfolio-category-title-input"
             value={group.title}
             onChange={(e) => onUpdateTitle(group.id, e.target.value)}
-            placeholder="عنوان دسته"
-            aria-label="عنوان دسته"
+            placeholder={t('عنوان دسته')}
+            aria-label={t('عنوان دسته')}
             maxLength={50}
           />
         </div>
 
         <div className="group-header-right">
-          <span className="portfolio-group-items-badge">
-            {assets.length.toLocaleString(intlLocale())} دارایی
-          </span>
+          <span className="portfolio-group-items-badge">{plural(assets.length, t('{count} دارایی', { count: assets.length.toLocaleString(intlLocale()) }), t('{count} دارایی‌ها', { count: assets.length.toLocaleString(intlLocale()) }))}</span>
           <button
             type="button"
             className="portfolio-icon-btn is-danger"
             onClick={() => onRemove(group.id)}
-            title="حذف دسته (دارایی‌ها به سایر منتقل می‌شوند)"
-            aria-label="حذف دسته"
+            title={t('حذف دسته (دارایی‌ها به سایر منتقل می‌شوند)')}
+            aria-label={t('حذف دسته')}
           >
             <Trash2 size={15} />
           </button>
@@ -330,7 +326,7 @@ function SortableCategoryCard({
       <div className="portfolio-customize-group-body">
         {assets.length === 0 ? (
           <div className="portfolio-category-empty-dropzone">
-            این دسته خالی است — دارایی‌ها را به اینجا منتقل کنید یا بکشید.
+            {t('این دسته خالی است — دارایی‌ها را به اینجا منتقل کنید یا بکشید.')}
           </div>
         ) : (
           <SortableContext
@@ -378,7 +374,7 @@ export default function HoldingsCustomizeEditor({
           key,
           assetId: it.assetId,
           name: it.assetName || it.name,
-          unit: it.unit || 'واحد',
+          unit: it.unit || t('واحد'),
           category: it.category || it.assetType || 'custom',
           sourceId: it.sourceId,
           totalAmount: Number(it.amount) || 0,
@@ -426,7 +422,7 @@ export default function HoldingsCustomizeEditor({
 
   // Actions
   const handleAddCategory = () => {
-    const next = addGroup(layout, { title: 'دسته جدید', icon: 'custom' });
+    const next = addGroup(layout, { title: t('دسته جدید'), icon: 'custom' });
     onChange(next);
   };
 
@@ -436,16 +432,16 @@ export default function HoldingsCustomizeEditor({
     const hasItems = (target.items || []).length > 0;
     if (hasItems) {
       const confirmed = await confirm({
-        title: `حذف دسته «${target.title}»`,
-        message: 'دارایی‌های این دسته حذف نمی‌شوند و به بخش «سایر» منتقل خواهند شد. آیا ادامه می‌دهید؟',
-        confirmLabel: 'حذف دسته',
+        title: t('حذف دسته «{target}»', { target: target.title }),
+        message: t('دارایی‌های این دسته حذف نمی‌شوند و به بخش «سایر» منتقل خواهند شد. آیا ادامه می‌دهید؟'),
+        confirmLabel: t('حذف دسته'),
         danger: true,
       });
       if (!confirmed) return;
     }
     const next = removeGroup(layout, groupId);
     onChange(next);
-    toast.info(`دسته «${target.title}» حذف شد.`);
+    toast.info(t('دسته «{target}» حذف شد.', { target: target.title }));
   };
 
   const handleUpdateTitle = (groupId, newTitle) => {
@@ -465,14 +461,14 @@ export default function HoldingsCustomizeEditor({
 
   const handleResetToDefault = async () => {
     const confirmed = await confirm({
-      title: 'بازگشت به دسته‌بندی پیش‌فرض',
-      message: 'آیا مایلید تمام تغییرات دسته‌بندی سفارشی لغو شده و پورتفو با دسته‌های ثابت برنامه نمایش داده شود؟',
-      confirmLabel: 'بازگشت به پیش‌فرض',
+      title: t('بازگشت به دسته‌بندی پیش‌فرض'),
+      message: t('آیا مایلید تمام تغییرات دسته‌بندی سفارشی لغو شده و پورتفو با دسته‌های ثابت برنامه نمایش داده شود؟'),
+      confirmLabel: t('بازگشت به پیش‌فرض'),
       danger: true,
     });
     if (!confirmed) return;
     onReset();
-    toast.success('دسته‌بندی‌ها به حالت پیش‌فرض بازگشتند.');
+    toast.success(t('دسته‌بندی‌ها به حالت پیش‌فرض بازگشتند.'));
   };
 
   // Drag and drop handler
@@ -527,9 +523,9 @@ export default function HoldingsCustomizeEditor({
             <SlidersHorizontal size={20} />
           </div>
           <div className="customize-info-text">
-            <h4>شخصی‌سازی دسته‌ها</h4>
+            <h4>{t('شخصی‌سازی دسته‌ها')}</h4>
             <p>
-              دسته‌ها را به دلخواه بسازید، مرتب کنید و دارایی‌ها را با کشیدن یا منوی انتقال بین دسته‌ها جابه‌جا نمایید.
+              {t('دسته‌ها را به دلخواه بسازید، مرتب کنید و دارایی‌ها را با کشیدن یا منوی انتقال بین دسته‌ها جابه‌جا نمایید.')}
             </p>
           </div>
         </div>
@@ -539,30 +535,30 @@ export default function HoldingsCustomizeEditor({
             type="button"
             className="btn-customize-action"
             onClick={handleAddCategory}
-            title="افزودن دسته جدید"
+            title={t('افزودن دسته جدید')}
           >
             <Plus size={15} />
-            <span>دسته جدید</span>
+            <span>{t('دسته جدید')}</span>
           </button>
 
           <button
             type="button"
             className="btn-customize-action is-secondary"
             onClick={handleResetToDefault}
-            title="بازگشت به دسته‌های پیش‌فرض سیستم"
+            title={t('بازگشت به دسته‌های پیش‌فرض سیستم')}
           >
             <RotateCcw size={14} />
-            <span>بازگشت به پیش‌فرض</span>
+            <span>{t('بازگشت به پیش‌فرض')}</span>
           </button>
 
           <button
             type="button"
             className="btn-customize-action is-primary"
             onClick={onClose}
-            title="پایان شخصی‌سازی و بستن حالت ویرایش"
+            title={t('پایان شخصی‌سازی و بستن حالت ویرایش')}
           >
             <Check size={15} />
-            <span>پایان ویرایش</span>
+            <span>{t('پایان ویرایش')}</span>
           </button>
         </div>
       </div>
@@ -604,14 +600,12 @@ export default function HoldingsCustomizeEditor({
                 <Sparkles size={18} />
               </span>
               <div className="other-title-stack">
-                <strong>سایر (دارایی‌های بدون دسته)</strong>
-                <small>دارایی‌های جدید یا رهاشده در این دسته قرار دارند. می‌توانید آن‌ها را به دسته‌های بالا منتقل کنید.</small>
+                <strong>{t('سایر (دارایی‌های بدون دسته)')}</strong>
+                <small>{t('دارایی‌های جدید یا رهاشده در این دسته قرار دارند. می‌توانید آن‌ها را به دسته‌های بالا منتقل کنید.')}</small>
               </div>
             </div>
             <div className="group-header-right">
-              <span className="portfolio-group-items-badge">
-                {uncategorizedAssets.length.toLocaleString(intlLocale())} دارایی
-              </span>
+              <span className="portfolio-group-items-badge">{plural(uncategorizedAssets.length, t('{count} دارایی', { count: uncategorizedAssets.length.toLocaleString(intlLocale()) }), t('{count} دارایی‌ها', { count: uncategorizedAssets.length.toLocaleString(intlLocale()) }))}</span>
             </div>
           </div>
 

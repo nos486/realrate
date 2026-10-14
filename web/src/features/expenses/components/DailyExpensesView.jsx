@@ -19,7 +19,7 @@
  *   every open one (OpenSharesModal), and each expense's «دریافتی‌ها» (ReimbursementsModal)
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { intlLocale, t } from '../../../utils/i18n.js';
 import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
 import { expenseCsvHeaders, expenseCsvRow } from '../utils/expenseCsv.js';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -209,7 +209,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
   // A project's expense is moved by its form («پروژه»): only the everyday ones are picked to move
   // …and not one another feature recorded (recordOwners.js: changed only from its page)
   const movable = useMemo(() => listed.filter((e) => !projectOf(e) && !recordOwnerOf(e)), [listed, projectOf]);
-  const selection = readOnly ? null : { selected, onToggle: toggle, onToggleAll: togglePage, label: (e) => `انتخاب «${e.title}»`, canSelect: (e) => !projectOf(e) && !recordOwnerOf(e) };
+  const selection = readOnly ? null : { selected, onToggle: toggle, onToggleAll: togglePage, label: (e) => t('انتخاب «{title}»', { title: e.title }), canSelect: (e) => !projectOf(e) && !recordOwnerOf(e) };
   const movingTotal = useMemo(() => {
     if (!moving) return 0;
     const ids = new Set(moving);
@@ -219,14 +219,14 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
   const handleMove = async (target) => {
     const { group, moved } = await moveToProject(moving, target);
     setSelected((prev) => new Set([...prev].filter((id) => !moving.includes(id))));
-    toast.success(`${moved.toLocaleString(intlLocale())} هزینه به پروژه‌ی «${group.name}» منتقل شد.`);
+    toast.success(t('{n} هزینه به پروژه‌ی «{name}» منتقل شد.', { n: moved.toLocaleString(intlLocale()), name: group.name }));
   };
 
   const handleDelete = async (expense) => {
     const ok = await confirm({
-      title: 'حذف هزینه',
-      message: `هزینه «${expense.title}» حذف شود؟`,
-      confirmLabel: 'حذف',
+      title: t('حذف هزینه'),
+      message: t('هزینه «{title}» حذف شود؟', { title: expense.title }),
+      confirmLabel: t('حذف'),
       danger: true,
     });
     if (!ok) return;
@@ -250,25 +250,25 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
         days={daysElapsed}
         top={top}
         hideValues={hideValues}
-        totalFooter={Object.keys(summary.unpriced).length > 0 && <span>{formatCurrencyAmounts(summary.unpriced)} بدون نرخ حساب نشده</span>}
+        totalFooter={Object.keys(summary.unpriced).length > 0 && <span>{t('{amount} بدون نرخ حساب نشده', { amount: formatCurrencyAmounts(summary.unpriced) })}</span>}
         dollar={dollar}
       />
       {donutItems.length > 0 && (
-        <DonutChart title="تفکیک دسته‌ها" items={donutItems} centerLabel="جمع ماه" masked={hideValues} />
+        <DonutChart title={t('تفکیک دسته‌ها')} items={donutItems} centerLabel={t('جمع ماه')} masked={hideValues} />
       )}
       <div className="expense-side-card">
         <div className="expense-side-card-head">
-          <h4><Target size={14} /> بودجه ماه</h4>
+          <h4><Target size={14} /> {t('بودجه ماه')}</h4>
           {!readOnly && (
             <Button size="sm" variant="secondary" onClick={() => setBudgetOpen(true)}>
-              {budgets.total || budgetKeys.length ? 'ویرایش' : 'تعیین بودجه'}
+              {budgets.total || budgetKeys.length ? t('ویرایش') : t('تعیین بودجه')}
             </Button>
           )}
         </div>
         {budgets.total || budgetKeys.length ? (
           <>
             {budgets.total > 0 && (
-              <BudgetProgress label="کل ماه" spent={summary.totalToman} budget={budgets.total} hideValues={hideValues} />
+              <BudgetProgress label={t('کل ماه')} spent={summary.totalToman} budget={budgets.total} hideValues={hideValues} />
             )}
             {budgetKeys.map((key) => {
               const meta = getExpenseCategory(key);
@@ -285,33 +285,33 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
             })}
           </>
         ) : (
-          <p className="expense-side-card-empty">برای کل ماه یا هر دسته سقف خرج بگذارید تا نزدیک شدن به آن را ببینید.</p>
+          <p className="expense-side-card-empty">{t('برای کل ماه یا هر دسته سقف خرج بگذارید تا نزدیک شدن به آن را ببینید.')}</p>
         )}
       </div>
       <div className="expense-side-card">
         <div className="expense-side-card-head">
-          <h4><HandCoins size={14} /> طلب‌های دنگ</h4>
-          <Button size="sm" variant="secondary" onClick={() => setSharesOpen(true)}>همه‌ی طلب‌ها</Button>
+          <h4><HandCoins size={14} /> {t('طلب‌های دنگ')}</h4>
+          <Button size="sm" variant="secondary" onClick={() => setSharesOpen(true)}>{t('همه‌ی طلب‌ها')}</Button>
         </div>
         {receivables.count > 0 ? (
           <ul className="expense-account-breakdown">
-            <li><span>سهم دیگران در این ماه</span><strong>{money(receivables.owedToman)} <small>تومان</small></strong></li>
-            <li><span>دریافت‌شده</span><strong>{money(receivables.receivedToman)} <small>تومان</small></strong></li>
-            <li><span>مانده‌ی طلب</span><strong className={receivables.remainingToman > 0 ? 'text-loss' : ''}>{money(receivables.remainingToman)} <small>تومان</small></strong></li>
+            <li><span>{t('سهم دیگران در این ماه')}</span><strong>{money(receivables.owedToman)} <small>{t('تومان')}</small></strong></li>
+            <li><span>{t('دریافت‌شده')}</span><strong>{money(receivables.receivedToman)} <small>{t('تومان')}</small></strong></li>
+            <li><span>{t('مانده‌ی طلب')}</span><strong className={receivables.remainingToman > 0 ? 'text-loss' : ''}>{money(receivables.remainingToman)} <small>{t('تومان')}</small></strong></li>
           </ul>
         ) : (
-          <p className="expense-side-card-empty">پول کل جمع را دادید؟ هزینه را با «سهم: با دیگران» ثبت کنید؛ فقط سهم خودتان هزینه حساب می‌شود و دریافتی‌ها درآمد نیستند.</p>
+          <p className="expense-side-card-empty">{t('پول کل جمع را دادید؟ هزینه را با «سهم: با دیگران» ثبت کنید؛ فقط سهم خودتان هزینه حساب می‌شود و دریافتی‌ها درآمد نیستند.')}</p>
         )}
       </div>
       <ExcludedBox kind="expense" items={excludedByCategory.map((c) => ({ category: c.category, total: c.totalToman }))} metaOf={getExpenseCategory} hideValues={hideValues} />
       {usesAccounts && (
         <div className="expense-side-card">
-          <div className="expense-side-card-head"><h4>پرداخت از</h4></div>
+          <div className="expense-side-card-head"><h4>{t('پرداخت از')}</h4></div>
           <ul className="expense-account-breakdown">
             {spentByAccount.map((a) => (
               <li key={a.accountId || 'none'}>
-                <span>{a.accountId ? accountLabel(accountById.get(a.accountId)) : 'نامشخص'}</span>
-                <strong>{money(a.totalToman)} <small>تومان</small></strong>
+                <span>{a.accountId ? accountLabel(accountById.get(a.accountId)) : t('نامشخص')}</span>
+                <strong>{money(a.totalToman)} <small>{t('تومان')}</small></strong>
               </li>
             ))}
           </ul>
@@ -329,7 +329,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
           type="error"
           message={error}
           onClose={clearError}
-          action={<Button size="sm" variant="secondary" onClick={fetchMonth}>تلاش مجدد</Button>}
+          action={<Button size="sm" variant="secondary" onClick={fetchMonth}>{t('تلاش مجدد')}</Button>}
         />
       )}
 
@@ -339,11 +339,11 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
             <div className="portfolio-table-header">
               <div className="table-title">
                 <div className="table-title-main">
-                  <h3>هزینه‌های {formatShamsiMonth(month.jy, month.jm)}</h3>
+                  <h3>{t('هزینه‌های {month}', { month: formatShamsiMonth(month.jy, month.jm) })}</h3>
                 </div>
                 {summary.count > 0 && (
                   <p className="expense-month-total">
-                    جمع: <strong>{money(summary.totalToman)}</strong> تومان
+                    {t('جمع:')} <strong>{money(summary.totalToman)}</strong> {t('تومان')}
                   </p>
                 )}
               </div>
@@ -352,17 +352,17 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                   <SearchBar
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="جستجو در عنوان، دسته یا یادداشت..."
-                    badge={`${listed.length.toLocaleString(intlLocale())} مورد`}
+                    placeholder={t('جستجو در عنوان، دسته یا یادداشت...')}
+                    badge={t('{n} مورد', { n: listed.length.toLocaleString(intlLocale()) })}
                     className="incomes-search"
                   />
                 )}
-                <IconButton icon={<Tags size={15} />} label="دسته‌ها" onClick={() => setManagingCategories(true)} disabled={readOnly} />
+                <IconButton icon={<Tags size={15} />} label={t('دسته‌ها')} onClick={() => setManagingCategories(true)} disabled={readOnly} />
                 {hiddenCount > 0 && (
                   <IconButton
                     icon={showExcluded ? <Eye size={15} /> : <EyeOff size={15} />}
-                    label={showExcluded ? 'خارج از جمع: نمایش داده می‌شود' : `خارج از جمع: ${hiddenCount.toLocaleString(intlLocale())} مورد پنهان`}
-                    title={showExcluded ? 'پنهان کردن سرمایه‌گذاری، هزینه‌های پروژه‌ها و دیگر موارد خارج از جمع' : 'نمایش موارد خارج از جمع (سرمایه‌گذاری، هزینه‌های پروژه‌ها…)'}
+                    label={showExcluded ? t('خارج از جمع: نمایش داده می‌شود') : t('خارج از جمع: {n} مورد پنهان', { n: hiddenCount.toLocaleString(intlLocale()) })}
+                    title={showExcluded ? t('پنهان کردن سرمایه‌گذاری، هزینه‌های پروژه‌ها و دیگر موارد خارج از جمع') : t('نمایش موارد خارج از جمع (سرمایه‌گذاری، هزینه‌های پروژه‌ها…)')}
                     active={!showExcluded}
                     pressed={!showExcluded}
                     badge={showExcluded ? null : hiddenCount.toLocaleString(intlLocale())}
@@ -372,7 +372,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                 <GenericCsvExportButton
                   items={listed}
                   headers={CSV_HEADERS}
-                  fileBaseName={`هزینه‌های-روزمره-${formatShamsiMonth(month.jy, month.jm)}`}
+                  fileBaseName={`${t('هزینه‌های-روزمره')}-${formatShamsiMonth(month.jy, month.jm)}`}
                   disabled={listed.length === 0}
                   mapRow={(e) => expenseCsvRow(e, { withCategory: true, accountById, loanById })}
                 />
@@ -381,9 +381,9 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                   icon={<Plus size={16} />}
                   onClick={() => setForm({ expense: null })}
                   disabled={readOnly}
-                  title={readOnly ? 'در نسخه دمو غیرفعال است' : undefined}
+                  title={readOnly ? t('در نسخه دمو غیرفعال است') : undefined}
                 >
-                  ثبت هزینه
+                  {t('ثبت هزینه')}
                 </Button>
               </div>
             </div>
@@ -398,7 +398,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
               />
 
               {usesAccounts && (
-                <div className="tx-filter-pills-bar expense-category-filter" role="group" aria-label="پرداخت از">
+                <div className="tx-filter-pills-bar expense-category-filter" role="group" aria-label={t('پرداخت از')}>
                   {[{ accountId: 'all', count: shown.length }, ...byAccount].map(({ accountId, count }) => (
                     <button
                       key={accountId || 'none'}
@@ -407,7 +407,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                       aria-pressed={accountFilter === accountId}
                       onClick={() => setAccountFilter(accountId)}
                     >
-                      {accountId === 'all' ? 'همه حساب‌ها' : accountId ? accountLabel(accountById.get(accountId)) : 'نامشخص'}
+                      {accountId === 'all' ? t('همه حساب‌ها') : accountId ? accountLabel(accountById.get(accountId)) : t('نامشخص')}
                       <span className="cheque-filter-count">{count.toLocaleString(intlLocale())}</span>
                     </button>
                   ))}
@@ -415,43 +415,43 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
               )}
 
               {loading && expenses.length === 0 ? (
-                <SkeletonRows rows={5} columns={4} label="در حال دریافت هزینه‌ها" />
+                <SkeletonRows rows={5} columns={4} label={t('در حال دریافت هزینه‌ها')} />
               ) : expenses.length === 0 ? (
                 <EmptyState
                   icon={<Coins size={40} strokeWidth={1.5} />}
-                  title={`هزینه‌ای در ${formatShamsiMonth(month.jy, month.jm)} ثبت نشده`}
-                  description="خرید روزانه، قبض، رفت‌وآمد و ... را با دسته‌بندی ثبت کنید تا ببینید پولتان کجا خرج می‌شود."
+                  title={t('هزینه‌ای در {month} ثبت نشده', { month: formatShamsiMonth(month.jy, month.jm) })}
+                  description={t('خرید روزانه، قبض، رفت‌وآمد و ... را با دسته‌بندی ثبت کنید تا ببینید پولتان کجا خرج می‌شود.')}
                   action={!readOnly && (
-                    <Button icon={<Plus size={16} />} onClick={() => setForm({ expense: null })}>ثبت اولین هزینه</Button>
+                    <Button icon={<Plus size={16} />} onClick={() => setForm({ expense: null })}>{t('ثبت اولین هزینه')}</Button>
                   )}
                 />
               ) : searching && listed.length === 0 ? (
                 <EmptyState
-                  title="موردی یافت نشد"
-                  description="هیچ هزینه‌ای با عبارت جستجو شده مطابقت ندارد."
+                  title={t('موردی یافت نشد')}
+                  description={t('هیچ هزینه‌ای با عبارت جستجو شده مطابقت ندارد.')}
                 />
               ) : listed.length === 0 ? (
                 <EmptyState
-                  title="موردی در این فیلتر یافت نشد"
-                  description="برای این دسته‌بندی یا حساب انتخابی هزینه‌ای ثبت نشده است."
+                  title={t('موردی در این فیلتر یافت نشد')}
+                  description={t('برای این دسته‌بندی یا حساب انتخابی هزینه‌ای ثبت نشده است.')}
                 />
               ) : (
                 <>
                   {picked.length > 0 && (
-                    <div className="expense-selection-bar" role="region" aria-label="هزینه‌های انتخاب‌شده">
+                    <div className="expense-selection-bar" role="region" aria-label={t('هزینه‌های انتخاب‌شده')}>
                       <span className="expense-selection-count">
-                        <strong>{picked.length.toLocaleString(intlLocale())}</strong> هزینه انتخاب شد
-                        {pickedTotal > 0 && <> · {money(pickedTotal)} تومان</>}
+                        <strong>{picked.length.toLocaleString(intlLocale())}</strong> {t('هزینه انتخاب شد')}
+                        {pickedTotal > 0 && <> · {money(pickedTotal)} {t('تومان')}</>}
                       </span>
                       {picked.length < movable.length && (
                         <Button size="sm" variant="secondary" onClick={() => setSelected(new Set(movable.map((e) => e.id)))}>
-                          انتخاب همه‌ی {movable.length.toLocaleString(intlLocale())} مورد
+                          {t('انتخاب همه‌ی {n} مورد', { n: movable.length.toLocaleString(intlLocale()) })}
                         </Button>
                       )}
                       <Button size="sm" icon={<FolderInput size={15} />} onClick={() => setMoving(picked.map((e) => e.id))}>
-                        انتقال به پروژه
+                        {t('انتقال به پروژه')}
                       </Button>
-                      <IconButton icon={<X size={15} />} label="لغو انتخاب" onClick={() => setSelected(new Set())} />
+                      <IconButton icon={<X size={15} />} label={t('لغو انتخاب')} onClick={() => setSelected(new Set())} />
                     </div>
                   )}
                   <ExpensesTable
@@ -478,7 +478,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                     total={listed.length}
                     loading={loading}
                     onChange={setPage}
-                    label="صفحه‌بندی هزینه‌های روزمره"
+                    label={t('صفحه‌بندی هزینه‌های روزمره')}
                   />
                 </>
               )}

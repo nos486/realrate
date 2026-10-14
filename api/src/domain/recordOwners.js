@@ -13,11 +13,13 @@
  * spending) and what it names. A new owner is one entry here. Shared with the web app.
  */
 
+import { t } from './i18n.js';
+
 /** The features that record expenses or incomes of their own: their name and page */
 export const RECORD_OWNERS = {
-  loan: { label: 'وام‌ها', path: '/loans' },
-  subscription: { label: 'اشتراک‌ها', path: '/subscriptions' },
-  cheque: { label: 'چک‌ها', path: '/cheques' },
+  loan: { label: t('وام‌ها'), path: '/loans' },
+  subscription: { label: t('اشتراک‌ها'), path: '/subscriptions' },
+  cheque: { label: t('چک‌ها'), path: '/cheques' },
 };
 
 /** The id prefix of an expense recorded for another feature's spending (spendingExpenseId) */
@@ -50,6 +52,6 @@ export const recordOwnerInfo = (record) => {
 /** The message when a record is changed outside its owner's page */
 export function ownedRecordMessage(record, side = 'expense') {
   const info = recordOwnerInfo(record);
-  const what = side === 'income' ? 'درآمد' : 'هزینه';
-  return info ? `این ${what} را بخش «${info.label}» ثبت کرده؛ از همان صفحه تغییرش دهید.` : '';
+  const what = side === 'income' ? t('درآمد') : t('هزینه');
+  return info ? t('این {what} را بخش «{label}» ثبت کرده؛ از همان صفحه تغییرش دهید.', { what, label: info.label }) : '';
 }

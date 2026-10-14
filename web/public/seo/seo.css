@@ -40,8 +40,7 @@ html {
   font-family: 'Vazirmatn', system-ui, -apple-system, sans-serif;
   background: var(--bg);
   color: var(--text);
-  direction: rtl;
-  text-align: right;
+  text-align: start;
   line-height: 1.75;
   -webkit-font-smoothing: antialiased;
 }
@@ -607,4 +606,20 @@ summary:focus-visible {
   * {
     transition: none !important;
   }
+}
+
+/* ── Language link (the same page in the other language) ── */
+.seo-lang {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 6px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  white-space: nowrap;
+  transition: color 0.15s;
+}
+
+.seo-lang:hover {
+  color: var(--text);
 }

@@ -10,7 +10,7 @@
  * Each entry's notes show in its own row (on phones, on a line under it).
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { intlLocale, t, plural } from '../../../utils/i18n.js';
 import React from 'react';
 import {
   ArrowDownLeft, ArrowUpRight, ClipboardList, Receipt, Pencil, Trash2, Plus, Minus, AlertTriangle, MessageSquare,
@@ -21,24 +21,24 @@ import { toPersianDigits } from '../../../shared/utils/formatters.js';
 
 const KIND = {
   // A buy from the buy form (a holding record): «خرید» with a price, else «موجودی»
-  manual: { label: 'موجودی', Icon: ClipboardList, tone: 'in' },
-  buy: { label: 'خرید', Icon: ArrowDownLeft, tone: 'in' },
-  sell: { label: 'فروش', Icon: ArrowUpRight, tone: 'out' },
-  spend: { label: 'پرداخت هزینه', Icon: Receipt, tone: 'out' },
+  manual: { label: t('موجودی'), Icon: ClipboardList, tone: 'in' },
+  buy: { label: t('خرید'), Icon: ArrowDownLeft, tone: 'in' },
+  sell: { label: t('فروش'), Icon: ArrowUpRight, tone: 'out' },
+  spend: { label: t('پرداخت هزینه'), Icon: Receipt, tone: 'out' },
 };
 
 const MASK = '****';
 const EPS = 1e-9;
-const kindOf = (kind, price) => (kind === 'manual' && price > 0 ? { ...KIND.manual, label: 'خرید', Icon: ArrowDownLeft } : KIND[kind] || KIND.buy);
+const kindOf = (kind, price) => (kind === 'manual' && price > 0 ? { ...KIND.manual, label: t('خرید'), Icon: ArrowDownLeft } : KIND[kind] || KIND.buy);
 const qtyText = (n) => Number(n || 0).toLocaleString(intlLocale(), { maximumFractionDigits: 6 });
-const dateLabel = (d) => (d ? toPersianDigits(d) : 'موجودی اولیه');
+const dateLabel = (d) => (d ? toPersianDigits(d) : t('موجودی اولیه'));
 const signed = (v) => `${v >= 0 ? '+' : '−'}${formatNum(Math.abs(v))}`;
 
-function Pnl({ value, hideValues, title, none = 'بدون سود/زیان' }) {
+function Pnl({ value, hideValues, title, none = t('بدون سود/زیان') }) {
   if (value === null || value === undefined) return <span className="ledger-pnl is-none" title={title}>{none}</span>;
   return (
     <span className={`ledger-pnl ${value >= 0 ? 'profit' : 'loss'}`} title={title}>
-      {hideValues ? MASK : <>{signed(value)} <small>تومان</small></>}
+      {hideValues ? MASK : <>{signed(value)} <small>{t('تومان')}</small></>}
     </span>
   );
 }
@@ -73,25 +73,23 @@ export default function AssetLedgerDetails({
       <div className="asset-ledger-head">
         <div className="asset-ledger-facts">
           {asset.realizedPnl !== null && (
-            <span>سود/زیان تحقق‌یافته: <Pnl value={asset.realizedPnl} hideValues={hideValues} /></span>
+            <span>{t('سود/زیان تحقق‌یافته:')}{' '}<Pnl value={asset.realizedPnl} hideValues={hideValues} /></span>
           )}
           <DollarPnl pnl={dollarPnl} hideValues={hideValues} />
           {asset.unpricedQty > EPS && (
-            <span className="asset-ledger-muted">
-              {qtyText(asset.unpricedQty)} {asset.unit} بدون قیمت خرید (در سود/زیان حساب نمی‌شود)
-            </span>
+            <span className="asset-ledger-muted">{t('{qty} {unit} بدون قیمت خرید (در سود/زیان حساب نمی‌شود)', { qty: qtyText(asset.unpricedQty), unit: asset.unit })}</span>
           )}
         </div>
         {!readOnly && (onBuy || onSell) && (
           <div className="asset-ledger-actions">
             {onBuy && (
               <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={() => onBuy(asset)}>
-                <Plus size={14} /> خرید
+                <Plus size={14} />{' '}{t('خرید')}
               </button>
             )}
             {onSell && asset.amount > 0 && (
               <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={() => onSell(asset)}>
-                <Minus size={14} /> فروش
+                <Minus size={14} />{' '}{t('فروش')}
               </button>
             )}
           </div>
@@ -115,14 +113,14 @@ export default function AssetLedgerDetails({
             const realized = realizedByLot.get(entry.id) || 0;
             if (entry.price > 0) {
               pnl = open + realized;
-              pnlTitle = `باز: ${signed(open)} · تحقق‌یافته: ${signed(realized)} تومان`;
+              pnlTitle = t('باز: {open} · تحقق‌یافته: {realized} تومان', { open: signed(open), realized: signed(realized) });
             }
-            status = closed ? 'تمام شد' : entry.remaining < entry.qty - EPS ? `مانده ${hideValues ? MASK : qtyText(entry.remaining)}` : 'کامل';
+            status = closed ? t('تمام شد') : entry.remaining < entry.qty - EPS ? t('مانده {qty}', { qty: hideValues ? MASK : qtyText(entry.remaining) }) : t('کامل');
           } else {
             pnl = entry.pnl;
-            const parts = (entry.consumed || []).map((c) => `${kindOf(c.lotKind, c.lotPrice).label} ${dateLabel(entryById.get(c.lotId)?.date || c.lotDate)}: ${qtyText(c.qty)}${c.pnl === null ? ' (بی‌قیمت)' : ` (${signed(c.pnl)})`}`);
+            const parts = (entry.consumed || []).map((c) => `${kindOf(c.lotKind, c.lotPrice).label} ${dateLabel(entryById.get(c.lotId)?.date || c.lotDate)}: ${qtyText(c.qty)}${c.pnl === null ? t(' (بی‌قیمت)') : ` (${signed(c.pnl)})`}`);
             statusTitle = parts.join('\n');
-            status = parts.length ? `از ${parts.length.toLocaleString(intlLocale())} خرید` : '';
+            status = parts.length ? plural(parts.length, t('از {count} خرید', { count: parts.length.toLocaleString(intlLocale()) }), t('از {count} خریدها', { count: parts.length.toLocaleString(intlLocale()) })) : '';
           }
 
           // What a purchase was paid with, shown under it (and how holding that would be doing now)
@@ -133,11 +131,11 @@ export default function AssetLedgerDetails({
             if (record.referenceAssetId && refQty > 0) {
               const reference = computeReferenceAssetPnl({ ...record, itemRealVal: lotValue }, priceMap, itemMap);
               const name = reference?.referenceAssetName || record.referenceAssetId;
-              const paid = `پرداخت با ${hideValues ? MASK : qtyText(refQty)} ${reference?.unit || ''} ${name}`.replace(/\s+/g, ' ');
+              const paid = t('پرداخت با {qty} {unit} {name}', { qty: hideValues ? MASK : qtyText(refQty), unit: reference?.unit || '', name }).replace(/\s+/g, ' ');
               extras.push({
                 key: 'reference',
                 text: reference && !hideValues
-                  ? `${paid} — نسبت به نگه داشتن آن: ${signed(reference.referencePnl)} تومان`
+                  ? t('{paid} — نسبت به نگه داشتن آن: {amount} تومان', { paid, amount: signed(reference.referencePnl) })
                   : paid,
                 tone: reference && !hideValues ? (reference.referencePnl >= 0 ? 'profit' : 'loss') : '',
               });
@@ -158,36 +156,36 @@ export default function AssetLedgerDetails({
               <span className="asset-ledger-date"><bdi>{dateLabel(entry.date)}</bdi></span>
               <span className="asset-ledger-qty">
                 {hideValues ? MASK : qtyText(entry.qty)} <small>{asset.unit}</small>
-                {entry.price > 0 ? <> × {money(entry.price)}</> : <small className="asset-ledger-muted"> بی‌قیمت</small>}
+                {entry.price > 0 ? <> × {money(entry.price)}</> : <small className="asset-ledger-muted">{' '}{t('بی‌قیمت')}</small>}
               </span>
               <span className={`asset-ledger-status ${closed ? 'is-closed' : ''}`} title={statusTitle || undefined}>
                 {status}
                 {!incoming && entry.uncoveredQty > 0 && (
-                  <span className="asset-ledger-warning" title={`${qtyText(entry.uncoveredQty)} ${asset.unit} بیشتر از موجودی`}>
+                  <span className="asset-ledger-warning" title={t('{qty} {unit} بیشتر از موجودی', { qty: qtyText(entry.uncoveredQty), unit: asset.unit })}>
                     <AlertTriangle size={13} />
                   </span>
                 )}
               </span>
               <span className="asset-ledger-notes" title={notes || undefined}>
-                {notes && <><MessageSquare size={12} aria-label="یادداشت" /><span>{notes}</span></>}
+                {notes && <><MessageSquare size={12} aria-label={t('یادداشت')} /><span>{notes}</span></>}
               </span>
               <span className="asset-ledger-pnl-cell">
-                <Pnl value={pnl} hideValues={hideValues} title={pnlTitle || undefined} none={incoming ? '—' : 'بدون سود/زیان'} />
+                <Pnl value={pnl} hideValues={hideValues} title={pnlTitle || undefined} none={incoming ? '—' : t('بدون سود/زیان')} />
               </span>
               <span className="row-actions-group asset-ledger-entry-actions">
                 {editable && onEditEntry && (
-                  <button type="button" className="btn-table-action edit" title="ویرایش" onClick={() => onEditEntry(entry, asset)}>
+                  <button type="button" className="btn-table-action edit" title={t('ویرایش')} onClick={() => onEditEntry(entry, asset)}>
                     <Pencil size={13} />
                   </button>
                 )}
                 {editable && onDeleteEntry && (
-                  <button type="button" className="btn-table-action delete" title="حذف" onClick={() => onDeleteEntry(entry, asset)}>
+                  <button type="button" className="btn-table-action delete" title={t('حذف')} onClick={() => onDeleteEntry(entry, asset)}>
                     <Trash2 size={13} />
                   </button>
                 )}
                 {linkedTo && !readOnly && (
-                  <small className="asset-ledger-muted" title={linkedTo === 'expense' ? 'از صفحه‌ی هزینه‌ها ویرایش می‌شود' : 'از صفحه‌ی درآمدها ویرایش می‌شود'}>
-                    {linkedTo === 'expense' ? 'از هزینه‌ها' : 'از درآمدها'}
+                  <small className="asset-ledger-muted" title={linkedTo === 'expense' ? t('از صفحه‌ی هزینه‌ها ویرایش می‌شود') : t('از صفحه‌ی درآمدها ویرایش می‌شود')}>
+                    {linkedTo === 'expense' ? t('از هزینه‌ها') : t('از درآمدها')}
                   </small>
                 )}
               </span>

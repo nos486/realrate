@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { t } from '../../../utils/i18n.js';
 import { useRefreshHandler } from '../../../shared/refresh/pageRefresh.js';
 import {
   getLoanDetail,
@@ -35,7 +36,7 @@ export function useLoanDetail(loanId) {
     try {
       await step();
     } catch (err) {
-      setError(`پرداخت وام ثبت شد، ولی هزینه‌اش به‌روز نشد: ${err?.message || ''}`.trim());
+      setError(t('پرداخت وام ثبت شد، ولی هزینه‌اش به‌روز نشد: {reason}', { reason: err?.message || '' }).trim());
     }
   };
 
@@ -83,7 +84,7 @@ export function useLoanDetail(loanId) {
         setLoan(null);
       }
     } catch (err) {
-      setError(err.message || 'خطا در بارگذاری جزئیات وام');
+      setError(err.message || t('خطا در بارگذاری جزئیات وام'));
       setLoan(null);
     } finally {
       setLoading(false);
@@ -138,7 +139,7 @@ export function useLoanDetail(loanId) {
       } catch (err) {
         // Rollback on error
         setLoan(prevLoan);
-        setError(err.message || 'خطا در ثبت پرداخت قسط');
+        setError(err.message || t('خطا در ثبت پرداخت قسط'));
         throw err;
       } finally {
         setSubmitting(false);
@@ -187,7 +188,7 @@ export function useLoanDetail(loanId) {
       } catch (err) {
         // Rollback on error
         setLoan(prevLoan);
-        setError(err.message || 'خطا در لغو پرداخت قسط');
+        setError(err.message || t('خطا در لغو پرداخت قسط'));
         throw err;
       } finally {
         setSubmitting(false);
@@ -215,7 +216,7 @@ export function useLoanDetail(loanId) {
         await fetchLoan();
         return res;
       } catch (err) {
-        setError(err.message || 'خطا در ویرایش گروهی اقساط');
+        setError(err.message || t('خطا در ویرایش گروهی اقساط'));
         throw err;
       } finally {
         setSubmitting(false);
@@ -242,7 +243,7 @@ export function useLoanDetail(loanId) {
         await fetchLoan();
         return res;
       } catch (err) {
-        setError(err.message || 'خطا در ثبت پرداخت اضافه');
+        setError(err.message || t('خطا در ثبت پرداخت اضافه'));
         throw err;
       } finally {
         setSubmitting(false);

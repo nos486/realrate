@@ -8,6 +8,7 @@
 
 import React from 'react';
 import { FolderKanban } from 'lucide-react';
+import { t } from '../../../utils/i18n.js';
 import { FeaturePageHeader } from '../../../shared/ui/index.js';
 import VaultUnlockCard from '../../../shared/vault/VaultUnlockCard.jsx';
 import { useVault } from '../../../shared/vault/useVault.js';
@@ -16,9 +17,9 @@ import ProjectExpensesView from './ProjectExpensesView.jsx';
 
 const HEADER = {
   icon: <FolderKanban size={24} />,
-  title: 'پروژه‌ها',
+  title: t('پروژه‌ها'),
   help: 'projects',
-  subtitle: 'هزینه‌های هر پروژه به تومان یا دلار، با بودجه‌ی خودش',
+  subtitle: t('هزینه‌های هر پروژه به تومان یا دلار، با بودجه‌ی خودش'),
 };
 
 /**
@@ -33,7 +34,7 @@ export default function ProjectsPage({ groupId = null, onSelectGroup }) {
     return (
       <div className="incomes-page-container">
         <FeaturePageHeader {...HEADER} />
-        <VaultUnlockCard title="پروژه‌های شما رمزنگاری شده‌اند" />
+        <VaultUnlockCard title={t('پروژه‌های شما رمزنگاری شده‌اند')} />
       </div>
     );
   }

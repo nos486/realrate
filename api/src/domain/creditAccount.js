@@ -30,6 +30,7 @@
 import { gregorianToJalali, jalaliToGregorian, getJalaliMonthLength } from './loanCalculator.js';
 import { expensePaidInToman } from './expenseDocument.js';
 import { incomeInToman } from './incomeDocument.js';
+import { t } from './i18n.js';
 
 /** The expense category of a credit's fees (categoryDocument.js) */
 export const CREDIT_COST_CATEGORY = 'credit_fees';
@@ -106,8 +107,8 @@ const pctOf = (fee, base) => (base > 0 ? Math.round((fee / base) * 10000) / 100 
 export function settlementOf(settled, paid) {
   const s = amountOf(settled);
   const p = amountOf(paid);
-  if (!(s > 0)) return { error: 'مبلغ بدهی تسویه‌شده را وارد کنید.' };
-  if (!(p >= s)) return { error: 'مبلغ پرداختی نمی‌تواند کمتر از بدهی تسویه‌شده باشد.' };
+  if (!(s > 0)) return { error: t('مبلغ بدهی تسویه‌شده را وارد کنید.') };
+  if (!(p >= s)) return { error: t('مبلغ پرداختی نمی‌تواند کمتر از بدهی تسویه‌شده باشد.') };
   return { fee: p - s, pct: pctOf(p - s, s) };
 }
 
@@ -129,23 +130,23 @@ export function conversionCost({ principal, installments = [] }) {
  */
 export function validateConversion(body = {}) {
   const id = String(body.id || '');
-  if (!ID_RE.test(id)) return { error: 'شناسه‌ی قسط‌بندی نامعتبر است.' };
-  if (!DATE_RE.test(String(body.date || ''))) return { error: 'تاریخ قسط‌بندی نامعتبر است.' };
+  if (!ID_RE.test(id)) return { error: t('شناسه‌ی قسط‌بندی نامعتبر است.') };
+  if (!DATE_RE.test(String(body.date || ''))) return { error: t('تاریخ قسط‌بندی نامعتبر است.') };
   const principal = amountOf(body.principal);
-  if (!(principal > 0) || principal > CREDIT_LIMITS.maxAmount) return { error: 'مبلغی که قسط‌بندی می‌شود را وارد کنید.' };
+  if (!(principal > 0) || principal > CREDIT_LIMITS.maxAmount) return { error: t('مبلغی که قسط‌بندی می‌شود را وارد کنید.') };
 
   let rows = Array.isArray(body.installments) ? body.installments : null;
   if (!rows && DATE_RE.test(String(body.firstDueDate || '')) && body.count > 0) {
     rows = monthlyDates(body.firstDueDate, parseInt(body.count, 10)).map((dueDate) => ({ dueDate, amount: body.payment }));
   }
-  if (!rows?.length) return { error: 'دست‌کم یک قسط وارد کنید.' };
-  if (rows.length > CREDIT_LIMITS.maxInstallments) return { error: `حداکثر ${CREDIT_LIMITS.maxInstallments} قسط.` };
+  if (!rows?.length) return { error: t('دست‌کم یک قسط وارد کنید.') };
+  if (rows.length > CREDIT_LIMITS.maxInstallments) return { error: t('حداکثر {maxInstallments} قسط.', { maxInstallments: CREDIT_LIMITS.maxInstallments }) };
 
   const installments = [];
   for (const row of rows) {
     const amount = amountOf(row.amount);
-    if (!DATE_RE.test(String(row.dueDate || ''))) return { error: 'تاریخ هر قسط را وارد کنید.' };
-    if (!(amount > 0) || amount > CREDIT_LIMITS.maxAmount) return { error: 'مبلغ هر قسط را وارد کنید.' };
+    if (!DATE_RE.test(String(row.dueDate || ''))) return { error: t('تاریخ هر قسط را وارد کنید.') };
+    if (!(amount > 0) || amount > CREDIT_LIMITS.maxAmount) return { error: t('مبلغ هر قسط را وارد کنید.') };
     installments.push({
       dueDate: row.dueDate,
       amount,
@@ -154,7 +155,7 @@ export function validateConversion(body = {}) {
     });
   }
   installments.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
-  if (conversionCost({ principal, installments }).total < principal) return { error: 'جمع اقساط نمی‌تواند کمتر از مبلغ قسط‌بندی باشد.' };
+  if (conversionCost({ principal, installments }).total < principal) return { error: t('جمع اقساط نمی‌تواند کمتر از مبلغ قسط‌بندی باشد.') };
 
   return {
     value: {
@@ -176,18 +177,18 @@ export function validateConversion(body = {}) {
  */
 export function validateCreditTerms(body = {}, today = '') {
   const limit = amountOf(body.limit);
-  if (!Number.isFinite(limit) || limit <= 0 || limit > CREDIT_LIMITS.maxAmount) return { error: 'سقف اعتبار را وارد کنید.' };
+  if (!Number.isFinite(limit) || limit <= 0 || limit > CREDIT_LIMITS.maxAmount) return { error: t('سقف اعتبار را وارد کنید.') };
 
   const openingDebt = amountOf(body.openingDebt) || 0;
-  if (openingDebt < 0 || openingDebt > CREDIT_LIMITS.maxAmount) return { error: 'بدهی فعلی نامعتبر است.' };
+  if (openingDebt < 0 || openingDebt > CREDIT_LIMITS.maxAmount) return { error: t('بدهی فعلی نامعتبر است.') };
 
   const cycleGiven = parseInt(body.cycleDay, 10);
-  if (body.cycleDay != null && body.cycleDay !== '' && !(cycleGiven >= 1 && cycleGiven <= 31)) return { error: 'روز شروع دوره باید بین ۱ تا ۳۱ باشد.' };
+  if (body.cycleDay != null && body.cycleDay !== '' && !(cycleGiven >= 1 && cycleGiven <= 31)) return { error: t('روز شروع دوره باید بین ۱ تا ۳۱ باشد.') };
   // Counting starts on the start of the period the credit was added in, unless a day is given
   const cycleDay = cycleGiven >= 1 ? cycleGiven : null;
   const given = DATE_RE.test(String(body.startDate || '')) ? body.startDate : '';
   const startDate = given || (cycleDay && DATE_RE.test(today) ? cycleStartOf(cycleDay, today) : today);
-  if (!DATE_RE.test(startDate)) return { error: 'تاریخ شروع نامعتبر است.' };
+  if (!DATE_RE.test(startDate)) return { error: t('تاریخ شروع نامعتبر است.') };
 
   const conversions = [];
   for (const raw of Array.isArray(body.conversions) ? body.conversions.slice(0, CREDIT_LIMITS.maxConversions) : []) {

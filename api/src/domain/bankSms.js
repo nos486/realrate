@@ -64,21 +64,21 @@ import { accountHolds } from './accountDocument.js';
  *   (smsTransactionKey): how a transaction already recorded is recognized
  */
 
-const PERSIAN_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
-const ARABIC_DIGITS = '٠١٢٣٤٥٦٧٨٩';
+const PERSIAN_DIGITS = '۰۱۲۳۴۵۶۷۸۹'; // i18n-ignore
+const ARABIC_DIGITS = '٠١٢٣٤٥٦٧٨٩'; // i18n-ignore
 
 /** One clean line per line: comparable digits, letters and spacing, whatever the phone sent */
 export function normalizeSmsText(text) {
   return String(text ?? '')
-    .replace(/[۰-۹]/g, (d) => String(PERSIAN_DIGITS.indexOf(d)))
-    .replace(/[٠-٩]/g, (d) => String(ARABIC_DIGITS.indexOf(d)))
-    .replace(/ي/g, 'ی')
-    .replace(/ك/g, 'ک')
+    .replace(/[۰-۹]/g, (d) => String(PERSIAN_DIGITS.indexOf(d))) // i18n-ignore
+    .replace(/[٠-٩]/g, (d) => String(ARABIC_DIGITS.indexOf(d))) // i18n-ignore
+    .replace(/ي/g, 'ی') // i18n-ignore
+    .replace(/ك/g, 'ک') // i18n-ignore
     // Direction marks, zero-width characters (not the ZWNJ of Persian words) and the BOM
     .replace(/[​‎‏‪-‮⁦-⁩﻿]/g, '')
     // Persian/Arabic separators and minus signs as ASCII
-    .replace(/[٬،]/g, ',')
-    .replace(/٫/g, '.')
+    .replace(/[٬،]/g, ',') // i18n-ignore
+    .replace(/٫/g, '.') // i18n-ignore
     .replace(/[−‒–—]/g, '-')
     .replace(/\r\n?/g, '\n')
     .split('\n')
@@ -94,17 +94,17 @@ const GAP = '[\\s\\u200c]*';
  */
 const SENSITIVE_RE = new RegExp(
   [
-    `رمز${GAP}(دوم${GAP})?پویا`,
-    `رمز${GAP}(یک${GAP}بار|موقت|عبور|ورود)`,
-    `یک${GAP}بار${GAP}مصرف`,
-    `کد${GAP}(تایید|تأیید|فعال${GAP}سازی|ورود|امنیتی|یک${GAP}بار)`,
+    `رمز${GAP}(دوم${GAP})?پویا`, // i18n-ignore
+    `رمز${GAP}(یک${GAP}بار|موقت|عبور|ورود)`, // i18n-ignore
+    `یک${GAP}بار${GAP}مصرف`, // i18n-ignore
+    `کد${GAP}(تایید|تأیید|فعال${GAP}سازی|ورود|امنیتی|یک${GAP}بار)`, // i18n-ignore
     `\\b(otp|one[- ]?time|password|passcode|verification|login${GAP}code)\\b`,
   ].join('|'),
   'i',
 );
 
 export function isSensitiveSms(text) {
-  return SENSITIVE_RE.test(String(text ?? '').replace(/ي/g, 'ی').replace(/ك/g, 'ک'));
+  return SENSITIVE_RE.test(String(text ?? '').replace(/ي/g, 'ی').replace(/ك/g, 'ک')); // i18n-ignore
 }
 
 /**
@@ -285,7 +285,7 @@ export function parseBankSms(text, banks, { sender = '', today = new Date() } = 
  * @param {Array<{ direction: string, words: string[], category: string }>} rules
  */
 export function smsCategoryOf(tx, rules = []) {
-  const words = new Set(normalizeSmsText(tx?.description || '').split(/[\s،,.:؛-]+/).filter(Boolean));
+  const words = new Set(normalizeSmsText(tx?.description || '').split(/[\s،,.:؛-]+/).filter(Boolean)); // i18n-ignore
   if (!words.size) return '';
   const rule = rules.find((r) => r.direction === tx.direction && (r.words || []).some((w) => words.has(normalizeSmsText(w))));
   return rule?.category || '';

@@ -27,6 +27,7 @@
  */
 
 import { INCOME_CATEGORIES } from '../config/constants.js';
+import { t, msg } from './i18n.js';
 
 export const CATEGORY_KINDS = ['expense', 'income'];
 export const CATEGORY_RECORD_KIND = 'category_settings';
@@ -56,46 +57,54 @@ const ICON_SET = new Set(CATEGORY_ICON_NAMES);
 const COLOR_RE = /^#[0-9a-f]{6}$/i;
 
 
-/** The built-in categories of a kind, with their default icon and color */
-export const BUILTIN_CATEGORIES = {
+/** The built-in categories of a kind with their Persian source names (the language a stored name is compared in) */
+const SOURCE_BUILTINS = {
   expense: [
-    { value: 'groceries', label: 'خوراک و خواربار', icon: 'ShoppingBasket', color: '#10b981' },
-    { value: 'dining', label: 'رستوران و کافه', icon: 'UtensilsCrossed', color: '#f59e0b' },
-    { value: 'transport', label: 'رفت‌وآمد و سوخت', icon: 'Car', color: '#38bdf8' },
-    { value: 'bills', label: 'قبوض و شارژ', icon: 'Receipt', color: '#a78bfa' },
-    { value: 'housing', label: 'مسکن و اجاره', icon: 'House', color: '#fb7185' },
-    { value: 'shopping', label: 'خرید و پوشاک', icon: 'ShoppingBag', color: '#f472b6' },
-    { value: 'health', label: 'سلامت و درمان', icon: 'HeartPulse', color: '#ef4444' },
-    { value: 'education', label: 'آموزش', icon: 'GraduationCap', color: '#22d3ee' },
-    { value: 'entertainment', label: 'تفریح و سفر', icon: 'Plane', color: '#facc15' },
-    { value: 'subscriptions', label: 'اینترنت و اشتراک‌ها', icon: 'Wifi', color: '#60a5fa' },
-    { value: 'gifts', label: 'هدیه و خیریه', icon: 'Gift', color: '#e879f9' },
-    { value: 'installments', label: 'پرداخت قسط', icon: 'Landmark', color: '#fb923c' },
-    { value: 'credit_fees', label: 'کارمزد و سود اعتبار', icon: 'CreditCard', color: '#ef4444' },
-    { value: 'running_costs', label: 'هزینه‌های جاری', icon: 'Wallet', color: '#2dd4bf' },
-    { value: 'investment', label: 'سرمایه‌گذاری', icon: 'TrendingUp', color: '#34d399', excluded: true },
+    { value: 'groceries', label: msg('خوراک و خواربار'), icon: 'ShoppingBasket', color: '#10b981' },
+    { value: 'dining', label: msg('رستوران و کافه'), icon: 'UtensilsCrossed', color: '#f59e0b' },
+    { value: 'transport', label: msg('رفت‌وآمد و سوخت'), icon: 'Car', color: '#38bdf8' },
+    { value: 'bills', label: msg('قبوض و شارژ'), icon: 'Receipt', color: '#a78bfa' },
+    { value: 'housing', label: msg('مسکن و اجاره'), icon: 'House', color: '#fb7185' },
+    { value: 'shopping', label: msg('خرید و پوشاک'), icon: 'ShoppingBag', color: '#f472b6' },
+    { value: 'health', label: msg('سلامت و درمان'), icon: 'HeartPulse', color: '#ef4444' },
+    { value: 'education', label: msg('آموزش'), icon: 'GraduationCap', color: '#22d3ee' },
+    { value: 'entertainment', label: msg('تفریح و سفر'), icon: 'Plane', color: '#facc15' },
+    { value: 'subscriptions', label: msg('اینترنت و اشتراک‌ها'), icon: 'Wifi', color: '#60a5fa' },
+    { value: 'gifts', label: msg('هدیه و خیریه'), icon: 'Gift', color: '#e879f9' },
+    { value: 'installments', label: msg('پرداخت قسط'), icon: 'Landmark', color: '#fb923c' },
+    { value: 'credit_fees', label: msg('کارمزد و سود اعتبار'), icon: 'CreditCard', color: '#ef4444' },
+    { value: 'running_costs', label: msg('هزینه‌های جاری'), icon: 'Wallet', color: '#2dd4bf' },
+    { value: 'investment', label: msg('سرمایه‌گذاری'), icon: 'TrendingUp', color: '#34d399', excluded: true },
     // Retired: a move between the user's own accounts is a transfer
-    { value: 'cash_management', label: 'مدیریت نقدینگی', icon: 'Wallet', color: '#22d3ee', excluded: true, retired: true },
-    { value: 'other', label: 'سایر', icon: 'CircleEllipsis', color: '#94a3b8' },
+    { value: 'cash_management', label: msg('مدیریت نقدینگی'), icon: 'Wallet', color: '#22d3ee', excluded: true, retired: true },
+    { value: 'other', label: msg('سایر'), icon: 'CircleEllipsis', color: '#94a3b8' },
   ],
   income: [
-    { value: 'salary', label: 'حقوق', icon: 'Briefcase', color: '#38bdf8' },
-    { value: 'benefits', label: 'مزایا', icon: 'HandCoins', color: '#22d3ee' },
-    { value: 'bonus', label: 'پاداش', icon: 'Award', color: '#facc15' },
-    { value: 'freelance', label: 'پروژه و فریلنس', icon: 'Laptop', color: '#a78bfa' },
-    { value: 'business', label: 'کسب‌وکار', icon: 'Store', color: '#f59e0b' },
-    { value: 'investment', label: 'سود سرمایه‌گذاری', icon: 'TrendingUp', color: '#10b981' },
-    { value: 'rental', label: 'اجاره', icon: 'Home', color: '#fb7185' },
-    { value: 'gift', label: 'هدیه و کمک', icon: 'Gift', color: '#f472b6' },
+    { value: 'salary', label: msg('حقوق'), icon: 'Briefcase', color: '#38bdf8' },
+    { value: 'benefits', label: msg('مزایا'), icon: 'HandCoins', color: '#22d3ee' },
+    { value: 'bonus', label: msg('پاداش'), icon: 'Award', color: '#facc15' },
+    { value: 'freelance', label: msg('پروژه و فریلنس'), icon: 'Laptop', color: '#a78bfa' },
+    { value: 'business', label: msg('کسب‌وکار'), icon: 'Store', color: '#f59e0b' },
+    { value: 'investment', label: msg('سود سرمایه‌گذاری'), icon: 'TrendingUp', color: '#10b981' },
+    { value: 'rental', label: msg('اجاره'), icon: 'Home', color: '#fb7185' },
+    { value: 'gift', label: msg('هدیه و کمک'), icon: 'Gift', color: '#f472b6' },
     // Retired: a move between the user's own accounts is a transfer
-    { value: 'cash_management', label: 'مدیریت نقدینگی', icon: 'Wallet', color: '#22d3ee', excluded: true, retired: true },
-    { value: 'asset_sale', label: 'فروش دارایی', icon: 'PiggyBank', color: '#34d399', excluded: true },
-    { value: 'credit_settlement', label: 'تسویه بدهی اعتباری', icon: 'CreditCard', color: '#60a5fa', excluded: true },
-    { value: 'small_income', label: 'درآمد خرد', icon: 'HandCoins', color: '#a3e635' },
-    { value: 'loan_received', label: 'دریافت وام', icon: 'Landmark', color: '#fb923c', excluded: true },
-    { value: 'other', label: 'سایر', icon: 'CircleDollarSign', color: '#94a3b8' },
+    { value: 'cash_management', label: msg('مدیریت نقدینگی'), icon: 'Wallet', color: '#22d3ee', excluded: true, retired: true },
+    { value: 'asset_sale', label: msg('فروش دارایی'), icon: 'PiggyBank', color: '#34d399', excluded: true },
+    { value: 'credit_settlement', label: msg('تسویه بدهی اعتباری'), icon: 'CreditCard', color: '#60a5fa', excluded: true },
+    { value: 'small_income', label: msg('درآمد خرد'), icon: 'HandCoins', color: '#a3e635' },
+    { value: 'loan_received', label: msg('دریافت وام'), icon: 'Landmark', color: '#fb923c', excluded: true },
+    { value: 'other', label: msg('سایر'), icon: 'CircleDollarSign', color: '#94a3b8' },
   ],
 };
+
+/** The built-in categories of a kind, with their default icon and color (names in the page's language) */
+export const BUILTIN_CATEGORIES = Object.fromEntries(
+  Object.entries(SOURCE_BUILTINS).map(([kind, list]) => [kind, list.map((c) => ({ ...c, label: t(c.label) }))]),
+);
+
+/** A built-in's Persian source name, by kind and key: what a record stores while the user has not renamed it */
+const sourceLabel = (kind, value) => SOURCE_BUILTINS[kind]?.find((c) => c.value === value)?.label;
 
 const builtinValues = (kind) => new Set((BUILTIN_CATEGORIES[kind] || []).map((c) => c.value));
 const BUILTIN_VALUES = { expense: builtinValues('expense'), income: new Set([...builtinValues('income'), ...INCOME_CATEGORIES]) };
@@ -118,9 +127,9 @@ export function newCategoryId(random = () => Math.random()) {
  * @returns {{ value?: object[], error?: string }}
  */
 export function validateCategoryList(kind, list) {
-  if (!CATEGORY_KINDS.includes(kind)) return { error: 'نوع دسته نامعتبر است.' };
-  if (!Array.isArray(list)) return { error: 'فهرست دسته‌ها نامعتبر است.' };
-  const builtins = new Map(BUILTIN_CATEGORIES[kind].map((c) => [c.value, c]));
+  if (!CATEGORY_KINDS.includes(kind)) return { error: t('نوع دسته نامعتبر است.') };
+  if (!Array.isArray(list)) return { error: t('فهرست دسته‌ها نامعتبر است.') };
+  const builtins = new Map((BUILTIN_CATEGORIES[kind] || []).map((c) => [c.value, c]));
   const seen = new Set();
   const labels = new Set();
   const value = [];
@@ -131,11 +140,13 @@ export function validateCategoryList(kind, list) {
     if (!builtin && !CUSTOM_CATEGORY_RE.test(key)) continue;
     if (seen.has(key)) continue;
     seen.add(key);
-    if (!builtin && ++custom > CATEGORY_LIMITS.customPerKind) return { error: `حداکثر ${CATEGORY_LIMITS.customPerKind} دسته‌ی جدید می‌شود ساخت.` };
-    const label = String(raw?.label ?? '').trim() || builtin?.label || '';
-    if (!label) return { error: 'نام دسته الزامی است.' };
-    if (label.length > CATEGORY_LIMITS.labelLength) return { error: `نام دسته نباید بیشتر از ${CATEGORY_LIMITS.labelLength} کاراکتر باشد.` };
-    if (labels.has(label)) return { error: `دسته‌ی «${label}» تکراری است.` };
+    if (!builtin && ++custom > CATEGORY_LIMITS.customPerKind) return { error: t('حداکثر {customPerKind} دسته‌ی جدید می‌شود ساخت.', { customPerKind: CATEGORY_LIMITS.customPerKind }) };
+    // A built-in keeps its Persian source name until renamed, whatever language the list was edited in
+    const given = String(raw?.label ?? '').trim();
+    const label = (builtin && given === builtin.label ? sourceLabel(kind, key) : given) || sourceLabel(kind, key) || '';
+    if (!label) return { error: t('نام دسته الزامی است.') };
+    if (label.length > CATEGORY_LIMITS.labelLength) return { error: t('نام دسته نباید بیشتر از {labelLength} کاراکتر باشد.', { labelLength: CATEGORY_LIMITS.labelLength }) };
+    if (labels.has(label)) return { error: t('دسته‌ی «{label}» تکراری است.', { label }) };
     labels.add(label);
     const icon = ICON_SET.has(raw?.icon) ? raw.icon : (builtin?.icon || 'Tag');
     const color = COLOR_RE.test(String(raw?.color ?? '')) ? String(raw.color).toLowerCase() : (builtin?.color || '#94a3b8');
@@ -177,9 +188,11 @@ export function mergeCategories(kind, stored) {
   ].map((c) => {
     // A retired built-in stays as it was made: shown on its old records, out of the totals
     const builtin = builtins.find((b) => b.value === c.value);
+    // A built-in not renamed by the user shows in the page's language (its stored name is the Persian source)
+    const shown = builtin && c.label === sourceLabel(kind, c.value) ? { ...c, label: builtin.label } : c;
     return builtin?.retired
-      ? { ...c, retired: true, excluded: true, custom: false }
-      : { ...c, custom: CUSTOM_CATEGORY_RE.test(c.value) };
+      ? { ...shown, retired: true, excluded: true, custom: false }
+      : { ...shown, custom: CUSTOM_CATEGORY_RE.test(c.value) };
   });
   const otherIndex = merged.findIndex((c) => c.value === FALLBACK_CATEGORY);
   if (otherIndex >= 0 && !listed.has(FALLBACK_CATEGORY)) merged.push(...merged.splice(otherIndex, 1));

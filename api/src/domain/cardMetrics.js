@@ -16,11 +16,12 @@
 
 import { SPEC_BY_ID, normalizePriceId, currencyOf } from "./priceBook.js";
 import { AVERAGE_WINDOWS, AVERAGE_WINDOW_KEYS } from "./priceAverages.js";
+import { t } from "./i18n.js";
 
 /** Kinds of link: `field` of a spec names another item; "in" links to the items naming this one */
 export const ITEM_LINKS = {
-  bubble: { label: "حباب", field: "bubbleOf", direction: "in" },
-  coin: { label: "سکه", field: "bubbleOf", direction: "out" },
+  bubble: { label: t("حباب"), field: "bubbleOf", direction: "in" },
+  coin: { label: t("سکه"), field: "bubbleOf", direction: "out" },
 };
 
 /** Slots a full card has */
@@ -33,15 +34,15 @@ const avgKey = (w) => `avg:${w}`;
  * value comes from (an item without it doesn't offer the metric)
  */
 export const CARD_METRICS = {
-  price: { label: "آخرین قیمت", kind: "price" },
-  ...Object.fromEntries(AVERAGE_WINDOW_KEYS.map((w) => [avgKey(w), { label: `میانگین ${AVERAGE_WINDOWS[w].label}`, kind: "price", window: w }])),
-  change: { label: "تغییر روز", kind: "pct" },
+  price: { label: t("آخرین قیمت"), kind: "price" },
+  ...Object.fromEntries(AVERAGE_WINDOW_KEYS.map((w) => [avgKey(w), { label: t('میانگین {label}', { label: AVERAGE_WINDOWS[w].label }), kind: "price", window: w }])),
+  change: { label: t("تغییر روز"), kind: "pct" },
   // On a coin's bubble it is its coin's own percent (`params.bubbleOf`): offered on the bubble's
   // card, not again on its coin's (slotOptionsOf)
-  bubblePct: { label: "درصد حباب", kind: "pct", ofItem: "bubbleOf" },
-  intrinsic: { label: "ارزش ذاتی", kind: "price" },
-  standard: { label: "قیمت استاندارد", kind: "price" },
-  deviation: { label: "انحراف از استاندارد", kind: "pct" },
+  bubblePct: { label: t("درصد حباب"), kind: "pct", ofItem: "bubbleOf" },
+  intrinsic: { label: t("ارزش ذاتی"), kind: "price" },
+  standard: { label: t("قیمت استاندارد"), kind: "price" },
+  deviation: { label: t("انحراف از استاندارد"), kind: "pct" },
 };
 
 /** What a card's main figure can be: its last price (the default) or an average */

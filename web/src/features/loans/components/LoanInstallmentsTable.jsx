@@ -1,4 +1,4 @@
-import { intlLocale } from '../../../utils/i18n.js';
+import { t, intlLocale } from '../../../utils/i18n.js';
 import React, { useState, useEffect } from 'react';
 import {
   CheckCircle2,
@@ -79,7 +79,7 @@ export default function LoanInstallmentsTable({
     setSuccessMessage('');
     const cleanAmt = Number(String(payAmount).replace(/,/g, '').trim());
     if (isNaN(cleanAmt) || cleanAmt <= 0) {
-      setPayError('لطفاً مبلغ پرداختی معتبر وارد نمایید.');
+      setPayError(t('لطفاً مبلغ پرداختی معتبر وارد نمایید.'));
       return;
     }
 
@@ -103,10 +103,10 @@ export default function LoanInstallmentsTable({
       });
       setPayingInstId(null);
       if (res?.cascadedCount > 0) {
-        setSuccessMessage(`${res.cascadedCount} قسط قبلی نیز پرداخت‌شده ثبت شد.`);
+        setSuccessMessage(t('{n} قسط قبلی نیز پرداخت‌شده ثبت شد.', { n: res.cascadedCount }));
       }
     } catch (err) {
-      setPayError(err.message || 'خطا در ثبت پرداخت');
+      setPayError(err.message || t('خطا در ثبت پرداخت'));
     } finally {
       setActionLoadingId(null);
     }
@@ -128,10 +128,10 @@ export default function LoanInstallmentsTable({
         cascade: shouldCascade,
       });
       if (res?.cascadedCount > 0) {
-        setSuccessMessage(`${res.cascadedCount} قسط قبلی نیز پرداخت‌شده ثبت شد.`);
+        setSuccessMessage(t('{n} قسط قبلی نیز پرداخت‌شده ثبت شد.', { n: res.cascadedCount }));
       }
     } catch (err) {
-      toast.error(err.message || 'خطا در ثبت پرداخت');
+      toast.error(err.message || t('خطا در ثبت پرداخت'));
     } finally {
       setActionLoadingId(null);
     }
@@ -139,9 +139,9 @@ export default function LoanInstallmentsTable({
 
   const handleUnmark = async (inst) => {
     const confirmed = await confirm({
-      title: 'لغو پرداخت قسط',
-      message: `آیا از لغو ثبت پرداخت قسط شماره ${inst.installmentNumber} اطمینان دارید؟`,
-      confirmLabel: 'لغو پرداخت',
+      title: t('لغو پرداخت قسط'),
+      message: t('آیا از لغو ثبت پرداخت قسط شماره {n} اطمینان دارید؟', { n: inst.installmentNumber }),
+      confirmLabel: t('لغو پرداخت'),
       danger: true,
     });
     if (!confirmed) return;
@@ -149,7 +149,7 @@ export default function LoanInstallmentsTable({
       setActionLoadingId(inst.id);
       await onUnmarkPaid?.(inst.id);
     } catch (err) {
-      toast.error(err.message || 'خطا در لغو پرداخت');
+      toast.error(err.message || t('خطا در لغو پرداخت'));
     } finally {
       setActionLoadingId(null);
     }
@@ -165,29 +165,29 @@ export default function LoanInstallmentsTable({
             className={`loan-inst-filter-btn ${activeFilter === 'all' ? 'active' : ''}`}
             onClick={() => setActiveFilter('all')}
           >
-            همه اقساط ({installments.length})
+            {t('همه اقساط ({n})', { n: installments.length })}
           </button>
           <button
             type="button"
             className={`loan-inst-filter-btn ${activeFilter === 'pending' ? 'active' : ''}`}
             onClick={() => setActiveFilter('pending')}
           >
-            در انتظار ({installments.filter((i) => !i.isPaid).length})
+            {t('در انتظار ({n})', { n: installments.filter((i) => !i.isPaid).length })}
           </button>
           <button
             type="button"
             className={`loan-inst-filter-btn ${activeFilter === 'paid' ? 'active' : ''}`}
             onClick={() => setActiveFilter('paid')}
           >
-            پرداخت شده ({installments.filter((i) => i.isPaid).length})
+            {t('پرداخت شده ({n})', { n: installments.filter((i) => i.isPaid).length })}
           </button>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           {loan && (
             <div className="loan-inst-summary-badge">
-              <span>مانده کل:</span>
-              <strong>{formatNum(loan.remainingBalance ?? 0)} تومان</strong>
+              <span>{t('مانده کل:')}</span>
+              <strong>{t('{amount} تومان', { amount: formatNum(loan.remainingBalance ?? 0) })}</strong>
             </div>
           )}
 
@@ -212,10 +212,10 @@ export default function LoanInstallmentsTable({
                 opacity: readOnly ? 0.6 : 1,
                 transition: 'all 0.15s ease',
               }}
-              title={readOnly ? 'در نسخه دمو غیرفعال است' : 'مبلغ هر قسط را دستی تنظیم کنید؛ بقیه به‌طور خودکار و مساوی تقسیم می‌شوند'}
+              title={readOnly ? t('در نسخه دمو غیرفعال است') : t('مبلغ هر قسط را دستی تنظیم کنید؛ بقیه به‌طور خودکار و مساوی تقسیم می‌شوند')}
             >
               <ListChecks size={14} />
-              <span>ویرایش گروهی اقساط</span>
+              <span>{t('ویرایش گروهی اقساط')}</span>
             </button>
           )}
 
@@ -240,10 +240,10 @@ export default function LoanInstallmentsTable({
                 opacity: readOnly ? 0.6 : 1,
                 transition: 'all 0.15s ease',
               }}
-              title={readOnly ? 'در نسخه دمو غیرفعال است' : 'ثبت بازپرداخت زودهنگام و کاهش اصل وام'}
+              title={readOnly ? t('در نسخه دمو غیرفعال است') : t('ثبت بازپرداخت زودهنگام و کاهش اصل وام')}
             >
               <DollarSign size={14} />
-              <span>پرداخت اضافه / یکجا</span>
+              <span>{t('پرداخت اضافه / یکجا')}</span>
             </button>
           )}
         </div>
@@ -264,7 +264,7 @@ export default function LoanInstallmentsTable({
         }}>
           <ListChecks size={16} style={{ flexShrink: 0, marginTop: '1px' }} />
           <span>
-            این وام با «سفارشی‌سازی و تقسیم مساوی اقساط» ساخته شده است. برای ویرایش مبلغ اقساط از «ویرایش گروهی اقساط» استفاده کنید — هر قسطی که در آن مشخص کنید ثابت می‌ماند و بقیه‌ی اقساطِ دست‌نخورده به‌طور خودکار و مساوی باقیمانده را تقسیم می‌کنند. پرداخت اضافه/یکجا برای این حالت در دسترس نیست.
+            {t('این وام با «سفارشی‌سازی و تقسیم مساوی اقساط» ساخته شده است. برای ویرایش مبلغ اقساط از «ویرایش گروهی اقساط» استفاده کنید — هر قسطی که در آن مشخص کنید ثابت می‌ماند و بقیه‌ی اقساطِ دست‌نخورده به‌طور خودکار و مساوی باقیمانده را تقسیم می‌کنند. پرداخت اضافه/یکجا برای این حالت در دسترس نیست.')}
           </span>
         </div>
       )}
@@ -311,14 +311,14 @@ export default function LoanInstallmentsTable({
         <table className="loan-inst-table">
           <thead>
             <tr>
-              <th style={{ width: '60px' }}>قسط</th>
-              <th>وضعیت</th>
-              <th>تاریخ سررسید</th>
-              <th>مبلغ قسط</th>
-              <th>سهم اصل</th>
-              <th>سهم سود</th>
-              <th>مانده پس از قسط</th>
-              <th style={{ minWidth: '150px' }}>عملیات</th>
+              <th style={{ width: '60px' }}>{t('قسط')}</th>
+              <th>{t('وضعیت')}</th>
+              <th>{t('تاریخ سررسید')}</th>
+              <th>{t('مبلغ قسط')}</th>
+              <th>{t('سهم اصل')}</th>
+              <th>{t('سهم سود')}</th>
+              <th>{t('مانده پس از قسط')}</th>
+              <th style={{ minWidth: '150px' }}>{t('عملیات')}</th>
             </tr>
           </thead>
           <tbody>
@@ -339,12 +339,12 @@ export default function LoanInstallmentsTable({
                     {inst.isPaid ? (
                       <span className="badge-inst paid">
                         <CheckCircle2 size={13} />
-                        پرداخت شده
+                        {t('پرداخت شده')}
                       </span>
                     ) : (
                       <span className="badge-inst pending">
                         <Clock size={13} />
-                        در انتظار
+                        {t('در انتظار')}
                       </span>
                     )}
                   </td>
@@ -358,19 +358,19 @@ export default function LoanInstallmentsTable({
                   <td className="col-total">
                     <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
                       <strong className="amount-primary">
-                        {formatNum(inst.totalAmount)} <span className="unit">تومان</span>
+                        {formatNum(inst.totalAmount)} <span className="unit">{t('تومان')}</span>
                       </strong>
                       {Boolean(inst.isManualOverride) && (
-                        <span className="badge-manual-override" title="مبلغ این قسط به‌صورت دستی تنظیم شده است">
-                          ویرایش‌شده
+                        <span className="badge-manual-override" title={t('مبلغ این قسط به‌صورت دستی تنظیم شده است')}>
+                          {t('ویرایش‌شده')}
                         </span>
                       )}
                       {Number(inst.feePortion) > 0 && (
                         <span
                           className="badge-manual-override"
-                          title={`شامل ${formatNum(inst.feePortion)} تومان کارمزد سالانه`}
+                          title={t('شامل {amount} تومان کارمزد سالانه', { amount: formatNum(inst.feePortion) })}
                         >
-                          + کارمزد سالانه
+                          {t('+ کارمزد سالانه')}
                         </span>
                       )}
                     </div>
@@ -378,21 +378,21 @@ export default function LoanInstallmentsTable({
 
                   <td className="col-principal">
                     <span className="amount-secondary">
-                      {formatNum(inst.principalPortion)} تومان
+                      {t('{amount} تومان', { amount: formatNum(inst.principalPortion) })}
                     </span>
                   </td>
 
                   <td className="col-interest">
                     <span className="amount-interest">
                       {inst.interestPortion > 0
-                        ? `${formatNum(inst.interestPortion)} تومان`
-                        : '۰ (بدون سود)'}
+                        ? t('{amount} تومان', { amount: formatNum(inst.interestPortion) })
+                        : t('۰ (بدون سود)')}
                     </span>
                   </td>
 
                   <td className="col-balance">
                     <span className="amount-balance">
-                      {formatNum(inst.remainingBalanceAfter)} تومان
+                      {t('{amount} تومان', { amount: formatNum(inst.remainingBalanceAfter) })}
                     </span>
                   </td>
 
@@ -401,7 +401,7 @@ export default function LoanInstallmentsTable({
                       <div className="paid-actions-wrap">
                         <div className="paid-meta-text">
                           <span className="paid-date-badge">
-                            {inst.paidDate ? formatShamsiDisplay(inst.paidDate) : 'پرداخت شده'}
+                            {inst.paidDate ? formatShamsiDisplay(inst.paidDate) : t('پرداخت شده')}
                           </span>
                         </div>
                         <button
@@ -409,10 +409,10 @@ export default function LoanInstallmentsTable({
                           className="btn-unmark-paid"
                           onClick={() => handleUnmark(inst)}
                           disabled={readOnly || isActionLoading}
-                          title={readOnly ? 'در نسخه دمو غیرفعال است' : 'لغو ثبت پرداخت'}
+                          title={readOnly ? t('در نسخه دمو غیرفعال است') : t('لغو ثبت پرداخت')}
                         >
                           <RotateCcw size={13} />
-                          لغو
+                          {t('لغو')}
                         </button>
                       </div>
                     ) : (
@@ -447,7 +447,7 @@ export default function LoanInstallmentsTable({
                                 }}>
                                   <AlertCircle size={14} style={{ flexShrink: 0, marginTop: '2px' }} />
                                   <span>
-                                    با ثبت این پرداخت، {priorUnpaid.length} قسط قبلی (مجموعاً {formatNum(priorTotal)} تومان) هم خودکار پرداخت‌شده علامت می‌خورند (بر اساس تاریخ سررسید هرکدام).
+                                    {t('با ثبت این پرداخت، {count} قسط قبلی (مجموعاً {amount} تومان) هم خودکار پرداخت‌شده علامت می‌خورند (بر اساس تاریخ سررسید هرکدام).', { count: priorUnpaid.length, amount: formatNum(priorTotal) })}
                                   </span>
                                 </div>
                               );
@@ -457,13 +457,13 @@ export default function LoanInstallmentsTable({
                               <NumericInput
                                 value={payAmount}
                                 onValueChange={(val) => setPayAmount(val)}
-                                placeholder="مبلغ پرداختی"
-                                affix="تومان"
+                                placeholder={t('مبلغ پرداختی')}
+                                affix={t('تومان')}
                                 className="form-input pay-amount-input"
                               />
 
                               <ShamsiDatePicker
-                                label="تاریخ پرداخت"
+                                label={t('تاریخ پرداخت')}
                                 value={payDate}
                                 onChange={(val) => setPayDate(val)}
                               />
@@ -476,7 +476,7 @@ export default function LoanInstallmentsTable({
                                 onClick={() => handleConfirmPay(inst)}
                                 disabled={isActionLoading}
                               >
-                                {isActionLoading ? '...' : 'تأیید'}
+                                {isActionLoading ? '...' : t('تأیید')}
                               </button>
                               <button
                                 type="button"
@@ -484,7 +484,7 @@ export default function LoanInstallmentsTable({
                                 onClick={() => setPayingInstId(null)}
                                 disabled={isActionLoading}
                               >
-                                انصراف
+                                {t('انصراف')}
                               </button>
                             </div>
                           </div>
@@ -494,10 +494,10 @@ export default function LoanInstallmentsTable({
                             className="btn-mark-paid"
                             onClick={() => handleOpenPayModal(inst)}
                             disabled={readOnly || isActionLoading}
-                            title={readOnly ? 'در نسخه دمو غیرفعال است' : undefined}
+                            title={readOnly ? t('در نسخه دمو غیرفعال است') : undefined}
                           >
                             <CheckCircle2 size={14} />
-                            پرداخت شد
+                            {t('پرداخت شد')}
                           </button>
                         )}
                         {!isPaying && isOverdue(inst) && (
@@ -506,10 +506,10 @@ export default function LoanInstallmentsTable({
                             className="btn-mark-paid"
                             onClick={() => handlePayOnDueDate(inst)}
                             disabled={readOnly || isActionLoading}
-                            title="در تاریخ سررسیدش پرداخت‌شده ثبت می‌شود، نه امروز"
+                            title={t('در تاریخ سررسیدش پرداخت‌شده ثبت می‌شود، نه امروز')}
                           >
                             <Clock size={14} />
-                            در سررسید پرداخت شد
+                            {t('در سررسید پرداخت شد')}
                           </button>
                         )}
                       </div>
@@ -537,17 +537,17 @@ export default function LoanInstallmentsTable({
                 <div className="card-num-group">
                   <span className="inst-num-badge">#{inst.installmentNumber}</span>
                   <span className="shamsi-date">
-                    سررسید: {formatShamsiDisplay(inst.dueDate) || inst.dueDate}
+                    {t('سررسید: {date}', { date: formatShamsiDisplay(inst.dueDate) || inst.dueDate })}
                   </span>
                 </div>
                 <div>
                   {inst.isPaid ? (
                     <span className="badge-inst paid">
-                      <CheckCircle2 size={12} /> پرداخت شده
+                      <CheckCircle2 size={12} /> {t('پرداخت شده')}
                     </span>
                   ) : (
                     <span className="badge-inst pending">
-                      <Clock size={12} /> در انتظار
+                      <Clock size={12} /> {t('در انتظار')}
                     </span>
                   )}
                 </div>
@@ -556,38 +556,38 @@ export default function LoanInstallmentsTable({
               <div className="mobile-card-body">
                 <div className="mobile-amount-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span className="label">مبلغ قسط:</span>
+                    <span className="label">{t('مبلغ قسط:')}</span>
                     <strong className="value-highlight">
-                      {formatNum(inst.totalAmount)} تومان
+                      {t('{amount} تومان', { amount: formatNum(inst.totalAmount) })}
                     </strong>
                     {Boolean(inst.isManualOverride) && (
-                      <span className="badge-manual-override">ویرایش‌شده</span>
+                      <span className="badge-manual-override">{t('ویرایش‌شده')}</span>
                     )}
                     {Number(inst.feePortion) > 0 && (
                       <span
                         className="badge-manual-override"
-                        title={`شامل ${formatNum(inst.feePortion)} تومان کارمزد سالانه`}
+                        title={t('شامل {amount} تومان کارمزد سالانه', { amount: formatNum(inst.feePortion) })}
                       >
-                        + کارمزد سالانه
+                        {t('+ کارمزد سالانه')}
                       </span>
                     )}
                   </div>
                 </div>
 
                 <div className="mobile-breakdown-row">
-                  <span>اصل: {formatNum(inst.principalPortion)}</span>
+                  <span>{t('اصل: {amount}', { amount: formatNum(inst.principalPortion) })}</span>
                   <span>•</span>
-                  <span>سود: {inst.interestPortion > 0 ? formatNum(inst.interestPortion) : '۰'}</span>
+                  <span>{t('سود: {amount}', { amount: inst.interestPortion > 0 ? formatNum(inst.interestPortion) : t('۰') })}</span>
                   <span>•</span>
-                  <span>مانده: {formatNum(inst.remainingBalanceAfter)}</span>
+                  <span>{t('مانده: {amount}', { amount: formatNum(inst.remainingBalanceAfter) })}</span>
                 </div>
 
                 {inst.isPaid && (
                   <div className="mobile-paid-info">
                     <span>
-                      پرداخت شده در: {inst.paidDate ? formatShamsiDisplay(inst.paidDate) : '—'}
+                      {t('پرداخت شده در: {date}', { date: inst.paidDate ? formatShamsiDisplay(inst.paidDate) : '—' })}
                     </span>
-                    <span>مبلغ: {formatNum(inst.paidAmount)} تومان</span>
+                    <span>{t('مبلغ: {amount} تومان', { amount: formatNum(inst.paidAmount) })}</span>
                   </div>
                 )}
               </div>
@@ -599,10 +599,10 @@ export default function LoanInstallmentsTable({
                     className="btn-unmark-paid mobile"
                     onClick={() => handleUnmark(inst)}
                     disabled={readOnly || isActionLoading}
-                    title={readOnly ? 'در نسخه دمو غیرفعال است' : undefined}
+                    title={readOnly ? t('در نسخه دمو غیرفعال است') : undefined}
                   >
                     <RotateCcw size={13} />
-                    لغو پرداخت
+                    {t('لغو پرداخت')}
                   </button>
                 ) : isPaying ? (
                   <div className="mobile-pay-popover">
@@ -634,7 +634,7 @@ export default function LoanInstallmentsTable({
                         }}>
                           <AlertCircle size={14} style={{ flexShrink: 0, marginTop: '2px' }} />
                           <span>
-                            با ثبت این پرداخت، {priorUnpaid.length} قسط قبلی (مجموعاً {formatNum(priorTotal)} تومان) هم خودکار پرداخت‌شده علامت می‌خورند (بر اساس تاریخ سررسید هرکدام).
+                            {t('با ثبت این پرداخت، {count} قسط قبلی (مجموعاً {amount} تومان) هم خودکار پرداخت‌شده علامت می‌خورند (بر اساس تاریخ سررسید هرکدام).', { count: priorUnpaid.length, amount: formatNum(priorTotal) })}
                           </span>
                         </div>
                       );
@@ -643,13 +643,13 @@ export default function LoanInstallmentsTable({
                     <NumericInput
                       value={payAmount}
                       onValueChange={(val) => setPayAmount(val)}
-                      placeholder="مبلغ پرداختی"
-                      affix="تومان"
+                      placeholder={t('مبلغ پرداختی')}
+                      affix={t('تومان')}
                       className="form-input"
                     />
 
                     <ShamsiDatePicker
-                      label="تاریخ پرداخت"
+                      label={t('تاریخ پرداخت')}
                       value={payDate}
                       onChange={(val) => setPayDate(val)}
                     />
@@ -661,14 +661,14 @@ export default function LoanInstallmentsTable({
                         onClick={() => handleConfirmPay(inst)}
                         disabled={isActionLoading}
                       >
-                        {isActionLoading ? 'در حال ثبت...' : 'تأیید پرداخت'}
+                        {isActionLoading ? t('در حال ثبت...') : t('تأیید پرداخت')}
                       </button>
                       <button
                         type="button"
                         className="btn-pay-cancel"
                         onClick={() => setPayingInstId(null)}
                       >
-                        انصراف
+                        {t('انصراف')}
                       </button>
                     </div>
                   </div>
@@ -678,10 +678,10 @@ export default function LoanInstallmentsTable({
                     className="btn-mark-paid mobile"
                     onClick={() => handleOpenPayModal(inst)}
                     disabled={readOnly || isActionLoading}
-                    title={readOnly ? 'در نسخه دمو غیرفعال است' : undefined}
+                    title={readOnly ? t('در نسخه دمو غیرفعال است') : undefined}
                   >
                     <CheckCircle2 size={14} />
-                    ثبت پرداخت این قسط
+                    {t('ثبت پرداخت این قسط')}
                   </button>
                 )}
                 {!inst.isPaid && !isPaying && isOverdue(inst) && (
@@ -690,10 +690,10 @@ export default function LoanInstallmentsTable({
                     className="btn-mark-paid mobile"
                     onClick={() => handlePayOnDueDate(inst)}
                     disabled={readOnly || isActionLoading}
-                    title="در تاریخ سررسیدش پرداخت‌شده ثبت می‌شود، نه امروز"
+                    title={t('در تاریخ سررسیدش پرداخت‌شده ثبت می‌شود، نه امروز')}
                   >
                     <Clock size={14} />
-                    در سررسید پرداخت شد
+                    {t('در سررسید پرداخت شد')}
                   </button>
                 )}
               </div>
@@ -714,7 +714,7 @@ export default function LoanInstallmentsTable({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
             <History size={16} className="text-amber-500" />
             <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              تاریخچه پرداخت‌های اضافه / یکجا ({extraPayments.length})
+              {t('تاریخچه پرداخت‌های اضافه / یکجا ({n})', { n: extraPayments.length })}
             </h4>
           </div>
 
@@ -737,7 +737,7 @@ export default function LoanInstallmentsTable({
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span style={{ color: 'var(--color-warning)', fontWeight: 700, fontSize: '0.92rem' }}>
-                    {formatNum(ep.amount)} تومان
+                    {t('{amount} تومان', { amount: formatNum(ep.amount) })}
                   </span>
                   <span style={{
                     fontSize: '0.72rem',
@@ -747,7 +747,7 @@ export default function LoanInstallmentsTable({
                     color: ep.reductionMode === 'reduce_term' ? '#c084fc' : 'var(--color-primary-text)',
                     border: `1px solid ${ep.reductionMode === 'reduce_term' ? 'rgba(192, 132, 252, 0.3)' : 'rgba(56, 189, 248, 0.3)'}`,
                   }}>
-                    {ep.reductionMode === 'reduce_term' ? 'کاهش مدت وام' : 'کاهش مبلغ اقساط'}
+                    {ep.reductionMode === 'reduce_term' ? t('کاهش مدت وام') : t('کاهش مبلغ اقساط')}
                   </span>
                 </div>
 
@@ -758,7 +758,7 @@ export default function LoanInstallmentsTable({
                     </span>
                   )}
                   <span>
-                    تاریخ: {ep.paymentDate ? formatShamsiDisplay(ep.paymentDate) : '—'}
+                    {t('تاریخ: {date}', { date: ep.paymentDate ? formatShamsiDisplay(ep.paymentDate) : '—' })}
                   </span>
                 </div>
               </div>

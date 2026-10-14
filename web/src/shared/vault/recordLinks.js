@@ -27,6 +27,7 @@ import { CHEQUE_DIRECTION_OF, recordLinksOf, sameLinkValue } from '../../utils/c
 import { CHEQUE_CLEARED, applyChequeStatus } from '../../utils/chequeDocument.js';
 import { renewedAfter } from '../../utils/subscriptionDocument.js';
 import { todayIso } from '../utils/dates.js';
+import { t } from '../../utils/i18n.js';
 
 /** The day a record moved money */
 const dayOf = (side, record) => (side === 'income' ? record.incomeDate : record.date);
@@ -63,7 +64,7 @@ const EFFECTS = {
       if (cheque.settlement?.id === record.id && cheque.status === CHEQUE_CLEARED) return;
       const cleared = cheque.status === CHEQUE_CLEARED
         ? cheque
-        : applyChequeStatus(cheque, CHEQUE_CLEARED, dayOf(side, record), side === 'income' ? 'وصول با ثبت درآمد' : 'پرداخت با ثبت هزینه');
+        : applyChequeStatus(cheque, CHEQUE_CLEARED, dayOf(side, record), side === 'income' ? t('وصول با ثبت درآمد') : t('پرداخت با ثبت هزینه'));
       await (await cheques()).updateCheque(cheque.id, chequeInput({ ...cleared, settlement: { side, id: record.id } }));
     },
     async detach(chequeId, record) {
@@ -71,7 +72,7 @@ const EFFECTS = {
       if (!cheque || cheque.settlement?.id !== record.id) return;
       // Cleared through this record: back to where it was
       const next = cheque.status === CHEQUE_CLEARED
-        ? applyChequeStatus(cheque, statusBeforeClearing(cheque), todayIso(), 'ثبت وصول یا پرداختش حذف شد')
+        ? applyChequeStatus(cheque, statusBeforeClearing(cheque), todayIso(), t('ثبت وصول یا پرداختش حذف شد'))
         : cheque;
       await (await cheques()).updateCheque(cheque.id, chequeInput({ ...next, settlement: null }));
     },
@@ -176,7 +177,7 @@ export async function releaseRecordLinks(side, record) {
  */
 export async function settleCheque(cheque, { date, expenses = true }) {
   if (!cheque || cheque.status !== CHEQUE_CLEARED || cheque.settlement) return null;
-  const title = `چک ${cheque.counterparty}${cheque.chequeNumber ? ` (${cheque.chequeNumber})` : ''}`.slice(0, 120);
+  const title = `${t('چک {name}', { name: cheque.counterparty })}${cheque.chequeNumber ? ` (${cheque.chequeNumber})` : ''}`.slice(0, 120);
   // Already recorded by hand that day (same amount)? That one is linked instead (spendingRecords.js)
   const spending = await import('./spendingRecords.js');
   if (cheque.direction === 'received') {
