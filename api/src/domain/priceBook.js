@@ -107,8 +107,8 @@ export function roundUsd(value) {
 
 // ── Ids ──────────────────────────────────────────────────────────────────────
 
-const PERSIAN_DIGITS = "۰۱۲۳۴۵۶۷۸۹";
-const ARABIC_DIGITS = "٠١٢٣٤٥٦٧٨٩";
+const PERSIAN_DIGITS = "۰۱۲۳۴۵۶۷۸۹"; // i18n-ignore
+const ARABIC_DIGITS = "٠١٢٣٤٥٦٧٨٩"; // i18n-ignore
 
 /**
  * An id in its one form: trimmed, lower-case, Arabic ي/ك/ة/أ as their Persian letters, Persian and
@@ -116,12 +116,12 @@ const ARABIC_DIGITS = "٠١٢٣٤٥٦٧٨٩";
  * «فملي» or «اخزا۱۰۲» gives the same id as one that writes «فملی» or «اخزا102».
  */
 export const normalizePriceId = (id) => String(id ?? "")
-  .replace(/[ي]/g, "ی")
-  .replace(/[ك]/g, "ک")
-  .replace(/[ة]/g, "ه")
-  .replace(/[أإٱ]/g, "ا")
-  .replace(/[۰-۹]/g, (d) => String(PERSIAN_DIGITS.indexOf(d)))
-  .replace(/[٠-٩]/g, (d) => String(ARABIC_DIGITS.indexOf(d)))
+  .replace(/[ي]/g, "ی") // i18n-ignore
+  .replace(/[ك]/g, "ک") // i18n-ignore
+  .replace(/[ة]/g, "ه") // i18n-ignore
+  .replace(/[أإٱ]/g, "ا") // i18n-ignore
+  .replace(/[۰-۹]/g, (d) => String(PERSIAN_DIGITS.indexOf(d))) // i18n-ignore
+  .replace(/[٠-٩]/g, (d) => String(ARABIC_DIGITS.indexOf(d))) // i18n-ignore
   .replace(/[\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff\u0640]/g, "")
   .replace(/\s+/g, " ")
   .trim()

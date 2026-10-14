@@ -33,11 +33,12 @@
 
 import { currencyOf, usdSeriesKey, roundToman, roundUsd, priceBookVersion, normalizePriceId } from "./priceBook.js";
 import { BUBBLE_SPECS } from "./specs/bubble.spec.js";
+import { t } from "./i18n.js";
 
 /** The averaging windows, by key (the key is what `params.avg` and a card metric use) */
 export const AVERAGE_WINDOWS = {
-  "30d": { days: 30, label: "۳۰ روز" },
-  "1y": { days: 365, label: "یک سال" },
+  "30d": { days: 30, label: t("۳۰ روز") },
+  "1y": { days: 365, label: t("یک سال") },
 };
 
 export const AVERAGE_WINDOW_KEYS = Object.keys(AVERAGE_WINDOWS);

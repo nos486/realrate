@@ -15,6 +15,7 @@
 import { toAsciiDigits, CHEQUE_LIMITS } from './chequeDocument.js';
 import { isValidIsoDate } from './isoDate.js';
 import { matchBankIdByName, getBankById } from '../config/banks.config.js';
+import { t } from './i18n.js';
 
 // ── Pure Jalali to Gregorian Date Converter ──────────────────────────────────
 export function jalaliToGregorian(jY, jM, jD) {
@@ -110,29 +111,29 @@ export function parseAndConvertShamsiDate(str) {
 
 // ── Persian Words to Number Converter ───────────────────────────────────────
 const ONES = {
-  'صفر': 0, 'یک': 1, 'يك': 1, 'دو': 2, 'سه': 3, 'چهار': 4, 'پنج': 5,
-  'شش': 6, 'شيش': 6, 'هفت': 7, 'هشت': 8, 'نه': 9,
-  'ده': 10, 'یازده': 11, 'يازده': 11, 'دوازده': 12, 'سیزده': 13, 'چهارده': 14,
-  'پانزده': 15, 'شانزده': 16, 'هفده': 17, 'هجده': 18, 'نوزده': 19,
+  'صفر': 0, 'یک': 1, 'يك': 1, 'دو': 2, 'سه': 3, 'چهار': 4, 'پنج': 5, // i18n-ignore
+  'شش': 6, 'شيش': 6, 'هفت': 7, 'هشت': 8, 'نه': 9, // i18n-ignore
+  'ده': 10, 'یازده': 11, 'يازده': 11, 'دوازده': 12, 'سیزده': 13, 'چهارده': 14, // i18n-ignore
+  'پانزده': 15, 'شانزده': 16, 'هفده': 17, 'هجده': 18, 'نوزده': 19, // i18n-ignore
 };
 
 const TENS = {
-  'بیست': 20, 'بيست': 20, 'سی': 30, 'سي': 30, 'چهل': 40,
-  'پنجاه': 50, 'شصت': 60, 'هفتاد': 70, 'هشتاد': 80, 'نود': 90,
+  'بیست': 20, 'بيست': 20, 'سی': 30, 'سي': 30, 'چهل': 40, // i18n-ignore
+  'پنجاه': 50, 'شصت': 60, 'هفتاد': 70, 'هشتاد': 80, 'نود': 90, // i18n-ignore
 };
 
 const HUNDREDS = {
-  'صد': 100, 'یکصد': 100, 'يكصد': 100, 'دویست': 200, 'سیصد': 300, 'سيصد': 300,
-  'چهارصد': 400, 'پانصد': 500, 'ششصد': 600, 'هفتصد': 700, 'هشتصد': 800, 'نهصد': 900,
+  'صد': 100, 'یکصد': 100, 'يكصد': 100, 'دویست': 200, 'سیصد': 300, 'سيصد': 300, // i18n-ignore
+  'چهارصد': 400, 'پانصد': 500, 'ششصد': 600, 'هفتصد': 700, 'هشتصد': 800, 'نهصد': 900, // i18n-ignore
 };
 
 const MULTIPLIERS = {
-  'هزار': 1000,
-  'میلیون': 1000000,
-  'ميليون': 1000000,
-  'میلیارد': 1000000000,
-  'ميليارد': 1000000000,
-  'همت': 1000000000000,
+  'هزار': 1000, // i18n-ignore
+  'میلیون': 1000000, // i18n-ignore
+  'ميليون': 1000000, // i18n-ignore
+  'میلیارد': 1000000000, // i18n-ignore
+  'ميليارد': 1000000000, // i18n-ignore
+  'همت': 1000000000000, // i18n-ignore
 };
 
 /**
@@ -145,9 +146,9 @@ export function wordsToNumberPersian(text) {
   if (!text || typeof text !== 'string') return null;
 
   let cleaned = text
-    .replace(/ي/g, 'ی')
-    .replace(/ك/g, 'ک')
-    .replace(/[،,]/g, ' ')
+    .replace(/ي/g, 'ی') // i18n-ignore
+    .replace(/ك/g, 'ک') // i18n-ignore
+    .replace(/[،,]/g, ' ') // i18n-ignore
     .trim();
 
   if (!cleaned) return null;
@@ -156,13 +157,13 @@ export function wordsToNumberPersian(text) {
   // In Iranian cheques, default currency is Rials (ریال). If "تومان" is explicitly stated,
   // we recognize it and multiply by 10 to obtain Rials for internal comparison.
   let unit = 'rial';
-  if (/(?:^|\s)تومان(?:\s|$)/.test(cleaned)) {
+  if (/(?:^|\s)تومان(?:\s|$)/.test(cleaned)) { // i18n-ignore
     unit = 'toman';
   }
 
   // Remove noise words
   cleaned = cleaned
-    .replace(/(^|\s)(تمام|تنها|فقط|مبلغ|عدد|برابر|ریال|تومان)(?=\s|$)/g, ' ')
+    .replace(/(^|\s)(تمام|تنها|فقط|مبلغ|عدد|برابر|ریال|تومان)(?=\s|$)/g, ' ') // i18n-ignore
     .trim();
 
   // Split tokens by space and filter out "و" connector
@@ -170,10 +171,10 @@ export function wordsToNumberPersian(text) {
   const tokens = [];
 
   for (const t of rawTokens) {
-    if (t === 'و') continue;
+    if (t === 'و') continue; // i18n-ignore
     // Handle combined forms like "بیست‌وچهار" or "صدوهشتاد"
-    if (t.includes('و') && !ONES[t] && !TENS[t] && !HUNDREDS[t] && !MULTIPLIERS[t]) {
-      const subParts = t.split('و').filter(Boolean);
+    if (t.includes('و') && !ONES[t] && !TENS[t] && !HUNDREDS[t] && !MULTIPLIERS[t]) { // i18n-ignore
+      const subParts = t.split('و').filter(Boolean); // i18n-ignore
       tokens.push(...subParts);
     } else {
       tokens.push(t);
@@ -309,7 +310,7 @@ export function normalizeChequeScan(rawInput) {
         bankName: 'low',
         counterparty: 'low',
       },
-      warnings: ['این تصویر چک نیست یا اطلاعات آن قابل خواندن نمی‌باشد.'],
+      warnings: [t('این تصویر چک نیست یا اطلاعات آن قابل خواندن نمی‌باشد.')],
     };
   }
 
@@ -341,7 +342,7 @@ export function normalizeChequeScan(rawInput) {
       if (normalizedAmountTomans > CHEQUE_LIMITS.maxAmount) {
         normalizedAmountTomans = null;
         confidence.amount = 'low';
-        warnings.push('مبلغ چک بیش از حد مجاز سامانه است.');
+        warnings.push(t('مبلغ چک بیش از حد مجاز سامانه است.'));
       }
     } else {
       confidence.amount = 'low';
@@ -355,7 +356,7 @@ export function normalizeChequeScan(rawInput) {
     const verbalParsed = wordsToNumberPersian(raw.amountWords);
     if (verbalParsed && amountRials !== null) {
       if (verbalParsed.amountRials !== amountRials) {
-        warnings.push('مبلغ عددی و حروفی یکی نیست');
+        warnings.push(t('مبلغ عددی و حروفی یکی نیست'));
         confidence.amount = 'low';
       } else {
         // High confidence when numbers match verbal text
@@ -376,7 +377,7 @@ export function normalizeChequeScan(rawInput) {
     } else {
       confidence.sayadId = 'low';
       if (sayadDigits.length > 0) {
-        warnings.push('شناسه صیادی باید دقیقاً ۱۶ رقم باشد.');
+        warnings.push(t('شناسه صیادی باید دقیقاً ۱۶ رقم باشد.'));
       }
     }
   } else {
@@ -391,7 +392,7 @@ export function normalizeChequeScan(rawInput) {
       normalizedDueDate = dateConverted.isoDate;
     } else {
       confidence.dueDate = 'low';
-      warnings.push('تاریخ سررسید نامعتبر است.');
+      warnings.push(t('تاریخ سررسید نامعتبر است.'));
     }
   } else {
     confidence.dueDate = 'low';
@@ -439,7 +440,7 @@ export function normalizeChequeScan(rawInput) {
   // ── 7. Notes ────────────────────────────────────────────────────────────────
   let notes = String(raw.notes || '').trim();
   if (raw.branchName && !notes.includes(raw.branchName)) {
-    notes = notes ? `${notes} (شعبه: ${raw.branchName})` : `شعبه: ${raw.branchName}`;
+    notes = notes ? t('{notes} (شعبه: {branchName})', { notes, branchName: raw.branchName }) : t('شعبه: {branchName}', { branchName: raw.branchName });
   }
   if (notes.length > CHEQUE_LIMITS.notesLength) {
     notes = notes.slice(0, CHEQUE_LIMITS.notesLength);
@@ -463,7 +464,7 @@ export function normalizeChequeScan(rawInput) {
         notes,
       },
       confidence,
-      warnings: ['اطلاعات اصلی چک (مبلغ، شناسه صیادی یا سررسید) در تصویر شناسایی نشد.'],
+      warnings: [t('اطلاعات اصلی چک (مبلغ، شناسه صیادی یا سررسید) در تصویر شناسایی نشد.')],
     };
   }
 

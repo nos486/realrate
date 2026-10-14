@@ -7,6 +7,8 @@
  * Shared with the web client through a symlink.
  */
 
+import { t } from './i18n.js';
+
 /** The group the market page belongs to (created with the schema, can't be deleted) */
 export const PRO_GROUP_KEY = 'pro';
 
@@ -35,19 +37,19 @@ export function validateGroup(body, { partial = false } = {}) {
   if (!partial) {
     const key = String(input.key || '').trim().toLowerCase();
     if (!isValidGroupKey(key)) {
-      return { error: 'شناسه‌ی گروه باید با حرف انگلیسی شروع شود و فقط حروف کوچک انگلیسی، رقم، - و _ داشته باشد (۲ تا ۳۲ نویسه).' };
+      return { error: t('شناسه‌ی گروه باید با حرف انگلیسی شروع شود و فقط حروف کوچک انگلیسی، رقم، - و _ داشته باشد (۲ تا ۳۲ نویسه).') };
     }
     value.key = key;
   }
   if (!partial || input.name !== undefined) {
     const name = String(input.name || '').trim();
-    if (!name) return { error: 'نام گروه الزامی است.' };
-    if (name.length > GROUP_LIMITS.name) return { error: `نام گروه حداکثر ${GROUP_LIMITS.name} نویسه است.` };
+    if (!name) return { error: t('نام گروه الزامی است.') };
+    if (name.length > GROUP_LIMITS.name) return { error: t('نام گروه حداکثر {name} نویسه است.', { name: GROUP_LIMITS.name }) };
     value.name = name;
   }
   if (!partial || input.description !== undefined) {
     const description = String(input.description || '').trim();
-    if (description.length > GROUP_LIMITS.description) return { error: `توضیح گروه حداکثر ${GROUP_LIMITS.description} نویسه است.` };
+    if (description.length > GROUP_LIMITS.description) return { error: t('توضیح گروه حداکثر {description} نویسه است.', { description: GROUP_LIMITS.description }) };
     value.description = description;
   }
   if (!partial || input.allowRequests !== undefined) value.allowRequests = input.allowRequests === true;

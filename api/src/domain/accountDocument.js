@@ -15,13 +15,14 @@
 import { validateCreditTerms } from './creditAccount.js';
 import { tehranToday } from './isoDate.js';
 import { CURRENCY_CODES } from './currencies.js';
+import { t } from './i18n.js';
 
 export const ACCOUNT_TYPES = [
-  { value: 'bank', label: 'حساب بانکی' },
-  { value: 'credit', label: 'اعتبار بانکی' },
-  { value: 'cash', label: 'نقد' },
-  { value: 'wallet', label: 'کیف پول الکترونیک' },
-  { value: 'other', label: 'سایر' },
+  { value: 'bank', label: t('حساب بانکی') },
+  { value: 'credit', label: t('اعتبار بانکی') },
+  { value: 'cash', label: t('نقد') },
+  { value: 'wallet', label: t('کیف پول الکترونیک') },
+  { value: 'other', label: t('سایر') },
 ];
 
 export const ACCOUNT_LIMITS = {
@@ -32,11 +33,11 @@ export const ACCOUNT_LIMITS = {
 const TYPE_VALUES = new Set(ACCOUNT_TYPES.map((t) => t.value));
 const BANK_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
 const text = (v) => String(v ?? '').trim();
-const PERSIAN_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
-const ARABIC_DIGITS = '٠١٢٣٤٥٦٧٨٩';
+const PERSIAN_DIGITS = '۰۱۲۳۴۵۶۷۸۹'; // i18n-ignore
+const ARABIC_DIGITS = '٠١٢٣٤٥٦٧٨٩'; // i18n-ignore
 const asciiDigits = (v) => text(v)
-  .replace(/[۰-۹]/g, (d) => String(PERSIAN_DIGITS.indexOf(d)))
-  .replace(/[٠-٩]/g, (d) => String(ARABIC_DIGITS.indexOf(d)));
+  .replace(/[۰-۹]/g, (d) => String(PERSIAN_DIGITS.indexOf(d))) // i18n-ignore
+  .replace(/[٠-٩]/g, (d) => String(ARABIC_DIGITS.indexOf(d))); // i18n-ignore
 
 /** Types that belong to a bank (a bank, a card, an account number) */
 const BANK_TYPES = new Set(['bank', 'credit']);
@@ -68,7 +69,7 @@ export function accountsForCurrency(accounts = [], currency = 'IRT', keepId = ''
 export const isCreditAccount = (account) => account?.type === 'credit' && Boolean(account.credit);
 
 export function accountTypeLabel(type) {
-  return ACCOUNT_TYPES.find((t) => t.value === type)?.label || 'سایر';
+  return ACCOUNT_TYPES.find((t) => t.value === type)?.label || t('سایر');
 }
 
 /**
@@ -77,8 +78,8 @@ export function accountTypeLabel(type) {
  */
 export function validateAccount(body = {}) {
   const name = text(body.name);
-  if (!name) return { error: 'نام حساب الزامی است.' };
-  if (name.length > ACCOUNT_LIMITS.nameLength) return { error: `نام حساب نباید بیشتر از ${ACCOUNT_LIMITS.nameLength} کاراکتر باشد.` };
+  if (!name) return { error: t('نام حساب الزامی است.') };
+  if (name.length > ACCOUNT_LIMITS.nameLength) return { error: t('نام حساب نباید بیشتر از {nameLength} کاراکتر باشد.', { nameLength: ACCOUNT_LIMITS.nameLength }) };
 
   const type = TYPE_VALUES.has(body.type) ? body.type : 'bank';
   // A bank only for a bank account or a bank credit: a standard bank id or a custom bank's
@@ -87,16 +88,16 @@ export function validateAccount(body = {}) {
   const bankName = hasBank ? text(body.bankName).slice(0, 80) : '';
 
   const cardLast4 = asciiDigits(body.cardLast4);
-  if (cardLast4 && !/^\d{4}$/.test(cardLast4)) return { error: 'چهار رقم آخر کارت باید دقیقاً ۴ رقم باشد.' };
+  if (cardLast4 && !/^\d{4}$/.test(cardLast4)) return { error: t('چهار رقم آخر کارت باید دقیقاً ۴ رقم باشد.') };
   // The account number (digits; separators dropped), as the bank's SMS shows it
   const accountNumber = asciiDigits(body.accountNumber).replace(/[\s.-]/g, '');
-  if (accountNumber && !/^\d{4,26}$/.test(accountNumber)) return { error: 'شماره حساب فقط شامل ارقام (۴ تا ۲۶ رقم) است.' };
+  if (accountNumber && !/^\d{4,26}$/.test(accountNumber)) return { error: t('شماره حساب فقط شامل ارقام (۴ تا ۲۶ رقم) است.') };
 
   // A credit is in tomans, with its terms; any other account holds the currencies it lists (at
   // least one — an older body's single `currency` counts as its list)
   const listed = Array.isArray(body.currencies) ? body.currencies : [body.currency || 'IRT'];
   const currencies = type === 'credit' ? ['IRT'] : CURRENCY_VALUES.filter((c) => listed.includes(c));
-  if (currencies.length === 0) return { error: 'دست‌کم یک ارز برای حساب انتخاب کنید.' };
+  if (currencies.length === 0) return { error: t('دست‌کم یک ارز برای حساب انتخاب کنید.') };
   let credit = null;
   if (type === 'credit') {
     const terms = validateCreditTerms(body.credit, tehranToday());
@@ -104,7 +105,7 @@ export function validateAccount(body = {}) {
     credit = terms.value;
   }
   const notes = text(body.notes);
-  if (notes.length > ACCOUNT_LIMITS.notesLength) return { error: `توضیحات نباید بیشتر از ${ACCOUNT_LIMITS.notesLength} کاراکتر باشد.` };
+  if (notes.length > ACCOUNT_LIMITS.notesLength) return { error: t('توضیحات نباید بیشتر از {notesLength} کاراکتر باشد.', { notesLength: ACCOUNT_LIMITS.notesLength }) };
 
   return {
     value: {

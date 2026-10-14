@@ -33,12 +33,13 @@ import {
 import { buildLoanView } from './loanDocument.js';
 import { isChequeOpen } from './chequeDocument.js';
 import { subscriptionView, renewalsBetween } from './subscriptionDocument.js';
+import { t } from './i18n.js';
 
 /** The kinds of records that carry a reminder, and how the settings name them */
 export const REMINDER_SOURCES = [
-  { id: 'loan', label: 'اقساط وام' },
-  { id: 'cheque', label: 'چک‌ها' },
-  { id: 'subscription', label: 'تمدید اشتراک‌ها' },
+  { id: 'loan', label: t('اقساط وام') },
+  { id: 'cheque', label: t('چک‌ها') },
+  { id: 'subscription', label: t('تمدید اشتراک‌ها') },
 ];
 export const REMINDER_KINDS = REMINDER_SOURCES.map((s) => s.id);
 
@@ -61,28 +62,28 @@ const pad = (n) => String(n).padStart(2, '0');
  */
 export function validateReminder(input) {
   if (!input || typeof input !== 'object') {
-    return { error: 'داده‌های یادآوری نامعتبر است.' };
+    return { error: t('داده‌های یادآوری نامعتبر است.') };
   }
 
   const kind = String(input.kind || '').trim();
   if (!REMINDER_KINDS.includes(kind)) {
-    return { error: 'نوع یادآوری نامعتبر است.' };
+    return { error: t('نوع یادآوری نامعتبر است.') };
   }
 
   const recordId = String(input.recordId || input.record_id || '').trim();
   if (!RECORD_ID_RE.test(recordId)) {
-    return { error: 'شناسه رکورد یادآوری نامعتبر است.' };
+    return { error: t('شناسه رکورد یادآوری نامعتبر است.') };
   }
 
   const dueDate = String(input.dueDate || input.due_date || '').trim();
   if (!ISO_DATE_RE.test(dueDate) || !isValidIsoDate(dueDate)) {
-    return { error: 'تاریخ سررسید یادآوری نامعتبر است.' };
+    return { error: t('تاریخ سررسید یادآوری نامعتبر است.') };
   }
 
   const intervalRaw = input.intervalMonths ?? input.interval_months ?? 0;
   const intervalMonths = Number(intervalRaw);
   if (!Number.isInteger(intervalMonths) || intervalMonths < 0 || intervalMonths > 12) {
-    return { error: 'فاصله تکرار یادآوری باید بین ۰ تا ۱۲ ماه باشد.' };
+    return { error: t('فاصله تکرار یادآوری باید بین ۰ تا ۱۲ ماه باشد.') };
   }
 
   let remaining = null;
@@ -90,7 +91,7 @@ export function validateReminder(input) {
   if (rawRemaining !== null && rawRemaining !== undefined && rawRemaining !== '') {
     const num = Number(rawRemaining);
     if (!Number.isInteger(num) || num < 0 || num > 600) {
-      return { error: 'تعداد دفعات باقی‌مانده باید بین ۰ تا ۶۰۰ باشد.' };
+      return { error: t('تعداد دفعات باقی‌مانده باید بین ۰ تا ۶۰۰ باشد.') };
     }
     remaining = num;
   }
@@ -101,7 +102,7 @@ export function validateReminder(input) {
     if (dir === 'issued' || dir === 'received') {
       direction = dir;
     } else if (dir !== '') {
-      return { error: 'جهت چک در یادآوری نامعتبر است.' };
+      return { error: t('جهت چک در یادآوری نامعتبر است.') };
     }
   }
 

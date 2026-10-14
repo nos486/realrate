@@ -14,7 +14,7 @@
  * Shared with the web (web/src/utils/currencies.js is a symlink): no Worker bindings.
  */
 
-import { intlLocale } from './i18n.js';
+import { intlLocale, t } from './i18n.js';
 
 /** The base currency: amounts are totalled in tomans */
 export const BASE_CURRENCY = 'IRT';
@@ -26,11 +26,11 @@ export const BASE_CURRENCY = 'IRT';
  */
 /** @type {Currency[]} the app's order (pickers, totals) */
 export const CURRENCIES = [
-  { code: 'IRT', label: 'تومان', adjective: 'تومانی', symbol: 'تومان', priceId: null, decimals: 0 },
-  { code: 'USD', label: 'دلار', adjective: 'دلاری', symbol: '$', priceId: 'usd', decimals: 2 },
-  { code: 'EUR', label: 'یورو', adjective: 'یورویی', symbol: '€', priceId: 'eur', decimals: 2 },
-  { code: 'TRY', label: 'لیر', adjective: 'لیری', symbol: '₺', priceId: 'try', decimals: 2 },
-  { code: 'AED', label: 'درهم', adjective: 'درهمی', symbol: 'د.إ', priceId: 'aed', decimals: 2 },
+  { code: 'IRT', label: t('تومان'), adjective: t('تومانی'), symbol: t('تومان'), priceId: null, decimals: 0 },
+  { code: 'USD', label: t('دلار'), adjective: t('دلاری'), symbol: '$', priceId: 'usd', decimals: 2 },
+  { code: 'EUR', label: t('یورو'), adjective: t('یورویی'), symbol: '€', priceId: 'eur', decimals: 2 },
+  { code: 'TRY', label: t('لیر'), adjective: t('لیری'), symbol: '₺', priceId: 'try', decimals: 2 },
+  { code: 'AED', label: t('درهم'), adjective: t('درهمی'), symbol: t('د.إ'), priceId: 'aed', decimals: 2 },
 ];
 
 const BY_CODE = new Map(CURRENCIES.map((c) => [c.code, c]));

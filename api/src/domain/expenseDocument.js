@@ -56,6 +56,7 @@ import { isRecordOwner } from './recordOwners.js';
 import {
   BASE_CURRENCY, CURRENCIES, normalizeCurrency, currencyRateOn, currencyRateToday,
 } from './currencies.js';
+import { t } from './i18n.js';
 
 /** The currencies an expense can be in (currencies.js), as picker options */
 export const EXPENSE_CURRENCIES = CURRENCIES.map(({ code, label, symbol }) => ({ value: code, label, symbol }));
@@ -63,30 +64,30 @@ export const EXPENSE_CURRENCIES = CURRENCIES.map(({ code, label, symbol }) => ({
 export const EXPENSE_GROUP_TYPES = ['project', 'daily'];
 
 /** Name of the daily section, created the first time an everyday expense is recorded */
-export const DAILY_GROUP_NAME = 'هزینه‌های روزمره';
+export const DAILY_GROUP_NAME = t('هزینه‌های روزمره');
 
 /**
  * Built-in categories of everyday expenses (display icons and colors live in the web app). The
  * user can rename and hide them and add their own (`c_…`, categoryDocument.js)
  */
 export const DAILY_EXPENSE_CATEGORIES = [
-  { value: 'groceries', label: 'خوراک و خواربار' },
-  { value: 'dining', label: 'رستوران و کافه' },
-  { value: 'transport', label: 'رفت‌وآمد و سوخت' },
-  { value: 'bills', label: 'قبوض و شارژ' },
-  { value: 'housing', label: 'مسکن و اجاره' },
-  { value: 'shopping', label: 'خرید و پوشاک' },
-  { value: 'health', label: 'سلامت و درمان' },
-  { value: 'education', label: 'آموزش' },
-  { value: 'entertainment', label: 'تفریح و سفر' },
-  { value: 'subscriptions', label: 'اینترنت و اشتراک‌ها' },
-  { value: 'gifts', label: 'هدیه و خیریه' },
-  { value: 'installments', label: 'پرداخت قسط' },
-  { value: 'credit_fees', label: 'کارمزد و سود اعتبار' },
-  { value: 'running_costs', label: 'هزینه‌های جاری' },
-  { value: 'investment', label: 'سرمایه‌گذاری' },
-  { value: 'cash_management', label: 'مدیریت نقدینگی' },
-  { value: 'other', label: 'سایر' },
+  { value: 'groceries', label: t('خوراک و خواربار') },
+  { value: 'dining', label: t('رستوران و کافه') },
+  { value: 'transport', label: t('رفت‌وآمد و سوخت') },
+  { value: 'bills', label: t('قبوض و شارژ') },
+  { value: 'housing', label: t('مسکن و اجاره') },
+  { value: 'shopping', label: t('خرید و پوشاک') },
+  { value: 'health', label: t('سلامت و درمان') },
+  { value: 'education', label: t('آموزش') },
+  { value: 'entertainment', label: t('تفریح و سفر') },
+  { value: 'subscriptions', label: t('اینترنت و اشتراک‌ها') },
+  { value: 'gifts', label: t('هدیه و خیریه') },
+  { value: 'installments', label: t('پرداخت قسط') },
+  { value: 'credit_fees', label: t('کارمزد و سود اعتبار') },
+  { value: 'running_costs', label: t('هزینه‌های جاری') },
+  { value: 'investment', label: t('سرمایه‌گذاری') },
+  { value: 'cash_management', label: t('مدیریت نقدینگی') },
+  { value: 'other', label: t('سایر') },
 ];
 
 export const EXPENSE_SOURCES = ['manual', 'sms', 'import'];
@@ -111,7 +112,7 @@ export const EXPENSE_LIMITS = {
  * @returns {string[]}
  */
 export function normalizeTags(raw) {
-  const list = Array.isArray(raw) ? raw : String(raw ?? '').split(/[,،]/);
+  const list = Array.isArray(raw) ? raw : String(raw ?? '').split(/[,،]/); // i18n-ignore
   const seen = new Set();
   const tags = [];
   for (const item of list) {
@@ -138,15 +139,15 @@ const text = (v) => String(v ?? '').trim();
  */
 export function validateExpenseGroup(body = {}) {
   const name = text(body.name);
-  if (!name) return { error: 'نام بخش الزامی است.' };
-  if (name.length > EXPENSE_LIMITS.nameLength) return { error: `نام بخش نباید بیشتر از ${EXPENSE_LIMITS.nameLength} کاراکتر باشد.` };
+  if (!name) return { error: t('نام بخش الزامی است.') };
+  if (name.length > EXPENSE_LIMITS.nameLength) return { error: t('نام بخش نباید بیشتر از {nameLength} کاراکتر باشد.', { nameLength: EXPENSE_LIMITS.nameLength }) };
   const notes = text(body.notes);
-  if (notes.length > EXPENSE_LIMITS.notesLength) return { error: `توضیحات نباید بیشتر از ${EXPENSE_LIMITS.notesLength} کاراکتر باشد.` };
+  if (notes.length > EXPENSE_LIMITS.notesLength) return { error: t('توضیحات نباید بیشتر از {notesLength} کاراکتر باشد.', { notesLength: EXPENSE_LIMITS.notesLength }) };
   const type = EXPENSE_GROUP_TYPES.includes(body.type) ? body.type : 'project';
 
   // A project's total budget (tomans), or none
   const budget = parseBudget(body.budget);
-  if (budget === undefined) return { error: 'بودجه باید عددی مثبت باشد.' };
+  if (budget === undefined) return { error: t('بودجه باید عددی مثبت باشد.') };
 
   // The daily section's monthly budgets: per category and `total`
   const budgets = {};
@@ -154,7 +155,7 @@ export function validateExpenseGroup(body = {}) {
     for (const [key, raw] of Object.entries(body.budgets)) {
       if (key !== 'total' && !isCategoryValue('expense', key)) continue;
       const amount = parseBudget(raw);
-      if (amount === undefined) return { error: 'بودجه باید عددی مثبت باشد.' };
+      if (amount === undefined) return { error: t('بودجه باید عددی مثبت باشد.') };
       if (amount !== null) budgets[key] = amount;
     }
   }
@@ -190,25 +191,25 @@ export const LEGACY_RATE_FIELDS = ['usdRate', 'rate'];
  */
 export function validateExpense(body = {}) {
   const groupId = text(body.groupId);
-  if (!ID_RE.test(groupId)) return { error: 'بخش این هزینه مشخص نشده است.' };
+  if (!ID_RE.test(groupId)) return { error: t('بخش این هزینه مشخص نشده است.') };
 
   // An everyday expense left untitled (the form, «ثبت سریع», automatic SMS recording) is titled
   // after its category
   const title = text(body.title) || DAILY_EXPENSE_CATEGORIES.find((c) => c.value === body.category)?.label || '';
-  if (!title) return { error: 'عنوان هزینه الزامی است.' };
-  if (title.length > EXPENSE_LIMITS.titleLength) return { error: `عنوان نباید بیشتر از ${EXPENSE_LIMITS.titleLength} کاراکتر باشد.` };
+  if (!title) return { error: t('عنوان هزینه الزامی است.') };
+  if (title.length > EXPENSE_LIMITS.titleLength) return { error: t('عنوان نباید بیشتر از {titleLength} کاراکتر باشد.', { titleLength: EXPENSE_LIMITS.titleLength }) };
 
   const currency = normalizeCurrency(body.currency);
   const amount = Number(body.amount);
   if (!Number.isFinite(amount) || amount <= 0 || amount > EXPENSE_LIMITS.maxAmount) {
-    return { error: 'مبلغ هزینه باید عددی مثبت باشد.' };
+    return { error: t('مبلغ هزینه باید عددی مثبت باشد.') };
   }
 
   const date = text(body.date);
-  if (!isValidIsoDate(date)) return { error: 'تاریخ هزینه نامعتبر است.' };
+  if (!isValidIsoDate(date)) return { error: t('تاریخ هزینه نامعتبر است.') };
 
   const notes = text(body.notes);
-  if (notes.length > EXPENSE_LIMITS.notesLength) return { error: `یادداشت نباید بیشتر از ${EXPENSE_LIMITS.notesLength} کاراکتر باشد.` };
+  if (notes.length > EXPENSE_LIMITS.notesLength) return { error: t('یادداشت نباید بیشتر از {notesLength} کاراکتر باشد.', { notesLength: EXPENSE_LIMITS.notesLength }) };
   // A known category (built-in or the user's own), or none (project expenses)
   const category = isCategoryValue('expense', body.category) ? body.category : '';
   const source = EXPENSE_SOURCES.includes(body.source) ? body.source : 'manual';
@@ -227,7 +228,7 @@ export function validateExpense(body = {}) {
 
   // «دنگ» is for toman expenses only
   const shared = currency === BASE_CURRENCY ? validateShare(body, amount) : validateShare({ myShare: null, reimbursements: body.reimbursements }, amount);
-  if (shared.error) return { error: currency === BASE_CURRENCY ? shared.error : 'دنگ فقط برای هزینه‌های تومانی است.' };
+  if (shared.error) return { error: currency === BASE_CURRENCY ? shared.error : t('دنگ فقط برای هزینه‌های تومانی است.') };
   const { myShare, reimbursements } = shared;
 
   const funding = validatePaidFrom(body.paidFrom, currency);
@@ -237,7 +238,7 @@ export function validateExpense(body = {}) {
   const invested = validatePortfolioLink(body.investedIn);
   if (invested.error) return { error: invested.error };
   const investedIn = invested.link;
-  if (investedIn && myShare !== null) return { error: 'هزینه‌ای که به پورتفو اضافه می‌شود دنگ ندارد.' };
+  if (investedIn && myShare !== null) return { error: t('هزینه‌ای که به پورتفو اضافه می‌شود دنگ ندارد.') };
 
   return {
     value: {
@@ -268,8 +269,8 @@ function validatePaidFrom(raw, currency) {
   const portfolioId = text(raw.portfolioId);
   const txId = text(raw.txId);
   const assetId = text(raw.assetId);
-  if (!ID_RE.test(portfolioId) || !ID_RE.test(txId)) return { error: 'پورتفوی پرداخت نامعتبر است.' };
-  if (PAYABLE_ASSETS[currency] !== assetId) return { error: 'این ارز از پورتفو پرداخت‌شدنی نیست.' };
+  if (!ID_RE.test(portfolioId) || !ID_RE.test(txId)) return { error: t('پورتفوی پرداخت نامعتبر است.') };
+  if (PAYABLE_ASSETS[currency] !== assetId) return { error: t('این ارز از پورتفو پرداخت‌شدنی نیست.') };
   return { paidFrom: { portfolioId, portfolioName: text(raw.portfolioName).slice(0, EXPENSE_LIMITS.nameLength), assetId, txId } };
 }
 
@@ -280,17 +281,17 @@ function validatePaidFrom(raw, currency) {
 function validateShare(body, amount) {
   if (body.myShare === null || body.myShare === undefined || body.myShare === '') {
     if (Array.isArray(body.reimbursements) && body.reimbursements.length) {
-      return { error: 'این هزینه دریافتی ثبت‌شده دارد؛ ابتدا دریافتی‌ها را حذف کنید.' };
+      return { error: t('این هزینه دریافتی ثبت‌شده دارد؛ ابتدا دریافتی‌ها را حذف کنید.') };
     }
     return { myShare: null, reimbursements: [] };
   }
   const myShare = Number(body.myShare);
   if (!Number.isFinite(myShare) || myShare < 0 || myShare >= amount) {
-    return { error: 'سهم شما باید از صفر تا کمتر از مبلغ کل باشد.' };
+    return { error: t('سهم شما باید از صفر تا کمتر از مبلغ کل باشد.') };
   }
 
   const list = Array.isArray(body.reimbursements) ? body.reimbursements : [];
-  if (list.length > EXPENSE_LIMITS.maxReimbursements) return { error: 'تعداد دریافتی‌های این هزینه بیش از حد است.' };
+  if (list.length > EXPENSE_LIMITS.maxReimbursements) return { error: t('تعداد دریافتی‌های این هزینه بیش از حد است.') };
   const reimbursements = [];
   for (const raw of list) {
     const { value, error } = validateReimbursement(raw);
@@ -299,7 +300,7 @@ function validateShare(body, amount) {
   }
   const received = reimbursements.reduce((sum, r) => sum + r.amount, 0);
   if (received > amount - myShare + EPSILON) {
-    return { error: 'جمع دریافتی‌ها از سهم دیگران بیشتر می‌شود.' };
+    return { error: t('جمع دریافتی‌ها از سهم دیگران بیشتر می‌شود.') };
   }
   reimbursements.sort((a, b) => a.date.localeCompare(b.date));
   return { myShare, reimbursements };
@@ -311,16 +312,16 @@ function validateShare(body, amount) {
  */
 export function validateReimbursement(body = {}) {
   const id = text(body.id);
-  if (!ID_RE.test(id)) return { error: 'شناسه‌ی دریافتی نامعتبر است.' };
+  if (!ID_RE.test(id)) return { error: t('شناسه‌ی دریافتی نامعتبر است.') };
   const amount = Number(body.amount);
   if (!Number.isFinite(amount) || amount <= 0 || amount > EXPENSE_LIMITS.maxAmount) {
-    return { error: 'مبلغ دریافتی باید عددی مثبت باشد.' };
+    return { error: t('مبلغ دریافتی باید عددی مثبت باشد.') };
   }
   const date = text(body.date);
-  if (!isValidIsoDate(date)) return { error: 'تاریخ دریافتی نامعتبر است.' };
+  if (!isValidIsoDate(date)) return { error: t('تاریخ دریافتی نامعتبر است.') };
   const notes = text(body.notes);
   if (notes.length > EXPENSE_LIMITS.reimbursementNotesLength) {
-    return { error: `توضیح دریافتی نباید بیشتر از ${EXPENSE_LIMITS.reimbursementNotesLength} کاراکتر باشد.` };
+    return { error: t('توضیح دریافتی نباید بیشتر از {reimbursementNotesLength} کاراکتر باشد.', { reimbursementNotesLength: EXPENSE_LIMITS.reimbursementNotesLength }) };
   }
   const accountId = ID_RE.test(text(body.accountId)) ? text(body.accountId) : '';
   const source = REIMBURSEMENT_SOURCES.includes(body.source) ? body.source : 'manual';

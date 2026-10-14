@@ -17,7 +17,7 @@ const pad = (n) => String(n).padStart(2, '0');
 
 /** A day as Gregorian YYYY-MM-DD: holdings keep a Shamsi buy date («1405/07/08»); '' when none */
 export function isoDayOf(value) {
-  const digits = String(value ?? '').trim().replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
+  const digits = String(value ?? '').trim().replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d))); // i18n-ignore
   const match = digits.match(DAY_RE);
   if (!match) return '';
   let [year, month, day] = match.slice(1).map(Number);

@@ -15,6 +15,8 @@
  * diacritics, single spaces.
  */
 
+import { t } from './i18n.js';
+
 const re = (source, flags = 'u') => new RegExp(source, flags);
 
 /**
@@ -25,23 +27,23 @@ const re = (source, flags = 'u') => new RegExp(source, flags);
  * @type {Record<string, { label: string, debit?: object, credit?: object }>}
  */
 export const STATEMENT_KINDS = {
-  purchase: { label: 'خرید با کارت' },
-  cash_withdrawal: { label: 'برداشت نقدی', debit: { category: 'other', title: 'برداشت نقدی', confident: true } },
-  bill_payment: { label: 'پرداخت قبض و خدمات', debit: { category: 'bills', title: 'پرداخت قبض و خدمات', confident: true } },
-  card_transfer: { label: 'کارت به کارت', debit: { title: 'انتقال به' }, credit: { title: 'واریز از' } },
-  account_transfer: { label: 'انتقال بین حساب‌ها', debit: { title: 'انتقال به' }, credit: { title: 'واریز از' } },
-  instant_transfer: { label: 'انتقال پایا، ساتنا و پل', debit: { title: 'انتقال به' }, credit: { title: 'واریز از' } },
-  batch_transfer: { label: 'واریز گروهی (مثل حقوق)', credit: { title: 'واریز گروهی' } },
-  company_payment: { label: 'واریز از شرکت', credit: { title: 'واریز از' } },
-  fee: { label: 'کارمزد بانکی', debit: { category: 'credit_fees', title: 'کارمزد بانکی', confident: true } },
-  loan_received: { label: 'دریافت وام', credit: { category: 'loan_received', title: 'دریافت وام', confident: true } },
-  loan_payment: { label: 'قسط وام', debit: { category: 'installments', title: 'پرداخت قسط وام', confident: true } },
-  loan_cost: { label: 'هزینه‌ی وام', debit: { category: 'credit_fees', title: 'هزینه‌ی وام', confident: true } },
-  dividend: { label: 'سود سهام', credit: { category: 'investment', title: 'سود سهام', confident: true } },
-  cheque: { label: 'وصول چک', credit: { category: 'other', title: 'وصول چک' } },
-  cash_deposit: { label: 'واریز نقدی', credit: { category: 'other', title: 'واریز نقدی' } },
-  reversal: { label: 'برگشت تراکنش', credit: { category: 'other', title: 'برگشت تراکنش', confident: true } },
-  other: { label: 'سایر' },
+  purchase: { label: t('خرید با کارت') },
+  cash_withdrawal: { label: t('برداشت نقدی'), debit: { category: 'other', title: t('برداشت نقدی'), confident: true } },
+  bill_payment: { label: t('پرداخت قبض و خدمات'), debit: { category: 'bills', title: t('پرداخت قبض و خدمات'), confident: true } },
+  card_transfer: { label: t('کارت به کارت'), debit: { title: t('انتقال به') }, credit: { title: t('واریز از') } },
+  account_transfer: { label: t('انتقال بین حساب‌ها'), debit: { title: t('انتقال به') }, credit: { title: t('واریز از') } },
+  instant_transfer: { label: t('انتقال پایا، ساتنا و پل'), debit: { title: t('انتقال به') }, credit: { title: t('واریز از') } },
+  batch_transfer: { label: t('واریز گروهی (مثل حقوق)'), credit: { title: t('واریز گروهی') } },
+  company_payment: { label: t('واریز از شرکت'), credit: { title: t('واریز از') } },
+  fee: { label: t('کارمزد بانکی'), debit: { category: 'credit_fees', title: t('کارمزد بانکی'), confident: true } },
+  loan_received: { label: t('دریافت وام'), credit: { category: 'loan_received', title: t('دریافت وام'), confident: true } },
+  loan_payment: { label: t('قسط وام'), debit: { category: 'installments', title: t('پرداخت قسط وام'), confident: true } },
+  loan_cost: { label: t('هزینه‌ی وام'), debit: { category: 'credit_fees', title: t('هزینه‌ی وام'), confident: true } },
+  dividend: { label: t('سود سهام'), credit: { category: 'investment', title: t('سود سهام'), confident: true } },
+  cheque: { label: t('وصول چک'), credit: { category: 'other', title: t('وصول چک') } },
+  cash_deposit: { label: t('واریز نقدی'), credit: { category: 'other', title: t('واریز نقدی') } },
+  reversal: { label: t('برگشت تراکنش'), credit: { category: 'other', title: t('برگشت تراکنش'), confident: true } },
+  other: { label: t('سایر') },
 };
 
 /**
@@ -53,29 +55,29 @@ export const STATEMENT_KINDS = {
  * @type {Array<{ direction: 'credit'|'debit', words: string[], category: string, title?: string }>}
  */
 export const STATEMENT_KEYWORD_RULES = [
-  { direction: 'credit', words: ['حقوق', 'دستمزد'], category: 'salary' },
-  { direction: 'credit', words: ['مزایا', 'عیدی', 'بن'], category: 'benefits' },
-  { direction: 'credit', words: ['پاداش'], category: 'bonus' },
-  { direction: 'credit', words: ['اجاره', 'رهن'], category: 'rental' },
-  { direction: 'credit', words: ['سود', 'سود سهام', 'سود سپرده'], category: 'investment' },
-  { direction: 'credit', words: ['کارگزاری'], category: 'asset_sale', title: 'برداشت از کارگزاری' },
-  { direction: 'credit', words: ['تسهیلات', 'وام'], category: 'loan_received' },
-  { direction: 'debit', words: ['کارگزاری'], category: 'investment', title: 'واریز به کارگزاری' },
-  { direction: 'debit', words: ['قسط', 'اقساط'], category: 'installments' },
-  { direction: 'debit', words: ['رستوران', 'کافه', 'کافی شاپ', 'کافی‌شاپ', 'فست فود', 'پیتزا', 'کباب', 'چلوکبابی', 'ساندویچ', 'بستنی', 'شیرینی', 'قنادی'], category: 'dining' },
-  { direction: 'debit', words: ['سوپرمارکت', 'سوپر', 'هایپر', 'هایپرمارکت', 'میوه', 'نانوایی', 'قصابی', 'پروتئین', 'بقالی', 'خواربار', 'شهروند', 'رفاه'], category: 'groceries' },
-  { direction: 'debit', words: ['داروخانه', 'دارو', 'درمانگاه', 'بیمارستان', 'دندانپزشکی', 'آزمایشگاه', 'پزشک', 'کلینیک', 'رادیولوژی', 'فیزیوتراپی'], category: 'health' },
-  { direction: 'debit', words: ['اسنپ', 'تپسی', 'تاکسی', 'مترو', 'اتوبوس', 'بنزین', 'پمپ بنزین', 'عوارض', 'پارکینگ', 'کارواش', 'حمل و نقل'], category: 'transport' },
-  { direction: 'debit', words: ['ایرانسل', 'همراه اول', 'رایتل', 'مخابرات', 'اینترنت', 'شاتل', 'های وب', 'مبین نت', 'نتفلیکس', 'اسپاتیفای'], category: 'subscriptions' },
-  { direction: 'debit', words: ['برق', 'گاز', 'آب', 'شهرداری', 'شارژ', 'قبض', 'عوارض شهرداری'], category: 'bills' },
-  { direction: 'debit', words: ['دانشگاه', 'آموزشگاه', 'کتاب', 'کتابفروشی', 'مدرسه', 'دبستان', 'مهدکودک', 'کلاس'], category: 'education' },
-  { direction: 'debit', words: ['دیجی کالا', 'دیجیکالا', 'پوشاک', 'کفش', 'لباس', 'فروشگاه', 'بوتیک'], category: 'shopping' },
-  { direction: 'debit', words: ['سینما', 'تئاتر', 'بلیط', 'هتل', 'پرواز', 'علی بابا', 'علیبابا', 'اقامتگاه', 'تفریحی'], category: 'entertainment' },
-  { direction: 'debit', words: ['خیریه', 'کمیته امداد', 'محک', 'نیکوکاری', 'صدقه', 'کمک'], category: 'gifts' },
+  { direction: 'credit', words: ['حقوق', 'دستمزد'], category: 'salary' }, // i18n-ignore
+  { direction: 'credit', words: ['مزایا', 'عیدی', 'بن'], category: 'benefits' }, // i18n-ignore
+  { direction: 'credit', words: ['پاداش'], category: 'bonus' }, // i18n-ignore
+  { direction: 'credit', words: ['اجاره', 'رهن'], category: 'rental' }, // i18n-ignore
+  { direction: 'credit', words: ['سود', 'سود سهام', 'سود سپرده'], category: 'investment' }, // i18n-ignore
+  { direction: 'credit', words: ['کارگزاری'], category: 'asset_sale', title: t('برداشت از کارگزاری') }, // i18n-ignore
+  { direction: 'credit', words: ['تسهیلات', 'وام'], category: 'loan_received' }, // i18n-ignore
+  { direction: 'debit', words: ['کارگزاری'], category: 'investment', title: t('واریز به کارگزاری') }, // i18n-ignore
+  { direction: 'debit', words: ['قسط', 'اقساط'], category: 'installments' }, // i18n-ignore
+  { direction: 'debit', words: ['رستوران', 'کافه', 'کافی شاپ', 'کافی‌شاپ', 'فست فود', 'پیتزا', 'کباب', 'چلوکبابی', 'ساندویچ', 'بستنی', 'شیرینی', 'قنادی'], category: 'dining' }, // i18n-ignore
+  { direction: 'debit', words: ['سوپرمارکت', 'سوپر', 'هایپر', 'هایپرمارکت', 'میوه', 'نانوایی', 'قصابی', 'پروتئین', 'بقالی', 'خواربار', 'شهروند', 'رفاه'], category: 'groceries' }, // i18n-ignore
+  { direction: 'debit', words: ['داروخانه', 'دارو', 'درمانگاه', 'بیمارستان', 'دندانپزشکی', 'آزمایشگاه', 'پزشک', 'کلینیک', 'رادیولوژی', 'فیزیوتراپی'], category: 'health' }, // i18n-ignore
+  { direction: 'debit', words: ['اسنپ', 'تپسی', 'تاکسی', 'مترو', 'اتوبوس', 'بنزین', 'پمپ بنزین', 'عوارض', 'پارکینگ', 'کارواش', 'حمل و نقل'], category: 'transport' }, // i18n-ignore
+  { direction: 'debit', words: ['ایرانسل', 'همراه اول', 'رایتل', 'مخابرات', 'اینترنت', 'شاتل', 'های وب', 'مبین نت', 'نتفلیکس', 'اسپاتیفای'], category: 'subscriptions' }, // i18n-ignore
+  { direction: 'debit', words: ['برق', 'گاز', 'آب', 'شهرداری', 'شارژ', 'قبض', 'عوارض شهرداری'], category: 'bills' }, // i18n-ignore
+  { direction: 'debit', words: ['دانشگاه', 'آموزشگاه', 'کتاب', 'کتابفروشی', 'مدرسه', 'دبستان', 'مهدکودک', 'کلاس'], category: 'education' }, // i18n-ignore
+  { direction: 'debit', words: ['دیجی کالا', 'دیجیکالا', 'پوشاک', 'کفش', 'لباس', 'فروشگاه', 'بوتیک'], category: 'shopping' }, // i18n-ignore
+  { direction: 'debit', words: ['سینما', 'تئاتر', 'بلیط', 'هتل', 'پرواز', 'علی بابا', 'علیبابا', 'اقامتگاه', 'تفریحی'], category: 'entertainment' }, // i18n-ignore
+  { direction: 'debit', words: ['خیریه', 'کمیته امداد', 'محک', 'نیکوکاری', 'صدقه', 'کمک'], category: 'gifts' }, // i18n-ignore
 ];
 
 /** Persian/Arabic diacritics and tatweel: dropped when text is normalized */
-export const STATEMENT_DIACRITICS = /[ً-ٰٟـ]/g;
+export const STATEMENT_DIACRITICS = /[ً-ٰٟـ]/g; // i18n-ignore
 
 /**
  * Small expenses can be put in one category together («هزینه‌های جاری» below 2 million tomans by
@@ -114,25 +116,25 @@ export const STATEMENT_SMALL_DEFAULT = { maxToman: 2_000_000, category: 'running
 export const STATEMENT_BANKS = [
   {
     bankId: 'parsian',
-    label: 'همراه بانک پارسیان (اکسل)',
-    howTo: 'در «همراه بانک پارسیان»، از بخش گردش حساب بازه‌ی تاریخ را انتخاب کنید و «خروجی اکسل» بگیرید؛ فایل .xlsx را اینجا بدهید.',
+    label: 'همراه بانک پارسیان (اکسل)', // i18n-ignore
+    howTo: 'در «همراه بانک پارسیان»، از بخش گردش حساب بازه‌ی تاریخ را انتخاب کنید و «خروجی اکسل» بگیرید؛ فایل .xlsx را اینجا بدهید.', // i18n-ignore
     unit: 'rial',
-    columns: { date: 'تاریخ', description: 'توضیحات', direction: 'واریز/برداشت', amount: 'مبلغ', balance: 'موجودی' },
-    directionWords: { debit: ['برداشت'], credit: ['واریز'] },
+    columns: { date: 'تاریخ', description: 'توضیحات', direction: 'واریز/برداشت', amount: 'مبلغ', balance: 'موجودی' }, // i18n-ignore
+    directionWords: { debit: ['برداشت'], credit: ['واریز'] }, // i18n-ignore
     rules: [
       {
         id: 'parsian-reversal',
         kind: 'reversal',
         direction: 'credit',
-        test: re(String.raw`^برگشت سند`),
-        fields: re(String.raw`شماره بازیابی\s*(?<reference>\d+)`),
+        test: re(String.raw`^برگشت سند`), // i18n-ignore
+        fields: re(String.raw`شماره بازیابی\s*(?<reference>\d+)`), // i18n-ignore
       },
       {
         id: 'parsian-purchase',
         kind: 'purchase',
         direction: 'debit',
-        test: re(String.raw`^خرید کالا یا سرویس`),
-        fields: re(String.raw`با کارت\s*(?<card>\d{16}).*?شماره بازیابی\s*(?<reference>\d+).*?ترمینال\s*(?<terminal>[\w.]+)\s*-\s*(?<merchant>.+?)\s+از کانال\s*(?<channel>.+?)\s+با شماره`),
+        test: re(String.raw`^خرید کالا یا سرویس`), // i18n-ignore
+        fields: re(String.raw`با کارت\s*(?<card>\d{16}).*?شماره بازیابی\s*(?<reference>\d+).*?ترمینال\s*(?<terminal>[\w.]+)\s*-\s*(?<merchant>.+?)\s+از کانال\s*(?<channel>.+?)\s+با شماره`), // i18n-ignore
         party: ['terminal'],
         self: { debit: { card: 'card' } },
       },
@@ -140,8 +142,8 @@ export const STATEMENT_BANKS = [
         id: 'parsian-bill',
         kind: 'bill_payment',
         direction: 'debit',
-        test: re(String.raw`^خدمات پرداخت با شناسه`),
-        fields: re(String.raw`شناسه\s*(?<billId>\d+).*?کارت\s*(?<card>\d{16})`),
+        test: re(String.raw`^خدمات پرداخت با شناسه`), // i18n-ignore
+        fields: re(String.raw`شناسه\s*(?<billId>\d+).*?کارت\s*(?<card>\d{16})`), // i18n-ignore
         party: ['billId'],
         self: { debit: { card: 'card' } },
       },
@@ -149,27 +151,27 @@ export const STATEMENT_BANKS = [
         id: 'parsian-cash',
         kind: 'cash_withdrawal',
         direction: 'debit',
-        test: re(String.raw`^برداشت وجه با کارت`),
-        fields: re(String.raw`کارت\s*(?<card>\d{16})`),
+        test: re(String.raw`^برداشت وجه با کارت`), // i18n-ignore
+        fields: re(String.raw`کارت\s*(?<card>\d{16})`), // i18n-ignore
         self: { debit: { card: 'card' } },
       },
       {
         id: 'parsian-card-transfer',
         kind: 'card_transfer',
-        test: re(String.raw`^انتقال از کارت`),
-        fields: re(String.raw`^انتقال از کارت\s*(?<fromCard>\d{16})\s*(?<fromName>.*?)\s*به کارت\s*(?<toCard>\d{16})\s*(?<toName>.*?)\s*با شماره بازیابی\s*(?<reference>\d+)`),
+        test: re(String.raw`^انتقال از کارت`), // i18n-ignore
+        fields: re(String.raw`^انتقال از کارت\s*(?<fromCard>\d{16})\s*(?<fromName>.*?)\s*به کارت\s*(?<toCard>\d{16})\s*(?<toName>.*?)\s*با شماره بازیابی\s*(?<reference>\d+)`), // i18n-ignore
         party: { debit: ['toCard'], credit: ['fromCard'] },
         self: { debit: { card: 'fromCard', name: 'fromName' }, credit: { card: 'toCard', name: 'toName' } },
       },
       {
         id: 'parsian-account-transfer',
         kind: 'account_transfer',
-        test: re(String.raw`^انتقال وجه از طریق`),
+        test: re(String.raw`^انتقال وجه از طریق`), // i18n-ignore
         // The owner of the other account is named «مبدا» on a deposit and «مقصد» on a withdrawal
         fields: [
-          re(String.raw`از حساب\s*(?<fromAccount>\d+)\s+به حساب\s*(?<toAccount>\d+)`),
-          re(String.raw`صاحب سپرده مبدا:\s*(?<fromName>.+?)\s*$`),
-          re(String.raw`صاحب سپرده مقصد:\s*(?<toName>.+?)\s*$`),
+          re(String.raw`از حساب\s*(?<fromAccount>\d+)\s+به حساب\s*(?<toAccount>\d+)`), // i18n-ignore
+          re(String.raw`صاحب سپرده مبدا:\s*(?<fromName>.+?)\s*$`), // i18n-ignore
+          re(String.raw`صاحب سپرده مقصد:\s*(?<toName>.+?)\s*$`), // i18n-ignore
         ],
         party: { debit: ['toAccount'], credit: ['fromAccount'] },
         self: { debit: { account: 'fromAccount' }, credit: { account: 'toAccount' } },
@@ -177,15 +179,15 @@ export const STATEMENT_BANKS = [
       {
         id: 'parsian-batch-transfer',
         kind: 'batch_transfer',
-        test: re(String.raw`^انتقال وجه گروهی`),
-        fields: re(String.raw`از حساب\s*(?<fromAccount>\d+)`),
+        test: re(String.raw`^انتقال وجه گروهی`), // i18n-ignore
+        fields: re(String.raw`از حساب\s*(?<fromAccount>\d+)`), // i18n-ignore
         party: ['fromAccount'],
       },
       {
         id: 'parsian-own-account',
         kind: 'account_transfer',
-        test: re(String.raw`^انتقالی از حساب شماره`),
-        fields: re(String.raw`از حساب شماره\s*(?<fromAccount>\d+)\s*-?\s*به حساب شماره\s*(?<toAccount>\d+)`),
+        test: re(String.raw`^انتقالی از حساب شماره`), // i18n-ignore
+        fields: re(String.raw`از حساب شماره\s*(?<fromAccount>\d+)\s*-?\s*به حساب شماره\s*(?<toAccount>\d+)`), // i18n-ignore
         party: { debit: ['toAccount'], credit: ['fromAccount'] },
         self: { debit: { account: 'fromAccount' }, credit: { account: 'toAccount' } },
       },
@@ -193,19 +195,19 @@ export const STATEMENT_BANKS = [
         // «تراکنش پُل به مشخصات …، به نامِ X و شماره شبا IR…»
         id: 'parsian-pol',
         kind: 'instant_transfer',
-        test: re(String.raw`^تراکنش (?:به همراه کارمزد|پل) `),
-        fields: re(String.raw`(?:به نام|نام:)\s*\*?(?<name>[^*]+?)\*?\s+(?:و )?(?:شماره )?شبا:?\s*(?<sheba>IR\d{24})`),
+        test: re(String.raw`^تراکنش (?:به همراه کارمزد|پل) `), // i18n-ignore
+        fields: re(String.raw`(?:به نام|نام:)\s*\*?(?<name>[^*]+?)\*?\s+(?:و )?(?:شماره )?شبا:?\s*(?<sheba>IR\d{24})`), // i18n-ignore
         party: ['sheba', 'name'],
       },
       {
         id: 'parsian-paya-in',
         kind: 'instant_transfer',
         direction: 'credit',
-        test: re(String.raw`^واریز\s*(?:پایا|ساتنا)`),
+        test: re(String.raw`^واریز\s*(?:پایا|ساتنا)`), // i18n-ignore
         // «واریز پایا … نام: *X* شبا: IR…» and «واریزساتنا … از شبا IR… به نام X - بابت …»
         fields: [
-          re(String.raw`نام:\s*\*?(?<name>[^*]+?)\*?\s+شبا:\s*(?<sheba>IR\d{24})`),
-          re(String.raw`از شبا\s*(?<sheba>IR\d{24})\s+به نام\s*(?<name>.+?)\s+(?:-|بابت)`),
+          re(String.raw`نام:\s*\*?(?<name>[^*]+?)\*?\s+شبا:\s*(?<sheba>IR\d{24})`), // i18n-ignore
+          re(String.raw`از شبا\s*(?<sheba>IR\d{24})\s+به نام\s*(?<name>.+?)\s+(?:-|بابت)`), // i18n-ignore
         ],
         party: ['sheba', 'name'],
       },
@@ -213,16 +215,16 @@ export const STATEMENT_BANKS = [
         id: 'parsian-satna-out',
         kind: 'instant_transfer',
         direction: 'debit',
-        test: re(String.raw`^برداشت (?:کارمزد )?دستور پرداخت`),
-        fields: re(String.raw`شبا\s*(?<sheba>IR\d{24})\s+به نام\s*(?<name>.+?)\s*-`),
+        test: re(String.raw`^برداشت (?:کارمزد )?دستور پرداخت`), // i18n-ignore
+        fields: re(String.raw`شبا\s*(?<sheba>IR\d{24})\s+به نام\s*(?<name>.+?)\s*-`), // i18n-ignore
         party: ['sheba', 'name'],
       },
       {
         id: 'parsian-company',
         kind: 'company_payment',
         direction: 'credit',
-        test: re(String.raw`^واریز\s+\d{4}/\d{2}/\d{2}\s`),
-        fields: re(String.raw`^واریز\s+\d{4}/\d{2}/\d{2}\s+(?<name>.+?)\s+شناسه`),
+        test: re(String.raw`^واریز\s+\d{4}/\d{2}/\d{2}\s`), // i18n-ignore
+        fields: re(String.raw`^واریز\s+\d{4}/\d{2}/\d{2}\s+(?<name>.+?)\s+شناسه`), // i18n-ignore
         party: ['name'],
       },
       {
@@ -230,59 +232,59 @@ export const STATEMENT_BANKS = [
         id: 'parsian-loan-payment',
         kind: 'loan_payment',
         direction: 'debit',
-        test: re(String.raw`تسهیلات`),
+        test: re(String.raw`تسهیلات`), // i18n-ignore
       },
       {
         id: 'parsian-loan-in',
         kind: 'loan_received',
         direction: 'credit',
-        test: re(String.raw`تسهیلات`),
+        test: re(String.raw`تسهیلات`), // i18n-ignore
       },
       {
         id: 'parsian-loan-stamp',
         kind: 'loan_cost',
         direction: 'debit',
-        test: re(String.raw`^سند ابطال تمبر`),
+        test: re(String.raw`^سند ابطال تمبر`), // i18n-ignore
       },
       {
         id: 'parsian-dividend',
         kind: 'dividend',
         direction: 'credit',
-        test: re(String.raw`^سود سهام`),
+        test: re(String.raw`^سود سهام`), // i18n-ignore
       },
       {
         id: 'parsian-cheque-in',
         kind: 'cheque',
         direction: 'credit',
-        test: re(String.raw`^واریز بابت چک`),
-        fields: re(String.raw`چک شماره\s*(?<chequeNo>\d+)`),
+        test: re(String.raw`^واریز بابت چک`), // i18n-ignore
+        fields: re(String.raw`چک شماره\s*(?<chequeNo>\d+)`), // i18n-ignore
         party: ['chequeNo'],
       },
       {
         id: 'parsian-cash-in',
         kind: 'cash_deposit',
         direction: 'credit',
-        test: re(String.raw`^واریز نقدی`),
+        test: re(String.raw`^واریز نقدی`), // i18n-ignore
       },
       {
         // Every «کارمزد …» line: a transfer's, a cheque's, an SMS plan's
         id: 'parsian-fee',
         kind: 'fee',
         direction: 'debit',
-        test: re(String.raw`^(?:انتقالی )?(?:برداشت )?کارمزد`),
+        test: re(String.raw`^(?:انتقالی )?(?:برداشت )?کارمزد`), // i18n-ignore
       },
       {
         // «حساب … بدهکار»: a small debit the bank takes from the account (a service charge)
         id: 'parsian-debit-entry',
         kind: 'fee',
         direction: 'debit',
-        test: re(String.raw`^حساب\s*\d+\s*بدهکار`),
+        test: re(String.raw`^حساب\s*\d+\s*بدهکار`), // i18n-ignore
       },
       {
         // A row that is only the account holder's name
         id: 'parsian-name-only',
         kind: 'other',
-        test: re(String.raw`^[آ-ی\s_]{5,40}$`),
+        test: re(String.raw`^[آ-ی\s_]{5,40}$`), // i18n-ignore
         fields: re(String.raw`^(?<name>.+)$`),
         party: ['name'],
       },
