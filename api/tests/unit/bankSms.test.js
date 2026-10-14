@@ -172,6 +172,13 @@ const SAMPLES = [
     text: 'بانک خاورمیانه\n838/000115456\n+200,000,000\n07/08\n15:57\nمانده 208,536,365',
     expect: { templateId: 'khavarmianeh-balance', direction: 'credit', amount: 20000000, balance: 20853636.5, date: '2026-09-30', time: '15:57', description: '' },
   },
+  {
+    bank: 'post',
+    options: { sender: 'POSTBANK', today: LATER },
+    // A loan installment payment; the facility number is blank
+    text: 'پست بانک\nاز پرداخت شما متشکریم.\nشماره تسهیلات:\n-140,053,000\n1405/04/22\n14:52\nمانده: 13,372,884 ریال',
+    expect: { templateId: 'post-balance', direction: 'debit', amount: 14005300, balance: 1337288.4, date: '2026-07-13', time: '14:52', description: 'شماره تسهیلات' },
+  },
 ];
 
 describe('bank SMS samples', () => {

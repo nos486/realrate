@@ -243,5 +243,25 @@ export const BANK_SMS_TEMPLATES = [
       },
     ],
   },
+  {
+    bankId: 'post',
+    senders: ['POSTBANK'],
+    templates: [
+      {
+        // پست بانک
+        // از پرداخت شما متشکریم.
+        // شماره تسهیلات:
+        // -140,053,000
+        // 1405/04/22
+        // 14:52
+        // مانده: 13,372,884 ریال
+        // (a loan installment: the facility number after the colon may be missing or on the same
+        // line; the amount's sign is the direction)
+        id: 'post-balance',
+        unit: 'rial',
+        direction: 'sign',
+        pattern: re(String.raw`^پست بانک\n(?:[^\d\n+-][^\n]*\n)*?(?<desc>[^\d\n:+-]+?)\s?:\s?(?:\d+\s?)?\n?(?<amount>${P.amount})\n(?<date>${P.date})\n(?<time>${P.time})\nمانده\s?:\s?(?<balance>${P.balance})\s?ریال$`),
+      },
+    ],
+  },
 ];
-
