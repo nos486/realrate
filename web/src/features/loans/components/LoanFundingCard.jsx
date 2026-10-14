@@ -7,6 +7,7 @@
  * yearly rate next to the loan's own interest rate — is the loan paying for itself?
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React, { useEffect, useState } from 'react';
 import { useRefreshToken } from '../../../shared/refresh/pageRefresh.js';
 import { useUsdAt } from '../../market/dailyHistory.js';
@@ -25,8 +26,8 @@ import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker
 import { usePricing } from '../../market/index.js';
 
 const LIST_LIMIT = 5;
-const formatNum = (v) => Math.round(Number(v) || 0).toLocaleString('fa-IR');
-const formatPct = (v) => `${v > 0 ? '+' : ''}${(Math.round(v * 10) / 10).toLocaleString('fa-IR')}٪`;
+const formatNum = (v) => Math.round(Number(v) || 0).toLocaleString(intlLocale());
+const formatPct = (v) => `${v > 0 ? '+' : ''}${(Math.round(v * 10) / 10).toLocaleString(intlLocale())}٪`;
 
 /** The holdings' gain against the loan's yearly rate (loanInvestmentReturn) */
 function InvestmentReturn({ result, loanRate, money }) {
@@ -47,7 +48,7 @@ function InvestmentReturn({ result, loanRate, money }) {
         <div className="loan-funding-return-row">
           <span>بازده سالانه در برابر سود وام</span>
           <strong>
-            {formatPct(result.annualPct)} <small>در برابر {(Math.round(loanRate * 10) / 10).toLocaleString('fa-IR')}٪</small>
+            {formatPct(result.annualPct)} <small>در برابر {(Math.round(loanRate * 10) / 10).toLocaleString(intlLocale())}٪</small>
           </strong>
         </div>
       )}

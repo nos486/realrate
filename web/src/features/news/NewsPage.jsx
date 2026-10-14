@@ -16,6 +16,7 @@
  * window of its own. The list comes in pages; new news comes in by itself every minute.
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Newspaper, Share2, EyeOff, ChevronDown, Sparkles, Flame, CalendarDays, Bell, BellOff } from 'lucide-react';
@@ -157,7 +158,7 @@ function TopList({ title, Icon, items, loading, onOpen }) {
           {items.map((n, i) => (
             <li key={n.id}>
               <button type="button" className="news-today-row" onClick={() => onOpen(n)}>
-                <span className={`news-today-rank ${n.importance >= 3 ? 'is-high' : ''}`}>{(i + 1).toLocaleString('fa-IR')}</span>
+                <span className={`news-today-rank ${n.importance >= 3 ? 'is-high' : ''}`}>{(i + 1).toLocaleString(intlLocale())}</span>
                 <span className="news-today-text">
                   <strong>{n.title}</strong>
                   <small><bdi>{newsSource(n)}</bdi> · {newsTimeAgo(n.publishedAt)}</small>

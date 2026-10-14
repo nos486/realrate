@@ -6,6 +6,7 @@
  * signed-in user can sign out. Uses the sign-in pages' shell so it matches their look.
  */
 
+import { getDir } from '../utils/i18n.js';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Wrench, LogIn, LogOut } from 'lucide-react';
@@ -16,7 +17,7 @@ export default function MaintenancePage() {
   const { user, maintenance, logout } = useAuth();
 
   return (
-    <div className="auth-page" dir="rtl">
+    <div className="auth-page" dir={getDir()}>
       <main className="auth-main">
         <div className="auth-card maintenance-card" role="status">
           <div className="auth-card-head">

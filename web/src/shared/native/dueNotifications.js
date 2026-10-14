@@ -5,6 +5,7 @@
  * All decrypted data (titles, amounts, counterparties) stays entirely on the device.
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import { reminderOf, occurrencesBetween, reminderCanBeOverdue } from '../../utils/reminders.js';
 import { isNativeApp } from './nativeApp.js';
 import { isPrivacyMode } from '../../hooks/usePrivacyMode.js';
@@ -22,7 +23,7 @@ export const DEFAULT_DUE_NOTIFICATION_SETTINGS = {
 const MAX_NOTIFICATIONS = 64;
 const MAX_PLANNING_DAYS = 30;
 
-const faNum = (n) => Number(n || 0).toLocaleString('fa-IR');
+const faNum = (n) => Number(n || 0).toLocaleString(intlLocale());
 
 export function getDueNotificationSettings() {
   try {

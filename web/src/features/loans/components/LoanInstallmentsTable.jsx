@@ -1,3 +1,4 @@
+import { intlLocale } from '../../../utils/i18n.js';
 import React, { useState, useEffect } from 'react';
 import {
   CheckCircle2,
@@ -16,7 +17,7 @@ import BulkEditInstallmentsModal from './BulkEditInstallmentsModal.jsx';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { todayIso } from '../../../shared/utils/dates.js';
 
-const formatAmount = (v) => Number(v || 0).toLocaleString('fa-IR');
+const formatAmount = (v) => Number(v || 0).toLocaleString(intlLocale());
 
 export default function LoanInstallmentsTable({
   loan,

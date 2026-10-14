@@ -2,6 +2,7 @@
  * accountDisplay.js — How an account is shown: its icon and its one-line label
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import { Landmark, Banknote, Smartphone, WalletMinimal, CreditCard } from 'lucide-react';
 import { accountCurrencies } from '../../../utils/accountDocument.js';
 import { currencyAdjective } from '../../../utils/currencies.js';
@@ -19,7 +20,7 @@ export function getAccountTypeIcon(type) {
 export function accountLabel(account) {
   if (!account) return 'حساب حذف‌شده';
   const digits = account.cardLast4
-    ? Number(account.cardLast4).toLocaleString('fa-IR', { useGrouping: false, minimumIntegerDigits: 4 })
+    ? Number(account.cardLast4).toLocaleString(intlLocale(), { useGrouping: false, minimumIntegerDigits: 4 })
     : '';
   return digits ? `${account.name} (${digits})` : account.name;
 }

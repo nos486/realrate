@@ -11,6 +11,7 @@
  * locking or logging out clears it.
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import {
   deriveE2eeKey,
   generateE2eeSalt,
@@ -295,7 +296,7 @@ export async function resetAccountVault({ password } = {}) {
 
 function assertPassphrase(passphrase) {
   if (String(passphrase || '').length < VAULT_MIN_PASSPHRASE_LENGTH) {
-    throw new Error(`رمز عبور رمزنگاری باید حداقل ${VAULT_MIN_PASSPHRASE_LENGTH.toLocaleString('fa-IR')} کاراکتر باشد.`);
+    throw new Error(`رمز عبور رمزنگاری باید حداقل ${VAULT_MIN_PASSPHRASE_LENGTH.toLocaleString(intlLocale())} کاراکتر باشد.`);
   }
 }
 

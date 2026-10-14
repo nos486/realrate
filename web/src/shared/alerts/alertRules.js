@@ -7,6 +7,7 @@
  * would run, so it does not depend on React.
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import { createAlert } from '../../utils/alerts.js';
 import { buildChequeReminders, getChequeDirection, CHEQUE_REMINDER_DAYS } from '../../utils/chequeDocument.js';
 import { subscriptionView, SUBSCRIPTION_REMINDER_DAYS } from '../../utils/subscriptionDocument.js';
@@ -17,7 +18,7 @@ import { appPath } from '../routes.js';
 const DAY = 24 * 60 * 60 * 1000;
 export const LOAN_REMINDER_DAYS = 7;
 
-const faNum = (v) => Number(v || 0).toLocaleString('fa-IR');
+const faNum = (v) => Number(v || 0).toLocaleString(intlLocale());
 const dayDiff = (from, to) => Math.round((Date.parse(to) - Date.parse(from)) / DAY);
 const describeDays = (days) => (days === 0 ? 'امروز' : days > 0 ? `${faNum(days)} روز دیگر` : `${faNum(-days)} روز گذشته`);
 
@@ -158,7 +159,7 @@ export function subscriptionAlerts(subscriptions = [], today, rates = {}) {
   ].filter(Boolean);
 }
 
-const faPct = (n) => `${Math.abs(n).toLocaleString('fa-IR', { maximumFractionDigits: 1 })}٪`;
+const faPct = (n) => `${Math.abs(n).toLocaleString(intlLocale(), { maximumFractionDigits: 1 })}٪`;
 
 /**
  * A portfolio: categories drifted from their targets, and assets sold beyond what was held

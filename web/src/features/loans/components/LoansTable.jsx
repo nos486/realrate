@@ -4,6 +4,7 @@
  * one due; a tap opens the loan
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React from 'react';
 import { Landmark, Edit2, Trash2, CheckCircle2, Clock } from 'lucide-react';
 import { RowCard, RowCardAction, RowCardBadge, RowCardBlock, RowCardProgress } from '../../../shared/ui/index.js';
@@ -11,7 +12,7 @@ import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker
 import { getDisplayRatePct } from '../../../utils/loanCalculator.js';
 import { isLoanCompleted } from '../utils/loanStatus.js';
 
-const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
+const formatNum = (v) => Number(v || 0).toLocaleString(intlLocale());
 
 export default function LoansTable({
   loans = [],

@@ -6,13 +6,14 @@
  * are «بدون دسته‌بندی» ('').
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React from 'react';
 import { Shapes } from 'lucide-react';
 import { formatAmount } from '../utils/format.js';
 import { getExpenseCategory } from '../constants/expenseCategories.js';
 
 const MASK = '****';
-const faNum = (n) => Number(n || 0).toLocaleString('fa-IR');
+const faNum = (n) => Number(n || 0).toLocaleString(intlLocale());
 
 /** A category's name ('' : none) */
 const projectCategoryLabel = (category) => (category ? getExpenseCategory(category).label : 'بدون دسته‌بندی');

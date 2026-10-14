@@ -17,6 +17,7 @@
  * for good. With messages from more than one bank, pills above the list filter them by bank.
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { MessageSquareText, Check, X, ArrowDownLeft, ArrowUpRight, BellRing, Inbox, Zap, Landmark, HandCoins, FolderOpen, ArrowLeftRight } from 'lucide-react';
 import { ActionMenu, Button, EmptyState } from '../../shared/ui/index.js';
@@ -114,13 +115,13 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
   const handleDismissAll = async () => {
     const ok = await confirm({
       title: 'رد همه‌ی پیامک‌ها',
-      message: `${matching.length.toLocaleString('fa-IR')} پیامک کنار گذاشته می‌شود و ثبت نمی‌شود. ادامه می‌دهید؟`,
+      message: `${matching.length.toLocaleString(intlLocale())} پیامک کنار گذاشته می‌شود و ثبت نمی‌شود. ادامه می‌دهید؟`,
       confirmLabel: 'رد همه',
       danger: true,
     });
     if (!ok) return;
     dismissSmsMany(matching.map((item) => item.fingerprint));
-    toast.success(`${matching.length.toLocaleString('fa-IR')} پیامک رد شد.`);
+    toast.success(`${matching.length.toLocaleString(intlLocale())} پیامک رد شد.`);
   };
 
   if (permission && permission !== 'granted' && settings.auto) return <EnableCard onChange={setPermission} />;
@@ -150,14 +151,14 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
             onClick={() => { setBankFilter(id); setLimit(PAGE_SIZE); }}
           >
             {id === 'all' ? 'همه‌ی بانک‌ها' : <><BankLogo bank={bank} size={16} /> {bank.shortName}</>}
-            <span className="cheque-filter-count">{count.toLocaleString('fa-IR')}</span>
+            <span className="cheque-filter-count">{count.toLocaleString(intlLocale())}</span>
           </button>
         ))}
       </div>
     )}
     <div className="sms-inbox-bulk">
       <Button size="sm" variant="secondary" icon={<X size={14} />} onClick={handleDismissAll}>
-        رد همه ({matching.length.toLocaleString('fa-IR')})
+        رد همه ({matching.length.toLocaleString(intlLocale())})
       </Button>
     </div>
     <ul className="sms-inbox-list" aria-label="پیامک‌های بانکی ثبت‌نشده">
@@ -239,7 +240,7 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
     </ul>
     {matching.length > shown.length && (
       <Button block variant="secondary" onClick={() => setLimit((n) => n + PAGE_SIZE)}>
-        نمایش بیشتر ({(matching.length - shown.length).toLocaleString('fa-IR')} پیامک دیگر)
+        نمایش بیشتر ({(matching.length - shown.length).toLocaleString(intlLocale())} پیامک دیگر)
       </Button>
     )}
     </>

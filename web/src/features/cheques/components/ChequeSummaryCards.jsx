@@ -2,6 +2,7 @@
  * ChequeSummaryCards.jsx — Headline figures: money to collect, money to pay, bounced cheques
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React from 'react';
 import { ArrowDownLeft, ArrowUpRight, CalendarClock, XCircle } from 'lucide-react';
 import { MiniCard } from '../../../shared/ui/index.js';
@@ -9,7 +10,7 @@ import { formatNum } from '../../portfolio/utils/holdingHelpers.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { getDirectionDisplay } from '../constants/chequeDisplay.js';
 
-const faCount = (n) => Number(n).toLocaleString('fa-IR');
+const faCount = (n) => Number(n).toLocaleString(intlLocale());
 
 export default function ChequeSummaryCards({ summary, hideValues = false }) {
   const money = (v) => (hideValues ? '****' : formatNum(v));

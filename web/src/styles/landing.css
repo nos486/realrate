@@ -592,3 +592,8 @@
     transform: none;
   }
 }
+
+.lp-language {
+  flex-shrink: 0;
+  margin-inline-start: auto;
+}

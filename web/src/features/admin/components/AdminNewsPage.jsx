@@ -6,6 +6,7 @@
  *    and read them all now; write «تحلیل روز» now
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React, { useEffect, useState } from 'react';
 import { Newspaper, Plus, Trash2, RefreshCw, Save, CheckCircle2, AlertTriangle, Sparkles, BarChart3 } from 'lucide-react';
 import { Button, Input, AlertBanner, EmptyState } from '../../../shared/ui/index.js';
@@ -13,7 +14,7 @@ import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { getNewsChannels, saveNewsChannels, runNewsNow, runNewsAnalysisNow } from '../../news/newsApi.js';
 import { newsTimeAgo, newsClock, NEWS_CATEGORIES } from '../../news/newsFormat.js';
 
-const fa = (n) => Number(n || 0).toLocaleString('fa-IR');
+const fa = (n) => Number(n || 0).toLocaleString(intlLocale());
 const MODEL_ERRORS = {
   'bad-answer': 'جواب قالب درستی نداشت (JSON)',
   'foreign-text': 'متن جواب کلمه‌ی غیرفارسی داشت',

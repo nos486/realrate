@@ -13,6 +13,8 @@ import PasswordSettingsSection from '../features/auth/components/PasswordSetting
 import DeleteAccountSection from '../features/auth/components/DeleteAccountSection.jsx';
 import { useFeature } from '../shared/features/useFeature.js';
 import ProLockedCard from '../shared/plan/ProLockedCard.jsx';
+import LanguageSwitch from '../shared/i18n/LanguageSwitch.jsx';
+import { t } from '../utils/i18n.js';
 import EmailRemindersSection from '../features/alerts/components/EmailRemindersSection.jsx';
 import WebPushRemindersSection from '../features/alerts/components/WebPushRemindersSection.jsx';
 
@@ -106,7 +108,7 @@ export default function AccountSettingsView() {
     <Card className="admin-container account-settings-fullscreen-card" padding="lg" style={{ width: '100%', maxWidth: '100%', margin: '0 0 32px 0' }}>
       <div className="section-title" style={{ marginTop: 0 }}>
         <span>
-          <User size={18} style={{ verticalAlign: 'middle', marginLeft: '6px', display: 'inline', color: 'var(--accent-blue)' }} />
+          <User size={18} style={{ verticalAlign: 'middle', marginInlineEnd: '6px', display: 'inline', color: 'var(--accent-blue)' }} />
           پروفایل
         </span>
       </div>
@@ -141,7 +143,7 @@ export default function AccountSettingsView() {
             </strong>
             {user.role === 'admin' ? (
               <span className="admin-role-badge" style={{ fontSize: '10.5px' }}>
-                <ShieldCheck size={11} style={{ verticalAlign: 'middle', marginLeft: '3px' }} />
+                <ShieldCheck size={11} style={{ verticalAlign: 'middle', marginInlineEnd: '3px' }} />
                 مدیر کل
               </span>
             ) : (
@@ -182,6 +184,11 @@ export default function AccountSettingsView() {
           ذخیره تنظیمات حساب
         </Button>
       </form>
+
+      <div className="section-title">
+        <span>{t('زبان')}</span>
+      </div>
+      <LanguageSwitch />
 
       <PasswordSettingsSection />
 

@@ -8,6 +8,7 @@
  * - Filters by direction and state, and search
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React, { useMemo, useState } from 'react';
 import { ReceiptText, Plus } from 'lucide-react';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
@@ -203,7 +204,7 @@ export default function ChequesPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="جستجو در نام، شماره، شناسه صیادی یا یادداشت..."
-                  badge={`${visibleCheques.length.toLocaleString('fa-IR')} مورد`}
+                  badge={`${visibleCheques.length.toLocaleString(intlLocale())} مورد`}
                   className="incomes-search"
                 />
               )}
@@ -235,7 +236,7 @@ export default function ChequesPage() {
                         onClick={() => setStateFilter(opt.value)}
                       >
                         {opt.label}
-                        <span className="cheque-filter-count">{countFor(opt).toLocaleString('fa-IR')}</span>
+                        <span className="cheque-filter-count">{countFor(opt).toLocaleString(intlLocale())}</span>
                       </button>
                     ))}
                   </div>

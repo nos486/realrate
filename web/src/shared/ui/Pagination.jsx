@@ -2,11 +2,12 @@
  * Pagination.jsx — "Showing X–Y of Z" with previous / next buttons (shared by every paged list)
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import React from 'react';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
 import Button from './Button.jsx';
 
-const faNum = (n) => Number(n || 0).toLocaleString('fa-IR');
+const faNum = (n) => Number(n || 0).toLocaleString(intlLocale());
 
 /**
  * @param {object} props

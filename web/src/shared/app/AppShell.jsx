@@ -12,6 +12,7 @@
  * A form opened from "+" is reached with `?add=…` on the section's page (useQuickAddParam).
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -53,7 +54,7 @@ function usePendingSmsCount() {
   return count;
 }
 
-const faNum = (n) => Number(n || 0).toLocaleString('fa-IR');
+const faNum = (n) => Number(n || 0).toLocaleString(intlLocale());
 
 export function AppTopBar({ activeTab, navItems = [] }) {
   const hideValues = usePrivacyMode();

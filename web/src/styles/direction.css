@@ -1,0 +1,20 @@
+/* ── Layout direction (Persian is RTL, English LTR) ───────────────────────────────
+ * Spacing, alignment and offsets use logical properties (margin-inline-*, inset-inline-*,
+ * text-align: start/end) so they follow `html[dir]`. What logical properties cannot express lives here:
+ * the icons that point "forward / back", and the toggles that slide sideways.
+ */
+
+/* The icons drawn for a right-to-left screen (an arrow pointing left means "forward") mirror in English */
+[dir='ltr'] svg.lucide-arrow-left,
+[dir='ltr'] svg.lucide-arrow-right,
+[dir='ltr'] svg.lucide-chevron-left,
+[dir='ltr'] svg.lucide-chevron-right,
+[dir='ltr'] svg.lucide-chevrons-left,
+[dir='ltr'] svg.lucide-chevrons-right {
+  transform: scaleX(-1);
+}
+
+/* The portfolio switch knob starts at the end edge and slides toward the start when on */
+[dir='ltr'] .switch-wrapper input:checked + .switch-slider:before {
+  transform: translateX(-20px);
+}

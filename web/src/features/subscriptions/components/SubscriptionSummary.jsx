@@ -4,14 +4,15 @@
  * and the nearest renewal (utils/subscriptionDocument.js subscriptionTotals)
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React from 'react';
 import { CalendarSync, CalendarClock, Receipt, Repeat } from 'lucide-react';
 import { MiniCard } from '../../../shared/ui/index.js';
 import { daysLabel, formatSubscriptionAmount, shamsiDay } from '../constants/subscriptionDisplay.js';
 import { currencyAmounts, currencyLabel, currencyRateToday, formatCurrencyAmounts } from '../../../utils/currencies.js';
 
-const fa = (n) => Number(n).toLocaleString('fa-IR');
-const toman = (v) => Math.round(v).toLocaleString('fa-IR');
+const fa = (n) => Number(n).toLocaleString(intlLocale());
+const toman = (v) => Math.round(v).toLocaleString(intlLocale());
 
 /**
  * @param {{ totals: object, monthLabel: string, nearest?: { sub: object, view: object }|null,

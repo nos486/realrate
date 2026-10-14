@@ -17,6 +17,7 @@
  * resolves truthy once saved).
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React, { useState, useEffect, useRef } from 'react';
 import { Coins } from 'lucide-react';
 import { FilterPills, Input, Modal, NumericInput } from '../../../shared/ui/index.js';
@@ -44,7 +45,7 @@ const SIDE_OPTIONS = [
   { value: 'sell', label: 'فروش' },
 ];
 
-const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
+const formatNum = (v) => Number(v || 0).toLocaleString(intlLocale());
 
 export default function AddHoldingForm({
   isOpen,
@@ -367,7 +368,7 @@ export default function AddHoldingForm({
                   {formatNum(selectedBourseSymbol.priceToman)} تومان
                 </strong>
                 <span className="preview-price-rial">
-                  ({Number(selectedBourseSymbol.priceToman * 10).toLocaleString('fa-IR')} ریال)
+                  ({Number(selectedBourseSymbol.priceToman * 10).toLocaleString(intlLocale())} ریال)
                 </span>
               </div>
             )}

@@ -5,6 +5,7 @@
  * expenses, and deposits up to theirs incomes (smsRecord.js). A short message says how many.
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import { useEffect } from 'react';
 import { useVault } from '../../shared/vault/useVault.js';
 import { bumpVaultEpoch } from '../../shared/vault/vaultStore.js';
@@ -29,7 +30,7 @@ export function useSmsAutoRecord(enabled) {
         .then((count) => {
           if (cancelled || !count) return;
           bumpVaultEpoch();
-          toast.success(`${count.toLocaleString('fa-IR')} تراکنش کوچک از پیامک خودکار ثبت شد.`);
+          toast.success(`${count.toLocaleString(intlLocale())} تراکنش کوچک از پیامک خودکار ثبت شد.`);
         })
         .catch((err) => console.warn('Automatic SMS recording failed:', err));
     };

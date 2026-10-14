@@ -7,12 +7,13 @@
  * saving the expense marks that installment paid (shared/vault/recordLinks.js).
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React from 'react';
 import { FilterPills } from '../../../shared/ui/index.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { useOptionalLoans } from '../context/LoansContext.jsx';
 
-const fa = (n) => Math.round(Number(n) || 0).toLocaleString('fa-IR');
+const fa = (n) => Math.round(Number(n) || 0).toLocaleString(intlLocale());
 /** An installment's id as the loan store takes it (a schedule row may only have its number) */
 const installmentIdOf = (inst) => String(inst?.id || inst?.installmentNumber || '');
 

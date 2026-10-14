@@ -8,13 +8,14 @@
  * A change made offline that the server then refuses is reported (it cannot be kept).
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import React, { useEffect } from 'react';
 import { WifiOff, RefreshCw } from 'lucide-react';
 import { useOfflineStatus } from './useOfflineStatus.js';
 import { OFFLINE_SYNC_ERROR_EVENT } from './offlineSync.js';
 import { useFeedback } from '../ui/FeedbackProvider.jsx';
 
-const fa = (n) => n.toLocaleString('fa-IR');
+const fa = (n) => n.toLocaleString(intlLocale());
 
 export default function OfflineBar() {
   const { active, online, pending, syncing } = useOfflineStatus();

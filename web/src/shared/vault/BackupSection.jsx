@@ -6,6 +6,7 @@
  * same id and adds the others; nothing is deleted.
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import React, { useRef, useState } from 'react';
 import { DatabaseBackup, Download, Upload } from 'lucide-react';
 import Button from '../ui/Button.jsx';
@@ -20,7 +21,7 @@ import { buildFullBackup, serializeBackup, parseBackup, restoreFullBackup, summa
 import { saveTextFile } from '../utils/fileExport.js';
 import { todayIso } from '../utils/dates.js';
 
-const faNum = (n) => Number(n || 0).toLocaleString('fa-IR');
+const faNum = (n) => Number(n || 0).toLocaleString(intlLocale());
 
 const KIND_LABELS = {
   holding: 'خرید و موجودی پورتفو',
@@ -163,7 +164,7 @@ export default function BackupSection() {
             {summary && !restore.result && (
               <>
                 <p className="vault-settings-text">
-                  پشتیبان {summary.exportedAt ? `تاریخ ${new Date(summary.exportedAt).toLocaleDateString('fa-IR')}` : ''} شامل
+                  پشتیبان {summary.exportedAt ? `تاریخ ${new Date(summary.exportedAt).toLocaleDateString(intlLocale())}` : ''} شامل
                   {summary.portfolios > 0 && ` ${faNum(summary.portfolios)} پورتفو و`}:
                 </p>
                 <ul className="backup-summary">

@@ -25,6 +25,8 @@
  * server would only ever see what the user agreed to send.
  */
 
+import { intlLocale } from './i18n.js';
+
 export const ALERT_SEVERITIES = ['critical', 'warning', 'info'];
 const SEVERITY_RANK = { critical: 0, warning: 1, info: 2 };
 
@@ -125,7 +127,7 @@ export function selectForEmail(alerts = [], prefs = DEFAULT_EMAIL_PREFS, sent = 
     && !already.has(alertFingerprint(a)));
 }
 
-const faNum = (v) => Math.round(Number(v) || 0).toLocaleString('fa-IR');
+const faNum = (v) => Math.round(Number(v) || 0).toLocaleString(intlLocale());
 
 /**
  * The email for a set of alerts: { subject, text }. Amounts only with `includeAmounts`

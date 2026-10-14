@@ -7,6 +7,7 @@
  * setting them.
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React from 'react';
 import { Target, AlertTriangle, Pencil } from 'lucide-react';
 import { CategoryIcon } from '../utils/holdingHelpers.js';
@@ -19,7 +20,7 @@ const C = SIZE / 2;
 const PIE_R = 52;
 const RING_R = 61;
 
-const faPct = (n) => `${Number(n || 0).toLocaleString('fa-IR', { maximumFractionDigits: 1 })}٪`;
+const faPct = (n) => `${Number(n || 0).toLocaleString(intlLocale(), { maximumFractionDigits: 1 })}٪`;
 const signedPct = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${faPct(Math.abs(n))}`;
 /** «+۱۲ میلیون»: how many tomans above or below the target */
 const signedAmount = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${formatCompactAmount(Math.abs(n))}`;
@@ -92,7 +93,7 @@ export default function AllocationTargetsCard({ allocation, onEdit, readOnly = f
       {!hasTargets ? (
         <div className="allocation-targets-empty">
           <p className="stat-sub">
-            برای هر دسته سهم هدف بگذارید (مثلاً طلا ۳۰٪، ارز ۲۵٪)؛ اگر ترکیب پورتفو بیش از {DRIFT_THRESHOLD.toLocaleString('fa-IR')}٪ از هدف فاصله گرفت، هشدار می‌گیرید.
+            برای هر دسته سهم هدف بگذارید (مثلاً طلا ۳۰٪، ارز ۲۵٪)؛ اگر ترکیب پورتفو بیش از {DRIFT_THRESHOLD.toLocaleString(intlLocale())}٪ از هدف فاصله گرفت، هشدار می‌گیرید.
           </p>
           {!readOnly && onEdit && (
             <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={onEdit}>

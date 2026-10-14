@@ -57,7 +57,7 @@
   padding: 6px 8px;
   outline: none;
   direction: ltr;
-  text-align: right;
+  text-align: start;
 }
 
 .amount-field-input::placeholder {

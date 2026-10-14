@@ -3,10 +3,11 @@
  * on each section and the card on the home page
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import { PLAN_LIMITS, FREE_SMS_READS } from '../../config/planLimits.js';
 import { smsFreeUsage } from '../native/smsPlan.js';
 
-const faNum = (n) => Number(n).toLocaleString('fa-IR');
+const faNum = (n) => Number(n).toLocaleString(intlLocale());
 
 /** The sections' notes: the limits each one shows (keys of usage from GET /api/plan, or 'sms') */
 export const SECTION_LIMITS = {

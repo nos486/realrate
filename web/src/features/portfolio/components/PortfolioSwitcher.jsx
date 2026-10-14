@@ -49,7 +49,7 @@ export default function PortfolioSwitcher({
           onClick={onNewPortfolio}
           title="ایجاد پورتفوی جدید"
         >
-          <Plus size={13} style={{ verticalAlign: 'middle', marginLeft: '3px' }} />
+          <Plus size={13} style={{ verticalAlign: 'middle', marginInlineEnd: '3px' }} />
           <span>پورتفو</span>
         </button>
       </div>

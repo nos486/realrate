@@ -8,6 +8,7 @@
  * portfolio's entry. Only portfolios under the account vault are offered.
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Search, X, Briefcase } from 'lucide-react';
 import { FilterPills, NumericInput } from '../ui/index.js';
@@ -21,7 +22,7 @@ const RESULT_LIMIT = 8;
 const EPS = 1e-9;
 /** A link names its ledger's unit only when it is not the asset's usual one */
 const sameUnit = (link, position) => !link.unit || link.unit === position.unit;
-const qtyText = (n) => Number(n || 0).toLocaleString('fa-IR', { maximumFractionDigits: 6 });
+const qtyText = (n) => Number(n || 0).toLocaleString(intlLocale(), { maximumFractionDigits: 6 });
 
 /** The portfolios (buy) or the portfolios with what they hold (sell), loaded once */
 function usePortfolios(mode) {
@@ -194,7 +195,7 @@ export default function PortfolioLinkFields({ mode, value, onChange, toman = 0, 
                             </small>
                           </span>
                           <span className="asset-picker-price">
-                            {!selling && asset.price ? Math.round(asset.price).toLocaleString('fa-IR') : ''}
+                            {!selling && asset.price ? Math.round(asset.price).toLocaleString(intlLocale()) : ''}
                           </span>
                           <span className="asset-picker-action" />
                         </button>

@@ -2,6 +2,8 @@
  * newsFormat.js — How a news item's time, category and source read
  */
 
+import { intlLocale } from '../../utils/i18n.js';
+
 export const NEWS_CATEGORIES = {
   currency: 'ارز',
   gold: 'طلا و سکه',
@@ -14,16 +16,16 @@ export const NEWS_CATEGORIES = {
 };
 
 const TEHRAN = 'Asia/Tehran';
-const fa = (n) => Number(n).toLocaleString('fa-IR');
+const fa = (n) => Number(n).toLocaleString(intlLocale());
 
 /** "۱۴:۳۰" on Tehran's clock */
 export function newsClock(ts) {
-  return new Date(ts).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: TEHRAN });
+  return new Date(ts).toLocaleTimeString(intlLocale(), { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: TEHRAN });
 }
 
 /** "۱۲ مهر، ۱۴:۳۰" */
 export function newsFullTime(ts) {
-  const day = new Date(ts).toLocaleDateString('fa-IR', { day: 'numeric', month: 'long', timeZone: TEHRAN });
+  const day = new Date(ts).toLocaleDateString(intlLocale(), { day: 'numeric', month: 'long', timeZone: TEHRAN });
   return `${day}، ${newsClock(ts)}`;
 }
 

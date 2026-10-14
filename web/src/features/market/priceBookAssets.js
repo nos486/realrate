@@ -7,12 +7,13 @@
  * A dollar-priced asset keeps `currency: "usd"` and `priceUsd` (its own price, assetPrice.js).
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import { SPEC_BY_ID } from '../../utils/priceBook.js';
 import { toPriceId } from '../../utils/priceIds.js';
 import { CATEGORY_MAP } from '../../config/categories.config.js';
 import { currencyOf } from '../../utils/priceBook.js';
 
-const fa = (n, digits = 0) => Number(n).toLocaleString('fa-IR', { maximumFractionDigits: digits });
+const fa = (n, digits = 0) => Number(n).toLocaleString(intlLocale(), { maximumFractionDigits: digits });
 
 /** The line under an asset's name: where its price comes from */
 function describe(item) {

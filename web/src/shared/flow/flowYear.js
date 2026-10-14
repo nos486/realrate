@@ -6,6 +6,7 @@
  * (amount in tomans, only what counts toward the totals) and these helpers do the rest.
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import { shamsiMonthOf, shamsiMonthRange, shiftShamsiMonth } from '../../utils/expenseDocument.js';
 import { PERSIAN_MONTHS } from '../../features/portfolio/components/ShamsiDatePicker.jsx';
 
@@ -15,10 +16,10 @@ export const monthIndex = ({ jy, jm }) => jy * 12 + jm;
 
 /** "مهر ۱۴۰۵" */
 export function formatShamsiMonth(jy, jm) {
-  return `${PERSIAN_MONTHS[jm - 1]?.label || ''} ${Number(jy).toLocaleString('fa-IR', { useGrouping: false })}`;
+  return `${PERSIAN_MONTHS[jm - 1]?.label || ''} ${Number(jy).toLocaleString(intlLocale(), { useGrouping: false })}`;
 }
 
-export const formatShamsiYear = (jy) => Number(jy).toLocaleString('fa-IR', { useGrouping: false });
+export const formatShamsiYear = (jy) => Number(jy).toLocaleString(intlLocale(), { useGrouping: false });
 
 /** The Gregorian days of a Shamsi year (inclusive) */
 export function shamsiYearRange(jy) {

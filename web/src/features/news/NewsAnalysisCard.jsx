@@ -9,6 +9,7 @@
  * here (the news page), else (the landing page, where the news page is out of reach) they are text.
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import React from 'react';
 import { Sparkles, AlertTriangle } from 'lucide-react';
 import { newsTimeAgo, newsFullTime } from './newsFormat.js';
@@ -20,7 +21,7 @@ function NewsLink({ id, title, onOpenNews }) {
   return open ? <button type="button" className="news-analysis-link" onClick={open}>{title}</button> : <span>{title}</span>;
 }
 
-const fa = (n) => Number(n || 0).toLocaleString('fa-IR');
+const fa = (n) => Number(n || 0).toLocaleString(intlLocale());
 
 export default function NewsAnalysisCard({ analysis, className = '', onOpenNews = null }) {
   if (!analysis?.title) return null;

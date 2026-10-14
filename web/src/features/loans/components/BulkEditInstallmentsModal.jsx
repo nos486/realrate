@@ -13,6 +13,7 @@
  * Its error banner and footer are the entry forms' own (AlertBanner, EntryFormActions).
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React, { useState, useEffect, useMemo } from 'react';
 import { ListChecks } from 'lucide-react';
 import { AlertBanner, Modal, NumericInput } from '../../../shared/ui/index.js';
@@ -20,7 +21,7 @@ import { EntryFormActions } from '../../../shared/form/index.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { distributeInstallmentAmounts } from '../../../utils/loanCalculator.js';
 
-const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
+const formatNum = (v) => Number(v || 0).toLocaleString(intlLocale());
 
 export default function BulkEditInstallmentsModal({
   isOpen,

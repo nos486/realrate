@@ -14,6 +14,7 @@
  * unlock it does).
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useRefreshToken } from '../../shared/refresh/pageRefresh.js';
 import { useUsdAt } from '../market/dailyHistory.js';
@@ -41,7 +42,7 @@ import NewsCard from '../news/NewsCard.jsx';
 import PlanHomeCard from '../../shared/plan/PlanHomeCard.jsx';
 
 const MASK = '••••••';
-const fa = (n) => Math.round(Number(n) || 0).toLocaleString('fa-IR');
+const fa = (n) => Math.round(Number(n) || 0).toLocaleString(intlLocale());
 const DAY_MS = 86_400_000;
 
 /** This month's incomes (decrypted), reloaded when the vault changes */
@@ -163,7 +164,7 @@ export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }
             <strong>{fa(r.value)}</strong>
             {r.change !== null && Math.abs(r.change) >= 0.01 && (
               <em className={r.change > 0 ? 'is-up' : 'is-down'}>
-                {r.change > 0 ? '▲' : '▼'} {Math.abs(r.change).toLocaleString('fa-IR', { maximumFractionDigits: 2 })}٪
+                {r.change > 0 ? '▲' : '▼'} {Math.abs(r.change).toLocaleString(intlLocale(), { maximumFractionDigits: 2 })}٪
               </em>
             )}
           </span>

@@ -1,35 +1,22 @@
-import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter } from 'react-router-dom'
-import { ThemeProvider } from './context/ThemeContext.jsx'
-import { AuthProvider } from './features/auth/index.js'
-import { DemoProvider } from './features/demo/index.js'
-import { FeedbackProvider } from './shared/ui/FeedbackProvider.jsx'
-// Self-hosted: Google Fonts is slow or blocked for many users in Iran
+import { resolveBootLocale, bootLocale } from './shared/i18n/localeStore.js'
+import { loadMessages } from './shared/i18n/loadMessages.js'
+import LanguagePicker from './shared/i18n/LanguagePicker.jsx'
 import '@fontsource-variable/vazirmatn'
-import './styles/index.css'
-import App from './App.jsx'
-import { registerServiceWorker } from './shared/pwa/registerServiceWorker.js'
-import { initNativeApp } from './shared/native/nativeApp.js'
-import { initAppLayoutClass } from './shared/app/appLayout.js'
+import './styles/tokens.css'
+import './styles/language.css'
 
-registerServiceWorker()
-// The app's frame and touch feel (styles/app-shell.css): the Android app and phone-sized screens
-initAppLayoutClass()
-initNativeApp()
+// The language is fixed before the rest of the app loads: its modules read it (texts, number formats) on import
+const { locale, needsChoice } = resolveBootLocale()
+bootLocale(locale)
 
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <BrowserRouter>
-      <ThemeProvider>
-        <FeedbackProvider>
-          <AuthProvider>
-            <DemoProvider>
-              <App />
-            </DemoProvider>
-          </AuthProvider>
-        </FeedbackProvider>
-      </ThemeProvider>
-    </BrowserRouter>
-  </StrictMode>,
-)
+;(async () => {
+  if (needsChoice) {
+    // First launch: ask before loading the app (the picker is written in both languages)
+    createRoot(document.getElementById('root')).render(<LanguagePicker />)
+    return
+  }
+  if (locale !== 'fa') await loadMessages(locale)
+  const { renderApp } = await import('./bootApp.jsx')
+  renderApp()
+})()

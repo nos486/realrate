@@ -10,17 +10,18 @@
  * or 'pnl' (an investment: more is a profit).
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import React from 'react';
 
 const MASK = '****';
-const toman = (v) => Math.round(Number(v) || 0).toLocaleString('fa-IR');
-export const formatUsd = (v) => (Number(v) || 0).toLocaleString('fa-IR', { maximumFractionDigits: v >= 100 ? 0 : 2 });
+const toman = (v) => Math.round(Number(v) || 0).toLocaleString(intlLocale());
+export const formatUsd = (v) => (Number(v) || 0).toLocaleString(intlLocale(), { maximumFractionDigits: v >= 100 ? 0 : 2 });
 
 function Change({ pct, tone }) {
   if (pct === null || pct === undefined || !Number.isFinite(pct)) return null;
   const up = pct >= 0;
   const cls = tone === 'pnl' ? (up ? 'is-profit' : 'is-loss') : up ? 'is-up' : 'is-down';
-  return <b className={cls}> ({up ? '+' : '−'}{Math.abs(pct).toLocaleString('fa-IR', { maximumFractionDigits: 0 })}٪)</b>;
+  return <b className={cls}> ({up ? '+' : '−'}{Math.abs(pct).toLocaleString(intlLocale(), { maximumFractionDigits: 0 })}٪)</b>;
 }
 
 /**
@@ -55,7 +56,7 @@ export function DollarValueFoot({ view, noun, hideValues = false, tone = 'rate' 
           <Change pct={view.changePct} tone={tone} />
         </>
       )}
-      {view.missing > 0 && <small> · {view.missing.toLocaleString('fa-IR')} {noun} بدون نرخ دلار آن روز حساب نشده</small>}
+      {view.missing > 0 && <small> · {view.missing.toLocaleString(intlLocale())} {noun} بدون نرخ دلار آن روز حساب نشده</small>}
     </span>
   );
 }

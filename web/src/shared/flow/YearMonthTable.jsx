@@ -4,10 +4,11 @@
  * month
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import React from 'react';
 import { formatAmountMasked } from './flowFormat.js';
 
-const formatPct = (v) => `${Math.abs(v).toLocaleString('fa-IR', { maximumFractionDigits: Math.abs(v) < 10 ? 1 : 0 })}٪`;
+const formatPct = (v) => `${Math.abs(v).toLocaleString(intlLocale(), { maximumFractionDigits: Math.abs(v) < 10 ? 1 : 0 })}٪`;
 
 /**
  * @param {{ series: Array<object>, kind: 'income'|'expense', onOpenMonth?: (jm: number) => void,
@@ -52,7 +53,7 @@ export default function YearMonthTable({ series, kind, onOpenMonth, hideValues =
                     <small>{total > 0 ? formatPct((m.total / total) * 100) : '—'}</small>
                   </span>
                 </td>
-                <td className="num">{m.count.toLocaleString('fa-IR')}</td>
+                <td className="num">{m.count.toLocaleString(intlLocale())}</td>
               </tr>
             ))}
           </tbody>

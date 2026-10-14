@@ -12,6 +12,7 @@
  * remembered per browser.
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import React, { useMemo, useState } from 'react';
 import {
   DndContext,
@@ -83,7 +84,7 @@ const STYLE_OPTIONS = [
 
 const COLLAPSED_KEY = 'realrate_home_collapsed';
 
-const faCount = (n) => Number(n).toLocaleString('fa-IR');
+const faCount = (n) => Number(n).toLocaleString(intlLocale());
 
 /** Collapsed sections, remembered in this browser */
 function useCollapsedSections() {

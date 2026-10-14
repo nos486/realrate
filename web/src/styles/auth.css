@@ -14,6 +14,8 @@
 
 .auth-top {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
   width: 100%;
   max-width: 440px;
   margin: 0 auto;
@@ -139,13 +141,13 @@
 }
 
 .auth-password-wrap .ui-input-control {
-  padding-left: 44px;
+  padding-inline-end: 44px;
 }
 
 .auth-password-toggle {
   position: absolute;
   top: 50%;
-  left: 8px;
+  inset-inline-end: 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;

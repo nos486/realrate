@@ -26,6 +26,11 @@
       (function() {
         try {
           document.documentElement.setAttribute('data-theme', 'dark');
+          // Language and direction before first paint (the app re-applies them once it boots)
+          if (localStorage.getItem('realrate_locale') === 'en') {
+            document.documentElement.setAttribute('lang', 'en');
+            document.documentElement.setAttribute('dir', 'ltr');
+          }
           // A signed-in visitor on / is sent to the app: don't flash the static landing text
           if (localStorage.getItem('realrate_token')) document.documentElement.classList.add('has-session');
           localStorage.setItem('realrate_theme', 'dark');

@@ -15,6 +15,7 @@
  * the Android notifications' and the email digest's (shared/alerts, domain/reminders.js).
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React, { useMemo, useState } from 'react';
 import { CalendarSync, Plus, Eye, EyeOff } from 'lucide-react';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
@@ -49,7 +50,7 @@ const HEADER = {
   subtitle: 'هزینه‌ی ماهانه و یادآوری قبل از هر تمدید',
 };
 
-const fa = (n) => Number(n).toLocaleString('fa-IR');
+const fa = (n) => Number(n).toLocaleString(intlLocale());
 
 export default function SubscriptionsPage() {
   const { readOnly } = useDemo();

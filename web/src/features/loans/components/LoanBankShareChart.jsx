@@ -2,6 +2,7 @@
  * LoanBankShareChart.jsx — How the loans split across banks
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React, { useMemo, useState } from 'react';
 import { BankLogo } from '../../../shared/banks/index.js';
 import DonutChart, { ChartToggle } from '../../../shared/ui/DonutChart.jsx';
@@ -11,7 +12,7 @@ const MEASURES = [
   { id: 'remaining', label: 'مانده بدهی', field: 'totalRemaining', centerLabel: 'کل بدهی' },
 ];
 
-const otherBanksLabel = (count) => `سایر (${count.toLocaleString('fa-IR')} بانک)`;
+const otherBanksLabel = (count) => `سایر (${count.toLocaleString(intlLocale())} بانک)`;
 
 /**
  * @param {{ groups: Array<{ key: string, name: string, bank: object,

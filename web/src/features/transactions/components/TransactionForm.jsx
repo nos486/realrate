@@ -11,6 +11,7 @@
  * saved).
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React, { useState, useEffect } from 'react';
 import { Receipt, AlertTriangle } from 'lucide-react';
 import { FilterPills, Input, Modal } from '../../../shared/ui/index.js';
@@ -269,15 +270,15 @@ export default function TransactionForm({
         {totalValue > 0 && (
           <div className="tx-summary-preview-box">
             <span className="tx-summary-label">ارزش کل معامله:</span>
-            <strong className="tx-summary-value">{Math.round(totalValue).toLocaleString('fa-IR')} تومان</strong>
+            <strong className="tx-summary-value">{Math.round(totalValue).toLocaleString(intlLocale())} تومان</strong>
           </div>
         )}
 
         {isSellingOverBalance && (
           <div className="tx-warning-banner">
-            <AlertTriangle size={15} style={{ verticalAlign: 'middle', marginLeft: '6px', flexShrink: 0 }} />
+            <AlertTriangle size={15} style={{ verticalAlign: 'middle', marginInlineEnd: '6px', flexShrink: 0 }} />
             <span>
-              توجه: مقدار فروش ({Number(quantityNum).toLocaleString('fa-IR')} {unit}) بیشتر از موجودی محاسبه‌شده فعلی این دارایی ({Number(availableBalance).toLocaleString('fa-IR')} {unit}) است. (غیرمسدودکننده)
+              توجه: مقدار فروش ({Number(quantityNum).toLocaleString(intlLocale())} {unit}) بیشتر از موجودی محاسبه‌شده فعلی این دارایی ({Number(availableBalance).toLocaleString(intlLocale())} {unit}) است. (غیرمسدودکننده)
             </span>
           </div>
         )}

@@ -6,6 +6,7 @@
  * nothing to show (no allocation, locked vault, no opener).
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React from 'react';
 import { Gauge } from 'lucide-react';
 import AllocationTargetsCard from './AllocationTargetsCard.jsx';
@@ -38,7 +39,7 @@ export default function PortfolioPlanCards({
             <>
               <p className="stat-sub risk-profile-card-result">
                 <strong>{profileOf(riskResult.score).title}</strong>
-                {' '}— {riskResult.score.toLocaleString('fa-IR', { maximumFractionDigits: 1 })}٪
+                {' '}— {riskResult.score.toLocaleString(intlLocale(), { maximumFractionDigits: 1 })}٪
               </p>
               <RiskMixPie items={mixItemsOf(profileOf(riskResult.score).allocation)} />
             </>

@@ -8,6 +8,7 @@
  * - Loan details dialog with interactive full installment schedule & payment toggling
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React, { useState, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -42,7 +43,7 @@ import VaultUnlockCard from '../../../shared/vault/VaultUnlockCard.jsx';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import { useDemo } from '../../demo/index.js';
 
-const formatNum = (v) => Number(v || 0).toLocaleString('fa-IR');
+const formatNum = (v) => Number(v || 0).toLocaleString(intlLocale());
 /** Amounts follow the app-wide "hide values" toggle; counts and percentages stay visible */
 const formatMoney = (v, hidden) => (hidden ? '****' : formatNum(v));
 
@@ -369,7 +370,7 @@ export default function LoansPage({ initialLoanId = null }) {
                 {formatMoney(summaryMetrics.totalDebt, hideValues)}
                 <span className="stat-unit">تومان</span>
               </div>
-              <div className="stat-sub">{summaryMetrics.activeLoans.toLocaleString('fa-IR')} وام فعال</div>
+              <div className="stat-sub">{summaryMetrics.activeLoans.toLocaleString(intlLocale())} وام فعال</div>
             </div>
 
             {/* Card 2: Share of each bank in the loans */}
@@ -424,7 +425,7 @@ export default function LoansPage({ initialLoanId = null }) {
                 {formatMoney(summaryMetrics.totalReceived, hideValues)}
                 <span className="stat-unit">تومان</span>
               </div>
-              <div className="stat-sub">مجموع اصل {loans.length.toLocaleString('fa-IR')} وام ثبت‌شده</div>
+              <div className="stat-sub">مجموع اصل {loans.length.toLocaleString(intlLocale())} وام ثبت‌شده</div>
             </div>
           </div>
         }
@@ -462,7 +463,7 @@ export default function LoansPage({ initialLoanId = null }) {
                     className={`loan-inst-filter-btn ${showSettled ? 'active' : ''}`}
                     onClick={() => setShowSettled((v) => !v)}
                   >
-                    {showSettled ? 'پنهان کردن' : 'نمایش'} وام‌های تسویه‌شده ({settledCount.toLocaleString('fa-IR')})
+                    {showSettled ? 'پنهان کردن' : 'نمایش'} وام‌های تسویه‌شده ({settledCount.toLocaleString(intlLocale())})
                   </button>
                 </div>
               )}
@@ -477,7 +478,7 @@ export default function LoansPage({ initialLoanId = null }) {
                       <div className="cat-group-titles">
                         <h4 className="cat-group-name">{group.name}</h4>
                         <span className="cat-group-count">
-                          {group.items.length.toLocaleString('fa-IR')} وام
+                          {group.items.length.toLocaleString(intlLocale())} وام
                         </span>
                       </div>
                     </div>

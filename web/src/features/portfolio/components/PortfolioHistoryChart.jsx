@@ -8,6 +8,7 @@
  * public price history; nothing about the portfolio is sent out.
  */
 
+import { intlLocale, getDir } from '../../../utils/i18n.js';
 import React, { useMemo, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { CHART_COLORS } from '../../../shared/ui/chartColors.js';
@@ -37,10 +38,10 @@ const CHANGES = [
   { span: 30, label: '۱ ماه' },
 ];
 
-const dayFormat = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { year: 'numeric', month: 'short', day: 'numeric' });
+const dayFormat = new Intl.DateTimeFormat(`${intlLocale()}-u-ca-persian`, { year: 'numeric', month: 'short', day: 'numeric' });
 const dayLabel = (iso) => dayFormat.format(new Date(`${iso}T12:00:00+03:30`));
-const compact = new Intl.NumberFormat('fa-IR', { notation: 'compact', maximumFractionDigits: 1 });
-const fmt = (v, unit) => (Number.isFinite(v) ? Math.round(v).toLocaleString('fa-IR') : '-') + (unit === 'usd' ? ' $' : ' تومان');
+const compact = new Intl.NumberFormat(intlLocale(), { notation: 'compact', maximumFractionDigits: 1 });
+const fmt = (v, unit) => (Number.isFinite(v) ? Math.round(v).toLocaleString(intlLocale()) : '-') + (unit === 'usd' ? ' $' : ' تومان');
 const signed = (pct) => `${pct >= 0 ? '+' : '−'}${formatPct(Math.abs(pct))}٪`;
 
 /** A compact segmented control: one pill per option, the active one filled */
@@ -189,7 +190,7 @@ export default function PortfolioHistoryChart({ assets, hideValues = false }) {
                   <>
                     <span className="portfolio-history-cursor" style={{ left: `${hoverLeft}%` }} />
                     <span className="portfolio-history-dot" style={{ left: `${hoverLeft}%`, top: `${(y(values[hover]) / H) * 100}%`, background: CHART_COLORS[0] }} />
-                    <span className={`portfolio-history-tip ${hoverLeft > 70 ? 'is-left' : ''}`} style={{ left: `${hoverLeft}%` }} dir="rtl">
+                    <span className={`portfolio-history-tip ${hoverLeft > 70 ? 'is-left' : ''}`} style={{ left: `${hoverLeft}%` }} dir={getDir()}>
                       <b>{fmt(values[shown], unit)}</b>
                       <span>{dayLabel(series.days[shown])}</span>
                     </span>

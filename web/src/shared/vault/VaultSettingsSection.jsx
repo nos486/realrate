@@ -7,6 +7,7 @@
  * everything reset (VaultResetSection).
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import React, { useCallback, useEffect, useState } from 'react';
 import { LockOpen, ShieldCheck, KeyRound, RefreshCw } from 'lucide-react';
 import Button from '../ui/Button.jsx';
@@ -22,7 +23,7 @@ import { useWarnBeforeUnload } from './useWarnBeforeUnload.js';
 import { changeVaultPassphrase, lockAll, loadVault, bumpVaultEpoch, VAULT_MIN_PASSPHRASE_LENGTH } from './vaultStore.js';
 import { encryptAccountData, findPendingPlaintext, adoptLegacyPortfolio } from './vaultMigration.js';
 
-const faNum = (n) => Number(n || 0).toLocaleString('fa-IR');
+const faNum = (n) => Number(n || 0).toLocaleString(intlLocale());
 
 /** Portfolios that still have their own (older) vault passphrase */
 function LegacyPortfolios({ portfolios, onAdopted }) {

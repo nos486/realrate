@@ -23,6 +23,7 @@
  * the expenses and incomes don't edit or delete it — only its own page does, through here.
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import { SUBSCRIPTION_EXPENSE_CATEGORY, duePayments } from '../../utils/subscriptionDocument.js';
 import { categoryLinkOf, linkFieldsOf, sameLinkValue } from '../../utils/categoryLinks.js';
 import { BASE_CURRENCY, normalizeCurrency } from '../../utils/currencies.js';
@@ -211,7 +212,7 @@ export async function recordInstallmentPayments(loan, installments) {
     const amount = Number(inst.paidAmount) || 0;
     if (!inst?.id || !inst.paidDate || !(amount > 0)) continue;
     await recordSpending(installmentSpendingKey(loan.id, inst), {
-      title: `قسط ${installmentNumberOf(inst) ? `${installmentNumberOf(inst).toLocaleString('fa-IR')} ` : ''}${loan.title || 'وام'}`,
+      title: `قسط ${installmentNumberOf(inst) ? `${installmentNumberOf(inst).toLocaleString(intlLocale())} ` : ''}${loan.title || 'وام'}`,
       amount,
       currency: BASE_CURRENCY,
       date: inst.paidDate,

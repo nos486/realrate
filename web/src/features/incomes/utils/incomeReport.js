@@ -7,6 +7,7 @@
  * bag of utils/currencies.js).
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import { PERSIAN_MONTHS, gregorianToShamsi, getTodayShamsi } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { incomeInToman } from '../../../utils/incomeDocument.js';
 
@@ -39,7 +40,7 @@ export function getShamsiYearMonth(isoDate) {
  */
 export function formatShamsiMonth(year, month) {
   const monthLabel = PERSIAN_MONTHS[month - 1]?.label || '';
-  return `${monthLabel} ${Number(year).toLocaleString('fa-IR', { useGrouping: false })}`;
+  return `${monthLabel} ${Number(year).toLocaleString(intlLocale(), { useGrouping: false })}`;
 }
 
 /**

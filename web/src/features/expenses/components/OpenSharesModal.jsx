@@ -7,6 +7,7 @@
  * expense keeps its own section); `onChanged` lets the opener reload.
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React, { useState } from 'react';
 import { useUsdAt } from '../../market/dailyHistory.js';
 import { HandCoins, ChevronLeft } from 'lucide-react';
@@ -69,7 +70,7 @@ export default function OpenSharesModal({ accounts = [], usdToman = 0, hideValue
         title="طلب‌های دنگ"
         subtitle={
           expenses.length
-            ? `${summary.openCount.toLocaleString('fa-IR')} هزینه · مانده ${hideValues ? '****' : formatAmount(summary.remainingToman)} تومان`
+            ? `${summary.openCount.toLocaleString(intlLocale())} هزینه · مانده ${hideValues ? '****' : formatAmount(summary.remainingToman)} تومان`
             : 'هزینه‌هایی که برای دیگران هم پرداخت کرده‌اید'
         }
         icon={<HandCoins size={18} />}

@@ -13,6 +13,7 @@
  *   again now, with a report of each bubble's days against its inputs' (RecomputeReport).
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { History, Play, Eye, Trash2, Plus, ArrowLeftRight, RefreshCw, ExternalLink, Sparkles, Calculator } from 'lucide-react';
 import { Button, FeaturePageHeader, SearchBar } from '../../../shared/ui/index.js';
@@ -37,10 +38,10 @@ const RANGES = [
   { value: 3650, label: '۱۰ سال' },
 ];
 
-const fa = (n) => Number(n || 0).toLocaleString('fa-IR');
-const faPrice = (n) => (Number.isFinite(Number(n)) ? Math.round(Number(n)).toLocaleString('fa-IR') : '-');
-const faDate = (d) => (d ? new Date(`${String(d).slice(0, 10)}T12:00:00Z`).toLocaleDateString('fa-IR') : '-');
-const faDateTime = (d) => (d ? new Date(d).toLocaleString('fa-IR', { dateStyle: 'short', timeStyle: 'short' }) : '');
+const fa = (n) => Number(n || 0).toLocaleString(intlLocale());
+const faPrice = (n) => (Number.isFinite(Number(n)) ? Math.round(Number(n)).toLocaleString(intlLocale()) : '-');
+const faDate = (d) => (d ? new Date(`${String(d).slice(0, 10)}T12:00:00Z`).toLocaleDateString(intlLocale()) : '-');
+const faDateTime = (d) => (d ? new Date(d).toLocaleString(intlLocale(), { dateStyle: 'short', timeStyle: 'short' }) : '');
 const unitLabel = (u) => UNITS.find((x) => x.value === u)?.label || u;
 const toSaved = (list) => list.map(({ slug, label, unit, target }) => ({ slug, label, unit, target }));
 

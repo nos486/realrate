@@ -1,3 +1,4 @@
+import { intlLocale } from '../utils/i18n.js';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Search,
@@ -357,8 +358,8 @@ export default function UniversalAssetSearch({
                             {item.shown?.currency === 'usd'
                               ? formatPrice(item.shown.value, 'usd')
                               : item.price % 1 !== 0
-                                ? Number(item.price).toLocaleString('fa-IR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })
-                                : Math.round(item.price).toLocaleString('fa-IR')}
+                                ? Number(item.price).toLocaleString(intlLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 4 })
+                                : Math.round(item.price).toLocaleString(intlLocale())}
                           </span>
                           <span className="universal-result-unit">{item.shown?.currency === 'usd' ? 'دلار' : item.unit || 'تومان'}</span>
                         </>
@@ -413,8 +414,8 @@ export default function UniversalAssetSearch({
                             {item.shown?.currency === 'usd'
                               ? formatPrice(item.shown.value, 'usd')
                               : item.price % 1 !== 0
-                                ? Number(item.price).toLocaleString('fa-IR', { minimumFractionDigits: 2, maximumFractionDigits: 4 })
-                                : Math.round(item.price).toLocaleString('fa-IR')}
+                                ? Number(item.price).toLocaleString(intlLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 4 })
+                                : Math.round(item.price).toLocaleString(intlLocale())}
                           </span>
                           <span className="universal-result-unit">{item.shown?.currency === 'usd' ? 'دلار' : item.unit || 'تومان'}</span>
                         </>

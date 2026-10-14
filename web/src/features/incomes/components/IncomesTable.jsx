@@ -57,7 +57,7 @@ export default function IncomesTable({ incomes, onEdit, onDelete, deletingId = n
       mobile: 'meta',
       render: (income) => (
         <span className="table-date-text">
-          <Calendar size={12} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
+          <Calendar size={12} style={{ verticalAlign: 'middle', marginInlineEnd: '4px' }} />
           {formatShamsiDisplay(`${income.incomeDate}T00:00:00`)}
         </span>
       ),
@@ -91,7 +91,7 @@ export default function IncomesTable({ incomes, onEdit, onDelete, deletingId = n
         <span className="table-notes-text" title={income.notes || ''}>
           {income.notes ? (
             <>
-              <MessageSquare size={12} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
+              <MessageSquare size={12} style={{ verticalAlign: 'middle', marginInlineEnd: '4px' }} />
               {income.notes}
             </>
           ) : '—'}

@@ -1,3 +1,4 @@
+import { intlLocale } from '../../../../utils/i18n.js';
 import React, { useState } from 'react';
 import {
   Check,
@@ -14,7 +15,7 @@ import { gregorianToShamsi } from '../../../portfolio/components/ShamsiDatePicke
 import { useFeature } from '../../../../shared/features/index.js';
 
 const SCAN_FIELDS_CONFIG = [
-  { key: 'amount', label: 'مبلغ چک', format: (val) => (val ? `${Number(val).toLocaleString('fa-IR')} تومان` : null) },
+  { key: 'amount', label: 'مبلغ چک', format: (val) => (val ? `${Number(val).toLocaleString(intlLocale())} تومان` : null) },
   { key: 'dueDate', label: 'تاریخ سررسید', format: (val) => (val ? gregorianToShamsi(`${val}T00:00:00`) : null) },
   { key: 'sayadId', label: 'شناسه صیادی (۱۶ رقم)', format: (val) => val },
   { key: 'chequeNumber', label: 'شماره چک', format: (val) => val },

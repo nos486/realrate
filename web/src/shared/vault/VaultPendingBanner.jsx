@@ -1,3 +1,4 @@
+import { intlLocale } from '../../utils/i18n.js';
 import React, { useEffect, useState } from 'react';
 import { ShieldAlert, Lock } from 'lucide-react';
 import AlertBanner from '../ui/AlertBanner.jsx';
@@ -52,8 +53,8 @@ export default function VaultPendingBanner({ onOpenSettings }) {
   if (plainCount === 0 && legacyCount === 0) return null;
 
   const parts = [];
-  if (plainCount > 0) parts.push(`${plainCount.toLocaleString('fa-IR')} مورد هنوز رمزنگاری نشده است`);
-  if (legacyCount > 0) parts.push(`${legacyCount.toLocaleString('fa-IR')} پورتفو هنوز رمز جداگانه دارد`);
+  if (plainCount > 0) parts.push(`${plainCount.toLocaleString(intlLocale())} مورد هنوز رمزنگاری نشده است`);
+  if (legacyCount > 0) parts.push(`${legacyCount.toLocaleString(intlLocale())} پورتفو هنوز رمز جداگانه دارد`);
 
   return (
     <AlertBanner

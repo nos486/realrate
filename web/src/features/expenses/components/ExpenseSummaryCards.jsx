@@ -5,6 +5,7 @@
  * today
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import React from 'react';
 import { Coins, DollarSign, Banknote, Hash } from 'lucide-react';
 import { MiniCard } from '../../../shared/ui/index.js';
@@ -75,7 +76,7 @@ export default function ExpenseSummaryCards({ summary, budget = null, hideValues
         <MiniCard
           icon={<Hash size={14} />}
           title="تعداد هزینه‌ها"
-          value={summary.count.toLocaleString('fa-IR')}
+          value={summary.count.toLocaleString(intlLocale())}
           unit="مورد"
           className="incomes-summary-card"
           footer={summary.firstDate && (

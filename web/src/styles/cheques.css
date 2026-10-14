@@ -96,7 +96,7 @@
 .cheque-due-hint {
   display: inline-block;
   /* Its own RTL run: date cells are laid out LTR, which would reverse "۳ روز گذشته" */
-  direction: rtl;
+  direction: inherit;
   unicode-bidi: isolate;
   margin-inline-start: 6px;
   padding: 0 7px;

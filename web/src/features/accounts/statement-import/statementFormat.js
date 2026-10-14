@@ -2,6 +2,7 @@
  * statementFormat.js — How the import shows numbers, days and the account's other side
  */
 
+import { intlLocale } from '../../../utils/i18n.js';
 import { STATEMENT_BANKS } from '../../../utils/bankStatementTemplates.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 
@@ -11,7 +12,7 @@ const PERSIAN_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
 export const faDigits = (text) => String(text ?? '').replace(/\d/g, (d) => PERSIAN_DIGITS[d]);
 
 /** A toman amount with thousands separators */
-export const faAmount = (value) => Math.round(Number(value) || 0).toLocaleString('fa-IR');
+export const faAmount = (value) => Math.round(Number(value) || 0).toLocaleString(intlLocale());
 
 /** A Gregorian day (YYYY-MM-DD) as a Shamsi one */
 export const shamsiDay = (iso) => (iso ? formatShamsiDisplay(`${iso}T00:00:00`) : '');

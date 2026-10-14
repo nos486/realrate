@@ -180,7 +180,7 @@
   border-radius: var(--radius-full);
   font-size: 12px !important;
   font-weight: 800;
-  direction: rtl;
+  direction: inherit;
 }
 
 .monthly-income-change small {
@@ -282,7 +282,7 @@
   text-align: center;
   white-space: nowrap;
   overflow: visible;
-  direction: rtl;
+  direction: inherit;
 }
 
 .monthly-income-axis span.is-minor {

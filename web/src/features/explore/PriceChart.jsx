@@ -10,13 +10,14 @@
  * price history, so there is none. Colors are read from the design tokens (styles/tokens.css).
  */
 
+import { intlLocale, getDir } from '../../utils/i18n.js';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createChart, createSeriesMarkers, CandlestickSeries, LineSeries, CrosshairMode } from 'lightweight-charts';
 import { formatPrice } from '../market/assetPrice.js';
 import { movingAverage, periodStats } from './chartMath.js';
 
-const dayFormat = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { month: 'short', day: 'numeric' });
-const dayLongFormat = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { year: 'numeric', month: 'short', day: 'numeric', weekday: 'short' });
+const dayFormat = new Intl.DateTimeFormat(`${intlLocale()}-u-ca-persian`, { month: 'short', day: 'numeric' });
+const dayLongFormat = new Intl.DateTimeFormat(`${intlLocale()}-u-ca-persian`, { year: 'numeric', month: 'short', day: 'numeric', weekday: 'short' });
 
 /** Axis, crosshair and marker text size on the canvas: phones a step smaller to leave room for candles */
 const AXIS_FONT_PX = { wide: 13, phone: 12 };
@@ -33,7 +34,7 @@ const dayKey = (time) => (typeof time === 'string' ? time : time && time.year ? 
 
 const dateOf = (day, long = false) => (long ? dayLongFormat : dayFormat).format(new Date(`${day}T12:00:00+03:30`));
 
-const signedPct = (v) => (v === null || v === undefined ? '—' : `${v < 0 ? '−' : v > 0 ? '+' : ''}${Math.abs(v).toLocaleString('fa-IR', { maximumFractionDigits: 2 })}٪`);
+const signedPct = (v) => (v === null || v === undefined ? '—' : `${v < 0 ? '−' : v > 0 ? '+' : ''}${Math.abs(v).toLocaleString(intlLocale(), { maximumFractionDigits: 2 })}٪`);
 
 /**
  * @param {{ candles: number[][], days: string[], currency?: string, unit?: string, label: string,
@@ -95,7 +96,7 @@ export default function PriceChart({ candles, days, currency = 'toman', unit = '
       },
       crosshair: { mode: CrosshairMode.Normal },
       localization: {
-        locale: 'fa-IR',
+        locale: intlLocale(),
         priceFormatter: (v) => formatPrice(v, currencyRef.current),
         timeFormatter: (time) => dateOf(dayKey(time), true),
       },
@@ -220,7 +221,7 @@ export default function PriceChart({ candles, days, currency = 'toman', unit = '
       <div className="xchart" dir="ltr" role="img" aria-label={label}>
         <div className="xchart-canvas" ref={holder} />
         {h && (
-          <div className={`xchart-tip ${hover.x > 0.5 ? 'is-start' : 'is-end'}`} dir="rtl">
+          <div className={`xchart-tip ${hover.x > 0.5 ? 'is-start' : 'is-end'}`} dir={getDir()}>
             <strong>{dateOf(days[hover.index], true)}</strong>
             <dl>
               <div><dt>باز</dt><dd><bdi>{fmt(h[0])}</bdi></dd></div>

@@ -1,3 +1,4 @@
+import { intlLocale } from '../../../utils/i18n.js';
 import React, { useEffect, useState } from 'react';
 import { RefreshCw, WifiOff } from 'lucide-react';
 import { usePricing } from '../context/PricingContext.jsx';
@@ -13,9 +14,9 @@ function formatUpdatedAgo(timestamp, now = Date.now()) {
   if (!timestamp) return '';
   const diffMins = Math.floor((now - timestamp) / 60000);
   if (diffMins < 1) return 'لحظاتی پیش';
-  if (diffMins < 60) return `${diffMins.toLocaleString('fa-IR')} دقیقه پیش`;
+  if (diffMins < 60) return `${diffMins.toLocaleString(intlLocale())} دقیقه پیش`;
   const diffHours = Math.floor(diffMins / 60);
-  return `${diffHours.toLocaleString('fa-IR')} ساعت پیش`;
+  return `${diffHours.toLocaleString(intlLocale())} ساعت پیش`;
 }
 
 /**

@@ -8,6 +8,8 @@
  * moved only because the dollar did. Totals (a portfolio's value) stay in tomans: `price`.
  */
 
+import { intlLocale } from '../../utils/i18n.js';
+
 /** Whether an asset is priced in dollars */
 export const isUsdPriced = (asset) => asset?.currency === 'usd' && Number(asset?.priceUsd) > 0;
 
@@ -33,11 +35,11 @@ export function formatPrice(value, currency = 'toman') {
   if (value === null || value === undefined || !Number.isFinite(n)) return '-';
   if (currency === 'usd') {
     return Math.abs(n) >= 1
-      ? n.toLocaleString('fa-IR', { minimumFractionDigits: n >= 1000 ? 0 : 2, maximumFractionDigits: 2 })
-      : n.toLocaleString('fa-IR', { maximumSignificantDigits: 4 });
+      ? n.toLocaleString(intlLocale(), { minimumFractionDigits: n >= 1000 ? 0 : 2, maximumFractionDigits: 2 })
+      : n.toLocaleString(intlLocale(), { maximumSignificantDigits: 4 });
   }
-  if (Math.abs(n) > 0 && Math.abs(n) < 100) return n.toLocaleString('fa-IR', { maximumSignificantDigits: 4 });
-  return Math.round(n).toLocaleString('fa-IR');
+  if (Math.abs(n) > 0 && Math.abs(n) < 100) return n.toLocaleString(intlLocale(), { maximumSignificantDigits: 4 });
+  return Math.round(n).toLocaleString(intlLocale());
 }
 
 /** "≈ 310,000,000 تومان": a dollar-priced asset's toman price, for the line under its price */

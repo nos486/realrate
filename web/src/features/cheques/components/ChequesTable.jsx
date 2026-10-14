@@ -43,7 +43,7 @@ export default function ChequesTable({ cheques, onTrack, onClear, onEdit, onDele
         const open = isChequeOpen(cheque);
         return (
           <span className="table-date-text">
-            <Calendar size={12} style={{ verticalAlign: 'middle', marginLeft: '4px' }} />
+            <Calendar size={12} style={{ verticalAlign: 'middle', marginInlineEnd: '4px' }} />
             {formatShamsiDisplay(`${cheque.dueDate}T00:00:00`)}
             {open && (
               <span className={`cheque-due-hint ${days < 0 ? 'is-late' : days <= 7 ? 'is-soon' : ''}`}>

@@ -8,6 +8,7 @@
  * subscription …): the recent ones' key and the label's id.
  */
 
+import { intlLocale } from '../../utils/i18n.js';
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { recentCategories, RECENT_LIMIT } from './recentCategories.js';
@@ -70,7 +71,7 @@ export default function CategoryGrid({ kind, options, value, onChange, onManage,
         {!fits && (
           <button type="button" className="category-tile is-more" aria-expanded={expanded} onClick={() => setExpanded((e) => !e)}>
             <span className="category-tile-icon">{expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}</span>
-            <span className="category-tile-label">{expanded ? 'کمتر' : `همه‌ی دسته‌ها (${all.length.toLocaleString('fa-IR')})`}</span>
+            <span className="category-tile-label">{expanded ? 'کمتر' : `همه‌ی دسته‌ها (${all.length.toLocaleString(intlLocale())})`}</span>
           </button>
         )}
       </div>
