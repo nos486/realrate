@@ -104,10 +104,15 @@ export function listSources(dir) {
   return files;
 }
 
+/** Left in Persian: the admin panel is for the site owner only */
+export const SKIP = [path.join(ROOT, 'web/src/features/admin'), path.join(ROOT, 'web/src/pages/AdminApp.jsx')];
+export const isSkipped = (file) => file.startsWith(DICTIONARY_PREFIX) || SKIP.some((p) => file.startsWith(p));
+
 /** The directories whose Persian texts reach the screen: the web app and the code it shares with the API */
 export const SCAN_ROOTS = ['web/src', 'api/src/domain', 'api/src/config'].map((p) => path.join(ROOT, p));
 /** The English dictionaries (one file per area) */
 export const DICTIONARY_DIR = path.join(ROOT, 'web/src/i18n/en');
+const DICTIONARY_PREFIX = DICTIONARY_DIR;
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const roots = process.argv.slice(2).map((p) => path.resolve(p));
@@ -115,7 +120,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   for (const dir of roots.length ? roots : SCAN_ROOTS) {
     const files = fs.statSync(dir).isDirectory() ? listSources(dir) : [dir];
     for (const file of files) {
-      if (file.startsWith(DICTIONARY_DIR)) continue;
+      if (isSkipped(file)) continue;
       const hits = findUntranslated(fs.readFileSync(file, 'utf8'));
       for (const hit of hits) console.log(`${path.relative(ROOT, file)}:${hit.line}: ${hit.text}`);
       total += hits.length;

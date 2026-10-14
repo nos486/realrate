@@ -3,6 +3,7 @@
  *
  * The choice is kept in localStorage and applied once per page load (switching reloads the page,
  * so every text, number and layout direction starts from one language). A device that never chose:
+ *  - a link with ?lang=fa|en (the website's English pages) chooses it
  *  - a signed-in or earlier visitor (a stored session) keeps Persian, as before
  *  - the landing page follows the browser's language
  *  - everywhere else, the first-launch picker asks (shared/i18n/LanguagePicker.jsx)
@@ -49,6 +50,16 @@ function browserLocale() {
  * @returns {{ locale: string, needsChoice: boolean }} needsChoice: show the first-launch picker before the app
  */
 export function resolveBootLocale() {
+  // The website's English pages open the app with ?lang=en: that is a choice
+  const requested = new URLSearchParams(typeof window === 'undefined' ? '' : window.location.search).get('lang');
+  if (isLocale(requested)) {
+    try {
+      localStorage.setItem(LOCALE_STORAGE_KEY, requested);
+    } catch {
+      // Private mode: only this page load follows the link's language
+    }
+    return { locale: requested, needsChoice: false };
+  }
   const stored = getStoredLocale();
   if (stored) return { locale: stored, needsChoice: false };
   if (read(TOKEN_KEY)) return { locale: DEFAULT_LOCALE, needsChoice: false };
