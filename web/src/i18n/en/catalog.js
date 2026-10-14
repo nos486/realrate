@@ -46,7 +46,7 @@ export default {
   مثقال: 'mithqal',
   اونس: 'ounce',
   عدد: "piece",
-  واحد: 'unit',
+  واحد: "unit",
   'برگ سهم': 'share',
   بشکه: 'barrel',
   دلار: "Dollar",
@@ -229,7 +229,7 @@ export default {
   'فلزات جهانی': 'World metals',
 
   // ── Usage limits and tiers (usageLimits.js) ──
-  'اسکن چک با هوش مصنوعی': 'AI cheque scan',
+  'اسکن چک با هوش مصنوعی': "AI cheque scan",
   مدیر: 'Admin',
   کاربر: 'User',
 
@@ -258,7 +258,7 @@ export default {
   'هزینه و درآمد': 'Expenses and income',
   حساب: 'Account',
   پروژه: 'Project',
-  وام: 'Loan',
+  وام: "Loan",
   چک: 'Cheque',
   اشتراک: 'Subscription',
   'انتقال بین حساب‌ها': "Transfer between accounts",
@@ -276,7 +276,7 @@ export default {
   'یادآوری ایمیلی سررسیدها': 'Email reminders for due dates',
   نامحدود: 'Unlimited',
   بسته: 'Locked',
-  باز: 'Open',
+  باز: "Open",
   'نامحدود، چندارزی': 'Unlimited, multi-currency',
   'نامحدود، با اسکن هوشمند': 'Unlimited, with smart scanning',
   'نامحدود، با یادآوری': 'Unlimited, with reminders',

@@ -7,7 +7,6 @@ import {
   matchBankIdByName,
   normalizeBankName,
 } from '../../config/banks.config.js';
-import { t } from '../../utils/i18n.js';
 
 export { BANKS, BANK_TYPES, getBankById, isCustomBankId, matchBankIdByName };
 

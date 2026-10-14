@@ -166,7 +166,7 @@ export default {
   'دریافت طلب‌ها ممکن نشد.': "Couldn't load the debts.",
   // form
   'حساب یا نقد': 'Account or cash',
-  وام: 'Loan',
+  وام: "Loan",
   'همه‌اش سهم من': 'All my share',
   'با دیگران (دنگ)': 'With others (split)',
   'خطا در ذخیره هزینه': 'Failed to save the expense',
