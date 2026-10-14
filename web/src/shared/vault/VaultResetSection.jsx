@@ -21,12 +21,13 @@ import { useAuth } from '../../features/auth/context/AuthContext.jsx';
 import PasswordInput from '../../features/auth/components/PasswordInput.jsx';
 import { isNativeApp } from '../native/nativeApp.js';
 import { resetAccountVault } from './vaultStore.js';
+import { t } from '../../utils/i18n.js';
 
 /** What the user types to confirm */
-export const VAULT_RESET_PHRASE = 'حذف همه اطلاعات';
+export const VAULT_RESET_PHRASE = t('حذف همه اطلاعات');
 export const VAULT_RESET_QUERY = 'vault-reset';
 
-const normalize = (text) => String(text || '').replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/\s+/g, ' ').trim();
+const normalize = (text) => String(text || '').replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/\s+/g, ' ').trim(); // i18n-ignore
 
 export default function VaultResetSection() {
   const { user } = useAuth();
@@ -47,7 +48,7 @@ export default function VaultResetSection() {
     if (fromUnlock) ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [fromUnlock]);
 
-  const confirmed = normalize(phrase) === VAULT_RESET_PHRASE && (!hasPassword || password.length > 0);
+  const confirmed = normalize(phrase).toLowerCase() === VAULT_RESET_PHRASE.toLowerCase() && (!hasPassword || password.length > 0);
 
   const close = () => {
     setOpen(false);
@@ -65,11 +66,11 @@ export default function VaultResetSection() {
       await resetAccountVault({ password: hasPassword ? password : undefined });
       // The fingerprint unlock held the old key
       if (isNativeApp()) import('../native/biometricUnlock.js').then((m) => m.disableBiometric()).catch(() => {});
-      toast.success('همه اطلاعات حذف شد. حالا رمزنگاری را با رمز جدید راه‌اندازی کنید.');
+      toast.success(t('همه اطلاعات حذف شد. حالا رمزنگاری را با رمز جدید راه‌اندازی کنید.'));
       // Screens may still hold the old data in memory: start the app over, on the setup screen
       setTimeout(() => window.location.replace('/'), 1500);
     } catch (err) {
-      setError(err.message || 'بازنشانی انجام نشد.');
+      setError(err.message || t('بازنشانی انجام نشد.'));
     } finally {
       setBusy(false);
     }
@@ -77,16 +78,15 @@ export default function VaultResetSection() {
 
   return (
     <div ref={ref} className="vault-settings-block vault-reset" id="vault-reset">
-      <h5 className="vault-settings-subtitle">رمز رمزنگاری را فراموش کرده‌اید؟</h5>
+      <h5 className="vault-settings-subtitle">{t('رمز رمزنگاری را فراموش کرده‌اید؟')}</h5>
       <p className="vault-settings-text">
-        رمز رمزنگاری جایی ذخیره نمی‌شود و بدون آن هیچ‌کس — حتی ما — نمی‌تواند اطلاعات شما را باز کند. اگر آن را فراموش
-        کرده‌اید، تنها راه این است که همه اطلاعات حذف شود و با رمز جدید از نو شروع کنید.
+        {t('رمز رمزنگاری جایی ذخیره نمی‌شود و بدون آن هیچ‌کس — حتی ما — نمی‌تواند اطلاعات شما را باز کند. اگر آن را فراموش کرده‌اید، تنها راه این است که همه اطلاعات حذف شود و با رمز جدید از نو شروع کنید.')}
       </p>
 
       {!open ? (
         <div className="vault-settings-actions">
           <Button variant="danger" size="sm" icon={<Trash2 size={14} />} onClick={() => setOpen(true)}>
-            بازنشانی و حذف همه اطلاعات
+            {t('بازنشانی و حذف همه اطلاعات')}
           </Button>
         </div>
       ) : (
@@ -94,14 +94,14 @@ export default function VaultResetSection() {
           <div className="vault-reset-warning" role="alert">
             <TriangleAlert size={18} aria-hidden="true" />
             <div>
-              <strong>این کار برگشت‌پذیر نیست. این‌ها برای همیشه حذف می‌شوند:</strong>
+              <strong>{t('این کار برگشت‌پذیر نیست. این‌ها برای همیشه حذف می‌شوند:')}</strong>
               <ul>
-                <li>همه پورتفوها با دارایی‌ها و تراکنش‌هایشان</li>
-                <li>وام‌ها، درآمدها و درآمدهای ثابت، چک‌ها</li>
-                <li>هزینه‌ها، بودجه‌ها و حساب‌های بانکی</li>
-                <li>نسخه‌ی ذخیره‌شده روی این دستگاه و ورود با اثر انگشت</li>
+                <li>{t('همه پورتفوها با دارایی‌ها و تراکنش‌هایشان')}</li>
+                <li>{t('وام‌ها، درآمدها و درآمدهای ثابت، چک‌ها')}</li>
+                <li>{t('هزینه‌ها، بودجه‌ها و حساب‌های بانکی')}</li>
+                <li>{t('نسخه‌ی ذخیره‌شده روی این دستگاه و ورود با اثر انگشت')}</li>
               </ul>
-              <span>حساب کاربری، ایمیل و ورود شما باقی می‌ماند.</span>
+              <span>{t('حساب کاربری، ایمیل و ورود شما باقی می‌ماند.')}</span>
             </div>
           </div>
 
@@ -109,7 +109,7 @@ export default function VaultResetSection() {
 
           <Input
             id="vault-reset-phrase"
-            label={`برای تأیید، عبارت «${VAULT_RESET_PHRASE}» را بنویسید`}
+            label={t('برای تأیید، عبارت «{phrase}» را بنویسید', { phrase: VAULT_RESET_PHRASE })}
             value={phrase}
             onChange={(e) => setPhrase(e.target.value)}
             autoComplete="off"
@@ -118,8 +118,8 @@ export default function VaultResetSection() {
           {hasPassword && (
             <PasswordInput
               id="vault-reset-password"
-              label="رمز عبور ورود به حساب"
-              hint="همان رمزی که با آن وارد حساب می‌شوید (نه رمز رمزنگاری)"
+              label={t('رمز عبور ورود به حساب')}
+              hint={t('همان رمزی که با آن وارد حساب می‌شوید (نه رمز رمزنگاری)')}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
@@ -129,10 +129,10 @@ export default function VaultResetSection() {
 
           <div className="vault-settings-actions">
             <Button type="submit" variant="danger" size="sm" icon={<Trash2 size={14} />} loading={busy} disabled={!confirmed}>
-              حذف همه اطلاعات
+              {t('حذف همه اطلاعات')}
             </Button>
             <Button type="button" variant="secondary" size="sm" onClick={close} disabled={busy}>
-              انصراف
+              {t('انصراف')}
             </Button>
           </div>
         </form>

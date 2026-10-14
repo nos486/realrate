@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 /**
  * xlsxReader.js — Reads the first sheet of an Excel file (.xlsx) into rows of text
  *
@@ -34,12 +35,12 @@ function readCentralDirectory(buffer) {
   for (let i = buffer.byteLength - 22; i >= Math.max(0, buffer.byteLength - 22 - 65535); i--) {
     if (view.getUint32(i, true) === EOCD_SIGNATURE) { eocd = i; break; }
   }
-  if (eocd < 0) throw new Error('فایل اکسل معتبر نیست.');
+  if (eocd < 0) throw new Error(t('فایل اکسل معتبر نیست.'));
   const count = view.getUint16(eocd + 10, true);
   let offset = view.getUint32(eocd + 16, true);
   const entries = new Map();
   for (let n = 0; n < count; n++) {
-    if (view.getUint32(offset, true) !== CENTRAL_SIGNATURE) throw new Error('فایل اکسل معتبر نیست.');
+    if (view.getUint32(offset, true) !== CENTRAL_SIGNATURE) throw new Error(t('فایل اکسل معتبر نیست.'));
     const method = view.getUint16(offset + 10, true);
     const compressedSize = view.getUint32(offset + 20, true);
     const nameLength = view.getUint16(offset + 28, true);
@@ -58,12 +59,12 @@ async function readEntry(buffer, entries, name) {
   const entry = entries.get(name);
   if (!entry) return '';
   const view = new DataView(buffer);
-  if (view.getUint32(entry.localOffset, true) !== LOCAL_SIGNATURE) throw new Error('فایل اکسل معتبر نیست.');
+  if (view.getUint32(entry.localOffset, true) !== LOCAL_SIGNATURE) throw new Error(t('فایل اکسل معتبر نیست.'));
   const start = entry.localOffset + 30 + view.getUint16(entry.localOffset + 26, true) + view.getUint16(entry.localOffset + 28, true);
   const data = new Uint8Array(buffer, start, entry.compressedSize);
   if (entry.method === 0) return decoder.decode(data);
   if (entry.method === 8) return decoder.decode(await inflate(data));
-  throw new Error('این نوع فشرده‌سازی در فایل اکسل پشتیبانی نمی‌شود.');
+  throw new Error(t('این نوع فشرده‌سازی در فایل اکسل پشتیبانی نمی‌شود.'));
 }
 
 const ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
@@ -134,10 +135,10 @@ function readSheet(xml, shared) {
  * @returns {Promise<string[][]>}
  */
 export async function readXlsxRows(buffer) {
-  if (!buffer || buffer.byteLength < 22) throw new Error('فایل اکسل معتبر نیست.');
-  if (buffer.byteLength > XLSX_MAX_BYTES) throw new Error('فایل بیش از حد بزرگ است.');
+  if (!buffer || buffer.byteLength < 22) throw new Error(t('فایل اکسل معتبر نیست.'));
+  if (buffer.byteLength > XLSX_MAX_BYTES) throw new Error(t('فایل بیش از حد بزرگ است.'));
   // .xlsx and .xlsm are zips; the old .xls is not
-  if (new DataView(buffer).getUint32(0, true) !== LOCAL_SIGNATURE) throw new Error('فقط فایل اکسل با پسوند xlsx پشتیبانی می‌شود.');
+  if (new DataView(buffer).getUint32(0, true) !== LOCAL_SIGNATURE) throw new Error(t('فقط فایل اکسل با پسوند xlsx پشتیبانی می‌شود.'));
   const entries = readCentralDirectory(buffer);
   const [workbook, rels, sharedXml] = await Promise.all([
     readEntry(buffer, entries, 'xl/workbook.xml'),
@@ -145,6 +146,6 @@ export async function readXlsxRows(buffer) {
     readEntry(buffer, entries, 'xl/sharedStrings.xml'),
   ]);
   const sheetXml = await readEntry(buffer, entries, firstSheetPath(workbook, rels));
-  if (!sheetXml) throw new Error('صفحه‌ای در فایل اکسل پیدا نشد.');
+  if (!sheetXml) throw new Error(t('صفحه‌ای در فایل اکسل پیدا نشد.'));
   return readSheet(sheetXml, readSharedStrings(sharedXml));
 }

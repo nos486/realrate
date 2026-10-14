@@ -12,6 +12,7 @@
 
 import { priceOnDay } from '../../features/market/dailyHistory.js';
 import { BASE_CURRENCY, currencyLabel, currencyOf, normalizeCurrency } from '../../utils/currencies.js';
+import { t } from '../../utils/i18n.js';
 
 class RateUnknownError extends Error {
   constructor(message) {
@@ -29,6 +30,6 @@ export async function tomanRateOn(currency, isoDate) {
   const code = normalizeCurrency(currency);
   if (code === BASE_CURRENCY) return 1;
   const rate = await priceOnDay(currencyOf(code).priceId, isoDate);
-  if (!(rate > 0)) throw new RateUnknownError(`نرخ ${currencyLabel(code)} این روز در تاریخچه‌ی قیمت نیست.`);
+  if (!(rate > 0)) throw new RateUnknownError(t('نرخ {unit} این روز در تاریخچه‌ی قیمت نیست.', { unit: currencyLabel(code) }));
   return rate;
 }

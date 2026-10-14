@@ -15,7 +15,7 @@
  * the day («امروز»/«دیروز»/«روز دیگر»).
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { intlLocale, t } from '../../../utils/i18n.js';
 import React, { useState } from 'react';
 import { CreditCard } from 'lucide-react';
 import { AlertBanner, Modal, NumericInput } from '../../../shared/ui/index.js';
@@ -49,7 +49,7 @@ export default function CreditPaymentForm({ account, debt = 0, installment = nul
   // An installment is paid as it is; a settlement may cost a fee
   const result = installment ? { fee: 0, pct: 0 } : settlementOf(settledNum, digitsOnly(paid));
   const isValid = Boolean(fromAccountId) && settledNum > 0 && !result.error && Boolean(dateIso) && !submitting;
-  const what = installment ? `قسط ${faPct(installment.n)} از ${faPct(installment.count)}` : 'تسویه‌ی بدهی';
+  const what = installment ? t('قسط {n} از {count}', { n: faPct(installment.n), count: faPct(installment.count) }) : t('تسویه‌ی بدهی');
 
   const handleSubmit = async (e) => {
     e?.preventDefault?.();
@@ -64,26 +64,26 @@ export default function CreditPaymentForm({ account, debt = 0, installment = nul
         amount: settledNum + result.fee,
         fee: result.fee,
         date: dateIso,
-        notes: `${what} — ${account.name}`,
+        notes: t('{what} — {name}', { what, name: account.name }),
       });
       if (result.fee > 0) {
         const group = await ensureDailyGroup((await getExpenseGroups()).groups || []);
         await saveExpense({
           groupId: group.id,
-          title: `کارمزد تسویه ${account.name}`,
+          title: t('کارمزد تسویه {name}', { name: account.name }),
           amount: result.fee,
           currency: 'IRT',
           date: dateIso,
           category: CREDIT_COST_CATEGORY,
           accountId: fromAccountId,
           creditAccountId: account.id,
-          notes: `${faPct(result.pct)}٪ از ${formatAmount(settledNum)} تومان`,
+          notes: t('{pct} از {amount} تومان', { pct: `${faPct(result.pct)}${t('٪')}`, amount: formatAmount(settledNum) }),
         });
       }
       await onPaid?.(transfer, dateIso);
       onClose();
     } catch (err) {
-      setError(err.message || 'ثبت پرداخت ممکن نشد.');
+      setError(err.message || t('ثبت پرداخت ممکن نشد.'));
       setSubmitting(false);
     }
   };
@@ -92,21 +92,21 @@ export default function CreditPaymentForm({ account, debt = 0, installment = nul
     <Modal
       isOpen
       onClose={onClose}
-      title={installment ? `پرداخت ${what}` : `تسویه بدهی «${account.name}»`}
+      title={installment ? t('پرداخت {what}', { what }) : t('تسویه بدهی «{name}»', { name: account.name })}
       subtitle={installment
-        ? `سررسید ${formatShamsiDisplay(`${installment.dueDate}T00:00:00`)}`
-        : 'بدهی تسویه‌شده انتقال به همین حساب است و دوباره هزینه حساب نمی‌شود؛ مابه‌التفاوت، کارمزد تسویه است'}
+        ? t('سررسید {date}', { date: formatShamsiDisplay(`${installment.dueDate}T00:00:00`) })
+        : t('بدهی تسویه‌شده انتقال به همین حساب است و دوباره هزینه حساب نمی‌شود؛ مابه‌التفاوت، کارمزد تسویه است')}
       icon={<CreditCard size={18} />}
       maxWidth="520px"
       onSubmit={handleSubmit}
-      footer={<EntryFormActions submitLabel="ثبت پرداخت" valid={isValid} submitting={submitting} onCancel={onClose} />}
+      footer={<EntryFormActions submitLabel={t('ثبت پرداخت')} valid={isValid} submitting={submitting} onCancel={onClose} />}
     >
       <div className="entry-form-body">
         {error && <AlertBanner type="error" message={error} />}
 
         <AmountField
           id="credit-pay-settled"
-          label={installment ? 'مبلغ قسط' : 'بدهی تسویه‌شده'}
+          label={installment ? t('مبلغ قسط') : t('بدهی تسویه‌شده')}
           value={settled}
           onValueChange={setSettled}
           currency="IRT"
@@ -114,30 +114,30 @@ export default function CreditPaymentForm({ account, debt = 0, installment = nul
 
         {!installment && (
           <div className="ui-input-group">
-            <label htmlFor="credit-pay-paid" className="ui-input-label">مبلغ پرداختی (تومان) *</label>
+            <label htmlFor="credit-pay-paid" className="ui-input-label">{t('مبلغ پرداختی (تومان) *')}</label>
             <div className="ui-input-wrapper">
               <NumericInput id="credit-pay-paid" value={paid} onValueChange={setPaid} className="ui-input-control" required />
             </div>
             <p className="expense-form-hint">
               {result.error || (result.fee > 0
-                ? `کارمزد تسویه: ${formatAmount(result.fee)} تومان (${faPct(result.pct)}٪) — جدا به‌عنوان هزینه ثبت می‌شود`
-                : 'بدون کارمزد')}
+                ? t('کارمزد تسویه: {fee} تومان ({pct}) — جدا به‌عنوان هزینه ثبت می‌شود', { fee: formatAmount(result.fee), pct: `${faPct(result.pct)}${t('٪')}` })
+                : t('بدون کارمزد'))}
             </p>
           </div>
         )}
 
         {payers.length === 0 ? (
-          <AlertBanner type="info" message="برای پرداخت، حسابی که از آن پرداخت می‌کنید را در صفحه‌ی «حساب‌ها» اضافه کنید." />
+          <AlertBanner type="info" message={t('برای پرداخت، حسابی که از آن پرداخت می‌کنید را در صفحه‌ی «حساب‌ها» اضافه کنید.')} />
         ) : (
           <PickerRow
-            label="پرداخت از"
+            label={t('پرداخت از')}
             value={fromAccountId}
             options={payers.map((a) => ({ value: a.id, label: accountLabel(a) }))}
             onChange={setFrom}
           />
         )}
 
-        <DateField label="تاریخ پرداخت *" value={dateShamsi} onChange={setDateShamsi} />
+        <DateField label={t('تاریخ پرداخت *')} value={dateShamsi} onChange={setDateShamsi} />
       </div>
     </Modal>
   );

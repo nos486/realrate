@@ -7,7 +7,7 @@
  * everything reset (VaultResetSection).
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
 import React, { useCallback, useEffect, useState } from 'react';
 import { LockOpen, ShieldCheck, KeyRound, RefreshCw } from 'lucide-react';
 import Button from '../ui/Button.jsx';
@@ -39,12 +39,12 @@ function LegacyPortfolios({ portfolios, onAdopted }) {
     try {
       const ok = await adoptLegacyPortfolio(portfolio, passes[portfolio.id]);
       if (!ok) {
-        setErrors((prev) => ({ ...prev, [portfolio.id]: 'رمز گاوصندوق این پورتفو نادرست است.' }));
+        setErrors((prev) => ({ ...prev, [portfolio.id]: t('رمز گاوصندوق این پورتفو نادرست است.') }));
       } else {
         onAdopted();
       }
     } catch (err) {
-      setErrors((prev) => ({ ...prev, [portfolio.id]: err.message || 'خطا در انتقال' }));
+      setErrors((prev) => ({ ...prev, [portfolio.id]: err.message || t('خطا در انتقال') }));
     } finally {
       setBusyId(null);
     }
@@ -52,10 +52,9 @@ function LegacyPortfolios({ portfolios, onAdopted }) {
 
   return (
     <div className="vault-settings-block">
-      <h5 className="vault-settings-subtitle">پورتفوهایی با رمز جداگانه</h5>
+      <h5 className="vault-settings-subtitle">{t('پورتفوهایی با رمز جداگانه')}</h5>
       <p className="vault-settings-text">
-        این پورتفوها قبلاً با رمز اختصاصی خودشان رمزنگاری شده‌اند. با وارد کردن رمز قبلی هر کدام، به رمزنگاری حساب منتقل
-        می‌شوند و از این پس با همان رمز حساب باز می‌شوند (داده‌هایشان دست نمی‌خورد). تا آن موقع، مثل قبل با رمز خودشان کار می‌کنند.
+        {t('این پورتفوها قبلاً با رمز اختصاصی خودشان رمزنگاری شده‌اند. با وارد کردن رمز قبلی هر کدام، به رمزنگاری حساب منتقل می‌شوند و از این پس با همان رمز حساب باز می‌شوند (داده‌هایشان دست نمی‌خورد). تا آن موقع، مثل قبل با رمز خودشان کار می‌کنند.')}
       </p>
       {portfolios.map((p) => (
         <form
@@ -70,15 +69,15 @@ function LegacyPortfolios({ portfolios, onAdopted }) {
           <Input
             type="password"
             dir="ltr"
-            placeholder="رمز قبلی گاوصندوق این پورتفو"
+            placeholder={t('رمز قبلی گاوصندوق این پورتفو')}
             value={passes[p.id] || ''}
             onChange={(e) => setPasses((prev) => ({ ...prev, [p.id]: e.target.value }))}
             error={errors[p.id] || undefined}
             disabled={busyId === p.id}
-            aria-label={`رمز قبلی پورتفوی ${p.name}`}
+            aria-label={t('رمز قبلی پورتفوی {name}', { name: p.name })}
           />
           <Button type="submit" variant="secondary" size="sm" loading={busyId === p.id} disabled={!passes[p.id]}>
-            انتقال
+            {t('انتقال')}
           </Button>
         </form>
       ))}
@@ -125,7 +124,7 @@ export default function VaultSettingsSection() {
   }, [vault.status, vault.epoch, busy]);
 
   const runEncrypt = async (passphrase) => {
-    setProgress({ done: 0, total: 0, label: 'در حال آماده‌سازی…' });
+    setProgress({ done: 0, total: 0, label: t('در حال آماده‌سازی…') });
     const res = await encryptAccountData({ passphrase, onProgress: setProgress });
     setReport(res);
     setProgress(null);
@@ -138,9 +137,9 @@ export default function VaultSettingsSection() {
     setError('');
     try {
       const res = await runEncrypt();
-      if (res.failed.length === 0) toast.success('داده‌های باقی‌مانده رمزنگاری شدند.');
+      if (res.failed.length === 0) toast.success(t('داده‌های باقی‌مانده رمزنگاری شدند.'));
     } catch (err) {
-      setError(err.message || 'خطا در رمزنگاری');
+      setError(err.message || t('خطا در رمزنگاری'));
       setProgress(null);
     } finally {
       setBusy(false);
@@ -151,7 +150,7 @@ export default function VaultSettingsSection() {
     e.preventDefault();
     setError('');
     if (newPass !== newPassConfirm) {
-      setError('تکرار رمز جدید با رمز وارد شده یکسان نیست.');
+      setError(t('تکرار رمز جدید با رمز وارد شده یکسان نیست.'));
       return;
     }
     setBusy(true);
@@ -161,9 +160,9 @@ export default function VaultSettingsSection() {
       setNewPass('');
       setNewPassConfirm('');
       setChanging(false);
-      toast.success('رمز عبور رمزنگاری تغییر کرد.');
+      toast.success(t('رمز عبور رمزنگاری تغییر کرد.'));
     } catch (err) {
-      setError(err.message || 'خطا در تغییر رمز');
+      setError(err.message || t('خطا در تغییر رمز'));
     } finally {
       setBusy(false);
     }
@@ -182,17 +181,15 @@ export default function VaultSettingsSection() {
       <div className="section-title">
         <span id="vault-settings-title">
           <ShieldCheck size={18} className="vault-settings-title-icon" />
-          رمزنگاری سرتاسری (E2EE)
+          {t('رمزنگاری سرتاسری (E2EE)')}
         </span>
-        {vault.status === 'unlocked' && <span className="vault-status-pill is-on">فعال</span>}
-        {vault.status === 'locked' && <span className="vault-status-pill is-locked">قفل</span>}
-        {vault.status === 'off' && <span className="vault-status-pill is-required">الزامی</span>}
+        {vault.status === 'unlocked' && <span className="vault-status-pill is-on">{t('فعال')}</span>}
+        {vault.status === 'locked' && <span className="vault-status-pill is-locked">{t('قفل')}</span>}
+        {vault.status === 'off' && <span className="vault-status-pill is-required">{t('الزامی')}</span>}
       </div>
 
       <p className="vault-settings-text">
-        همه اطلاعات مالی شما — پورتفوها (دارایی‌ها و تراکنش‌ها)، وام‌ها، درآمدها و چک‌ها — پیش از ارسال، در همین مرورگر
-        رمزنگاری می‌شوند. سرور فقط داده رمزشده را می‌بیند و بدون رمز شما هیچ‌کس (حتی ما) نمی‌تواند آن را بخواند. برای امنیت
-        کاربران، رمزنگاری برای همه حساب‌ها اجباری است و پس از فعال‌سازی خاموش نمی‌شود.
+        {t('همه اطلاعات مالی شما — پورتفوها (دارایی‌ها و تراکنش‌ها)، وام‌ها، درآمدها و چک‌ها — پیش از ارسال، در همین مرورگر رمزنگاری می‌شوند. سرور فقط داده رمزشده را می‌بیند و بدون رمز شما هیچ‌کس (حتی ما) نمی‌تواند آن را بخواند. برای امنیت کاربران، رمزنگاری برای همه حساب‌ها اجباری است و پس از فعال‌سازی خاموش نمی‌شود.')}
       </p>
 
       {error && <AlertBanner type="error" message={error} onClose={() => setError('')} />}
@@ -200,16 +197,16 @@ export default function VaultSettingsSection() {
       <ProgressBar progress={progress} />
 
       {(vault.status === 'loading' || vault.status === 'idle') && (
-        <p className="vault-settings-text">در حال بررسی وضعیت رمزنگاری…</p>
+        <p className="vault-settings-text">{t('در حال بررسی وضعیت رمزنگاری…')}</p>
       )}
 
       {vault.status === 'error' && (
         <AlertBanner
           type="error"
-          message={vault.error || 'وضعیت رمزنگاری دریافت نشد.'}
+          message={vault.error || t('وضعیت رمزنگاری دریافت نشد.')}
           action={
             <Button size="sm" variant="secondary" icon={<RefreshCw size={14} />} onClick={() => loadVault(vault.userId, { force: true })}>
-              تلاش مجدد
+              {t('تلاش مجدد')}
             </Button>
           }
         />
@@ -219,27 +216,27 @@ export default function VaultSettingsSection() {
         <>
           <AlertBanner
             type="error"
-            message="رمزنگاری سرتاسری برای حساب شما هنوز فعال نشده است. تا آن را فعال نکنید، امکان ذخیره اطلاعات جدید وجود ندارد."
+            message={t('رمزنگاری سرتاسری برای حساب شما هنوز فعال نشده است. تا آن را فعال نکنید، امکان ذخیره اطلاعات جدید وجود ندارد.')}
           />
           <VaultEnableForm
             onDone={(res) => {
               setReport(res);
               refreshPending();
-              if (res.failed.length === 0) toast.success('رمزنگاری سرتاسری حساب فعال شد و همه داده‌ها رمزنگاری شدند.');
+              if (res.failed.length === 0) toast.success(t('رمزنگاری سرتاسری حساب فعال شد و همه داده‌ها رمزنگاری شدند.'));
             }}
           />
         </>
       )}
 
       {vault.status === 'locked' && (
-        <VaultUnlockCard title="رمزنگاری حساب قفل است" className="vault-settings-unlock" showForgot={false} />
+        <VaultUnlockCard title={t('رمزنگاری حساب قفل است')} className="vault-settings-unlock" showForgot={false} />
       )}
 
       {vault.status === 'unlocked' && (
         <>
           <div className="vault-settings-actions">
             <Button variant="secondary" size="sm" icon={<LockOpen size={14} />} onClick={lockAll} disabled={busy}>
-              قفل کردن در این مرورگر
+              {t('قفل کردن در این مرورگر')}
             </Button>
             <Button
               variant="secondary"
@@ -248,7 +245,7 @@ export default function VaultSettingsSection() {
               onClick={() => setChanging((v) => !v)}
               disabled={busy}
             >
-              تغییر رمز عبور
+              {t('تغییر رمز عبور')}
             </Button>
           </div>
 
@@ -256,10 +253,10 @@ export default function VaultSettingsSection() {
             <div className="vault-settings-block">
               <AlertBanner
                 type="info"
-                message={`${faNum(pendingCount)} مورد هنوز رمزنگاری نشده است (مثلاً داده‌ای که از دستگاه دیگری با نسخه قدیمی ثبت شده).`}
+                message={t('{n} مورد هنوز رمزنگاری نشده است (مثلاً داده‌ای که از دستگاه دیگری با نسخه قدیمی ثبت شده).', { n: faNum(pendingCount) })}
                 action={
                   <Button size="sm" variant="secondary" loading={busy} onClick={handleEncryptPending}>
-                    رمزنگاری
+                    {t('رمزنگاری')}
                   </Button>
                 }
               />
@@ -270,12 +267,12 @@ export default function VaultSettingsSection() {
 
           {changing && (
             <form className="vault-settings-block" onSubmit={handleChangePass}>
-              <h5 className="vault-settings-subtitle">تغییر رمز عبور رمزنگاری</h5>
-              <PassphraseInput show={showPass} onToggle={() => setShowPass((v) => !v)} label="رمز فعلی" id="vault-cur-pass" value={currentPass} onChange={(e) => setCurrentPass(e.target.value)} disabled={busy} />
-              <PassphraseInput show={showPass} onToggle={() => setShowPass((v) => !v)} label="رمز جدید" id="vault-next-pass" value={newPass} onChange={(e) => setNewPass(e.target.value)} disabled={busy} hint={`حداقل ${faNum(VAULT_MIN_PASSPHRASE_LENGTH)} کاراکتر`} />
-              <PassphraseInput show={showPass} onToggle={() => setShowPass((v) => !v)} label="تکرار رمز جدید" id="vault-next-pass-confirm" value={newPassConfirm} onChange={(e) => setNewPassConfirm(e.target.value)} disabled={busy} />
-              <p className="vault-settings-text">داده‌ها دوباره رمزنگاری نمی‌شوند؛ فقط کلید حساب با رمز جدید قفل می‌شود.</p>
-              <Button type="submit" variant="primary" loading={busy} block>ذخیره رمز جدید</Button>
+              <h5 className="vault-settings-subtitle">{t('تغییر رمز عبور رمزنگاری')}</h5>
+              <PassphraseInput show={showPass} onToggle={() => setShowPass((v) => !v)} label={t('رمز فعلی')} id="vault-cur-pass" value={currentPass} onChange={(e) => setCurrentPass(e.target.value)} disabled={busy} />
+              <PassphraseInput show={showPass} onToggle={() => setShowPass((v) => !v)} label={t('رمز جدید')} id="vault-next-pass" value={newPass} onChange={(e) => setNewPass(e.target.value)} disabled={busy} hint={t('حداقل {n} کاراکتر', { n: faNum(VAULT_MIN_PASSPHRASE_LENGTH) })} />
+              <PassphraseInput show={showPass} onToggle={() => setShowPass((v) => !v)} label={t('تکرار رمز جدید')} id="vault-next-pass-confirm" value={newPassConfirm} onChange={(e) => setNewPassConfirm(e.target.value)} disabled={busy} />
+              <p className="vault-settings-text">{t('داده‌ها دوباره رمزنگاری نمی‌شوند؛ فقط کلید حساب با رمز جدید قفل می‌شود.')}</p>
+              <Button type="submit" variant="primary" loading={busy} block>{t('ذخیره رمز جدید')}</Button>
             </form>
           )}
         </>

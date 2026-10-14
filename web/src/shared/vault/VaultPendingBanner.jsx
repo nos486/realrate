@@ -1,4 +1,4 @@
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
 import React, { useEffect, useState } from 'react';
 import { ShieldAlert, Lock } from 'lucide-react';
 import AlertBanner from '../ui/AlertBanner.jsx';
@@ -36,11 +36,11 @@ export default function VaultPendingBanner({ onOpenSettings }) {
       <AlertBanner
         type="error"
         icon={<ShieldAlert size={16} />}
-        message="برای امنیت اطلاعات شما، رمزنگاری سرتاسری برای همه حساب‌ها اجباری شده است. تا آن را فعال نکنید، امکان ذخیره یا ویرایش اطلاعات وجود ندارد؛ داده‌های فعلی شما سر جایشان هستند و با فعال‌سازی رمزنگاری می‌شوند."
+        message={t('برای امنیت اطلاعات شما، رمزنگاری سرتاسری برای همه حساب‌ها اجباری شده است. تا آن را فعال نکنید، امکان ذخیره یا ویرایش اطلاعات وجود ندارد؛ داده‌های فعلی شما سر جایشان هستند و با فعال‌سازی رمزنگاری می‌شوند.')}
         style={{ marginBottom: '14px' }}
         action={
           <Button size="sm" variant="primary" icon={<Lock size={14} />} onClick={onOpenSettings}>
-            فعال‌سازی رمزنگاری
+            {t('فعال‌سازی رمزنگاری')}
           </Button>
         }
       />
@@ -53,19 +53,19 @@ export default function VaultPendingBanner({ onOpenSettings }) {
   if (plainCount === 0 && legacyCount === 0) return null;
 
   const parts = [];
-  if (plainCount > 0) parts.push(`${plainCount.toLocaleString(intlLocale())} مورد هنوز رمزنگاری نشده است`);
-  if (legacyCount > 0) parts.push(`${legacyCount.toLocaleString(intlLocale())} پورتفو هنوز رمز جداگانه دارد`);
+  if (plainCount > 0) parts.push(t('{n} مورد هنوز رمزنگاری نشده است', { n: plainCount.toLocaleString(intlLocale()) }));
+  if (legacyCount > 0) parts.push(t('{n} پورتفو هنوز رمز جداگانه دارد', { n: legacyCount.toLocaleString(intlLocale()) }));
 
   return (
     <AlertBanner
       type="warning"
       icon={<ShieldAlert size={16} />}
-      message={`رمزنگاری سرتاسری حساب: ${parts.join(' و ')}.`}
+      message={t('رمزنگاری سرتاسری حساب: {parts}.', { parts: parts.join(` ${t('و')} `) })}
       onClose={() => setDismissedEpoch(vault.epoch)}
       style={{ marginBottom: '14px' }}
       action={
         <Button size="sm" variant="secondary" onClick={onOpenSettings}>
-          تکمیل در تنظیمات
+          {t('تکمیل در تنظیمات')}
         </Button>
       }
     />

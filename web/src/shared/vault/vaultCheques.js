@@ -11,6 +11,7 @@ import { todayIso } from '../utils/dates.js';
 import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
 import { putRecord, backfillRecordDates, backfillReminders } from './vaultRecordMeta.js';
 import { encryptVaultRecord, decryptVaultRecords } from './vaultStore.js';
+import { t } from '../../utils/i18n.js';
 
 const KIND = 'cheque';
 
@@ -73,7 +74,7 @@ export async function createCheque(chequeData) {
 export async function updateCheque(chequeId, chequeData) {
   if (!cheques.has(chequeId)) await getCheques();
   const existing = cheques.get(chequeId);
-  if (!existing) throw new ChequeValidationError('چک مورد نظر یافت نشد.', 404);
+  if (!existing) throw new ChequeValidationError(t('چک مورد نظر یافت نشد.'), 404);
   const cheque = { ...existing, ...parse(chequeData), updatedAt: new Date().toISOString() };
   return { success: true, cheque: await save(cheque) };
 }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { listCustomBanks, createCustomBank, deleteCustomBank } from './bankApi.js';
+import { t } from '../../utils/i18n.js';
 
 /**
  * The user's custom banks, fetched once and shared by every component that needs them
@@ -30,7 +31,7 @@ function load(force = false) {
       if (gen === generation) setState({ banks: Array.isArray(res?.banks) ? res.banks : [], loaded: true });
     })
     .catch((err) => {
-      if (gen === generation) setState({ error: err.message || 'خطا در دریافت بانک‌های سفارشی' });
+      if (gen === generation) setState({ error: err.message || t('خطا در دریافت بانک‌های سفارشی') });
     })
     .finally(() => {
       if (gen !== generation) return;

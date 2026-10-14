@@ -2,14 +2,14 @@
  * statementFormat.js — How the import shows numbers, days and the account's other side
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { intlLocale, getLocale } from '../../../utils/i18n.js';
 import { STATEMENT_BANKS } from '../../../utils/bankStatementTemplates.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 
-const PERSIAN_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
+const PERSIAN_DIGITS = '۰۱۲۳۴۵۶۷۸۹'; // i18n-ignore
 
-/** ASCII digits in a text → Persian digits */
-export const faDigits = (text) => String(text ?? '').replace(/\d/g, (d) => PERSIAN_DIGITS[d]);
+/** ASCII digits in a text → Persian digits (left as they are in English) */
+export const faDigits = (text) => (getLocale() === 'fa' ? String(text ?? '').replace(/\d/g, (d) => PERSIAN_DIGITS[d]) : String(text ?? ''));
 
 /** A toman amount with thousands separators */
 export const faAmount = (value) => Math.round(Number(value) || 0).toLocaleString(intlLocale());
@@ -29,7 +29,7 @@ export function groupDecision(group, answers) {
     // A guessed transfer needs its account first: until picked, it is the plain record
     action: s.action === 'transfer' && !s.accountId ? action : s.action,
     category: s.category || 'other',
-    title: s.title && !/ (?:به|از)$/.test(s.title) ? s.title : '',
+    title: s.title && !/ (?:به|از)$/.test(s.title) ? s.title : '', // i18n-ignore
     accountId: s.accountId || '',
   };
 }

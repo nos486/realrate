@@ -12,6 +12,7 @@ import { useVault } from '../../../shared/vault/useVault.js';
 import { useFeature } from '../../../shared/features/useFeature.js';
 import { compareTransfers } from '../../../utils/transferDocument.js';
 import * as api from '../../../shared/vault/vaultTransfers.js';
+import { t } from '../../../utils/i18n.js';
 
 export function useTransfers(range = {}) {
   const { user } = useAuth();
@@ -35,7 +36,7 @@ export function useTransfers(range = {}) {
       setError(null);
       setTransfers((await api.getTransfers({ from, to })).transfers);
     } catch (err) {
-      setError(err.message || 'خطا در بارگذاری انتقال‌ها');
+      setError(err.message || t('خطا در بارگذاری انتقال‌ها'));
     } finally {
       setLoading(false);
     }
