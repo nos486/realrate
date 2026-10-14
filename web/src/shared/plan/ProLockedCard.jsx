@@ -10,6 +10,7 @@ import Card from '../ui/Card.jsx';
 import Button from '../ui/Button.jsx';
 import { PRO_PATH } from './usePlan.js';
 import { appPath } from '../routes.js';
+import { t } from '../../utils/i18n.js';
 
 /**
  * @param {object} props
@@ -22,7 +23,7 @@ export default function ProLockedCard({ title, text }) {
     <Card className="app-settings-card" padding="lg" icon={<Lock size={18} />} title={title}>
       <p className="plan-limit-text">{text}</p>
       <Button size="sm" icon={<Crown size={14} />} onClick={() => navigate(appPath(PRO_PATH))}>
-        مقایسه با Pro
+        {t('مقایسه با Pro')}
       </Button>
     </Card>
   );

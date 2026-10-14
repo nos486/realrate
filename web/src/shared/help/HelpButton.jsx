@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { CircleHelp } from 'lucide-react';
 import IconButton from '../ui/IconButton.jsx';
 import Modal from '../ui/Modal.jsx';
+import { t } from '../../utils/i18n.js';
 import { PAGE_HELP } from './pageHelp.js';
 
 /**
@@ -18,9 +19,9 @@ export default function HelpButton({ page }) {
   if (!help) return null;
   return (
     <>
-      <IconButton icon={<CircleHelp size={16} />} label="راهنمای این صفحه" onClick={() => setOpen(true)} className="page-help-btn" />
+      <IconButton icon={<CircleHelp size={16} />} label={t('راهنمای این صفحه')} onClick={() => setOpen(true)} className="page-help-btn" />
       {open && (
-        <Modal isOpen onClose={() => setOpen(false)} title={help.title} subtitle="راهنمای این صفحه" icon={<CircleHelp size={18} />} maxWidth="480px">
+        <Modal isOpen onClose={() => setOpen(false)} title={help.title} subtitle={t('راهنمای این صفحه')} icon={<CircleHelp size={18} />} maxWidth="480px">
           <div className="page-help">
             <p className="page-help-intro">{help.intro}</p>
             <ul className="page-help-steps">

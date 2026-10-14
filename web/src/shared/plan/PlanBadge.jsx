@@ -7,13 +7,14 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useIsPro, PRO_PATH } from './usePlan.js';
 import { appPath } from '../routes.js';
+import { t } from '../../utils/i18n.js';
 
 export default function PlanBadge() {
   const pro = useIsPro();
   if (pro) return null;
   return (
-    <Link className="plan-badge" to={appPath(PRO_PATH)} title="پلن رایگان؛ مقایسه با Pro" aria-label="پلن رایگان؛ مقایسه با Pro">
-      رایگان
+    <Link className="plan-badge" to={appPath(PRO_PATH)} title={t('پلن رایگان؛ مقایسه با Pro')} aria-label={t('پلن رایگان؛ مقایسه با Pro')}>
+      {t('رایگان')}
     </Link>
   );
 }

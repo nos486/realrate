@@ -29,6 +29,7 @@ import {
   createVault,
   resetVault,
 } from '../../../shared/vault/vaultStore.js';
+import { t } from '../../../utils/i18n.js';
 
 const ADMIN_RETURN_TOKEN_KEY = 'rr_admin_return_token';
 
@@ -74,7 +75,7 @@ export function DemoProvider({ children }) {
   // Central listener for 403 DEMO_READ_ONLY events from httpClient
   useEffect(() => {
     const onDemoReadOnly = (e) => {
-      toast.info(e.detail?.message || 'این نسخه دمو است و تغییرات ذخیره نمی‌شود.');
+      toast.info(e.detail?.message || t('این نسخه دمو است و تغییرات ذخیره نمی‌شود.'));
     };
     window.addEventListener(DEMO_READ_ONLY_EVENT, onDemoReadOnly);
     return () => window.removeEventListener(DEMO_READ_ONLY_EVENT, onDemoReadOnly);
@@ -132,11 +133,11 @@ export function DemoProvider({ children }) {
         completeLogin(data);
         return true;
       } else {
-        toast.error(data?.message || 'ورود به نسخه دمو امکان‌پذیر نیست.');
+        toast.error(data?.message || t('ورود به نسخه دمو امکان‌پذیر نیست.'));
         return false;
       }
     } catch (err) {
-      toast.error(err.message || 'حساب کاربری دمو هنوز ایجاد نشده است.');
+      toast.error(err.message || t('حساب کاربری دمو هنوز ایجاد نشده است.'));
       return false;
     }
   }, [completeLogin, toast]);

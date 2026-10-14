@@ -7,6 +7,7 @@
  */
 
 import React from 'react';
+import { t } from '../../utils/i18n.js';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
 import AlertBanner from '../ui/AlertBanner.jsx';
@@ -35,7 +36,7 @@ export default function AlertStack({ sources = null, scope = null, className = '
               type={type}
               title={alert.title}
               items={alert.items}
-              actionLabel={alert.action?.label || 'مشاهده'}
+              actionLabel={alert.action?.label || t('مشاهده')}
               onAction={onAction}
               onClose={() => dismissAlert(alert)}
               hideValues={hideValues}
@@ -48,7 +49,7 @@ export default function AlertStack({ sources = null, scope = null, className = '
             type={type}
             className="due-alert"
             title={alert.title}
-            message={alert.message || (alert.items || []).map((i) => [i.title, i.detail].filter(Boolean).join(': ')).join('، ')}
+            message={alert.message || (alert.items || []).map((i) => [i.title, i.detail].filter(Boolean).join(': ')).join(`${t('،')} `)}
             onClose={() => dismissAlert(alert)}
             action={alert.action ? (
               <button type="button" className={`due-alert-action is-${type}`} onClick={onAction}>

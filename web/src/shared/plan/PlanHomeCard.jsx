@@ -9,6 +9,7 @@ import { Crown, ChevronLeft } from 'lucide-react';
 import { usePlan, PRO_PATH } from './usePlan.js';
 import { describeLimit } from './planText.js';
 import { appPath } from '../routes.js';
+import { t } from '../../utils/i18n.js';
 
 /** The limits the card lists, in order */
 const CARD_LIMITS = ['entries', 'accounts', 'projects', 'loans', 'portfolios', 'holdings'];
@@ -21,8 +22,8 @@ export default function PlanHomeCard() {
   return (
     <button type="button" className="app-home-card plan-home-card" onClick={() => navigate(appPath(PRO_PATH))}>
       <header className="app-home-card-head">
-        <h2><Crown size={15} aria-hidden="true" /> پلن رایگان</h2>
-        <span className="app-home-link">مقایسه با Pro <ChevronLeft size={16} /></span>
+        <h2><Crown size={15} aria-hidden="true" /> {t('پلن رایگان')}</h2>
+        <span className="app-home-link">{t('مقایسه با Pro')} <ChevronLeft size={16} /></span>
       </header>
       {lines.length > 0 && (
         <ul className="plan-home-list">

@@ -9,6 +9,7 @@ import { Crown } from 'lucide-react';
 import { usePlan, PRO_PATH } from './usePlan.js';
 import { SECTION_LIMITS, describeLimit } from './planText.js';
 import { appPath } from '../routes.js';
+import { t } from '../../utils/i18n.js';
 
 /**
  * @param {object} props
@@ -22,11 +23,11 @@ export default function PlanNote({ section }) {
   if (!parts.length) return null;
   return (
     <div className="plan-note" role="note">
-      <span className="plan-note-badge">پلن رایگان</span>
+      <span className="plan-note-badge">{t('پلن رایگان')}</span>
       <span className="plan-note-text">{parts.join(' · ')}</span>
       <Link className="plan-note-link" to={appPath(PRO_PATH)}>
         <Crown size={14} aria-hidden="true" />
-        <span>مقایسه با Pro</span>
+        <span>{t('مقایسه با Pro')}</span>
       </Link>
     </div>
   );
