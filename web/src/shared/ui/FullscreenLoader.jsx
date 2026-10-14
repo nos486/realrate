@@ -3,6 +3,7 @@
  * import) is in flight. Reads use per-view skeletons; a tab being opened has TabLoadingGate.
  */
 
+import { t } from '../../utils/i18n.js';
 import React, { useState, useEffect } from 'react';
 import { subscribeLoading } from '../api/httpClient.js';
 import BlockingOverlay from './BlockingOverlay.jsx';
@@ -33,8 +34,8 @@ export default function FullscreenLoader() {
   if (!isLoading) return null;
   return (
     <BlockingOverlay
-      title="در حال بارگذاری اطلاعات از سرور"
-      subtitle="لطفاً شکیبا باشید، در حال پردازش و همگام‌سازی داده‌ها..."
+      title={t('در حال بارگذاری اطلاعات از سرور')}
+      subtitle={t('لطفاً شکیبا باشید، در حال پردازش و همگام‌سازی داده‌ها...')}
     />
   );
 }

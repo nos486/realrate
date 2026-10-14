@@ -9,6 +9,7 @@
  * value at today's prices is shown as it is written; the card is saved only when it is complete.
  */
 
+import { t } from '../../utils/i18n.js';
 import React, { useMemo, useState } from 'react';
 import { Sigma } from 'lucide-react';
 import { Modal, Button, Input, SearchBar } from '../../shared/ui/index.js';
@@ -48,13 +49,13 @@ function VarPicker({ variable, assetId, onPick }) {
         <>
           <span className="formula-var-asset">
             <strong>{asset.name}</strong>
-            <small>{formatPrice(asset.price)} تومان</small>
+            <small>{formatPrice(asset.price)} {t('تومان')}</small>
           </span>
-          <Button size="sm" variant="ghost" onClick={() => setPicking(true)}>تغییر</Button>
+          <Button size="sm" variant="ghost" onClick={() => setPicking(true)}>{t('تغییر')}</Button>
         </>
       ) : (
         <div className="formula-var-search">
-          <SearchBar value={query} onChange={(e) => setQuery(e.target.value)} placeholder={`دارایی ${variable} را جستجو کنید…`} />
+          <SearchBar value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('دارایی {variable} را جستجو کنید…', { variable })} />
           <ul>
             {results.map((a) => (
               <li key={a.id}>
@@ -106,17 +107,17 @@ export default function FormulaCardModal({ formula, onSave, onClose }) {
     <Modal
       isOpen
       onClose={onClose}
-      title={formula ? `ویرایش «${formula.name}»` : 'کارت ترکیبی'}
-      subtitle="چند دارایی را با یک فرمول ترکیب کنید؛ کارت مقدار فرمول و نمودار روزانه‌اش را نشان می‌دهد."
+      title={formula ? t('ویرایش «{name}»', { name: formula.name }) : t('کارت ترکیبی')}
+      subtitle={t('چند دارایی را با یک فرمول ترکیب کنید؛ کارت مقدار فرمول و نمودار روزانه‌اش را نشان می‌دهد.')}
       icon={<Sigma size={18} />}
       maxWidth="560px"
-      footer={<Button disabled={!card} onClick={() => onSave(card)}>{formula ? 'ذخیره' : 'افزودن کارت'}</Button>}
+      footer={<Button disabled={!card} onClick={() => onSave(card)}>{formula ? t('ذخیره') : t('افزودن کارت')}</Button>}
     >
-      <div className="formula-presets" role="group" aria-label="نمونه‌ی آماده">
-        <span>نمونه‌ی آماده:</span>
+      <div className="formula-presets" role="group" aria-label={t('نمونه‌ی آماده')}>
+        <span>{t('نمونه‌ی آماده:')}</span>
         {FORMULA_PRESETS.map((p) => (
-          <button key={p.key} type="button" className="tx-filter-pill" title={`${formatFormula(p.expr)} — ${p.hint}`} onClick={() => applyPreset(p)}>
-            {p.label}
+          <button key={p.key} type="button" className="tx-filter-pill" title={`${formatFormula(p.expr)} — ${t(p.hint)}`} onClick={() => applyPreset(p)}>
+            {t(p.label)}
           </button>
         ))}
       </div>
@@ -124,25 +125,25 @@ export default function FormulaCardModal({ formula, onSave, onClose }) {
       <div className="formula-field">
         <Input
           id="formulaCardName"
-          label="نام کارت"
+          label={t('نام کارت')}
           value={name}
           maxLength={FORMULA_LIMITS.nameLength}
           onChange={(e) => setName(e.target.value)}
-          placeholder="مثلاً درصد حباب سکه"
+          placeholder={t('مثلاً درصد حباب سکه')}
         />
       </div>
 
       <div className="formula-field">
         <Input
           id="formulaCardExpr"
-          label="فرمول"
+          label={t('فرمول')}
           value={text}
           maxLength={FORMULA_LIMITS.exprLength}
           onChange={(e) => setText(e.target.value)}
           placeholder="x / (y - x)"
           dir="ltr"
-          error={parsed.ok || !text.trim() ? undefined : parsed.error}
-          hint={`دارایی‌ها: ${FORMULA_VARS.join(', ')} — عملگرها: + - * / و پرانتز`}
+          error={parsed.ok || !text.trim() ? undefined : t(parsed.error)}
+          hint={t('دارایی‌ها: {vars} — عملگرها: + - * / و پرانتز', { vars: FORMULA_VARS.join(', ') })}
         />
       </div>
 
@@ -154,26 +155,26 @@ export default function FormulaCardModal({ formula, onSave, onClose }) {
         </div>
       )}
 
-      <div className="formula-format" role="group" aria-label="نمایش مقدار">
+      <div className="formula-format" role="group" aria-label={t('نمایش مقدار')}>
         {Object.entries(FORMULA_FORMATS).map(([key, label]) => (
           <button key={key} type="button" className={`tx-filter-pill ${format === key ? 'active' : ''}`} aria-pressed={format === key} onClick={() => setFormat(key)}>
-            {label}
+            {t(label)}
           </button>
         ))}
       </div>
 
-      <div className="formula-format" role="group" aria-label="آمار روی کارت">
-        <span>بیشینه، کمینه و میانگین:</span>
-        {[...Object.entries(FORMULA_STATS), ['', 'بدون']].map(([key, label]) => (
+      <div className="formula-format" role="group" aria-label={t('آمار روی کارت')}>
+        <span>{t('بیشینه، کمینه و میانگین:')}</span>
+        {[...Object.entries(FORMULA_STATS), ['', t('بدون')]].map(([key, label]) => (
           <button key={key || 'none'} type="button" className={`tx-filter-pill ${stats === key ? 'active' : ''}`} aria-pressed={stats === key} onClick={() => setStats(key)}>
-            {label}
+            {t(label)}
           </button>
         ))}
       </div>
 
       <p className="formula-preview" role="status">
-        مقدار امروز: <strong>{parsed.ok && used.every((v) => vars[v]) ? formatFormulaValue(value, format) : '—'}</strong>
-        {format === 'percent' && <small> (مقدار فرمول × ۱۰۰)</small>}
+        {t('مقدار امروز:')} <strong>{parsed.ok && used.every((v) => vars[v]) ? formatFormulaValue(value, format) : '—'}</strong>
+        {format === 'percent' && <small> {t('(مقدار فرمول × ۱۰۰)')}</small>}
       </p>
     </Modal>
   );

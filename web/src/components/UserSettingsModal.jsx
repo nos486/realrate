@@ -1,3 +1,4 @@
+import { t } from '../utils/i18n.js';
 import React, { useState, useEffect } from 'react';
 import {
   Settings,
@@ -130,7 +131,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
         });
       }
 
-      setMsg({ text: 'تنظیمات با موفقیت ذخیره شد.', type: 'success' });
+      setMsg({ text: t('تنظیمات با موفقیت ذخیره شد.'), type: 'success' });
       if (onSaved) {
         onSaved({ portfolioName, portfolioId: portfolio?.id });
       }
@@ -138,7 +139,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
         onClose();
       }, 900);
     } catch (err) {
-      setMsg({ text: err.message || 'خطای سرور', type: 'error' });
+      setMsg({ text: err.message || t('خطای سرور'), type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -148,7 +149,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`تنظیمات «${portfolioName || 'پورتفو'}»`}
+      title={t('تنظیمات «{name}»', { name: portfolioName || t('پورتفو') })}
       icon={<Settings size={18} />}
       maxWidth="540px"
       onSubmit={!loading ? handleSave : null}
@@ -161,10 +162,10 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
                 className="btn-danger"
                 onClick={() => onDelete(portfolio?.id)}
                 disabled={saving}
-                title={`حذف «${portfolio?.name || ''}»`}
+                title={t('حذف «{name}»', { name: portfolio?.name || '' })}
               >
                 <Trash2 size={14} />
-                <span>حذف</span>
+                <span>{t('حذف')}</span>
               </button>
             ) : (
               <div />
@@ -177,14 +178,14 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
                 onClick={onClose}
                 disabled={saving}
               >
-                انصراف
+                {t('انصراف')}
               </button>
               <button
                 type="submit"
                 className="btn-primary"
                 disabled={saving}
               >
-                {saving ? 'در حال ذخیره...' : 'ذخیره'}
+                {saving ? t('در حال ذخیره...') : t('ذخیره')}
               </button>
             </div>
           </div>
@@ -194,7 +195,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
       {loading ? (
         <div className="settings-loading">
           <div className="spinner-glow"></div>
-          <span>در حال بارگذاری تنظیمات...</span>
+          <span>{t('در حال بارگذاری تنظیمات...')}</span>
         </div>
       ) : (
         <>
@@ -208,11 +209,11 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
 
             {/* Portfolio Name */}
             <div className="form-group">
-              <label htmlFor="settingsPortfolioName">نام پورتفو</label>
+              <label htmlFor="settingsPortfolioName">{t('نام پورتفو')}</label>
               <TextField
                 type="text"
                 id="settingsPortfolioName"
-                placeholder="نام پورتفو..."
+                placeholder={t('نام پورتفو...')}
                 value={portfolioName}
                 onChange={(e) => setPortfolioName(e.target.value)}
                 required
@@ -224,7 +225,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
               <div className="toggle-info">
                 <div className="toggle-title-row">
                   <span className="share-status-indicator" style={{ backgroundColor: isDefault ? 'var(--color-warning)' : 'var(--text-muted)' }}></span>
-                  <strong>پورتفوی پیش‌فرض</strong>
+                  <strong>{t('پورتفوی پیش‌فرض')}</strong>
                 </div>
               </div>
               <label className="switch-wrapper">
@@ -242,7 +243,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
               <div className="toggle-info">
                 <div className="toggle-title-row">
                   <span className="share-status-indicator" style={{ backgroundColor: shareEnabled ? 'var(--color-positive)' : 'var(--text-muted)' }}></span>
-                  <strong>اشتراک‌گذاری</strong>
+                  <strong>{t('اشتراک‌گذاری')}</strong>
                 </div>
               </div>
               <label className="switch-wrapper">
@@ -257,17 +258,17 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
 
             {/* Custom URL Slug */}
             <div className="form-group">
-              <label htmlFor="settingsShareSlug">لینک اختصاصی</label>
+              <label htmlFor="settingsShareSlug">{t('لینک اختصاصی')}</label>
               <div className="slug-input-wrapper">
                 <span className="slug-prefix">/p/</span>
                 <input
                   type="text"
                   id="settingsShareSlug"
-                  placeholder="مثال: my-portfolio"
+                  placeholder={t('مثال: my-portfolio')}
                   value={shareSlug}
                   onChange={(e) => setShareSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '-'))}
                   pattern="[a-zA-Z0-9_-]{2,40}"
-                  title="حروف انگلیسی، اعداد، خط فاصله (-) و زیرخط (_)"
+                  title={t('حروف انگلیسی، اعداد، خط فاصله (-) و زیرخط (_)')}
                   dir="ltr"
                 />
               </div>
@@ -283,7 +284,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
                   onClick={handleCopyLink}
                   disabled={shareLinkNeedsUnlock}
                 >
-                  {copied ? 'کپی شد' : 'کپی لینک'}
+                  {copied ? t('کپی شد') : t('کپی لینک')}
                 </button>
               </div>
             )}
@@ -292,20 +293,20 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
                 type="info"
                 message={
                   shareLinkNeedsUnlock
-                    ? 'این پورتفو رمزنگاری سرتاسری دارد؛ برای ساخت لینک اشتراک (که کلید نمایش را در خود دارد) ابتدا رمزنگاری حساب را باز کنید.'
-                    : 'این لینک کلید رمزگشایی همین پورتفو را در بخش # خود دارد که هرگز به سرور ارسال نمی‌شود. هر کس لینک کامل را داشته باشد می‌تواند این پورتفو را ببیند — فقط این پورتفو، نه بقیه اطلاعات شما.'
+                    ? t('این پورتفو رمزنگاری سرتاسری دارد؛ برای ساخت لینک اشتراک (که کلید نمایش را در خود دارد) ابتدا رمزنگاری حساب را باز کنید.')
+                    : t('این لینک کلید رمزگشایی همین پورتفو را در بخش # خود دارد که هرگز به سرور ارسال نمی‌شود. هر کس لینک کامل را داشته باشد می‌تواند این پورتفو را ببیند — فقط این پورتفو، نه بقیه اطلاعات شما.')
                 }
               />
             )}
 
             {/* Share Password Protection */}
             <div className="form-group">
-              <label htmlFor="settingsSharePassword">رمز عبور لینک (اختیاری)</label>
+              <label htmlFor="settingsSharePassword">{t('رمز عبور لینک (اختیاری)')}</label>
               <div className="password-input-wrapper">
                 <input
                   type={showPassword ? 'text' : 'password'}
                   id="settingsSharePassword"
-                  placeholder={hasExistingPassword && !removePassword ? 'رمز تنظیم شده — برای تغییر، رمز جدید وارد کنید' : 'رمز دلخواه...'}
+                  placeholder={hasExistingPassword && !removePassword ? t('رمز تنظیم شده — برای تغییر، رمز جدید وارد کنید') : t('رمز دلخواه...')}
                   value={sharePassword}
                   disabled={removePassword}
                   onChange={(e) => setSharePassword(e.target.value)}
@@ -314,7 +315,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
                   type="button"
                   className="btn-toggle-pwd"
                   onClick={() => setShowPassword(!showPassword)}
-                  title={showPassword ? 'مخفی کردن' : 'نمایش رمز'}
+                  title={showPassword ? t('مخفی کردن') : t('نمایش رمز')}
                 >
                   {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
@@ -329,7 +330,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
                       if (e.target.checked) setSharePassword('');
                     }}
                   />
-                  <span>حذف رمز عبور لینک</span>
+                  <span>{t('حذف رمز عبور لینک')}</span>
                 </label>
               )}
             </div>
@@ -339,14 +340,14 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
               <div className="toggle-info">
                 <div className="toggle-title-row">
                   {portfolio?.isE2ee ? <ShieldCheck size={15} className="vault-modal-icon on" /> : <Lock size={15} className="vault-modal-icon" />}
-                  <strong>رمزنگاری سرتاسری (E2EE)</strong>
+                  <strong>{t('رمزنگاری سرتاسری (E2EE)')}</strong>
                 </div>
                 <span className="vault-subtitle">
                   {accountManaged
-                    ? 'این پورتفو با رمزنگاری سرتاسری حساب محافظت می‌شود.'
+                    ? t('این پورتفو با رمزنگاری سرتاسری حساب محافظت می‌شود.')
                     : isLegacyVault
-                    ? 'این پورتفو با رمز جداگانه خودش رمزنگاری شده است. با فعال‌سازی رمزنگاری در «تنظیمات حساب»، به رمزنگاری حساب منتقل می‌شود.'
-                    : 'رمزنگاری سرتاسری از «تنظیمات حساب» برای همه پورتفوها، وام‌ها و درآمدها یک‌جا فعال می‌شود.'}
+                    ? t('این پورتفو با رمز جداگانه خودش رمزنگاری شده است. با فعال‌سازی رمزنگاری در «تنظیمات حساب»، به رمزنگاری حساب منتقل می‌شود.')
+                    : t('رمزنگاری سرتاسری از «تنظیمات حساب» برای همه پورتفوها، وام‌ها و درآمدها یک‌جا فعال می‌شود.')}
                 </span>
               </div>
             </div>

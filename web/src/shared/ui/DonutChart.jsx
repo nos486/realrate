@@ -3,7 +3,7 @@
  * and the loans bank share).
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
 import React, { useMemo, useState } from 'react';
 import { formatCompactAmount } from '../utils/formatters.js';
 import { CHART_COLORS as DONUT_COLORS, CHART_OTHER_COLOR as OTHER_COLOR } from './chartColors.js';
@@ -17,10 +17,10 @@ const OUTER_R = 72;
 const INNER_R = 50;
 
 const formatNum = (v) => Math.round(Number(v || 0)).toLocaleString(intlLocale());
-const defaultOtherLabel = (count) => `سایر (${count.toLocaleString(intlLocale())} مورد)`;
+const defaultOtherLabel = (count) => t('سایر ({n} مورد)', { n: count.toLocaleString(intlLocale()) });
 
 const formatShare = (share) =>
-  `${(share * 100).toLocaleString(intlLocale(), { maximumFractionDigits: share < 0.1 ? 1 : 0 })}٪`;
+  `${(share * 100).toLocaleString(intlLocale(), { maximumFractionDigits: share < 0.1 ? 1 : 0 })}${t('٪')}`;
 
 /** SVG path of one donut segment between two angles (radians, clockwise from 12 o'clock) */
 function arcPath(start, end) {
@@ -59,11 +59,11 @@ export default function DonutChart({
   title,
   items = [],
   headerExtra = null,
-  centerLabel = 'مجموع',
-  unit = 'تومان',
+  centerLabel = t('مجموع'),
+  unit = t('تومان'),
   masked = false,
   otherLabel = defaultOtherLabel,
-  emptyMessage = 'داده‌ای برای نمایش وجود ندارد.',
+  emptyMessage = t('داده‌ای برای نمایش وجود ندارد.'),
   className = '',
 }) {
   const [activeKey, setActiveKey] = useState(null);
@@ -80,7 +80,7 @@ export default function DonutChart({
       list.push({
         key: OTHER_KEY,
         label: otherLabel(rest.length),
-        shortLabel: 'سایر',
+        shortLabel: t('سایر'),
         value: rest.reduce((acc, item) => acc + toValue(item), 0),
         color: OTHER_COLOR,
         icon: (

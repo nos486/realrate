@@ -16,7 +16,7 @@
  * window of its own. The list comes in pages; new news comes in by itself every minute.
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Newspaper, Share2, EyeOff, ChevronDown, Sparkles, Flame, CalendarDays, Bell, BellOff } from 'lucide-react';
@@ -34,8 +34,8 @@ const PAGE_SIZE = 12;
 const FRESH_MS = 30 * 60000;
 
 const FILTERS = [
-  { value: 'all', label: 'همه' },
-  { value: 'important', label: 'مهم‌ها' },
+  { value: 'all', label: t('همه') },
+  { value: 'important', label: t('مهم‌ها') },
   ...Object.entries(NEWS_CATEGORIES).map(([value, label]) => ({ value, label })),
 ];
 
@@ -56,9 +56,9 @@ function NewsAlertsToggle() {
     try {
       const next = await setNewsAlertsEnabled(!enabled);
       setEnabled(next);
-      toast.success(next ? 'اعلان خبرهای مهم روشن شد.' : 'اعلان خبرهای مهم خاموش شد.');
+      toast.success(next ? t('اعلان خبرهای مهم روشن شد.') : t('اعلان خبرهای مهم خاموش شد.'));
     } catch (err) {
-      toast.error(err?.message || 'تغییر نکرد.');
+      toast.error(err?.message || t('تغییر نکرد.'));
     } finally {
       setBusy(false);
     }
@@ -67,7 +67,7 @@ function NewsAlertsToggle() {
   return (
     <button type="button" className={`news-alerts-toggle ${enabled ? 'is-on' : ''}`} onClick={toggle} disabled={busy} aria-pressed={enabled}>
       {enabled ? <Bell size={16} /> : <BellOff size={16} />}
-      <span>{enabled ? 'اعلان خبرهای مهم: روشن' : 'اعلان خبرهای مهم'}</span>
+      <span>{enabled ? t('اعلان خبرهای مهم: روشن') : t('اعلان خبرهای مهم')}</span>
     </button>
   );
 }
@@ -88,7 +88,7 @@ function NewsItem({ item, open, onToggle, isAdmin, onHide }) {
       if (navigator.share) await navigator.share({ title: item.title, text });
       else {
         await navigator.clipboard.writeText(text);
-        toast.success('متن خبر کپی شد.');
+        toast.success(t('متن خبر کپی شد.'));
       }
     } catch { /* closed by the user */ }
   };
@@ -97,9 +97,9 @@ function NewsItem({ item, open, onToggle, isAdmin, onHide }) {
     <article id={domId(item.id)} className={`news-item ${open ? 'is-open' : ''} ${item.importance >= 3 ? 'is-important' : ''}`}>
       <button type="button" className="news-item-main" onClick={onToggle} aria-expanded={open}>
         <span className="news-item-tags">
-          {item.importance >= 3 && <span className="news-tag is-important">مهم</span>}
-          <span className={`news-tag is-${item.category}`}>{NEWS_CATEGORIES[item.category] || 'اقتصاد'}</span>
-          {fresh && <span className="news-tag is-fresh">تازه</span>}
+          {item.importance >= 3 && <span className="news-tag is-important">{t('مهم')}</span>}
+          <span className={`news-tag is-${item.category}`}>{NEWS_CATEGORIES[item.category] || t('اقتصاد')}</span>
+          {fresh && <span className="news-tag is-fresh">{t('تازه')}</span>}
         </span>
         <h3 className="news-item-title">{item.title}</h3>
         {showSummary && <p className="news-item-summary">{item.summary}</p>}
@@ -121,17 +121,17 @@ function NewsItem({ item, open, onToggle, isAdmin, onHide }) {
           <div className="news-item-actions">
             <button type="button" className="news-action" onClick={share}>
               <Share2 size={15} />
-              اشتراک‌گذاری
+              {t('اشتراک‌گذاری')}
             </button>
             {isAdmin && (
               <button type="button" className="news-action is-danger" onClick={(e) => { e.stopPropagation(); onHide(item); }}>
                 <EyeOff size={15} />
-                حذف از اخبار
+                {t('حذف از اخبار')}
               </button>
             )}
           </div>
           <p className="news-item-footnote">
-            {item.ai && <><Sparkles size={12} aria-hidden="true" /> تیتر و خلاصه با هوش مصنوعی · </>}
+            {item.ai && <><Sparkles size={12} aria-hidden="true" /> {t('تیتر و خلاصه با هوش مصنوعی')} · </>}
             {newsFullTime(item.publishedAt)} · <bdi dir="ltr">@{item.channel}</bdi>
           </p>
         </div>
@@ -234,9 +234,9 @@ export default function NewsPage() {
     try {
       await setNewsHidden(item.id, true);
       removeItem(item.id);
-      toast.success('خبر حذف شد.');
+      toast.success(t('خبر حذف شد.'));
     } catch (err) {
-      toast.error(err?.message || 'حذف نشد.');
+      toast.error(err?.message || t('حذف نشد.'));
     }
   };
 
@@ -244,27 +244,27 @@ export default function NewsPage() {
     <div className="news-page">
       <FeaturePageHeader
         icon={<Newspaper size={22} />}
-        title="اخبار"
+        title={t('اخبار')}
         help="news"
-        subtitle="خبرهای مهم دلار، طلا، بورس و اقتصاد — هر دقیقه از کانال‌های خبری"
+        subtitle={t('خبرهای مهم دلار، طلا، بورس و اقتصاد — هر دقیقه از کانال‌های خبری')}
         actions={<NewsAlertsToggle />}
       />
 
       {/* The topics: a bar of their own above the columns, so the list, the top news and the
           analysis start level */}
-      <nav className="news-filters" aria-label="موضوع خبرها">
+      <nav className="news-filters" aria-label={t('موضوع خبرها')}>
         <FilterPills options={FILTERS} activeValue={filter} onChange={changeFilter} size="sm" />
       </nav>
 
       <div className="news-layout">
         {/* Today's and the week's most important news: a narrow column */}
-        <aside className="news-layout-rail" aria-label="مهم‌ترین خبرها">
-          <TopList title="مهم‌ترین‌های امروز" Icon={Flame} items={today.top} loading={today.loading} onOpen={openTop} />
-          <TopList title="مهم‌ترین‌های هفته" Icon={CalendarDays} items={today.week} loading={today.loading} onOpen={openTop} />
+        <aside className="news-layout-rail" aria-label={t('مهم‌ترین خبرها')}>
+          <TopList title={t('مهم‌ترین‌های امروز')} Icon={Flame} items={today.top} loading={today.loading} onOpen={openTop} />
+          <TopList title={t('مهم‌ترین‌های هفته')} Icon={CalendarDays} items={today.week} loading={today.loading} onOpen={openTop} />
         </aside>
 
         {/* The day's analysis: stays in view while the list scrolls */}
-        <aside className="news-layout-side" aria-label="تحلیل روز">
+        <aside className="news-layout-side" aria-label={t('تحلیل روز')}>
           <NewsAnalysisCard analysis={today.analysis} onOpenNews={(id) => (findItem(id) ? () => openById(id) : null)} />
         </aside>
 
@@ -277,8 +277,8 @@ export default function NewsPage() {
             </div>
           ) : items.length === 0 ? (
             <EmptyState
-              title="خبری نیست"
-              description={filter === 'all' ? 'به‌زودی خبرهای مهم بازار اینجا می‌آید.' : 'در این دسته فعلاً خبری نیست.'}
+              title={t('خبری نیست')}
+              description={filter === 'all' ? t('به‌زودی خبرهای مهم بازار اینجا می‌آید.') : t('در این دسته فعلاً خبری نیست.')}
             />
           ) : (
             <>
@@ -294,13 +294,13 @@ export default function NewsPage() {
                   />
                 ))}
               </div>
-              <Pagination page={page} pageSize={PAGE_SIZE} total={total} onChange={changePage} label="صفحه‌های اخبار" />
+              <Pagination page={page} pageSize={PAGE_SIZE} total={total} onChange={changePage} label={t('صفحه‌های اخبار')} />
             </>
           )}
         </div>
       </div>
 
-      <Modal isOpen={Boolean(shownItem)} onClose={() => setShownItem(null)} title="خبر" icon={<Newspaper size={18} />} maxWidth="640px">
+      <Modal isOpen={Boolean(shownItem)} onClose={() => setShownItem(null)} title={t('خبر')} icon={<Newspaper size={18} />} maxWidth="640px">
         {shownItem && (
           <NewsItem item={shownItem} open onToggle={() => {}} isAdmin={isAdmin} onHide={(item) => { setShownItem(null); hide(item); }} />
         )}

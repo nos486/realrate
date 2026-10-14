@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 import React, { useState } from 'react';
 import { Download } from 'lucide-react';
 import { buildCsvContent, downloadCsvFile, safeFilenamePart } from '../utils/csv.js';
@@ -23,7 +24,7 @@ export default function GenericCsvExportButton({
   mapRow,
   fileBaseName,
   disabled = false,
-  title = 'دریافت خروجی CSV',
+  title = t('دریافت خروجی CSV'),
 }) {
   const [loading, setLoading] = useState(false);
 
@@ -52,7 +53,7 @@ export default function GenericCsvExportButton({
       className="btn-export-csv icon-only"
       onClick={handleExport}
       title={title}
-      aria-label="خروجی CSV"
+      aria-label={t('خروجی CSV')}
       disabled={disabled || loading || (!loadItems && items.length === 0)}
       aria-busy={loading}
     >

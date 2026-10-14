@@ -4,6 +4,7 @@
  * recordOwners.js): which page it belongs to, and a link there — it is changed only from that page
  */
 
+import { t } from '../../utils/i18n.js';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Lock } from 'lucide-react';
@@ -21,8 +22,8 @@ export default function OwnedRecordLink({ record }) {
     <Link
       to={appPath(owner.path)}
       className="btn-table-action owned-record-link"
-      title={`ثبت خودکار؛ از صفحه‌ی «${owner.label}» تغییر می‌کند`}
-      aria-label={`ثبت خودکار از «${owner.label}»`}
+      title={t('ثبت خودکار؛ از صفحه‌ی «{owner}» تغییر می‌کند', { owner: t(owner.label) })}
+      aria-label={t('ثبت خودکار از «{owner}»', { owner: t(owner.label) })}
     >
       <Lock size={12} strokeWidth={2} />
       <span>{owner.label}</span>

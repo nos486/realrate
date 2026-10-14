@@ -15,6 +15,7 @@
  *   («سرمایه‌گذاری», «فروش دارایی», …) and each project's spending (sumApart).
  */
 
+import { t } from '../../utils/i18n.js';
 import { buildYearSeries } from '../../shared/flow/flowYear.js';
 import { SUBSCRIPTION_EXPENSE_CATEGORY } from '../../utils/subscriptionDocument.js';
 
@@ -233,7 +234,7 @@ export function subscriptionPayments(expenses = [], subscriptions = [], amountOf
     const amount = num(amountOf(e));
     if (e.subscriptionId) {
       const sub = byId.get(e.subscriptionId);
-      const row = rows.get(e.subscriptionId) || { id: e.subscriptionId, name: sub?.name || 'اشتراک حذف‌شده', count: 0, total: 0, last: '', removed: !sub };
+      const row = rows.get(e.subscriptionId) || { id: e.subscriptionId, name: sub?.name || t('اشتراک حذف‌شده'), count: 0, total: 0, last: '', removed: !sub };
       row.count += 1;
       row.total += amount;
       if (e.date > row.last) row.last = e.date;

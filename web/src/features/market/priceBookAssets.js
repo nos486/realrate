@@ -7,7 +7,7 @@
  * A dollar-priced asset keeps `currency: "usd"` and `priceUsd` (its own price, assetPrice.js).
  */
 
-import { intlLocale } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
 import { SPEC_BY_ID } from '../../utils/priceBook.js';
 import { toPriceId } from '../../utils/priceIds.js';
 import { CATEGORY_MAP } from '../../config/categories.config.js';
@@ -18,14 +18,14 @@ const fa = (n, digits = 0) => Number(n).toLocaleString(intlLocale(), { maximumFr
 /** The line under an asset's name: where its price comes from */
 function describe(item) {
   const p = item.params || {};
-  if (p.usdCross !== undefined) return `بر مبنای دلار (${fa(p.usdCross, 4)} $)`;
+  if (p.usdCross !== undefined) return t('بر مبنای دلار ({rate} $)', { rate: fa(p.usdCross, 4) });
   // A dollar-priced asset shows its dollar price; the line under it is the toman equivalent
-  if (currencyOf(item) === 'usd') return `≈ ${fa(item.price)} تومان`;
-  if (p.usd !== undefined) return `${fa(p.usd, 2)} دلار`;
+  if (currencyOf(item) === 'usd') return t('≈ {price} تومان', { price: fa(item.price) });
+  if (p.usd !== undefined) return t('{price} دلار', { price: fa(p.usd, 2) });
   // A coin's bubble (tgju): its percent of the coin's gold value
-  if (p.bubbleOf && p.bubblePct !== undefined) return `${fa(p.bubblePct, 1)}٪ بالاتر از ارزش طلای سکه`;
-  if (p.derived === 'intrinsic') return 'ارزش ذاتی (محاسبه از انس و دلار)';
-  if (p.symbol) return p.sourceName ? `نماد: ${p.symbol} • ${p.sourceName}` : `نماد: ${p.symbol}`;
+  if (p.bubbleOf && p.bubblePct !== undefined) return t('{pct}٪ بالاتر از ارزش طلای سکه', { pct: fa(p.bubblePct, 1) });
+  if (p.derived === 'intrinsic') return t('ارزش ذاتی (محاسبه از انس و دلار)');
+  if (p.symbol) return p.sourceName ? t('نماد: {symbol} • {source}', { symbol: p.symbol, source: p.sourceName }) : t('نماد: {symbol}', { symbol: p.symbol });
   return p.sourceName || '';
 }
 
@@ -43,7 +43,7 @@ export function toAsset(item) {
     item.name,
     symbol,
     spec?.code,
-    ...(isFund && symbol ? [`صندوق ${symbol}`] : []),
+    ...(isFund && symbol ? [`صندوق ${symbol}`] : []), // i18n-ignore
   ].filter(Boolean))];
   return {
     ...item,
@@ -52,7 +52,7 @@ export function toAsset(item) {
     code: spec?.code || '',
     symbol,
     flag: spec?.flag || '',
-    badge: CATEGORY_MAP[item.category]?.badge || spec?.badge || 'دارایی',
+    badge: CATEGORY_MAP[item.category]?.badge || spec?.badge || t('دارایی'),
     isFund,
     sourceName: p.sourceName || '',
     changePercent: p.changePercent ?? null,

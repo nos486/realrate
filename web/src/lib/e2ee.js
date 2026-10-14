@@ -6,6 +6,8 @@
  * Zero-Knowledge guarantee: The plaintext passphrase and derived key NEVER leave the user's browser.
  */
 
+import { t } from "../utils/i18n.js";
+
 const E2EE_PREFIX = "enc:e2ee:v1:";
 const VERIFIER_SIGNATURE = "REALRATE_E2EE_VAULT_OK";
 
@@ -44,7 +46,7 @@ export function generateE2eeSalt() {
  * @returns {Promise<CryptoKey>}
  */
 export async function deriveE2eeKey(passphrase, saltBase64, { extractable = false } = {}) {
-  if (!passphrase) throw new Error("رمز عبور گاوصندوق نمی‌تواند خالی باشد.");
+  if (!passphrase) throw new Error(t('رمز عبور گاوصندوق نمی‌تواند خالی باشد.'));
 
   // Decode salt
   const saltBytes = base64ToBytes(saltBase64 || "");
@@ -235,7 +237,7 @@ export async function encryptHoldingForApi(arg1, arg2) {
   // Checked on the resolved key itself: with a missing key in either position the other
   // argument (the holding) must never be mistaken for one and silently "encrypted" to null.
   if (!isCryptoKeyLike(key)) {
-    throw new Error("کلید رمزنگاری معتبر نیست یا گاوصندوق باز نشده است.");
+    throw new Error(t('کلید رمزنگاری معتبر نیست یا گاوصندوق باز نشده است.'));
   }
   if (!holding || typeof holding !== 'object') {
     return holding;
@@ -261,7 +263,7 @@ export async function encryptHoldingForApi(arg1, arg2) {
     currentPrice: 0,
     buyDate: "",
     notes: encryptedBundle,
-    assetName: "[گاوصندوق E2EE]",
+    assetName: "[گاوصندوق E2EE]", // i18n-ignore (a stored placeholder record name)
     referenceAssetId: "",
     referenceQuantity: 0,
   };

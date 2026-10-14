@@ -10,10 +10,10 @@ export function normalizePersianText(str) {
   if (!str) return '';
   return String(str)
     .replace(/\u200B|\u200C|\u200D|\uFEFF/g, '') // zero-width
-    .replace(/[ي]/g, 'ی')
-    .replace(/[ك]/g, 'ک')
-    .replace(/[آأإ]/g, 'ا')
-    .replace(/[ة]/g, 'ه')
+    .replace(/[ي]/g, 'ی') // i18n-ignore
+    .replace(/[ك]/g, 'ک') // i18n-ignore
+    .replace(/[آأإ]/g, 'ا') // i18n-ignore
+    .replace(/[ة]/g, 'ه') // i18n-ignore
     .trim()
     .toLowerCase();
 }

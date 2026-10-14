@@ -7,6 +7,7 @@
  * "what if" rates for intrinsic value and bubble only — they never change a price.
  */
 
+import { t } from '../../../utils/i18n.js';
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef, useSyncExternalStore } from 'react';
 import { getCorePriceBook, getPriceCatalog } from '../api/marketApi.js';
 import { searchUnifiedAssets } from '../../../utils/pricingEngine.js';
@@ -79,7 +80,7 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
       const requestOptions = background ? { silent: true } : {};
       const res = await getCorePriceBook(requestOptions);
       if (seq !== fetchSeqRef.current) return;
-      if (!res?.items) throw new Error('دریافت قیمت‌ها از سرور ناموفق بود.');
+      if (!res?.items) throw new Error(t('دریافت قیمت‌ها از سرور ناموفق بود.'));
 
       // The catalogs change about once an hour: loaded only when the core book names a new version
       if (res.catalogVersion && catalogRef.current?.version !== res.catalogVersion) {
@@ -113,7 +114,7 @@ export function PricingProvider({ children, initialUsdToman = null, initialGoldU
     } catch (e) {
       if (seq !== fetchSeqRef.current) return;
       console.error('Error fetching the price book:', e);
-      setError(e.message || 'دریافت قیمت‌ها از سرور ناموفق بود.');
+      setError(e.message || t('دریافت قیمت‌ها از سرور ناموفق بود.'));
     } finally {
       if (seq === fetchSeqRef.current) {
         inFlightRef.current = false;

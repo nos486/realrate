@@ -7,6 +7,7 @@
  * recommendation.
  */
 
+import { t } from './i18n.js';
 import {
   GOLD_SPECS,
   COIN_SPECS,
@@ -66,7 +67,7 @@ export function calculateMarketData({
     return {
       success: false,
       requires_usd: true,
-      message: 'لطفاً ابتدا قیمت دلار (تومان) را وارد کنید.',
+      message: t('لطفاً ابتدا قیمت دلار (تومان) را وارد کنید.'),
     };
   }
 
@@ -118,7 +119,7 @@ export function calculateMarketData({
       best_id: best.id,
       best_name: best.name,
       best_bubble_pct: best.bubble_pct,
-      reason: `«${best.name}» با حباب ${best.bubble_pct}٪ دارای کمترین حباب و بالاترین ارزش خرید اقتصادی می‌باشد.`,
+      reason: t('«{name}» با حباب {pct}٪ دارای کمترین حباب و بالاترین ارزش خرید اقتصادی می‌باشد.', { name: best.name, pct: best.bubble_pct }),
     };
   }
 

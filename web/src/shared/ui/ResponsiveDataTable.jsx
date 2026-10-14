@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 import React, { useState } from 'react';
 import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { useIsMobile } from '../../hooks/useMediaQuery.js';
@@ -102,7 +103,7 @@ export default function ResponsiveDataTable({
       className="rdt-select"
       checked={isSelected(row)}
       onChange={() => selection.onToggle(row)}
-      aria-label={selection.label ? selection.label(row) : 'انتخاب'}
+      aria-label={selection.label ? selection.label(row) : t('انتخاب')}
     />
   ));
   const shownSelected = selection ? rows.filter(isSelected).length : 0;
@@ -170,7 +171,7 @@ export default function ResponsiveDataTable({
                   checked={shownSelected === rows.length}
                   ref={(el) => { if (el) el.indeterminate = shownSelected > 0 && shownSelected < rows.length; }}
                   onChange={(e) => selection.onToggleAll(e.target.checked)}
-                  aria-label="انتخاب همه‌ی ردیف‌های این صفحه"
+                  aria-label={t('انتخاب همه‌ی ردیف‌های این صفحه')}
                 />
               </th>
             )}

@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 import React, { forwardRef } from 'react';
 import { X } from 'lucide-react';
 import { useTypedText } from './useTypedText.js';
@@ -71,7 +72,7 @@ export const Input = forwardRef(function Input(
             className="ui-input-clear-btn"
             onClick={onClear}
             tabIndex={-1}
-            aria-label="پاک کردن"
+            aria-label={t('پاک کردن')}
           >
             <X size={14} />
           </button>

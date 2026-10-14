@@ -1,3 +1,4 @@
+import { t } from '../../utils/i18n.js';
 import React from 'react';
 import { Search, X } from 'lucide-react';
 import TextField from './TextField.jsx';
@@ -9,7 +10,7 @@ export default function SearchBar({
   value,
   onChange,
   onClear = null,
-  placeholder = 'جستجو...',
+  placeholder = t('جستجو...'),
   className = '',
   style = {},
   disabled = false,
@@ -42,8 +43,8 @@ export default function SearchBar({
           type="button"
           className="search-bar-clear"
           onClick={handleClear}
-          aria-label="پاک‌کردن جستجو"
-          title="پاک‌کردن"
+          aria-label={t('پاک‌کردن جستجو')}
+          title={t('پاک‌کردن')}
         >
           <X size={14} strokeWidth={2.2} />
         </button>

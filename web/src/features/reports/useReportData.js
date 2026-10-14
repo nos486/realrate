@@ -14,6 +14,7 @@
  * which counts only in its project.
  */
 
+import { t } from '../../utils/i18n.js';
 import { useMemo } from 'react';
 import { useFeature } from '../../shared/features/useFeature.js';
 import { buildYearSeries, flowWindow, shamsiYearRange, summarizeYear } from '../../shared/flow/flowYear.js';
@@ -137,7 +138,7 @@ export function useReportData(jy, throughMonth) {
       expenses: hasExpenses ? sumApart(splitCounted('expense', yearExpenses).excluded, { dateOf: (e) => e.date, keyOf: (e) => e.category, amountOf: toman, range }) : [],
       incomes: sumApart(splitCounted('income', incomes).excluded, { dateOf: (i) => i.incomeDate, keyOf: (i) => i.category, amountOf: incomeToman, range }),
       projects: hasExpenses
-        ? sumApart(yearProjectExpenses, { dateOf: (e) => e.date, keyOf: (e) => e.groupId, amountOf: toman, range }).map((p) => ({ ...p, name: projectName.get(p.key) || 'پروژه' }))
+        ? sumApart(yearProjectExpenses, { dateOf: (e) => e.date, keyOf: (e) => e.groupId, amountOf: toman, range }).map((p) => ({ ...p, name: projectName.get(p.key) || t('پروژه') }))
         : [],
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

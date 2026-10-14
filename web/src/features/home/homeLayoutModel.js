@@ -5,6 +5,7 @@
  * utils/homeLayout.js, shared with the API). Every operation returns a new layout.
  */
 
+import { msg } from '../../utils/i18n.js';
 import { sanitizeHomeLayout, HOME_LAYOUT_VERSION, HOME_LAYOUT_LIMITS } from '../../utils/homeLayout.js';
 import { toPriceId } from '../../utils/priceIds.js';
 import { isFormulaId, sanitizeFormulaCard } from '../../utils/cardFormula.js';
@@ -73,8 +74,8 @@ function assetIdsOf(ctx, predicate, limit) {
 /** The home page a user sees until they customize it — same content as before customization */
 export function buildDefaultLayout(ctx) {
   return layoutOf([
-    { id: 's_gold', title: 'طلا و سکه', style: 'detailed', items: goldIds(ctx) },
-    { id: 's_fx', title: 'ارزها و دارایی‌ها', style: 'compact', items: currencyIds(ctx) },
+    { id: 's_gold', title: msg('طلا و سکه'), style: 'detailed', items: goldIds(ctx) },
+    { id: 's_fx', title: msg('ارزها و دارایی‌ها'), style: 'compact', items: currencyIds(ctx) },
   ]);
 }
 
@@ -82,28 +83,28 @@ export function buildDefaultLayout(ctx) {
 export const HOME_PRESETS = [
   {
     key: 'default',
-    label: 'پیش‌فرض',
-    description: 'طلا و سکه با جزئیات حباب، و ارزهای اصلی',
+    label: msg('پیش‌فرض'),
+    description: msg('طلا و سکه با جزئیات حباب، و ارزهای اصلی'),
     build: buildDefaultLayout,
   },
   {
     key: 'trend',
-    label: 'روند بازار',
-    description: 'نرخ‌های اصلی با نمودار ۳۰ روز اخیر (خطی یا کندلی)',
+    label: msg('روند بازار'),
+    description: msg('نرخ‌های اصلی با نمودار ۳۰ روز اخیر (خطی یا کندلی)'),
     build: (ctx) => layoutOf([
-      { id: 's_trend', title: 'روند بازار', style: 'detailed', items: ['USD', 'gold_18k', 'full_coin', 'USDT', 'EUR'] },
-      { id: 's_gold', title: 'طلا و سکه', style: 'detailed', items: goldIds(ctx) },
+      { id: 's_trend', title: msg('روند بازار'), style: 'detailed', items: ['USD', 'gold_18k', 'full_coin', 'USDT', 'EUR'] },
+      { id: 's_gold', title: msg('طلا و سکه'), style: 'detailed', items: goldIds(ctx) },
     ]),
   },
   {
     key: 'gold',
-    label: 'طلا و سکه',
-    description: 'کارت کامل طلا و سکه، به‌همراه انس، نقره و دلار',
+    label: msg('طلا و سکه'),
+    description: msg('کارت کامل طلا و سکه، به‌همراه انس، نقره و دلار'),
     build: (ctx) => layoutOf([
-      { id: 's_gold', title: 'طلا و سکه', style: 'detailed', items: goldIds(ctx) },
+      { id: 's_gold', title: msg('طلا و سکه'), style: 'detailed', items: goldIds(ctx) },
       {
         id: 's_ref',
-        title: 'مرجع‌ها',
+        title: msg('مرجع‌ها'),
         style: 'compact',
         items: ['USD', 'USDT', ...assetIdsOf(ctx, (a) => a.category === 'silver', 6)],
       },
@@ -111,34 +112,34 @@ export const HOME_PRESETS = [
   },
   {
     key: 'fx',
-    label: 'ارز و رمزارز',
-    description: 'همه ارزها و رمزارزهای اصلی',
+    label: msg('ارز و رمزارز'),
+    description: msg('همه ارزها و رمزارزهای اصلی'),
     build: (ctx) => layoutOf([
-      { id: 's_fx', title: 'ارزها', style: 'compact', items: currencyIds(ctx) },
-      { id: 's_crypto', title: 'رمزارزها', style: 'compact', items: assetIdsOf(ctx, (a) => a.category === 'crypto', 12) },
+      { id: 's_fx', title: msg('ارزها'), style: 'compact', items: currencyIds(ctx) },
+      { id: 's_crypto', title: msg('رمزارزها'), style: 'compact', items: assetIdsOf(ctx, (a) => a.category === 'crypto', 12) },
     ]),
   },
   {
     key: 'bourse',
-    label: 'بورس و صندوق‌ها',
-    description: 'صندوق‌های طلا و نمادهای دلخواه شما',
+    label: msg('بورس و صندوق‌ها'),
+    description: msg('صندوق‌های طلا و نمادهای دلخواه شما'),
     build: (ctx) => layoutOf([
-      { id: 's_ref', title: 'مرجع‌ها', style: 'compact', items: ['USD', 'gold_18k', 'full_coin'] },
+      { id: 's_ref', title: msg('مرجع‌ها'), style: 'compact', items: ['USD', 'gold_18k', 'full_coin'] },
       {
         id: 's_funds',
-        title: 'صندوق‌های طلا',
+        title: msg('صندوق‌های طلا'),
         style: 'compact',
-        items: assetIdsOf(ctx, (a) => a.category === 'bourse_fund' && /طلا/.test(a.name || ''), 8),
+        items: assetIdsOf(ctx, (a) => a.category === 'bourse_fund' && /طلا/.test(a.name || ''), 8), // i18n-ignore
       },
-      { id: 's_bourse', title: 'نمادهای من', style: 'compact', items: [] },
+      { id: 's_bourse', title: msg('نمادهای من'), style: 'compact', items: [] },
     ]),
   },
   {
     key: 'minimal',
-    label: 'خلاصه',
-    description: 'فقط چند نرخ پرکاربرد',
+    label: msg('خلاصه'),
+    description: msg('فقط چند نرخ پرکاربرد'),
     build: () => layoutOf([
-      { id: 's_main', title: 'نرخ‌های اصلی', style: 'compact', items: ['gold_18k', 'full_coin', 'USD', 'USDT', 'EUR'] },
+      { id: 's_main', title: msg('نرخ‌های اصلی'), style: 'compact', items: ['gold_18k', 'full_coin', 'USD', 'USDT', 'EUR'] },
     ]),
   },
 ];
@@ -156,7 +157,7 @@ const move = (list, index, delta) => {
   return next;
 };
 
-export function addSection(layout, { title = 'بخش جدید', style = 'compact' } = {}) {
+export function addSection(layout, { title = msg('بخش جدید'), style = 'compact' } = {}) {
   if (layout.sections.length >= HOME_LAYOUT_LIMITS.sections) return layout;
   return layoutOf([...layout.sections, { id: newSectionId(), title, style, items: [] }]);
 }

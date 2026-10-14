@@ -8,6 +8,7 @@
  * Tapping the notification opens that item on the news page.
  */
 
+import { t } from '../../utils/i18n.js';
 import { isNativeApp } from '../../shared/native/nativeApp.js';
 import { requestNotificationPermission } from '../../shared/native/dueNotifications.js';
 import {
@@ -57,7 +58,7 @@ export async function getNewsAlertsEnabled() {
 export async function setNewsAlertsEnabled(enabled) {
   if (isNativeApp()) {
     if (enabled && (await requestNotificationPermission()) !== 'granted') {
-      throw new Error('اجازه‌ی نمایش اعلان داده نشد.');
+      throw new Error(t('اجازه‌ی نمایش اعلان داده نشد.'));
     }
     write(NATIVE_KEY, enabled ? '1' : null);
     if (enabled) write(SEEN_KEY, String(Date.now()));
@@ -88,7 +89,7 @@ async function checkNative() {
   await LocalNotifications.schedule({
     notifications: fresh.slice(0, 3).map((n) => ({
       id: notificationIdOf(n.id),
-      title: 'خبر مهم',
+      title: t('خبر مهم'),
       body: n.title,
       largeBody: n.summary && n.summary !== n.title ? `${n.title}\n${n.summary}` : n.title,
       extra: { kind: 'news', path: `/news?open=${encodeURIComponent(n.id)}` },

@@ -5,6 +5,7 @@
  * The value is the Shamsi string the forms keep (Latin digits, «1405/07/18»).
  */
 
+import { t } from '../../utils/i18n.js';
 import React, { useState } from 'react';
 import { FilterPills } from '../ui/index.js';
 import ShamsiDatePicker, { getTodayShamsi, gregorianToShamsi, formatShamsiDisplay, shamsiToGregorian } from '../../features/portfolio/components/ShamsiDatePicker.jsx';
@@ -35,9 +36,9 @@ export default function DateField({ label, value, onChange }) {
         variant="segmented"
         size="sm"
         options={[
-          { value: 'today', label: 'امروز' },
-          { value: 'yesterday', label: 'دیروز' },
-          { value: 'other', label: 'روز دیگر' },
+          { value: 'today', label: t('امروز') },
+          { value: 'yesterday', label: t('دیروز') },
+          { value: 'other', label: t('روز دیگر') },
         ]}
         activeValue={mode}
         onChange={(next) => {
@@ -47,7 +48,7 @@ export default function DateField({ label, value, onChange }) {
         }}
       />
       {mode === 'other'
-        ? <ShamsiDatePicker label="روز" value={value} onChange={onChange} className="date-field-picker" />
+        ? <ShamsiDatePicker label={t('روز')} value={value} onChange={onChange} className="date-field-picker" />
         : iso && <p className="expense-form-hint">{formatShamsiDisplay(`${iso}T00:00:00`)}</p>}
     </div>
   );

@@ -1,3 +1,4 @@
+import { t } from '../utils/i18n.js';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Smartphone, ShieldCheck } from 'lucide-react';
@@ -16,24 +17,24 @@ export default function Footer() {
       return;
     }
     if (isInstalled) {
-      toast.info('اپلیکیشن RealRate روی این دستگاه نصب شده است.');
+      toast.info(t('اپلیکیشن RealRate روی این دستگاه نصب شده است.'));
       return;
     }
     // Browsers that support it (Chrome, Edge, Android) show their own install dialog
     if (canPrompt) {
       const accepted = await promptInstall();
-      if (accepted) toast.success('اپلیکیشن نصب شد.');
+      if (accepted) toast.success(t('اپلیکیشن نصب شد.'));
       return;
     }
     if (isIos) {
       showAlert({
-        title: 'نصب اپلیکیشن',
-        message: 'جهت نصب اپلیکیشن روی آیفون:\n۱. دکمه اشتراک (Share) در پایین مرورگر Safari را بزنید.\n۲. گزینه "Add to Home Screen" را انتخاب کنید.',
+        title: t('نصب اپلیکیشن'),
+        message: t('جهت نصب اپلیکیشن روی آیفون:\n۱. دکمه اشتراک (Share) در پایین مرورگر Safari را بزنید.\n۲. گزینه "Add to Home Screen" را انتخاب کنید.'),
       });
     } else {
       showAlert({
-        title: 'نصب اپلیکیشن',
-        message: 'جهت نصب اپلیکیشن روی گوشی:\n۱. منوی ۳ نقطه مرورگر را بزنید.\n۲. گزینه "Add to Home Screen" یا "Install app" را انتخاب کنید.',
+        title: t('نصب اپلیکیشن'),
+        message: t('جهت نصب اپلیکیشن روی گوشی:\n۱. منوی ۳ نقطه مرورگر را بزنید.\n۲. گزینه "Add to Home Screen" یا "Install app" را انتخاب کنید.'),
       });
     }
   };
@@ -41,12 +42,12 @@ export default function Footer() {
   return (
     <footer className="site-footer">
       <div className="footer-inner">
-        <p>ارزش‌گذاری بر مبنای نرخ روز طلا، سکه و ارز</p>
+        <p>{t('ارزش‌گذاری بر مبنای نرخ روز طلا، سکه و ارز')}</p>
         <div className="footer-links">
           <button
             type="button"
             onClick={triggerPwaInstall}
-            title="نصب اپلیکیشن RealRate روی گوشی"
+            title={t('نصب اپلیکیشن RealRate روی گوشی')}
             className="footer-icon-btn"
           >
             <Smartphone size={18} strokeWidth={2} />
@@ -56,7 +57,7 @@ export default function Footer() {
             href="https://github.com/nos486/realrate"
             target="_blank"
             rel="noreferrer"
-            title="مشاهده سورس در گیت‌هاب"
+            title={t('مشاهده سورس در گیت‌هاب')}
             className="footer-icon-btn"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -66,7 +67,7 @@ export default function Footer() {
 
           <Link
             to={appPath('/admin')}
-            title="ورود به پنل مدیریت"
+            title={t('ورود به پنل مدیریت')}
             className="footer-icon-btn"
           >
             <ShieldCheck size={18} strokeWidth={2} />
