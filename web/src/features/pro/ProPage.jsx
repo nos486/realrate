@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { t } from '../../utils/i18n.js';
+import { hasNews, t, tMessage } from '../../utils/i18n.js';
 import { Crown, Check, Lock } from 'lucide-react';
 import FeaturePageHeader from '../../shared/ui/FeaturePageHeader.jsx';
 import FeatureOffer from '../../shared/features/FeatureOffer.jsx';
@@ -34,14 +34,14 @@ export default function ProPage() {
           <span role="columnheader">{t('رایگان')}</span>
           <span role="columnheader" className="is-pro"><Crown size={14} aria-hidden="true" /> Pro</span>
         </div>
-        {PLAN_COMPARISON.map((row) => (
+        {PLAN_COMPARISON.filter((row) => !row.news || hasNews()).map((row) => (
           <div className="pro-compare-row" role="row" key={row.label}>
             <span role="rowheader" className="pro-compare-label">{t(row.label)}</span>
             <span role="cell" className={`pro-compare-free${row.free === CLOSED ? ' is-closed' : ''}`}>
               {row.free === CLOSED && <Lock size={13} aria-hidden="true" />}
-              {t(row.free)}
+              {tMessage(row.free)}
             </span>
-            <span role="cell" className="pro-compare-pro"><Check size={14} aria-hidden="true" />{t(row.pro)}</span>
+            <span role="cell" className="pro-compare-pro"><Check size={14} aria-hidden="true" />{tMessage(row.pro)}</span>
           </div>
         ))}
       </div>

@@ -51,7 +51,8 @@ export function planLimitKeyOfKind(kind) {
 
 /**
  * The comparison shown on the Pro page: each row says what the free plan gives and what Pro gives
- * @type {Array<{ label: string, free: string, pro: string }>}
+ * `news`: a row about the Persian-only news, left out where the language has none (`hasNews`)
+ * @type {Array<{ label: string, free: string, pro: string, news?: boolean }>}
  */
 export const PLAN_COMPARISON = [
   { label: 'هزینه و درآمد', free: `${PLAN_LIMITS.entries.monthly} ثبت در ماه (روی هم)`, pro: 'نامحدود' },
@@ -64,7 +65,7 @@ export const PLAN_COMPARISON = [
   { label: 'پورتفو', free: `${FREE_PORTFOLIOS} پورتفو با ${PLAN_LIMITS.holdings.total} دارایی`, pro: 'نامحدود' },
   { label: 'انتقال بین حساب‌ها', free: 'بسته', pro: 'باز' },
   { label: 'ورود گردش حساب از فایل بانک', free: 'بسته', pro: 'باز' },
-  { label: 'اخبار و اعلان خبر مهم', free: 'بسته', pro: 'باز' },
+  { label: 'اخبار و اعلان خبر مهم', free: 'بسته', pro: 'باز', news: true },
   { label: 'گزارش‌های سالانه', free: 'بسته', pro: 'باز' },
   { label: 'ویجت اندروید', free: 'بسته', pro: 'باز' },
   { label: 'صفحه‌ی نرخ و حباب', free: 'بسته', pro: 'باز' },

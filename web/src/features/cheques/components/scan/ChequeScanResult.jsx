@@ -1,4 +1,4 @@
-import { t, intlLocale } from '../../../../utils/i18n.js';
+import { t, tMessage, intlLocale } from '../../../../utils/i18n.js';
 import React, { useState } from 'react';
 import {
   Check,
@@ -84,7 +84,7 @@ export function ChequeScanResult({
         <AlertBanner
           type="warning"
           title={t('نیاز به بررسی مقادیر')}
-          message={warnings.join(' • ')}
+          message={warnings.map(tMessage).join(' • ')}
         />
       ) : null}
 
