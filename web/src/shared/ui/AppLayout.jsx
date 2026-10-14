@@ -8,6 +8,7 @@ import { AppTopBar, AppBottomNav } from '../app/AppShell.jsx';
 import AppUpdatePrompt, { AppUpdateBanner } from '../app/AppUpdatePrompt.jsx';
 import AppSuggestBanner from '../app/AppSuggestBanner.jsx';
 import AppSetupPrompt from '../app/AppSetupPrompt.jsx';
+import StoreBuildNotice from '../app/StoreBuildNotice.jsx';
 
 /**
  * Standard AppLayout component
@@ -59,6 +60,8 @@ export default function AppLayout({
         <AppUpdatePrompt />
         {/* Right after installing: turn on bank SMS and the fingerprint (Android app only) */}
         <AppSetupPrompt />
+        {/* First sign-in on the Google Play build: it is the lighter one, the GitHub build is complete */}
+        <StoreBuildNotice />
       </div>
     );
   }
