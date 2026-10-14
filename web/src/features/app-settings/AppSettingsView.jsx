@@ -534,6 +534,8 @@ function SmsRecordsCleanup({ vaultUnlocked }) {
   );
 }
 
+const GITHUB_URL = 'https://github.com/nos486/realrate';
+
 export default function AppSettingsView({ onOpenSms }) {
   const hasWidget = useFeature('widget');
   const { toast } = useFeedback();
@@ -687,10 +689,18 @@ export default function AppSettingsView({ onOpenSms }) {
         </dl>
         {/* The store build has no SMS permission: point to the full build for the rest */}
         {!smsEnabled() && (
-          <AlertBanner
-            type="info"
-            message="این نسخه بدون پیامک است. برای داشتن ویژگی‌های بیشتر (مثل خواندن خودکار پیامک بانک) نسخه‌ی گیت‌هاب را نصب کنید: realrate.geekio.org/android"
-          />
+          <>
+            <AlertBanner
+              type="info"
+              message="این نسخه بدون پیامک است. برای داشتن ویژگی‌های بیشتر (مثل خواندن خودکار پیامک بانک) نسخه‌ی گیت‌هاب را نصب کنید."
+            />
+            <dl className="app-setting-facts">
+              <dt>پروژه در گیت‌هاب</dt>
+              <dd dir="ltr"><a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">github.com/nos486/realrate</a></dd>
+              <dt>دانلود آخرین نسخه</dt>
+              <dd dir="ltr"><a href={`${GITHUB_URL}/releases/latest`} target="_blank" rel="noopener noreferrer">github.com/nos486/realrate/releases/latest</a></dd>
+            </dl>
+          </>
         )}
       </Card>
     </div>
