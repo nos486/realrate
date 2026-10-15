@@ -9,7 +9,8 @@
  * - «حذف ثبت‌های خودکار پیامک»: deletes the expenses and incomes made from bank SMS in a date range
  *   (never hand-entered ones), after showing how many and asking to confirm (smsRecordsCleanup.js)
  * - Fingerprint: open the encrypted data with the fingerprint instead of the passphrase
- * - The app's version and its updates: automatic check on/off, «بررسی به‌روزرسانی» (shared/native/appUpdate.js)
+ * - The app's version and its updates: automatic check on/off, «بررسی به‌روزرسانی» (shared/native/appUpdate.js,
+ *   and the newest pages right away: shared/native/webBundle.js)
  */
 
 import { intlLocale, t } from '../../utils/i18n.js';
@@ -60,6 +61,7 @@ import {
 } from '../../shared/native/widgets.js';
 import { useAppUpdate } from '../../shared/native/useAppUpdate.js';
 import { checkForUpdate, setAutoUpdateCheck, openUpdatePrompt } from '../../shared/native/appUpdate.js';
+import { updatePagesNow } from '../../shared/native/webBundle.js';
 
 
 /**
@@ -255,8 +257,17 @@ function AppUpdateSettings() {
 
   const handleCheck = async () => {
     const result = await checkForUpdate({ manual: true });
-    if (result.status === 'latest') toast.success(t('آخرین نسخه‌ی اپ نصب است.'));
-    else if (result.status === 'error') toast.error(result.error || t('بررسی به‌روزرسانی ممکن نشد.'));
+    if (result.status === 'error') {
+      toast.error(result.error || t('بررسی به‌روزرسانی ممکن نشد.'));
+      return;
+    }
+    if (result.status !== 'latest') return;
+    // The APK is the newest: bring the newest pages too (webBundle.js), loaded right away
+    const pages = await updatePagesNow();
+    if (pages === 'applied') toast.success(t('صفحات اپ به‌روز شد.'));
+    else if (pages === 'next-start') toast.success(t('نسخه‌ی تازه دانلود شد؛ با باز کردن دوباره‌ی اپ اعمال می‌شود.'));
+    else if (pages === 'error') toast.error(t('بررسی به‌روزرسانی ممکن نشد.'));
+    else toast.success(t('آخرین نسخه‌ی اپ نصب است.'));
   };
 
   return (
@@ -705,6 +716,13 @@ export default function AppSettingsView({ onOpenSms }) {
         <dl className="app-setting-facts">
           <dt>{t('نسخه')}</dt>
           <dd dir="ltr">{version || '—'}</dd>
+          {/* The pages can be newer than the APK (web bundles, shared/native/webBundle.js) */}
+          {import.meta.env?.VITE_APP_VERSION && (
+            <>
+              <dt>{t('نسخه‌ی صفحات')}</dt>
+              <dd dir="ltr">{import.meta.env.VITE_APP_VERSION}</dd>
+            </>
+          )}
           <dt>{t('حریم خصوصی')}</dt>
           <dd dir="ltr"><a href={`https://realrate.geekio.org${publicPath('/privacy')}`} target="_blank" rel="noopener noreferrer">{`realrate.geekio.org${publicPath('/privacy')}`}</a></dd>
           {packageId && (

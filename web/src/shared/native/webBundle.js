@@ -11,6 +11,9 @@
  *
  * The pages of a new bundle confirm that they started (WebBundle.ready); a bundle that starts
  * twice without confirming is dropped and the last good pages come back.
+ *
+ * «بررسی به‌روزرسانی» in the app settings also updates the pages right away (updatePagesNow):
+ * it looks for a bundle with no interval and loads a downloaded one at once (WebBundle.apply).
  */
 
 import { Capacitor } from '@capacitor/core';
@@ -35,14 +38,42 @@ export function isWebBundleCheckDue(last, now = Date.now()) {
  * Asks the native side to fetch a newer bundle, if there is one (it applies at the next start)
  * @returns {Promise<{ status: string, build?: number } | null>}
  */
-export async function checkWebBundle(now = Date.now()) {
-  if (!isWebBundleCheckDue(lastCheck, now)) return null;
+export async function checkWebBundle(now = Date.now(), { force = false } = {}) {
+  if (!force && !isWebBundleCheckDue(lastCheck, now)) return null;
   lastCheck = now;
   try {
     return await WebBundle.update({ manifestUrl: WEB_BUNDLE_MANIFEST_URL });
   } catch {
     // No connection or GitHub unreachable: the next opening tries again
     return null;
+  }
+}
+
+/**
+ * The user asked for the newest pages: fetch a newer bundle now and load it at once (the pages
+ * reload). An APK from before WebBundle.apply, or a bundle not confirmed yet, gets it at the next
+ * start of the app instead.
+ * @returns {Promise<'latest' | 'applied' | 'next-start' | 'error'>}
+ */
+export async function updatePagesNow(now = Date.now()) {
+  lastCheck = now;
+  let result;
+  try {
+    result = await WebBundle.update({ manifestUrl: WEB_BUNDLE_MANIFEST_URL });
+  } catch {
+    return 'error';
+  }
+  if (result?.status === 'disabled') return 'latest';
+  if (result?.status !== 'ready') {
+    // Nothing newer to download, but an earlier one may still be waiting for the next start
+    const info = await WebBundle.info().catch(() => null);
+    if (!(Number(info?.pendingBuild) > 0)) return result?.status === 'busy' ? 'next-start' : 'latest';
+  }
+  try {
+    const { applied } = await WebBundle.apply();
+    return applied ? 'applied' : 'next-start';
+  } catch {
+    return 'next-start';
   }
 }
 
