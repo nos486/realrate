@@ -435,12 +435,14 @@ export const APP_TABLES = [
     afterAddColumns: ["UPDATE price_daily SET open = value, high = value, low = value WHERE open IS NULL"],
   },
   {
-    // The news section: market news picked from Telegram channels (services/news/news.service.js).
-    // `id` is "<channel>/<post id>"; `ai` 1 when the model approved and summarized it; `hidden`
-    // 1 when an admin took it down. Deleted after NEWS_LIMITS.retentionDays.
+    // The news section: market news picked from Telegram channels and international feeds
+    // (services/news/news.service.js). `id` is "<channel or feed>/<post id>"; `source` "telegram"
+    // or "world" (a feed's English article: `text` and `url` are the original); `ai` 1 when the
+    // model approved and summarized it; `hidden` 1 when an admin took it down. Deleted after
+    // NEWS_LIMITS.retentionDays.
     name: "news",
     columns: ["id", "channel", "channel_title", "post_id", "url", "title", "summary", "text", "category",
-      "importance", "image", "published_at", "created_at", "ai", "hidden"],
+      "importance", "image", "published_at", "created_at", "ai", "hidden", "source"],
     ddl: [
       `CREATE TABLE IF NOT EXISTS news (
         id TEXT PRIMARY KEY,
@@ -457,12 +459,16 @@ export const APP_TABLES = [
         published_at INTEGER NOT NULL,
         created_at INTEGER NOT NULL,
         ai INTEGER NOT NULL DEFAULT 0,
-        hidden INTEGER NOT NULL DEFAULT 0
+        hidden INTEGER NOT NULL DEFAULT 0,
+        source TEXT NOT NULL DEFAULT 'telegram'
       )`,
       "CREATE INDEX IF NOT EXISTS idx_news_published ON news(hidden, published_at DESC)",
       "CREATE INDEX IF NOT EXISTS idx_news_category ON news(category, published_at DESC)",
       // The repeat check reads recent news hidden or not (idx_news_published needs `hidden`)
       "CREATE INDEX IF NOT EXISTS idx_news_recent ON news(published_at DESC)",
+    ],
+    addColumns: [
+      { column: "source", sql: "ALTER TABLE news ADD COLUMN source TEXT NOT NULL DEFAULT 'telegram'" },
     ],
   },
   {

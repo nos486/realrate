@@ -39,7 +39,6 @@ export default {
   'خبر حذف شد.': 'News item removed.',
   'حذف نشد.': 'Could not remove it.',
   'اخبار': 'News',
-  'خبرهای مهم دلار، طلا، بورس و اقتصاد — هر دقیقه از کانال‌های خبری': 'Important news on the dollar, gold, stocks and the economy — every minute from news channels',
   'موضوع خبرها': 'News topics',
   'مهم‌ترین خبرها': 'Most important news',
   'مهم‌ترین‌های امروز': 'Today\'s top news',
@@ -52,4 +51,8 @@ export default {
   'اجازه‌ی نمایش اعلان داده نشد.': 'Notification permission was not granted.',
   'خبر مهم': 'Important news',
   'خبرها خوانده نشد.': 'Could not load the news.',
+  'بین‌الملل': 'International',
+  'متن اصلی خبر': 'Original article',
+  'خبر اصلی در {source}': 'Full story on {source}',
+  'خبرهای مهم دلار، طلا، بورس و اقتصاد — هر دقیقه از کانال‌های خبری و خبرگزاری‌های بین‌المللی': 'Important news on the dollar, gold, stocks and the economy — every minute from news channels and international news agencies',
 };

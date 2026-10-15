@@ -4,14 +4,16 @@
  *    rejected by it, published), the last runs one per row, and the last published news
  *  - the Telegram channels: add, pause or remove a channel, see how each one did on the last run,
  *    and read them all now; write «تحلیل روز» now
+ *  - the international news feeds (RSS/Atom, English): add, pause or remove a feed, see how each
+ *    one did on the last run
  */
 
 import { intlLocale } from '../../../utils/i18n.js';
 import React, { useEffect, useState } from 'react';
-import { Newspaper, Plus, Trash2, RefreshCw, Save, CheckCircle2, AlertTriangle, Sparkles, BarChart3 } from 'lucide-react';
+import { Newspaper, Plus, Trash2, RefreshCw, Save, CheckCircle2, AlertTriangle, Sparkles, BarChart3, Globe } from 'lucide-react';
 import { Button, Input, AlertBanner, EmptyState } from '../../../shared/ui/index.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
-import { getNewsChannels, saveNewsChannels, runNewsNow, runNewsAnalysisNow } from '../../news/newsApi.js';
+import { getNewsChannels, saveNewsChannels, saveNewsFeeds, runNewsNow, runNewsAnalysisNow } from '../../news/newsApi.js';
 import { newsTimeAgo, newsClock, NEWS_CATEGORIES } from '../../news/newsFormat.js';
 
 const fa = (n) => Number(n || 0).toLocaleString(intlLocale());
@@ -127,6 +129,124 @@ function NewsReport({ status, latest, model, dayBudget }) {
           </ul>
         </div>
       )}
+    </div>
+  );
+}
+
+const isFeedUrl = (url) => {
+  try {
+    return /^https?:$/.test(new URL(url).protocol);
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * «خبرگزاری‌های بین‌المللی»: the RSS/Atom feeds read with the channels (English articles the model
+ * translates); saved apart from the channels
+ */
+function NewsFeeds({ saved, status, maxFeeds, onSaved }) {
+  const { toast } = useFeedback();
+  const [feeds, setFeeds] = useState(saved);
+  const [title, setTitle] = useState('');
+  const [url, setUrl] = useState('');
+  const [busy, setBusy] = useState(false);
+  const dirty = JSON.stringify(feeds) !== JSON.stringify(saved);
+
+  const add = () => {
+    const address = url.trim();
+    if (!isFeedUrl(address)) {
+      toast.error('آدرس فید معتبر نیست (مثل https://example.com/rss).');
+      return;
+    }
+    if (feeds.some((f) => f.url === address)) {
+      toast.warning('این فید در فهرست هست.');
+      return;
+    }
+    // The server gives a new feed its id
+    setFeeds([...feeds, { title: title.trim(), url: address, enabled: true }]);
+    setTitle('');
+    setUrl('');
+  };
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      const res = await saveNewsFeeds(feeds);
+      onSaved(res.feeds);
+      toast.success('فهرست خبرگزاری‌ها ذخیره شد.');
+    } catch (err) {
+      toast.error(err?.message || 'ذخیره نشد.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const keyOf = (f) => f.id || f.url;
+  return (
+    <div className="portfolio-stat-card admin-news-feeds">
+      <div className="stat-header">
+        <span className="stat-label"><Globe size={14} /> خبرگزاری‌های بین‌المللی (RSS)</span>
+      </div>
+      <p className="admin-card-hint">
+        هر دقیقه با کانال‌ها خوانده می‌شوند. خبرهای انگلیسی از همان کلیدواژه‌ها و مدل می‌گذرند؛ مدل تیتر و خلاصه را به فارسی
+        ترجمه می‌کند و متن اصلی و لینک خبر کنارش می‌ماند (فیلتر «بین‌الملل» صفحه‌ی اخبار). خبرهای قدیمی‌تر از ۱۲ ساعت بررسی نمی‌شوند.
+      </p>
+
+      {feeds.length === 0 ? (
+        <EmptyState title="فیدی نیست" description="یک فید RSS اضافه کنید." />
+      ) : (
+        <ul className="admin-news-channels">
+          {feeds.map((f) => {
+            const s = f.id ? status?.feeds?.[f.id] : null;
+            return (
+              <li key={keyOf(f)} className={f.enabled ? '' : 'is-off'}>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={f.enabled}
+                  aria-label={`فعال بودن ${f.title || f.url}`}
+                  className={`admin-switch ${f.enabled ? 'is-on' : ''}`}
+                  onClick={() => setFeeds(feeds.map((x) => (keyOf(x) === keyOf(f) ? { ...x, enabled: !x.enabled } : x)))}
+                >
+                  <span className="admin-switch-thumb" />
+                </button>
+                <span className="admin-news-channel">
+                  <a href={f.url} target="_blank" rel="noopener noreferrer"><bdi>{f.title || f.url}</bdi></a>
+                  <small>
+                    {!s ? 'هنوز خوانده نشده'
+                      : s.ok ? <><CheckCircle2 size={12} className="is-ok" /> {fa(s.items)} خبر در فید · {fa(s.published)} خبر منتشرشده</>
+                        : <><AlertTriangle size={12} className="is-warn" /> خوانده نشد: <bdi dir="ltr">{s.error}</bdi></>}
+                  </small>
+                </span>
+                <button
+                  type="button"
+                  className="admin-news-remove"
+                  aria-label={`حذف ${f.title || f.url}`}
+                  onClick={() => setFeeds(feeds.filter((x) => keyOf(x) !== keyOf(f)))}
+                >
+                  <Trash2 size={16} />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <form className="admin-news-add" onSubmit={(e) => { e.preventDefault(); add(); }}>
+        <Input id="adminNewsFeedTitle" placeholder="نام (مثل Reuters)" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <Input id="adminNewsFeedUrl" placeholder="https://example.com/rss" value={url} onChange={(e) => setUrl(e.target.value)} dir="ltr" />
+        <Button type="submit" size="sm" variant="secondary" icon={<Plus size={14} />} disabled={feeds.length >= (maxFeeds || 20)}>
+          افزودن
+        </Button>
+      </form>
+
+      <div className="admin-news-save">
+        <Button size="sm" icon={<Save size={14} />} loading={busy} disabled={!dirty || busy} onClick={save}>
+          ذخیره فهرست
+        </Button>
+        {dirty && <Button size="sm" variant="ghost" onClick={() => setFeeds(saved)}>انصراف</Button>}
+      </div>
     </div>
   );
 }
@@ -318,6 +438,15 @@ export default function AdminNewsPage() {
           {dirty && <Button size="sm" variant="ghost" onClick={() => setChannels(data.channels || [])}>انصراف</Button>}
         </div>
       </div>
+
+      {/* A new saved list starts the editor over */}
+      <NewsFeeds
+        key={JSON.stringify(data.feeds || [])}
+        saved={data.feeds || []}
+        status={status}
+        maxFeeds={data.limits?.maxFeeds}
+        onSaved={(feeds) => setData((d) => ({ ...d, feeds }))}
+      />
     </div>
   );
 }

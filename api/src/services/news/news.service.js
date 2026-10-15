@@ -1,25 +1,31 @@
 /**
- * news.service.js — The news section: read the Telegram channels every minute and publish what
- * matters to the market
+ * news.service.js — The news section: read the Telegram channels and the international news feeds
+ * every minute and publish what matters to the market
  *
  * Each run (from the minute cron, cronPolling.job.js):
  *   1. every channel's public page (t.me/s/<channel>) is read; a post newer than the last one seen
- *      is new (a channel read for the first time gives its latest NEWS_LIMITS.firstReadPosts)
+ *      is new (a channel read for the first time gives its latest NEWS_LIMITS.firstReadPosts).
+ *      Every international feed (RSS/Atom, English) is read too; an article not seen on an earlier
+ *      read is new, unless older than NEWS_LIMITS.feedMaxAgeHours (a feed read for the first time
+ *      gives its latest NEWS_LIMITS.firstReadPosts). Its items are `source: "world"`.
  *   2. keywords drop what is clearly not market news (political or security words alone are not
  *      enough: an economic word is needed too), and a vulgar word drops a post (no model tokens
  *      spent on either)
  *   3. a post that repeats news already published (another channel's repost) is dropped
  *   4. the rest go to Workers AI in batches: one short prompt for several posts decides what is
- *      published and writes its headline and summary. Nothing is published without the model:
+ *      published and writes its headline and summary (in Persian: an English article is
+ *      translated; its own text and link are kept with it). Nothing is published without the model:
  *      no keyword-only publishing, and no other model is tried when it fails.
  * Posts the model hasn't decided yet — beyond the run's or the day's budget, or in a batch it failed
  * on (the error is logged and kept for the admin's panel) — wait in a queue (`news:pending`, at
  * most NEWS_LIMITS.pendingMax, dropped after NEWS_LIMITS.pendingMaxHours) and go first next run.
- * The channels' cursors always move on: a post is read from Telegram once, and never decided twice.
+ * The channels' cursors and the feeds' seen lists always move on: a post is read once, and never
+ * decided twice.
  */
 
 import {
   DEFAULT_NEWS_CHANNELS,
+  DEFAULT_NEWS_FEEDS,
   NEWS_LIMITS,
   NEWS_AI_MODEL,
 } from "../../config/news.config.js";
@@ -36,6 +42,7 @@ import {
   normalizeChannel,
   tehranDayStart,
 } from "../../domain/news.js";
+import { parseNewsFeed, normalizeFeed } from "../../domain/newsFeeds.js";
 import { dbInsertNews, dbRecentNewsTexts } from "../../repositories/news.repository.js";
 import { getStateStore } from "../../repositories/stateStore.repository.js";
 import { USER_AGENT } from "../market/sources/parsingUtils.js";
@@ -48,7 +55,10 @@ const CHANNELS_KEY = "news:channels";
 const STATUS_KEY = "news:status";
 const LOCK_KEY = "news:lock";
 const PENDING_KEY = "news:pending";
+const FEEDS_KEY = "news:feeds";
 const cursorKey = (channel) => `news:cursor:${channel}`;
+/** A feed's articles seen on its last read (their post ids) */
+const feedSeenKey = (feed) => `news:feedseen:${feed}`;
 /** The model calls of a Tehran day (the budget and the report share the same day) */
 const aiDayKey = (now) => `news:ai:${tehranDayStart(now)}`;
 const FETCH_TIMEOUT_MS = 10000;
@@ -80,6 +90,34 @@ export async function saveNewsChannels(env, list) {
   return channels;
 }
 
+/** The international feeds read (the admin's list, or the default one) */
+export async function getNewsFeeds(env) {
+  const saved = await getStateStore(env)?.get(FEEDS_KEY, "json").catch(() => null);
+  if (Array.isArray(saved?.feeds)) return saved.feeds;
+  return DEFAULT_NEWS_FEEDS.map((feed) => ({ ...feed, enabled: true }));
+}
+
+/**
+ * Save the admin's list of feeds (an address that isn't http(s) is dropped; one id or address once)
+ * @param {Array<{ id?: string, title?: string, url: string, enabled?: boolean }>} list
+ * @returns {Promise<Array<{ id: string, title: string, url: string, enabled: boolean }>>}
+ */
+export async function saveNewsFeeds(env, list) {
+  const ids = new Set();
+  const urls = new Set();
+  const feeds = [];
+  for (const entry of Array.isArray(list) ? list : []) {
+    const feed = normalizeFeed(entry);
+    if (!feed || ids.has(feed.id) || urls.has(feed.url)) continue;
+    ids.add(feed.id);
+    urls.add(feed.url);
+    feeds.push(feed);
+  }
+  if (feeds.length > NEWS_LIMITS.maxFeeds) feeds.length = NEWS_LIMITS.maxFeeds;
+  await getStateStore(env)?.put(FEEDS_KEY, JSON.stringify({ feeds }));
+  return feeds;
+}
+
 /** The last run, by channel (admin panel) */
 export async function getNewsStatus(env) {
   return (await getStateStore(env)?.get(STATUS_KEY, "json").catch(() => null)) || null;
@@ -88,6 +126,20 @@ export async function getNewsStatus(env) {
 async function fetchChannelPage(channel) {
   const res = await fetch(`https://t.me/s/${channel}`, {
     headers: { "User-Agent": USER_AGENT, "Accept-Language": "fa,en;q=0.8" },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    cf: { cacheTtl: 0 },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.text();
+}
+
+async function fetchFeedXml(url) {
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent": USER_AGENT,
+      Accept: "application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.9, */*;q=0.5",
+      "Accept-Language": "en",
+    },
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     cf: { cacheTtl: 0 },
   });
@@ -112,10 +164,11 @@ async function mapLimited(items, limit, fn) {
 /**
  * One run over every channel
  * @param {object} env - env.DB, env.AI (Workers AI; optional), env.KV not used
- * @param {{ now?: number, force?: boolean }} [opts] - force: run even while another run holds the lock (admin)
+ * @param {{ now?: number, force?: boolean, fetchPage?: Function, fetchFeed?: Function }} [opts] - force: run even
+ *   while another run holds the lock (admin); fetchPage / fetchFeed: read a channel's page / a feed (tests)
  * @returns {Promise<{ skipped?: boolean, checked: number, candidates: number, published: number, waiting?: number, aiCalls: number }>}
  */
-export async function runNewsPolling(env, { now = Date.now(), force = false, fetchPage = fetchChannelPage, readPrices } = {}) {
+export async function runNewsPolling(env, { now = Date.now(), force = false, fetchPage = fetchChannelPage, fetchFeed = fetchFeedXml, readPrices } = {}) {
   const store = getStateStore(env);
   if (!store) return { skipped: true, checked: 0, candidates: 0, published: 0, aiCalls: 0 };
 
@@ -124,7 +177,7 @@ export async function runNewsPolling(env, { now = Date.now(), force = false, fet
   if (holders > 1 && !force) return { skipped: true, checked: 0, candidates: 0, published: 0, aiCalls: 0 };
 
   try {
-    const result = await pollChannels(env, store, now, fetchPage);
+    const result = await pollChannels(env, store, now, fetchPage, fetchFeed);
     // The analyst's card, when new news came in (at most every NEWS_ANALYSIS.minIntervalMinutes)
     result.analysis = await maybeUpdateNewsAnalysis(env, { now, readPrices }).catch((err) => {
       logger.warn("[News] analysis failed:", { error: err?.message });
@@ -154,7 +207,9 @@ function readPending(raw, now) {
 
 /** The queue to store: what the posts need to be decided later, at most NEWS_LIMITS.pendingMax (the oldest go first) */
 function writePendingList(posts) {
-  const list = posts.map(({ channel, postId, url, text, image, publishedAt, tries }) => ({ channel, postId, url, text, image, publishedAt, ...(tries ? { tries } : {}) }));
+  const list = posts.map(({ channel, postId, url, text, image, publishedAt, source, tries }) => ({
+    channel, postId, url, text, image, publishedAt, ...(source === "world" ? { source } : {}), ...(tries ? { tries } : {}),
+  }));
   if (list.length > NEWS_LIMITS.pendingMax) {
     logger.warn("[News] the queue is full — the oldest waiting posts are dropped", { dropped: list.length - NEWS_LIMITS.pendingMax });
   }
@@ -184,22 +239,75 @@ export function newsReport(previous, run) {
   return { run, today, runs };
 }
 
-async function pollChannels(env, store, now, fetchPage) {
+/**
+ * The new articles of the feeds: those not seen on the feed's last read and not older than
+ * NEWS_LIMITS.feedMaxAgeHours (a feed read for the first time: its latest firstReadPosts). A feed's
+ * article has no growing number, and a late one can carry an earlier time than one already read,
+ * so what was seen is remembered (the feed's own window), not a cursor.
+ */
+async function readFeeds(feeds, cursors, previous, status, now, fetchFeed) {
+  const oldest = now - NEWS_LIMITS.feedMaxAgeHours * 3600_000;
+  const results = await mapLimited(feeds, FETCH_CONCURRENCY, async (feed) => {
+    try {
+      return { feed, ...parseNewsFeed(await fetchFeed(feed.url, feed), feed.id) };
+    } catch (err) {
+      return { feed, error: err?.message || "fetch failed", posts: [] };
+    }
+  });
+  const fresh = [];
+  const seenWrites = [];
+  const titles = {};
+  for (const { feed, error, posts } of results) {
+    titles[feed.id] = feed.title;
+    const before = previous.feeds?.[feed.id] || {};
+    status.feeds[feed.id] = {
+      title: feed.title,
+      ok: !error,
+      error: error ? String(error).slice(0, 120) : "",
+      items: posts.length,
+      published: before.published || 0,
+    };
+    // A feed that couldn't be read keeps what it saw (its articles are read next time)
+    if (error) continue;
+    const raw = cursors.get(feedSeenKey(feed.id));
+    let seen = null;
+    try {
+      seen = raw ? new Set(JSON.parse(raw)) : null;
+    } catch {
+      seen = null;
+    }
+    // A time in the future (a feed's clock or time zone wrong) reads as now
+    const dated = posts.map((p) => ({ ...p, publishedAt: Math.min(p.publishedAt || now, now), source: "world" }));
+    const recent = dated.filter((p) => p.publishedAt >= oldest);
+    const newer = seen ? recent.filter((p) => !seen.has(p.postId)) : recent.slice(-NEWS_LIMITS.firstReadPosts);
+    fresh.push(...newer);
+    const ids = dated.map((p) => p.postId).slice(-NEWS_LIMITS.feedSeenMax);
+    const next = JSON.stringify(ids);
+    if (ids.length && next !== raw) seenWrites.push([feedSeenKey(feed.id), next]);
+  }
+  return { fresh, seenWrites, titles };
+}
+
+async function pollChannels(env, store, now, fetchPage, fetchFeed) {
   const channels = (await getNewsChannels(env)).filter((c) => c.enabled !== false).map((c) => c.username);
-  const cursors = await store.getMany([...channels.map(cursorKey), PENDING_KEY]);
+  const feeds = (await getNewsFeeds(env)).filter((f) => f.enabled !== false);
+  const cursors = await store.getMany([...channels.map(cursorKey), ...feeds.map((f) => feedSeenKey(f.id)), PENDING_KEY]);
   // Candidates left undecided by earlier runs (newest-first cap; stale ones dropped)
   const pending = readPending(cursors.get(PENDING_KEY), now);
   const previous = (await getNewsStatus(env)) || {};
-  const status = { at: now, channels: {}, published: 0, aiCalls: 0, aiError: "", aiModel: NEWS_AI_MODEL.label };
+  const status = { at: now, channels: {}, feeds: {}, published: 0, aiCalls: 0, aiError: "", aiModel: NEWS_AI_MODEL.label };
 
-  // 1. New posts of every channel
-  const pages = await mapLimited(channels, FETCH_CONCURRENCY, async (channel) => {
-    try {
-      return { channel, ...parseTelegramPosts(await fetchPage(channel)) };
-    } catch (err) {
-      return { channel, error: err?.message || "fetch failed", posts: [] };
-    }
-  });
+  // 1. New posts of every channel, and new articles of every feed
+  const [pages, feedRead] = await Promise.all([
+    mapLimited(channels, FETCH_CONCURRENCY, async (channel) => {
+      try {
+        return { channel, ...parseTelegramPosts(await fetchPage(channel)) };
+      } catch (err) {
+        return { channel, error: err?.message || "fetch failed", posts: [] };
+      }
+    }),
+    readFeeds(feeds, cursors, previous, status, now, fetchFeed),
+  ]);
 
   const fresh = [];
   const titles = {};
@@ -222,6 +330,8 @@ async function pollChannels(env, store, now, fetchPage) {
     if (page.error) nextCursor[page.channel] = cursor;
     fresh.push(...newer);
   }
+  Object.assign(titles, feedRead.titles);
+  fresh.push(...feedRead.fresh);
   fresh.sort((a, b) => a.publishedAt - b.publishedAt || a.postId - b.postId);
 
   // 2. Keywords: not market news, or vulgar, is never sent to the model (the waiting ones are
@@ -315,7 +425,12 @@ async function pollChannels(env, store, now, fetchPage) {
     decided += batch.length - missed.length;
     batch.forEach((post, i) => {
       let verdict = verdicts.get(i);
-      // The model's headline slipped into another language: the post's own words, its verdict kept
+      // The model's headline slipped into another language: the post's own words, its verdict
+      // kept — but an English article's own words aren't Persian: not published
+      if (verdict?.keep && verdict.foreign && post.source === "world") {
+        logger.warn("[News] the model's Persian for an article had foreign words — not published", { post: postKey(post) });
+        return;
+      }
       if (verdict?.keep && verdict.foreign) {
         const own = fallbackNewsItem(post.text);
         verdict = { ...verdict, title: own.title, summary: own.summary };
@@ -334,6 +449,7 @@ async function pollChannels(env, store, now, fetchPage) {
         importance: verdict.importance,
         image: post.image,
         publishedAt: post.publishedAt || now,
+        source: post.source === "world" ? "world" : "telegram",
         ai: true,
       });
     });
@@ -351,7 +467,8 @@ async function pollChannels(env, store, now, fetchPage) {
     });
   }
   for (const item of published) {
-    if (status.channels[item.channel]) status.channels[item.channel].published++;
+    const counted = item.source === "world" ? status.feeds[item.channel] : status.channels[item.channel];
+    if (counted) counted.published++;
   }
   status.published = published.length;
   status.aiCallsToday = usedToday + status.aiCalls;
@@ -382,6 +499,7 @@ async function pollChannels(env, store, now, fetchPage) {
     ...Object.entries(nextCursor)
       .filter(([channel, id]) => id > 0 && String(id) !== cursors.get(cursorKey(channel)))
       .map(([channel, id]) => store.put(cursorKey(channel), String(id))),
+    ...feedRead.seenWrites.map(([key, value]) => store.put(key, value)),
     // The queue is written only when it has or had posts
     waiting.length || pending.length ? store.put(PENDING_KEY, JSON.stringify(waiting)) : null,
     store.put(STATUS_KEY, JSON.stringify(status)),

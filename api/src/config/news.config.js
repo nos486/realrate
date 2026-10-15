@@ -1,10 +1,11 @@
 /**
- * news.config.js — The news section: the Telegram channels it reads, the keywords that pick a post
- * for a closer look, and the Workers AI model that makes the final call and writes the summary
+ * news.config.js — The news section: the Telegram channels and the international (English) RSS/Atom
+ * feeds it reads, the keywords that pick a post for a closer look, and the Workers AI model that
+ * makes the final call and writes the (Persian) headline and summary
  *
  * Only news that can move the dollar, gold, coins, precious metals or the economy as a whole is
- * published; a single exchange symbol's news is not. The admin can change the channel list
- * (admin panel → اخبار); until then DEFAULT_NEWS_CHANNELS is read.
+ * published; a single exchange symbol's or company's news is not. The admin can change both lists
+ * (admin panel → اخبار); until then DEFAULT_NEWS_CHANNELS and DEFAULT_NEWS_FEEDS are read.
  */
 
 /** Read when the admin has not saved a list of their own */
@@ -17,6 +18,24 @@ export const DEFAULT_NEWS_CHANNELS = [
   "jaryane_eghtesad",
 ];
 
+/**
+ * International news feeds (RSS 2.0 or Atom), read when the admin has not saved a list of their
+ * own: `id` names the feed in the news ids ("<id>/<number>") and must stay the same, `title` is the
+ * source shown on every item. English articles: the model translates and summarizes them.
+ */
+export const DEFAULT_NEWS_FEEDS = [
+  { id: "cnbc_economy", title: "CNBC", url: "https://www.cnbc.com/id/20910258/device/rss/rss.html" },
+  { id: "cnbc_world", title: "CNBC", url: "https://www.cnbc.com/id/100727362/device/rss/rss.html" },
+  { id: "bbc_business", title: "BBC", url: "https://feeds.bbci.co.uk/news/business/rss.xml" },
+  { id: "bbc_middle_east", title: "BBC", url: "https://feeds.bbci.co.uk/news/world/middle_east/rss.xml" },
+  { id: "aljazeera", title: "Al Jazeera", url: "https://www.aljazeera.com/xml/rss/all.xml" },
+  { id: "fxstreet", title: "FXStreet", url: "https://www.fxstreet.com/rss/news" },
+  { id: "oilprice", title: "OilPrice.com", url: "https://oilprice.com/rss/main" },
+];
+
+/** Where a news item came from (the `source` column; the news page's «بین‌الملل» filter is `world`) */
+export const NEWS_SOURCES = ["telegram", "world"];
+
 export const NEWS_LIMITS = {
   /** A channel read for the first time: its latest posts, so the page starts with some news */
   firstReadPosts: 10,
@@ -25,6 +44,12 @@ export const NEWS_LIMITS = {
   pendingMaxHours: 6,
   /** Channels in the list (each one is a fetch every minute) */
   maxChannels: 30,
+  /** Feeds in the list (each one is a fetch every minute) */
+  maxFeeds: 20,
+  /** A feed's article older than this is never sent (a feed read for the first time, a late item) */
+  feedMaxAgeHours: 12,
+  /** A feed's items remembered as seen (the feed's own window; an item is decided once) */
+  feedSeenMax: 200,
   /** Posts sent to the model in one request (one prompt for several posts) */
   aiBatchSize: 8,
   /**
@@ -104,6 +129,37 @@ export const NEWS_KEYWORDS = {
   negative: [
     "نماد", "عرضه اولیه", "صف خرید", "صف فروش", "مجمع عمومی", "افزایش سرمایه", "سود تقسیمی",
     "تبلیغ", "عضو شوید", "عضویت", "کد تخفیف", "سیگنال", "vip", "ثبت نام", "لینک ورود", "پیج",
+  ],
+};
+
+/**
+ * The same kinds of keywords for the international (English) feeds, matched lowercase as whole
+ * words; they are added to NEWS_KEYWORDS' lists, so one score works for both languages
+ */
+export const NEWS_KEYWORDS_EN = {
+  strong: [
+    "dollar", "dollars", "dxy", "dollar index", "euro", "yuan", "currency", "currencies", "forex", "exchange rate",
+    "gold", "bullion", "silver", "platinum", "palladium", "copper", "precious metals",
+    "inflation", "cpi", "pce", "interest rate", "interest rates", "rate cut", "rate cuts", "rate hike", "rate hikes",
+    "central bank", "federal reserve", "fed", "fomc", "powell", "ecb", "treasury yields", "bond yields", "recession",
+    "gdp", "payrolls", "sanctions", "sanction",
+    "oil", "crude", "brent", "wti", "opec", "natural gas", "lng", "hormuz",
+    "bitcoin", "crypto", "cryptocurrency", "ethereum", "stablecoin", "tether",
+  ],
+  weak: [
+    "price", "prices", "market", "markets", "economy", "economic", "stocks", "stock market", "wall street",
+    "bonds", "treasury", "trade", "tariff", "tariffs", "exports", "imports", "budget", "debt", "deficit",
+    "growth", "jobs", "unemployment", "surge", "surges", "plunge", "plunges", "rally", "slump", "record",
+    "nasdaq", "dow", "shipping", "tanker", "tankers", "imf", "world bank",
+  ],
+  context: [
+    "war", "attack", "strike", "strikes", "ceasefire", "missile", "missiles", "military", "israel", "iran",
+    "iranian", "tehran", "trump", "white house", "nuclear", "iaea", "security council", "houthi", "houthis",
+    "red sea", "gulf", "russia", "ukraine", "china", "hezbollah", "gaza",
+  ],
+  negative: [
+    "sponsored", "advertisement", "podcast", "watch live", "newsletter", "quiz", "webinar", "subscribe",
+    "earnings call", "shares of", "ipo", "price target", "buy rating", "stock pick", "stocks to buy",
   ],
 };
 

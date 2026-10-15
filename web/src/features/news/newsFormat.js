@@ -43,5 +43,17 @@ export function newsTimeAgo(ts, now = Date.now()) {
   return newsFullTime(ts);
 }
 
-/** The channel's name as it calls itself, or its @username */
-export const newsSource = (item) => item.channelTitle || `@${item.channel}`;
+/** The channel's name as it calls itself, or its @username; an international feed's name */
+export const newsSource = (item) => item.channelTitle || (isWorldNews(item) ? item.channel : `@${item.channel}`);
+
+/** An international feed's article (English original, with a link to it) */
+export const isWorldNews = (item) => item?.source === 'world';
+
+/** The site an article is on ("reuters.com"), from its link */
+export function newsSite(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
