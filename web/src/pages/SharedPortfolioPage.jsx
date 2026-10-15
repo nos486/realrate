@@ -11,7 +11,6 @@ import {
   formatAssetName,
   formatNum,
   normalizeHolding,
-  VaultLockCard,
 } from '../features/portfolio/index.js';
 import { buildAssetLedgers } from '../features/portfolio/utils/assetLedger.js';
 import AssetLedgerDetails from '../features/portfolio/components/AssetLedgerDetails.jsx';
@@ -32,14 +31,7 @@ import {
   ArrowDownRight,
   Download,
 } from 'lucide-react';
-import {
-  deriveE2eeKey,
-  verifyE2eeKey,
-  decryptHoldingFromApi,
-  e2eeDecrypt,
-  importRawKey,
-  linkTokenToRawKey,
-} from '../lib/e2ee.js';
+import { e2eeDecrypt, importRawKey, linkTokenToRawKey } from '../lib/e2ee.js';
 import { decryptSharedItems } from '../shared/vault/vaultPortfolioItems.js';
 import { buildCustomCategoryGroups } from '../features/portfolio/portfolioLayoutModel.js';
 
@@ -69,8 +61,6 @@ export default function SharedPortfolioPage() {
 
   // E2EE Vault State for Shared Portfolio
   const [vaultKey, setVaultKey] = useState(null);
-  const [vaultError, setVaultError] = useState('');
-  const [decryptingVault, setDecryptingVault] = useState(false);
 
   // Privacy Mode State (Mask values as ****)
   const hideValues = usePrivacyMode();
@@ -118,65 +108,18 @@ export default function SharedPortfolioPage() {
     loadPortfolio(password);
   };
 
-  const isE2ee = Boolean(portfolioData?.portfolio?.isE2ee);
+  // Every portfolio is end-to-end encrypted: it opens with the key the share link carries
+  const isE2ee = Boolean(portfolioData?.portfolio);
   const isVaultLocked = Boolean(isE2ee && !vaultKey);
 
-  // Transactions for this shared portfolio, decrypted/parsed the same way useTransactions.js
-  // does for the authenticated view — needed so positions built purely from buy/sell
-  // transactions (not a manually-added holding) aren't silently missing from the share.
-  // The async result is tagged with the inputs it was computed from, so an empty/locked state
-  // is derived during render and a result for older data is never shown.
-  const [decryptResult, setDecryptResult] = useState({ source: null, key: null, list: [] });
-  // Items the owner keeps as account-vault records, opened with the link key
+  // Its transactions, opened with the link key (positions built from buys and sells alone)
   const [vaultTransactions, setVaultTransactions] = useState({ key: null, list: [] });
-  const rawTransactions = portfolioData?.transactions;
-  const canDecrypt = Array.isArray(rawTransactions) && rawTransactions.length > 0 && !(isE2ee && !vaultKey);
   const decryptedTransactions = useMemo(
-    () => [
-      ...(canDecrypt && decryptResult.source === rawTransactions && decryptResult.key === vaultKey ? decryptResult.list : []),
-      ...(vaultKey && vaultTransactions.key === vaultKey ? vaultTransactions.list : []),
-    ],
-    [canDecrypt, decryptResult, rawTransactions, vaultKey, vaultTransactions]
+    () => (vaultKey && vaultTransactions.key === vaultKey ? vaultTransactions.list : []),
+    [vaultKey, vaultTransactions]
   );
 
-  useEffect(() => {
-    const rawTxs = rawTransactions;
-    if (!canDecrypt) return undefined;
-
-    let cancelled = false;
-    (async () => {
-      const results = await Promise.all(
-        rawTxs.map(async (tx) => {
-          const rawCipher = tx.encryptedPayload || tx.encrypted_payload || '';
-          if (typeof rawCipher === 'string' && rawCipher.startsWith('enc:e2ee:v1:')) {
-            if (!vaultKey) return null;
-            const dec = await e2eeDecrypt(vaultKey, rawCipher);
-            return dec && typeof dec === 'object' ? { ...tx, ...dec } : null;
-          }
-          if (typeof rawCipher === 'string') {
-            try {
-              return { ...tx, ...JSON.parse(rawCipher) };
-            } catch {
-              return null;
-            }
-          }
-          if (typeof rawCipher === 'object' && rawCipher) {
-            return { ...tx, ...rawCipher };
-          }
-          return null;
-        })
-      );
-      if (!cancelled) setDecryptResult({ source: rawTxs, key: vaultKey, list: results.filter(Boolean) });
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [rawTransactions, canDecrypt, vaultKey]);
-
   const applyVaultKey = useCallback(async (key) => {
-    const holdings = Array.isArray(portfolioData?.holdings) ? portfolioData.holdings : [];
-    const decrypted = await Promise.all(holdings.map((h) => decryptHoldingFromApi(key, h)));
     const shared = await decryptSharedItems(key, {
       vaultHoldings: portfolioData?.vaultHoldings || [],
       vaultTransactions: portfolioData?.vaultTransactions || [],
@@ -185,7 +128,7 @@ export default function SharedPortfolioPage() {
     setVaultTransactions({ key, list: shared.transactions });
     setPortfolioData((prev) => ({
       ...prev,
-      holdings: [...decrypted, ...shared.holdings],
+      holdings: shared.holdings,
       sharedLayout: shared.layout || null,
     }));
     setVaultKey(key);
@@ -204,11 +147,8 @@ export default function SharedPortfolioPage() {
       if (raw) {
         const key = await importRawKey(raw);
         // The key must actually open this portfolio's data
-        const probe = (portfolioData.holdings || []).find((h) => typeof h.notes === 'string' && h.notes.startsWith('enc:e2ee:v1:'));
-        const vaultProbe = [...(portfolioData.vaultHoldings || []), ...(portfolioData.vaultTransactions || [])][0];
-        const works = probe
-          ? (await decryptHoldingFromApi(key, probe))?.isE2eeEncrypted === true
-          : !vaultProbe || Boolean(await e2eeDecrypt(key, vaultProbe.payload));
+        const probe = [...(portfolioData.vaultHoldings || []), ...(portfolioData.vaultTransactions || [])][0];
+        const works = !probe || Boolean(await e2eeDecrypt(key, probe.payload));
         if (works && !cancelled) {
           await applyVaultKey(key);
           invalid = false;
@@ -220,37 +160,6 @@ export default function SharedPortfolioPage() {
       cancelled = true;
     };
   }, [linkKeyRequired, vaultKey, linkKeyState.tried, portfolioData, applyVaultKey]);
-
-  const handleUnlockVault = async (passphrase) => {
-    if (!portfolioData?.portfolio?.isE2ee) return false;
-    if (!portfolioData.portfolio.e2eeSalt) {
-      setVaultError(t('این پورتفو فقط با لینک کامل (همراه با کلید) که مالک ارسال کرده باز می‌شود.'));
-      return false;
-    }
-    const pass = (passphrase || '').trim();
-    if (!pass) {
-      setVaultError(t('لطفاً رمز عبور شخصی گاوصندوق را وارد فرمایید.'));
-      return false;
-    }
-    setDecryptingVault(true);
-    setVaultError('');
-    try {
-      const key = await deriveE2eeKey(pass, portfolioData.portfolio.e2eeSalt);
-      const valid = await verifyE2eeKey(key, portfolioData.portfolio.e2eeVerifier);
-      if (!valid) {
-        setVaultError(t('رمز عبور وارد شده نادرست است.'));
-        return false;
-      }
-      await applyVaultKey(key);
-      return true;
-    } catch (err) {
-      console.error('Shared vault unlock error:', err);
-      setVaultError(t('خطا در رمزگشایی گاوصندوق: {error}', { error: err.message || t('نامعتبر') }));
-      return false;
-    } finally {
-      setDecryptingVault(false);
-    }
-  };
 
   // Valued at the price book's prices (the same numbers shown everywhere)
   const livePriceMap = pricing?.priceMap;
@@ -465,8 +374,7 @@ export default function SharedPortfolioPage() {
                   </div>
 
                   {isVaultLocked ? (
-                    linkKeyRequired && !portfolioData?.portfolio?.e2eeSalt ? (
-                      <div className="portfolio-empty-state">
+                    <div className="portfolio-empty-state">
                         <h4>{t('این پورتفو رمزنگاری سرتاسری دارد')}</h4>
                         <p>
                           {linkKeyState.invalid && readLinkKeyToken()
@@ -476,14 +384,6 @@ export default function SharedPortfolioPage() {
                             : t('در حال رمزگشایی…')}
                         </p>
                       </div>
-                    ) : (
-                      <VaultLockCard
-                        portfolioName={portfolioData?.portfolio?.name}
-                        onUnlock={handleUnlockVault}
-                        error={vaultError}
-                        loading={decryptingVault}
-                      />
-                    )
                   ) : categoryGroups.length === 0 ? (
                     <div className="portfolio-empty-state">
                       <div className="empty-icon">

@@ -14,7 +14,6 @@ export default {
   'باطل / عودت': 'Void / returned',
 
   // Errors
-  'شناسه چک الزامی است': 'Cheque ID is required',
   'خطا در ذخیره چک': 'Could not save the cheque',
   'خطا در حذف چک': 'Could not delete the cheque',
   'خطا در بارگذاری لیست چک‌ها': 'Could not load your cheques',

@@ -24,14 +24,14 @@ export default function PortfolioSwitcher({
               <span className="tab-pill-icon">
                 {p.isDefault ? (
                   <Star size={13} style={{ verticalAlign: 'middle' }} />
-                ) : p.isE2ee ? (
+                ) : p.e2eeWrappedKey ? (
                   <Lock size={13} style={{ verticalAlign: 'middle' }} />
                 ) : (
                   <Folder size={13} style={{ verticalAlign: 'middle' }} />
                 )}
               </span>
               <span className="tab-pill-name">{p.name}</span>
-              {p.isE2ee && (
+              {p.e2eeWrappedKey && (
                 <span className="tab-pill-e2ee" title={t('گاوصندوق E2EE')}>
                   <Lock size={10} style={{ verticalAlign: 'middle' }} />
                 </span>

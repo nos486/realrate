@@ -4,7 +4,6 @@
 
 export default {
   // api and hook
-  'شناسه درآمد الزامی است': 'The income ID is required',
   'خطا در بارگذاری لیست درآمدها': 'Failed to load incomes',
   'خطا در ذخیره درآمد': 'Failed to save the income',
   'خطا در حذف درآمد': 'Failed to delete the income',

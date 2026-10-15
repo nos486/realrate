@@ -6,26 +6,18 @@
  * (buy date / transaction date) and its portfolio (parent_id) in plaintext. Items are encrypted
  * with the portfolio's own key — not the account key — so a share link carrying that key can
  * still open exactly this portfolio.
- *
- * Rows a portfolio still has in the older tables (plaintext, or encrypted in place) are moved
- * into the vault the first time the portfolio is opened; each move deletes the old row in the
- * same server batch, so an item is never lost or duplicated.
  */
 
-import { e2eeEncrypt, e2eeDecrypt, e2eeDecryptMany, decryptHoldingFromApi, isHoldingE2eeEncrypted } from '../../lib/e2ee.js';
+import { e2eeEncrypt, e2eeDecrypt, e2eeDecryptMany } from '../../lib/e2ee.js';
 import { resolveAssetDisplayName, resolveAssetUnit, resolveCategory } from '../../config/sourceRegistry.js';
-import { getPortfolio, deletePortfolioHolding } from '../../features/portfolio/api/portfolioApi.js';
-import { getTransactions, deleteTransaction as deleteTransactionRest } from '../../features/transactions/api/transactionApi.js';
 import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
 import { putRecord, backfillRecordDates, repairRecordDates } from './vaultRecordMeta.js';
 import { migrateRecordPriceIds, withPriceIdVersion } from '../../utils/priceIds.js';
 import { getKnownPriceIds } from '../../features/market/knownPriceIds.js';
 import { isDemoReadOnly } from '../../features/demo/index.js';
 import { getPortfolioKey, isAccountVaultPortfolio } from './vaultStore.js';
-import { t } from '../../utils/i18n.js';
 
 const SILENT = { silent: true };
-const E2EE_PREFIX = 'enc:e2ee:v1:';
 const PLACEHOLDER_NAME = '[گاوصندوق E2EE]'; // i18n-ignore
 
 const newId = (prefix) => `${prefix}_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
@@ -152,83 +144,19 @@ function storeMigrated(kind, portfolioId, key, records) {
   })();
 }
 
-/**
- * Move a portfolio's rows still in the older tables into the vault.
- * @returns {Promise<{ holdings: object[], transactions: object[], failed: string[] }>} the moved
- *   items (shown even when a move failed; it is retried next time) and what could not be moved
- */
-export async function movePortfolioItemsToVault(portfolio, key, { onItem } = {}) {
-  if (isDemoReadOnly()) return { holdings: [], transactions: [], failed: [] };
-  const [holdings, transactions] = [await moveHoldings(portfolio, key, onItem), await moveTransactions(portfolio, key, onItem)];
-  return { holdings: holdings.items, transactions: transactions.items, failed: [...holdings.failed, ...transactions.failed] };
-}
-
-async function moveHoldings(portfolio, key, onItem) {
-  if (isDemoReadOnly()) return { items: [], failed: [] };
-  const hRes = await getPortfolio(portfolio.id);
-  const moved = { items: [], failed: [] };
-  for (const row of hRes?.holdings || []) {
-    const encrypted = isHoldingE2eeEncrypted(row);
-    const plain = encrypted ? await decryptHoldingFromApi(key, row) : row;
-    if (encrypted && plain?.isE2eeEncrypted !== true) {
-      moved.failed.push(t('دارایی {name}', { name: row.id })); // another key: leave the row untouched
-      continue;
-    }
-    const record = holdingRecord(portfolio.id, plain);
-    try {
-      await storeHolding(portfolio.id, key, record, { replacePlain: true, ...SILENT });
-    } catch {
-      moved.failed.push(t('دارایی «{name}»', { name: record.assetName || record.assetId }));
-    }
-    moved.items.push(record);
-    onItem?.();
-  }
-  return moved;
-}
-
-async function moveTransactions(portfolio, key, onItem) {
-  if (isDemoReadOnly()) return { items: [], failed: [] };
-  const tRes = await getTransactions(portfolio.id);
-  const moved = { items: [], failed: [] };
-  for (const row of tRes?.transactions || []) {
-    const raw = row.encryptedPayload || row.encrypted_payload || '';
-    let payload = null;
-    if (typeof raw === 'string' && raw.startsWith(E2EE_PREFIX)) payload = await e2eeDecrypt(key, raw);
-    else if (typeof raw === 'string') {
-      try { payload = JSON.parse(raw); } catch { payload = { notes: raw }; }
-    } else if (raw && typeof raw === 'object') payload = raw;
-    if (!payload || typeof payload !== 'object') {
-      moved.failed.push(t('تراکنش {name}', { name: row.id }));
-      continue;
-    }
-    const record = transactionRecord(portfolio.id, { ...payload, id: row.id, createdAt: row.createdAt });
-    try {
-      await storeTransaction(portfolio.id, key, record, { replacePlain: true, ...SILENT });
-    } catch {
-      moved.failed.push(t('تراکنش {name}', { name: record.transactionDate || record.id }));
-    }
-    moved.items.push(record);
-    onItem?.();
-  }
-  return moved;
-}
-
 // ── Holdings ────────────────────────────────────────────────────────────────
 
-/** Every holding of the portfolio, decrypted (older rows are moved into the vault first) */
+/** Every holding of the portfolio, decrypted */
 export async function listPortfolioHoldings(portfolio, key) {
-  const moved = await moveHoldings(portfolio, key);
-  const { items: stored } = await decryptRecords('holding', portfolio.id, key);
-  const byId = new Map(stored.map((h) => [h.id, h]));
-  for (const h of moved.items) if (!byId.has(h.id)) byId.set(h.id, h);
-  return [...byId.values()]
+  const { items } = await decryptRecords('holding', portfolio.id, key);
+  return items
     .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
     .map(withHoldingDisplay);
 }
 
 /**
- * The holdings of every portfolio under the account vault, decrypted — as stored, without moving
- * older rows (reports across portfolios, e.g. what a loan bought)
+ * The holdings of every portfolio under the account vault, decrypted (reports across
+ * portfolios, e.g. what a loan bought)
  * @param {object[]} portfolios the user's portfolios (getPortfolios)
  */
 export async function listAccountHoldings(portfolios = []) {
@@ -246,53 +174,23 @@ export async function savePortfolioHolding(portfolio, key, data) {
   return { success: true, holding: withHoldingDisplay(record) };
 }
 
-/** Delete a holding (one not moved into the vault yet is deleted from the older table) */
+/** Delete a holding */
 export async function deletePortfolioHoldingRecord(id) {
-  try {
-    await deleteVaultRecord('holding', id);
-  } catch (err) {
-    if (err?.status !== 404) throw err;
-    await deletePortfolioHolding(id);
-  }
+  await deleteVaultRecord('holding', id);
   return { success: true };
 }
 
 // ── Transactions ────────────────────────────────────────────────────────────
 
 /**
- * Moving a portfolio's older transaction rows, per portfolio: shared by concurrent queries, and
- * kept once the table is empty (nothing new can land there)
- */
-const transactionMoves = new Map();
-
-function moveTransactionsOnce(portfolio, key) {
-  if (!transactionMoves.has(portfolio.id)) {
-    const run = moveTransactions(portfolio, key);
-    transactionMoves.set(portfolio.id, run);
-    run.then(
-      (moved) => { if (moved.failed.length) transactionMoves.delete(portfolio.id); },
-      () => transactionMoves.delete(portfolio.id)
-    );
-    return run;
-  }
-  // Rows already shown by the query that moved them
-  return transactionMoves.get(portfolio.id).then(() => ({ items: [], failed: [] }));
-}
-
-/**
  * The portfolio's transactions, decrypted: every one, or those `filters` select by date on the
- * server ({ from, to, order, limit, offset }; older rows are moved into the vault first).
+ * server ({ from, to, order, limit, offset }).
  * @returns {Promise<{ transactions: object[], total: number }>}
  */
 export async function queryPortfolioTransactions(portfolio, key, filters = {}) {
-  const moved = await moveTransactionsOnce(portfolio, key);
   await repairRecordDates('transaction', (payload) => e2eeDecrypt(key, payload), portfolio.id);
-  const { items: stored, total } = await decryptRecords('transaction', portfolio.id, key, filters);
+  const { items: list, total } = await decryptRecords('transaction', portfolio.id, key, filters);
   const filtered = Boolean(filters.from || filters.to || filters.limit);
-  const byId = new Map(stored.map((t) => [t.id, t]));
-  // A row whose move failed is still shown (it is retried next time) — only in the full list
-  if (!filtered) for (const t of moved.items) if (!byId.has(t.id)) byId.set(t.id, t);
-  const list = [...byId.values()];
   if (!filtered) list.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
   return { transactions: list.map(asTransaction), total: filtered ? total : list.length };
 }
@@ -309,13 +207,9 @@ export async function savePortfolioTransaction(portfolio, key, id, data) {
   return { success: true, transaction: asTransaction(record) };
 }
 
+/** Delete a transaction (`portfolioId`: the portfolio it belongs to) */
 export async function deletePortfolioTransactionRecord(portfolioId, id) {
-  try {
-    await deleteVaultRecord('transaction', id);
-  } catch (err) {
-    if (err?.status !== 404) throw err;
-    await deleteTransactionRest(portfolioId, id);
-  }
+  await deleteVaultRecord('transaction', id);
   return { success: true };
 }
 

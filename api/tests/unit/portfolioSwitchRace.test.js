@@ -1,4 +1,9 @@
 // @vitest-environment happy-dom
+/**
+ * portfolioSwitchRace.test.js — Switching portfolios: a slow answer for the portfolio left behind
+ * never replaces the current one's rows, the previous rows are cleared while the next load,
+ * and one portfolio's key is never used for another
+ */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act, cleanup } from '@testing-library/react';
 
@@ -8,32 +13,24 @@ vi.mock('../../../web/src/features/auth/index.js', () => ({
   useAuth: () => mockAuth,
 }));
 
-vi.mock('../../../web/src/features/transactions/api/transactionApi.js', () => ({
-  getTransactions: vi.fn(),
-  createTransaction: vi.fn(),
-  updateTransaction: vi.fn(),
-  deleteTransaction: vi.fn(),
+// Portfolio A's key is open; B's is not
+const keys = vi.hoisted(() => ({ A: { name: 'key-a' }, B: null }));
+vi.mock('../../../web/src/shared/vault/usePortfolioVaultKey.js', () => ({
+  usePortfolioVaultKey: (portfolio) => ({ accountManaged: true, key: portfolio?.id in keys ? keys[portfolio.id] : { name: `key-${portfolio?.id}` }, resolving: false }),
 }));
 
-vi.mock('../../../web/src/features/portfolio/api/portfolioApi.js', () => ({
-  getPortfolio: vi.fn(),
-  addPortfolioHolding: vi.fn(),
-  updatePortfolioHolding: vi.fn(),
-  deletePortfolioHolding: vi.fn(),
-  searchBourseSymbols: vi.fn(async () => ({ success: false })),
+vi.mock('../../../web/src/shared/vault/vaultPortfolioItems.js', () => ({
+  listPortfolioTransactions: vi.fn(),
+  savePortfolioTransaction: vi.fn(),
+  deletePortfolioTransactionRecord: vi.fn(),
+  listPortfolioHoldings: vi.fn(),
+  savePortfolioHolding: vi.fn(),
+  deletePortfolioHoldingRecord: vi.fn(),
 }));
 
-import { getTransactions } from '../../../web/src/features/transactions/api/transactionApi.js';
-import { getPortfolio } from '../../../web/src/features/portfolio/api/portfolioApi.js';
+import { listPortfolioTransactions, listPortfolioHoldings, savePortfolioTransaction } from '../../../web/src/shared/vault/vaultPortfolioItems.js';
 import { useTransactions } from '../../../web/src/features/transactions/hooks/useTransactions.js';
 import { useHoldings } from '../../../web/src/features/portfolio/hooks/useHoldings.js';
-import {
-  generateE2eeSalt,
-  deriveE2eeKey,
-  createE2eeVerifier,
-  saveVaultPassphraseToSession,
-  clearVaultPassphraseFromSession,
-} from '../../../web/src/lib/e2ee.js';
 
 function deferred() {
   let resolve;
@@ -41,20 +38,12 @@ function deferred() {
   return { promise, resolve };
 }
 
-const plainTx = (id, assetId) => ({
-  id,
-  encryptedPayload: JSON.stringify({ assetId, transactionType: 'buy', quantity: 1, unitPrice: 100 }),
-});
-
-async function makeVaultPortfolio(id, passphrase) {
-  const e2eeSalt = generateE2eeSalt();
-  const key = await deriveE2eeKey(passphrase, e2eeSalt);
-  return { id, isE2ee: true, e2eeSalt, e2eeVerifier: await createE2eeVerifier(key) };
-}
+const tx = (id, assetId) => ({ id, assetId, transactionType: 'buy', quantity: 1, unitPrice: 100 });
 
 beforeEach(() => {
   vi.clearAllMocks();
-  sessionStorage.clear();
+  keys.A = { name: 'key-a' };
+  keys.B = { name: 'key-b' };
 });
 
 afterEach(() => {
@@ -65,7 +54,7 @@ describe('useTransactions — switching portfolios', () => {
   it('ignores a slow response for a portfolio the user already switched away from', async () => {
     const slowA = deferred();
     const fastB = deferred();
-    getTransactions.mockImplementation((id) => (id === 'A' ? slowA.promise : fastB.promise));
+    listPortfolioTransactions.mockImplementation((p) => (p.id === 'A' ? slowA.promise : fastB.promise));
 
     const { result, rerender } = renderHook(({ portfolio }) => useTransactions(portfolio), {
       initialProps: { portfolio: { id: 'A' } },
@@ -73,13 +62,13 @@ describe('useTransactions — switching portfolios', () => {
     rerender({ portfolio: { id: 'B' } });
 
     await act(async () => {
-      fastB.resolve({ success: true, transactions: [plainTx('tb', 'usd')] });
+      fastB.resolve([tx('tb', 'usd')]);
     });
     await waitFor(() => expect(result.current.transactions.map((t) => t.id)).toEqual(['tb']));
 
     // A's response lands late — it must not replace B's transactions
     await act(async () => {
-      slowA.resolve({ success: true, transactions: [plainTx('ta', 'gold_18k')] });
+      slowA.resolve([tx('ta', 'gold_18k')]);
     });
     expect(result.current.transactions.map((t) => t.id)).toEqual(['tb']);
     expect(result.current.loadingTransactions).toBe(false);
@@ -87,9 +76,7 @@ describe('useTransactions — switching portfolios', () => {
 
   it('clears the previous portfolio rows while the next one is loading', async () => {
     const pendingB = deferred();
-    getTransactions.mockImplementation((id) =>
-      id === 'A' ? Promise.resolve({ success: true, transactions: [plainTx('ta', 'usd')] }) : pendingB.promise
-    );
+    listPortfolioTransactions.mockImplementation((p) => (p.id === 'A' ? Promise.resolve([tx('ta', 'usd')]) : pendingB.promise));
 
     const { result, rerender } = renderHook(({ portfolio }) => useTransactions(portfolio), {
       initialProps: { portfolio: { id: 'A' } },
@@ -100,36 +87,20 @@ describe('useTransactions — switching portfolios', () => {
     await waitFor(() => expect(result.current.transactions).toHaveLength(0));
   });
 
-  it("never reuses one vault's key for another encrypted portfolio", async () => {
-    getTransactions.mockResolvedValue({ success: true, transactions: [] });
-    const vaultA = await makeVaultPortfolio('A', 'pass-a');
-    const vaultB = await makeVaultPortfolio('B', 'pass-b');
-    saveVaultPassphraseToSession('A', 'pass-a');
+  it("never uses one portfolio's key for another", async () => {
+    keys.B = null;
+    listPortfolioTransactions.mockResolvedValue([]);
 
     const { result, rerender } = renderHook(({ portfolio }) => useTransactions(portfolio), {
-      initialProps: { portfolio: vaultA },
+      initialProps: { portfolio: { id: 'A' } },
     });
     await waitFor(() => expect(result.current.isVaultLocked).toBe(false));
 
-    rerender({ portfolio: vaultB });
+    rerender({ portfolio: { id: 'B' } });
     expect(result.current.isVaultLocked).toBe(true);
     expect(result.current.activeVaultKey).toBeNull();
     await expect(result.current.addTransaction({ assetId: 'usd', quantity: 1 })).rejects.toThrow();
-  });
-
-  it('locks again once the vault passphrase is cleared', async () => {
-    getTransactions.mockResolvedValue({ success: true, transactions: [] });
-    const vaultA = await makeVaultPortfolio('A', 'pass-a');
-    saveVaultPassphraseToSession('A', 'pass-a');
-
-    const { result, rerender } = renderHook(({ portfolio }) => useTransactions(portfolio), {
-      initialProps: { portfolio: vaultA },
-    });
-    await waitFor(() => expect(result.current.isVaultLocked).toBe(false));
-
-    clearVaultPassphraseFromSession('A');
-    rerender({ portfolio: { ...vaultA } });
-    expect(result.current.isVaultLocked).toBe(true);
+    expect(savePortfolioTransaction).not.toHaveBeenCalled();
   });
 });
 
@@ -137,22 +108,20 @@ describe('useHoldings — switching portfolios', () => {
   it('ignores a slow response for a portfolio the user already switched away from', async () => {
     const slowA = deferred();
     const fastB = deferred();
-    getPortfolio.mockImplementation((id) => (id === 'A' ? slowA.promise : fastB.promise));
+    listPortfolioHoldings.mockImplementation((p) => (p.id === 'A' ? slowA.promise : fastB.promise));
 
-    const portfolioA = { id: 'A' };
-    const portfolioB = { id: 'B' };
     const { result, rerender } = renderHook(({ portfolio }) => useHoldings(portfolio), {
-      initialProps: { portfolio: portfolioA },
+      initialProps: { portfolio: { id: 'A' } },
     });
-    rerender({ portfolio: portfolioB });
+    rerender({ portfolio: { id: 'B' } });
 
     await act(async () => {
-      fastB.resolve({ success: true, holdings: [{ id: 'hb', assetId: 'usd', amount: 1 }] });
+      fastB.resolve([{ id: 'hb', assetId: 'usd', amount: 1 }]);
     });
     await waitFor(() => expect(result.current.holdings.map((h) => h.id)).toEqual(['hb']));
 
     await act(async () => {
-      slowA.resolve({ success: true, holdings: [{ id: 'ha', assetId: 'gold_18k', amount: 1 }] });
+      slowA.resolve([{ id: 'ha', assetId: 'gold_18k', amount: 1 }]);
     });
     expect(result.current.holdings.map((h) => h.id)).toEqual(['hb']);
     expect(result.current.loadingHoldings).toBe(false);

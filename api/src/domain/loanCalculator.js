@@ -231,7 +231,7 @@ export function calculateFixedInstallmentAmount({
 
 /**
  * Simulates installment #1 (a custom amount) followed by `remainingCount` standard fixed
- * installments at a given annual rate, mirroring exactly what dbCreateLoan's customFirstInstallment
+ * installments at a given annual rate, mirroring exactly what createLoanDoc's customFirstInstallment
  * path and computeEffectiveSchedule's recalculateFromBalance would produce for that rate.
  *
  * @param {number} principal
@@ -266,7 +266,7 @@ function simulateSubsequentInstallment(principal, firstInstallmentAmount, remain
  *
  * There is no closed-form solution for uneven cash flows, so this finds the rate numerically via
  * bisection over simulateSubsequentInstallment, which reuses the exact same rounding-aware formula
- * generateAmortizationSchedule/dbCreateLoan already use — so the returned rate reproduces the real
+ * generateAmortizationSchedule/createLoanDoc already use — so the returned rate reproduces the real
  * schedule the app would generate, not just a continuous-math approximation.
  *
  * @param {object} params
@@ -856,7 +856,7 @@ export function computeEffectiveSchedule({
     }
 
     // Remaining principal must be derived from the CURRENT loan.principalAmount (so it responds
-    // correctly to dbUpdateLoan changing the principal after installments were already paid),
+    // correctly to updateLoanDoc changing the principal after installments were already paid),
     // minus what was actually paid via installments, minus any extra (lump-sum) payments whose
     // anchor already falls within the paid prefix (those already reduced the debt but are never
     // reflected in any installment's own principalPortion, so they must be subtracted explicitly).

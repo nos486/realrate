@@ -10,7 +10,6 @@ import NewsCard from '../features/news/NewsCard.jsx';
 // Imported from its own file (not the loans barrel) so LoansPage stays in its lazy chunk
 import AlertStack from '../shared/alerts/AlertStack.jsx';
 import AppAlertSources from '../shared/alerts/AppAlertSources.jsx';
-import VaultPendingBanner from '../shared/vault/VaultPendingBanner.jsx';
 import VaultSetupScreen from '../shared/vault/VaultSetupScreen.jsx';
 import { useVault } from '../shared/vault/useVault.js';
 import { useMarketData } from '../features/market/hooks/useMarketData.js';
@@ -432,7 +431,7 @@ export default function MainPage() {
   };
   // Every section waits for the encryption passphrase (the admin area is its own page)
   const needsVaultSetup =
-    Boolean(user) && !isDemo && vault.status === 'off' && !vault.hasPlaintextData;
+    Boolean(user) && !isDemo && vault.status === 'off';
 
 
   return (
@@ -495,7 +494,6 @@ export default function MainPage() {
         {/* The free plan's limit on the open section */}
         {!isDemo && <PlanNote section={activeTab} />}
 
-        {!isDemo && activeTab !== 'settings' && <VaultPendingBanner onOpenSettings={() => handleTabChange('settings')} />}
 
         {/* Due-date alerts: on the home page, and each on its own page — not repeated on every
             other page (the bell lists them all) */}

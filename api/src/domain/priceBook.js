@@ -65,9 +65,6 @@ export const staleAfterSecOf = (src) =>
 /** What a source's numbers are quoted in */
 export const PRICE_QUOTES = ["toman", "rial", "usd", "usd_cross"];
 
-/** What an asset is priced in on its own market (an item's `currency`; absent = toman) */
-export const PRICE_CURRENCIES = ["toman", "usd"];
-
 /** An item's currency: "usd" for a dollar-priced asset, else "toman" */
 export const currencyOf = (item) => (item?.currency === "usd" ? "usd" : "toman");
 

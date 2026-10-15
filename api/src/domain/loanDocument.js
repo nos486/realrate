@@ -1,17 +1,17 @@
 /**
- * loanDocument.js — Pure (storage-free) loan operations over a single loan "document"
+ * loanDocument.js — Every loan operation, pure (storage-free), over a single loan "document"
  *
- * A loan document is everything the loans repository keeps for one loan, in memory:
+ * A loan document is everything kept for one loan:
  *   { loan, states, extraPayments }
- *   - loan:          the loan's master parameters (same shape as the repository's formatLoanRow)
+ *   - loan:          the loan's master parameters
  *   - states:        the sparse installment state rows (paid events / manual overrides)
  *   - extraPayments: recorded lump-sum payments
  *
- * Every operation here mirrors the matching loans.repository.js function exactly (same rules,
- * same validation messages, same results) but works on the document instead of the database. It exists for
- * end-to-end encrypted accounts: the server only ever stores the encrypted document, so the
- * client runs these operations itself. Shared with the web client through a symlink; parity
- * with the repository is enforced by tests/unit/loanDocument.test.js.
+ * This is the one loan engine. Loans are end-to-end encrypted vault records, so the browser runs
+ * these operations on the decrypted document (shared/vault/vaultLoans.js) and stores it encrypted
+ * again; the server only reads the older plaintext loans through the same view
+ * (repositories/loans.repository.js → buildLoanView / summarizeLoan). Shared with the web client
+ * through a symlink; the rules are tested in tests/unit/loanRules.test.js.
  */
 
 import {
@@ -23,6 +23,7 @@ import {
   computeClampedDueDate,
 } from "./loanCalculator.js";
 import { t } from "./i18n.js";
+import { getBankById, isCustomBankId, matchBankIdByName } from "../config/banks.config.js";
 
 /** Error raised for invalid input — `statusCode` matches what the API would have answered */
 export class LoanDocumentError extends Error {
@@ -266,6 +267,32 @@ export function createLoanDoc(data = {}, options = {}) {
   }
 
   return doc;
+}
+
+/**
+ * How a loan names its bank, given the user's custom banks: a standard or custom bank id wins
+ * (its display name with it, so the two never disagree); without an id, a lender name matching a
+ * standard bank links to it, anything else stays a plain name. An unknown id is refused.
+ * @param {Array<{ id: string, name: string }>} [customBanks]
+ * @returns {(ref: { bankId?: string, lenderName?: string }) => { bankId: string, lenderName: string }}
+ */
+export function loanBankResolver(customBanks = []) {
+  return ({ bankId, lenderName }) => {
+    const cleanName = String(lenderName || "").trim();
+    const cleanId = String(bankId || "").trim();
+    if (cleanId) {
+      const standard = getBankById(cleanId);
+      if (standard) return { bankId: standard.id, lenderName: standard.name };
+      if (isCustomBankId(cleanId)) {
+        const custom = customBanks.find((b) => b.id === cleanId);
+        if (custom) return { bankId: custom.id, lenderName: custom.name };
+      }
+      throw badRequest(t("بانک انتخاب‌شده معتبر نیست."));
+    }
+    const matched = matchBankIdByName(cleanName);
+    if (matched) return { bankId: matched, lenderName: cleanName || getBankById(matched).name };
+    return { bankId: "", lenderName: cleanName };
+  };
 }
 
 function defaultResolveBank({ bankId, lenderName }) {

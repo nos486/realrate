@@ -9,7 +9,6 @@
 import { t } from "../utils/i18n.js";
 
 const E2EE_PREFIX = "enc:e2ee:v1:";
-const VERIFIER_SIGNATURE = "REALRATE_E2EE_VAULT_OK";
 
 /** Bytes → base64 (the native encoder when the browser has one, else in slices: no per-byte string) */
 function bytesToBase64(bytes) {
@@ -191,136 +190,6 @@ export async function e2eeDecryptMany(key, payloads) {
   return out;
 }
 
-/**
- * Create a verifier token to validate passphrases in the future without storing them
- * @param {CryptoKey} key
- * @returns {Promise<string>}
- */
-export async function createE2eeVerifier(key) {
-  return await e2eeEncrypt(key, VERIFIER_SIGNATURE);
-}
-
-/**
- * Validate whether a derived key correctly decrypts the portfolio's verifier token
- * @param {CryptoKey} key
- * @param {string} verifierStr
- * @returns {Promise<boolean>}
- */
-export async function verifyE2eeKey(key, verifierStr) {
-  if (!verifierStr) return false;
-  const decrypted = await e2eeDecrypt(key, verifierStr);
-  return decrypted === VERIFIER_SIGNATURE;
-}
-
-/**
- * Whether a value is a WebCrypto key (instanceof may fail across realms, so also duck-type)
- * @param {any} value
- * @returns {boolean}
- */
-function isCryptoKeyLike(value) {
-  if (!value || typeof value !== 'object') return false;
-  if (typeof CryptoKey !== 'undefined' && value instanceof CryptoKey) return true;
-  return Boolean(value.type && value.algorithm && value.usages);
-}
-
-/**
- * Encrypt holding sensitive attributes before sending to the server API
- * @param {CryptoKey} key
- * @param {object} holding
- * @returns {Promise<object>}
- */
-export async function encryptHoldingForApi(arg1, arg2) {
-  const isKey1 = isCryptoKeyLike(arg1);
-  const key = isKey1 ? arg1 : arg2;
-  const holding = isKey1 ? arg2 : arg1;
-
-  // Checked on the resolved key itself: with a missing key in either position the other
-  // argument (the holding) must never be mistaken for one and silently "encrypted" to null.
-  if (!isCryptoKeyLike(key)) {
-    throw new Error(t('کلید رمزنگاری معتبر نیست یا گاوصندوق باز نشده است.'));
-  }
-  if (!holding || typeof holding !== 'object') {
-    return holding;
-  }
-
-  const sensitiveBundle = {
-    amount: Number(holding.amount) || 0,
-    buyPrice: Number(holding.buyPrice) || 0,
-    currentPrice: Number(holding.currentPrice) || 0,
-    buyDate: holding.buyDate || "",
-    notes: holding.notes || "",
-    assetName: holding.assetName || holding.assetId || "",
-    referenceAssetId: holding.referenceAssetId || "",
-    referenceQuantity: Number(holding.referenceQuantity) || 0,
-  };
-
-  const encryptedBundle = await e2eeEncrypt(key, sensitiveBundle);
-
-  return {
-    ...holding,
-    amount: 0,
-    buyPrice: 0,
-    currentPrice: 0,
-    buyDate: "",
-    notes: encryptedBundle,
-    assetName: "[گاوصندوق E2EE]", // i18n-ignore (a stored placeholder record name)
-    referenceAssetId: "",
-    referenceQuantity: 0,
-  };
-}
-
-/**
- * Decrypt holding sensitive attributes after receiving from the server API
- * @param {CryptoKey|object} arg1
- * @param {object|CryptoKey} arg2
- * @returns {Promise<object>}
- */
-export async function decryptHoldingFromApi(arg1, arg2) {
-  const isKey1 = isCryptoKeyLike(arg1);
-  const key = isKey1 ? arg1 : arg2;
-  // Without a key in either slot, the holding is whichever argument is the plain object —
-  // it must come back untouched, never swapped for the (missing) key.
-  const holding = isKey1 ? arg2 : (isCryptoKeyLike(arg2) || arg1 ? arg1 : arg2);
-
-  if (!isCryptoKeyLike(key) || !holding || typeof holding !== 'object') {
-    return holding;
-  }
-
-  if (holding.notes && typeof holding.notes === "string" && holding.notes.startsWith(E2EE_PREFIX)) {
-    const decrypted = await e2eeDecrypt(key, holding.notes);
-    if (decrypted && typeof decrypted === "object") {
-      return {
-        ...holding,
-        amount: decrypted.amount !== undefined ? decrypted.amount : holding.amount,
-        buyPrice: decrypted.buyPrice !== undefined ? decrypted.buyPrice : holding.buyPrice,
-        currentPrice: decrypted.currentPrice !== undefined ? decrypted.currentPrice : holding.currentPrice,
-        buyDate: decrypted.buyDate !== undefined ? decrypted.buyDate : holding.buyDate,
-        notes: decrypted.notes !== undefined ? decrypted.notes : "",
-        assetName: decrypted.assetName || holding.assetName,
-        referenceAssetId: decrypted.referenceAssetId || "",
-        referenceQuantity: decrypted.referenceQuantity !== undefined ? decrypted.referenceQuantity : 0,
-        isE2eeEncrypted: true,
-      };
-    }
-  }
-  return holding;
-}
-
-/**
- * Check if a holding contains client-side E2EE ciphertext
- * @param {object} holding
- * @returns {boolean}
- */
-export function isHoldingE2eeEncrypted(holding) {
-  return !!(holding && typeof holding.notes === "string" && holding.notes.startsWith(E2EE_PREFIX));
-}
-
-// ── Key wrapping (account vault) ─────────────────────────────────────────────
-// The account vault uses a random data key, stored only "wrapped" (encrypted) with the key
-// derived from the passphrase — so a passphrase change never re-encrypts any data. Every
-// portfolio also gets its own random key, wrapped with the account data key; a portfolio's key
-// can be handed out in a share link without exposing anything else.
-
 /** A fresh random 256-bit key, as raw bytes */
 export function generateRawKey() {
   return globalThis.crypto.getRandomValues(new Uint8Array(32));
@@ -373,26 +242,3 @@ export function linkTokenToRawKey(token) {
 }
 
 export { bytesToBase64, base64ToBytes };
-
-// ── Session Storage Key Helpers ──────────────────────────────────────────────
-const STORAGE_PREFIX = "rr_e2ee_pass_";
-
-export function saveVaultPassphraseToSession(portfolioId, passphrase) {
-  try {
-    sessionStorage.setItem(`${STORAGE_PREFIX}${portfolioId}`, passphrase);
-  } catch {}
-}
-
-export function getVaultPassphraseFromSession(portfolioId) {
-  try {
-    return sessionStorage.getItem(`${STORAGE_PREFIX}${portfolioId}`);
-  } catch {
-    return null;
-  }
-}
-
-export function clearVaultPassphraseFromSession(portfolioId) {
-  try {
-    sessionStorage.removeItem(`${STORAGE_PREFIX}${portfolioId}`);
-  } catch {}
-}

@@ -19,7 +19,6 @@
  * application ids, so both can be installed, and each takes only its own link back.
  */
 export const APP_AUTH_SCHEMES = ["ir.realrate.app", "ir.realrate.store"];
-export const APP_AUTH_REDIRECT = `${APP_AUTH_SCHEMES[0]}://auth`;
 
 /** A known scheme from the request, else the full build's */
 export function appSchemeOf(value) {

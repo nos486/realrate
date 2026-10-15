@@ -2,8 +2,8 @@
  * vaultRoutes.js — Account-wide end-to-end encryption
  *
  * Endpoints:
- *   GET    /api/vault                                — The account vault (salt + wrapped key) or null,
- *                                                       and whether an account without it has data
+ *   GET    /api/vault                                — The account vault (salt + wrapped key) or null
+ *                                                       (a new account sets it up before anything else)
  *   PUT    /api/vault                                — Turn on / re-wrap after a passphrase change
  *   POST   /api/vault/reset                          — Forgotten passphrase: delete the vault and ALL the
  *                                                       user's financial data ({ confirm: "RESET_ALL_DATA",
@@ -14,14 +14,13 @@
  *   PUT    /api/vault/records/:kind                  — Create/replace several of one kind at once
  *                                                       ({ records: [{ id, payload, recordDate,
  *                                                       parentId }], vaultEpoch }; all or none)
- *   PUT    /api/vault/records/:kind/:id              — Create/replace one ({ payload, replacePlain, vaultEpoch }:
+ *   PUT    /api/vault/records/:kind/:id              — Create/replace one ({ payload, vaultEpoch }:
  *                                                       with `vaultEpoch`, refused after a vault reset)
  *   DELETE /api/vault/records/:kind/:id              — Delete one
  *   POST   /api/vault/records/:kind/delete           — Delete several of one kind at once ({ ids }, up to 100; all or none)
  *   GET    /api/vault/sync?cursor&limit               — Every change after `cursor` (records stored and
  *                                                       deleted, all kinds the user may see), for devices
  *                                                       keeping a copy (the Android app, offline)
- *   GET    /api/loans/:id/document                   — Raw stored loan (for encrypting it)
  *
  * Every key operation happens in the browser; these routes only move opaque ciphertext.
  * Encryption is mandatory: the vault is never turned off (see lib/encryptionGate.js).
@@ -30,16 +29,14 @@
 import { getAuthenticatedUser } from "../lib/auth.js";
 import {
   dbGetUserVault,
-  dbUserHasPlaintextData,
   dbSaveUserVault,
   dbListVaultRecords,
   dbPutVaultRecord,
   dbPutVaultRecords,
   dbDeleteVaultRecord,
   dbDeleteVaultRecords,
-  dbGetLoanDocument,
 } from "../repositories/index.js";
-import { VAULT_KIND_FEATURES, VAULT_RECORD_KINDS, dbSyncVaultRecords, dbResetUserVaultData, dbPlainRecordExists } from "../repositories/vault.repository.js";
+import { VAULT_KIND_FEATURES, VAULT_RECORD_KINDS, dbSyncVaultRecords, dbResetUserVaultData } from "../repositories/vault.repository.js";
 import { dbGetUserAuthById } from "../repositories/account.repository.js";
 import { verifyPassword, getRateLimitState, recordRateLimitHit, clearRateLimit } from "../lib/security.js";
 import { logger } from "../lib/logger.js";
@@ -79,9 +76,7 @@ async function requireUserId(request, env, kind = null) {
 export async function handleGetVault(request, env) {
   const userId = await requireUserId(request, env);
   const vault = await dbGetUserVault(env, userId);
-  // Without the vault, whether there is anything to encrypt: a new account sets it up right away
-  const hasPlaintextData = vault ? false : await dbUserHasPlaintextData(env, userId);
-  return jsonResponse({ success: true, vault, hasPlaintextData }, 200, request);
+  return jsonResponse({ success: true, vault }, 200, request);
 }
 
 export async function handleSaveVault(request, env) {
@@ -156,17 +151,12 @@ export async function handlePutVaultRecord(request, env, { kind, id }) {
   const body = await request.json().catch(() => ({}));
   const input = {
     payload: body.payload,
-    replacePlain: Boolean(body.replacePlain),
     recordDate: body.recordDate,
     parentId: body.parentId,
     vaultEpoch: typeof body.vaultEpoch === "string" ? body.vaultEpoch : "",
     reminder: body.reminder,
   };
-  // Encrypting existing plaintext data (replacePlain) is a migration, not a new record; claiming
-  // it for a record that has no plaintext copy would be a way around the plan limits
-  const migration = input.replacePlain && (await dbPlainRecordExists(env, userId, kind, id));
-  const store = () => dbPutVaultRecord(env, userId, kind, id, input);
-  const record = migration ? await store() : await withRecordLimit(env, user, kind, [id], store);
+  const record = await withRecordLimit(env, user, kind, [id], () => dbPutVaultRecord(env, userId, kind, id, input));
   return jsonResponse({ success: true, record }, 200, request);
 }
 
@@ -205,11 +195,4 @@ export async function handleSyncVaultRecords(request, env) {
     kinds: VAULT_RECORD_KINDS.filter((_, i) => allowed[i]),
   });
   return jsonResponse({ success: true, ...result }, 200, request);
-}
-
-export async function handleGetLoanDocument(request, env, { loanId }) {
-  const userId = await requireUserId(request, env);
-  const document = await dbGetLoanDocument(env, userId, loanId);
-  if (!document) throw AppError.notFound("وام مورد نظر یافت نشد.");
-  return jsonResponse({ success: true, document }, 200, request);
 }

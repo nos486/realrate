@@ -188,18 +188,3 @@ export function getCategoryBadge(categoryKey, fallback = '') {
 
 // ── Dynamic Proxies for Single Source of Truth Forex & Currency Metadata ────
 
-/**
- * Dynamic Proxy providing localized Persian names for world forex currencies
- * eliminating hardcoded dictionaries anywhere in the app.
- */
-export const WORLD_FOREX_NAMES = new Proxy({}, {
-  get(target, prop) {
-    if (typeof prop !== 'string') return target[prop];
-    return getCanonicalAssetName(prop, prop);
-  },
-  has(target, prop) {
-    if (typeof prop !== 'string') return false;
-    return Boolean(getCanonicalAssetSpec(prop));
-  },
-});
-

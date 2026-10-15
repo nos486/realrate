@@ -8,8 +8,6 @@ import {
   VAULT_BATCH_MAX,
   dbDeleteVaultRecord,
   dbDeleteVaultRecords,
-  rejectWhenVaultEnabled,
-  dbUserHasPlaintextData,
 } from '../../src/repositories/vault.repository.js';
 import worker from '../../src/index.js';
 
@@ -22,7 +20,7 @@ function createDb() {
   const records = new Map();
   // Deleted records (vault_tombstones): key → deleted_at
   const tombstones = new Map();
-  const plain = { loans: [], loan_installment_states: [], loan_extra_payments: [], incomes: [], cheques: [], portfolios: [], portfolio_holdings: [], transactions: [] };
+  const portfolios = [];
   const recordKey = (u, k, i) => `${u}|${k}|${i}`;
   let failNextBatch = false;
 
@@ -44,7 +42,7 @@ function createDb() {
   };
 
   const db = {
-    vaults, records, plain, tombstones,
+    vaults, records, portfolios, tombstones,
     failNextBatch() { failNextBatch = true; },
     prepare(sql) {
       const q = sql.replace(/\s+/g, ' ').trim();
@@ -94,18 +92,6 @@ function createDb() {
           if (q.startsWith('INSERT INTO vault_reminders')) {
             return { meta: { changes: 1 } };
           }
-          const insert = q.match(/^INSERT INTO (\w+)/);
-          if (insert) {
-            plain[insert[1]].push(args);
-            return { meta: { changes: 1 } };
-          }
-          const del = q.match(/^DELETE FROM (\w+) WHERE (\w+) = \? AND user_id = \?/);
-          if (del) {
-            const [table, col] = [del[1], del[2]];
-            const colIndex = { id: 0, loan_id: 1 }[col];
-            plain[table] = plain[table].filter((row) => !(row[colIndex] === args[0] && row[['loans', 'incomes', 'cheques', 'portfolio_holdings', 'transactions'].includes(table) ? 1 : 2] === args[1]));
-            return { meta: { changes: 1 } };
-          }
           throw new Error(`unexpected run: ${q}`);
         },
         async first() {
@@ -113,12 +99,8 @@ function createDb() {
           if (q.includes('COUNT(*) AS n FROM vault_records')) {
             return { n: q.includes('kind = ?') ? matching(q, args).length : [...records.values()].filter((r) => r.user_id === args[0]).length };
           }
-          if (q.includes('EXISTS (SELECT 1 FROM')) {
-            const tables = [...q.matchAll(/FROM (\w+) WHERE/g)].map((m) => m[1]);
-            return { has: tables.some((t) => (plain[t] || []).some((row) => row[1] === args[0])) ? 1 : 0 };
-          }
           if (q.includes('COUNT(*) AS n FROM portfolios')) {
-            return { n: plain.portfolios.filter((p) => p.user_id === args[0] && p.e2ee_wrapped_key).length };
+            return { n: portfolios.filter((p) => p.user_id === args[0] && p.e2ee_wrapped_key).length };
           }
           return null;
         },
@@ -171,20 +153,6 @@ describe('account vault', () => {
     await expect(dbSaveUserVault(env, 'u1', { salt: '', wrappedKey: CIPHER })).rejects.toMatchObject({ statusCode: 400 });
   });
 
-  it('tells whether an account without the vault already has data', async () => {
-    expect(await dbUserHasPlaintextData(env, 'u1')).toBe(false);
-    env.DB.plain.incomes.push(['inc_1', 'u2']);
-    expect(await dbUserHasPlaintextData(env, 'u1')).toBe(false);
-    env.DB.plain.transactions.push(['tx_1', 'u1']);
-    expect(await dbUserHasPlaintextData(env, 'u1')).toBe(true);
-  });
-
-  it('blocks plaintext creates only while the vault is on', async () => {
-    await expect(rejectWhenVaultEnabled(env, 'u1')).resolves.toBeUndefined();
-    await dbSaveUserVault(env, 'u1', { salt: 's', wrappedKey: CIPHER });
-    await expect(rejectWhenVaultEnabled(env, 'u1')).rejects.toMatchObject({ statusCode: 409 });
-    await expect(rejectWhenVaultEnabled(env, 'u2')).resolves.toBeUndefined();
-  });
 });
 
 describe('vault records', () => {
@@ -297,23 +265,6 @@ describe('vault records', () => {
     await expect(dbListVaultRecords(env, 'u1', 'income', { limit: 10, offset: -1 })).rejects.toMatchObject({ statusCode: 400 });
   });
 
-  it('encrypting an existing record removes its plaintext in the same batch', async () => {
-    env.DB.plain.loans.push(['loan_1', 'u1']);
-    env.DB.plain.loan_installment_states.push(['s1', 'loan_1', 'u1']);
-    env.DB.plain.loan_extra_payments.push(['e1', 'loan_1', 'u1']);
-    env.DB.plain.loans.push(['loan_2', 'u1']);
-
-    env.DB.failNextBatch();
-    await expect(dbPutVaultRecord(env, 'u1', 'loan', 'loan_1', { payload: CIPHER, replacePlain: true })).rejects.toThrow();
-    expect(env.DB.plain.loans).toHaveLength(2);
-    expect(await dbListVaultRecords(env, 'u1', 'loan')).toHaveLength(0);
-
-    await dbPutVaultRecord(env, 'u1', 'loan', 'loan_1', { payload: CIPHER, replacePlain: true });
-    expect(env.DB.plain.loans.map((r) => r[0])).toEqual(['loan_2']);
-    expect(env.DB.plain.loan_installment_states).toHaveLength(0);
-    expect(env.DB.plain.loan_extra_payments).toHaveLength(0);
-  });
-
 });
 
 describe('deleting several vault records', () => {
@@ -341,18 +292,10 @@ describe('encrypted cheques', () => {
     await dbSaveUserVault(env, 'u1', { salt: 's', wrappedKey: CIPHER });
   });
 
-  it('replaces the plaintext cheque in the same batch', async () => {
-    env.DB.plain.cheques.push(['chq_1', 'u1'], ['chq_2', 'u1']);
-    await dbPutVaultRecord(env, 'u1', 'cheque', 'chq_1', { payload: CIPHER, replacePlain: true });
-    expect(env.DB.plain.cheques.map((r) => r[0])).toEqual(['chq_2']);
-  });
-
-  it('stores an expense only inside a section, and never touches plaintext incomes with its id', async () => {
-    env.DB.plain.incomes.push(['exp_1', 'u1']);
+  it('stores an expense only inside a section', async () => {
     await expect(dbPutVaultRecord(env, 'u1', 'expense', 'exp_1', { payload: CIPHER })).rejects.toThrow();
-    await dbPutVaultRecord(env, 'u1', 'expense', 'exp_1', { payload: CIPHER, parentId: 'grp_1', replacePlain: true });
-    await dbPutVaultRecord(env, 'u1', 'expense_group', 'grp_1', { payload: CIPHER, replacePlain: true });
-    expect(env.DB.plain.incomes.map((r) => r[0])).toEqual(['exp_1']);
+    await dbPutVaultRecord(env, 'u1', 'expense', 'exp_1', { payload: CIPHER, parentId: 'grp_1' });
+    expect((await dbListVaultRecords(env, 'u1', 'expense')).map((r) => r.id)).toEqual(['exp_1']);
   });
 });
 
@@ -366,12 +309,8 @@ describe('encrypted portfolio items', () => {
   it('keeps holdings and transactions under their portfolio, and dated', async () => {
     await expect(dbPutVaultRecord(env, 'u1', 'holding', 'h_1', { payload: CIPHER })).rejects.toMatchObject({ statusCode: 400 });
 
-    env.DB.plain.portfolio_holdings.push(['h_1', 'u1'], ['h_2', 'u1']);
-    env.DB.plain.transactions.push(['tx_1', 'u1']);
-    await dbPutVaultRecord(env, 'u1', 'holding', 'h_1', { payload: CIPHER, recordDate: '2025-01-01', parentId: 'p_1', replacePlain: true });
-    await dbPutVaultRecord(env, 'u1', 'transaction', 'tx_1', { payload: CIPHER, recordDate: '2025-04-21', parentId: 'p_1', replacePlain: true });
-    expect(env.DB.plain.portfolio_holdings.map((r) => r[0])).toEqual(['h_2']);
-    expect(env.DB.plain.transactions).toHaveLength(0);
+    await dbPutVaultRecord(env, 'u1', 'holding', 'h_1', { payload: CIPHER, recordDate: '2025-01-01', parentId: 'p_1' });
+    await dbPutVaultRecord(env, 'u1', 'transaction', 'tx_1', { payload: CIPHER, recordDate: '2025-04-21', parentId: 'p_1' });
     expect(await dbListVaultRecords(env, 'u1', 'holding', { parentId: 'p_1' })).toEqual([
       expect.objectContaining({ id: 'h_1', recordDate: '2025-01-01', parentId: 'p_1' }),
     ]);
@@ -390,11 +329,8 @@ describe('vault routes', () => {
     ['DELETE', '/api/vault/records/income/inc_1'],
     ['POST', '/api/vault/records/income/delete'],
     ['GET', '/api/vault/records/cheque'],
-    ['GET', '/api/cheques'],
-    ['POST', '/api/cheques'],
-    ['PUT', '/api/cheques/chq_1'],
-    ['DELETE', '/api/cheques/chq_1'],
-    ['GET', '/api/loans/loan_1/document'],
+    ['GET', '/api/portfolios'],
+    ['POST', '/api/portfolios'],
   ])('%s %s requires a signed-in user', async (method, path) => {
     const res = await worker.fetch(new Request(`https://api.realrate.ir${path}`, { method }), {}, {});
     expect(res.status).toBe(401);

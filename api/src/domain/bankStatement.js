@@ -663,8 +663,3 @@ export function summarizePlan(plan) {
   }
   return out;
 }
-
-/** The categories the picker offers for a decision's kind, built-in keys with their names (custom ones come from the user's list) */
-export function statementCategoryOptions(kind) {
-  return BUILTIN_CATEGORIES[kind].filter((c) => !c.retired).map((c) => ({ value: c.value, label: c.label }));
-}

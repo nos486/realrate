@@ -8,9 +8,6 @@ import {
   dbGetUsersPage,
   USER_SORTS,
   USER_FILTERS,
-  dbGetUserById,
-  dbGetPortfolioHoldings,
-  dbGetUserPortfolios,
   dbSavePriceSource,
   dbSetPrimaryPriceSource,
   saveGlobalSettings,
@@ -72,52 +69,6 @@ export async function handleAdminUsersRoute(request, env) {
   }
 
   return jsonResponse({ success: true, users, total, page, pageSize, pageCount, sort, dir, filter }, 200, request);
-}
-
-/**
- * GET /api/admin/users/portfolio?userId=...&portfolioId=...
- * Return specific user's portfolios and holdings for inspection — admin only
- */
-export async function handleAdminGetUserPortfolio(request, env) {
-  const user = await getAuthenticatedUser(request, env);
-  if (!user || user.role !== "admin") throw AppError.forbidden("دسترسی غیرمجاز. فقط مدیر سیستم مجاز است.");
-
-  const url = new URL(request.url);
-  const targetUserId = url.searchParams.get("userId");
-  const portfolioId = url.searchParams.get("portfolioId") || null;
-
-  if (!targetUserId) {
-    throw AppError.badRequest("شناسه کاربر الزامی است.");
-  }
-
-  const targetUser = await dbGetUserById(env, targetUserId);
-  if (!targetUser) {
-    throw AppError.notFound("کاربر مورد نظر یافت نشد.");
-  }
-
-  const portfolios = (await dbGetUserPortfolios(env, targetUser.id)).map(({ sharePassword, ...p }) => ({
-    ...p,
-    hasPassword: !!(sharePassword && String(sharePassword).trim()),
-  }));
-  const holdings = await dbGetPortfolioHoldings(env, targetUser.id, portfolioId);
-
-  return jsonResponse({
-    success: true,
-    user: {
-      id: targetUser.id,
-      email: targetUser.email,
-      name: targetUser.name,
-      customName: targetUser.customName || "",
-      picture: targetUser.picture,
-      shareSlug: targetUser.shareSlug || "",
-      shareEnabled: !!targetUser.shareEnabled,
-      createdAt: targetUser.createdAt,
-      lastLogin: targetUser.lastLogin,
-    },
-    portfolios,
-    portfolioId,
-    holdings,
-  }, 200, request);
 }
 
 /**

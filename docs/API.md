@@ -116,85 +116,16 @@ For standard user sessions, demo properties are never included.
 | `POST` / `PUT` | `/api/v1/user/settings` | Save user preferences |
 | `GET` | `/api/v1/user/home-layout` | Feature `market` (404 otherwise). The user's customized home page `{ version, sections: [{ id, title, style, items }] }` or `null` (default page) |
 | `PUT` | `/api/v1/user/home-layout` | Feature `market`. Save the home page layout (`{ layout }`, sanitized by `domain/homeLayout.js`); `{ layout: null }` resets to default. A section may carry `cards: { <id>: { main?: "avg:30d"\|"avg:1y", slots?: ["intrinsic", "bubble/price", …] } }` (what each card shows, `domain/cardMetrics.js`; at most 3 slots) and `formulas: { "fx_…": { name, expr: "x/(y-x)", vars: { x: <id>, … }, format: "number"\|"percent", stats?: "30d"\|"1y" } }` (cards built with a formula, `domain/cardFormula.js`, each placed by its id in `items`; an invalid one is dropped) |
-| `GET` | `/api/v1/portfolios` | List all portfolio groups for user (returns `itemCount` and `transactionCount`) |
-| `POST` | `/api/v1/portfolios` | Create a new portfolio group |
-| `PUT` | `/api/v1/portfolios` | Update portfolio group details |
-| `DELETE` | `/api/v1/portfolios` | Delete portfolio group (cascades holdings and transactions) |
-| `GET` | `/api/v1/portfolio` | Get items in a portfolio group |
-| `POST` / `PUT` | `/api/v1/portfolio` | Add/update item in portfolio |
-| `DELETE` | `/api/v1/portfolio` | Delete item from portfolio |
-| `GET` | `/api/v1/portfolios/:id/transactions` | List all transactions for a portfolio (ordered by transactionDate DESC, createdAt DESC) |
-| `POST` | `/api/v1/portfolios/:id/transactions` | Add a new buy/sell transaction (encrypted or plaintext payload) |
-| `PUT` | `/api/v1/portfolios/:id/transactions` | Update an existing transaction (`{ id, ... }` in body) |
-| `DELETE` | `/api/v1/portfolios/:id/transactions` | Delete a transaction (`?id=...` or route param) |
+| `GET` | `/api/v1/portfolios` | List the user's portfolios, the default first (`itemCount` and `transactionCount`: their encrypted records; `e2eeWrappedKey`: each portfolio's data key wrapped by the account key) |
+| `POST` | `/api/v1/portfolios` | Create a portfolio `{ name, e2eeWrappedKey }` — the key is required (`409 VAULT_ENABLED` without it); the user's first portfolio is their default. The browser creates the first one right after the vault is set up |
+| `PUT` | `/api/v1/portfolios` | Update a portfolio's name, share settings, default flag or wrapped key (a key can be replaced, never cleared: `403 ENCRYPTION_MANDATORY`) |
+| `DELETE` | `/api/v1/portfolios` | Delete a portfolio with its encrypted items (the only one cannot be deleted) |
 
-#### Transaction Payload Format
-```json
-{
-  "encryptedPayload": "enc:e2ee:v1:BASE64...", // For Zero-Knowledge E2EE portfolios
-  // Or plaintext properties for standard portfolios:
-  "assetId": "gold_18k",
-  "assetName": "طلای ۱۸ عیار",
-  "category": "gold",
-  "unit": "گرم",
-  "transactionType": "buy", // "buy" | "sell"
-  "quantity": 10.5,
-  "unitPrice": 4850000,
-  "transactionDate": "1403/06/25",
-  "notes": "خرید پله‌ای"
-}
-```
+A portfolio's holdings, transactions, layout and risk profile are encrypted vault records whose `parentId` is the portfolio (`/api/v1/vault/records/holding`, `.../transaction`, …), encrypted with the portfolio's own key.
 
-### Incomes (Protected)
+### Incomes, Cheques and Loans
 
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/api/v1/incomes` | List the user's incomes (ordered by incomeDate DESC, createdAt DESC) |
-| `POST` | `/api/v1/incomes` | Record a new income |
-| `PUT` | `/api/v1/incomes/:id` | Update an income |
-| `DELETE` | `/api/v1/incomes/:id` | Delete an income |
-
-#### Income Payload Format
-```json
-{
-  "title": "حقوق مهر",
-  "category": "salary", // salary | freelance | business | investment | rental | gift | other
-  "amount": 45000000,   // Toman, > 0
-  "incomeDate": "2026-09-22", // Gregorian ISO date (displayed as Shamsi in the UI)
-  "notes": "با اضافه‌کاری",
-  "recurringId": "" // only on entries the removed fixed incomes created
-}
-```
-
-### Cheques (Protected)
-
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/api/v1/cheques` | List the user's cheques (ordered by dueDate ASC, createdAt ASC) |
-| `POST` | `/api/v1/cheques` | Register a cheque |
-| `PUT` | `/api/v1/cheques/:id` | Update a cheque; a status change is sent with its new `history` entry |
-| `DELETE` | `/api/v1/cheques/:id` | Delete a cheque and its tracking log |
-
-Validation is the shared `api/src/domain/chequeDocument.js` (the browser uses the same rules for encrypted cheques).
-
-#### Cheque Payload Format
-```json
-{
-  "direction": "received",       // received (دریافتی) | issued (صادره)
-  "status": "pending",           // pending | deposited* | cleared | bounced | transferred* | cancelled  (*received only)
-  "amount": 45000000,            // Toman, > 0
-  "dueDate": "2026-10-01",       // Gregorian ISO date (displayed as Shamsi in the UI)
-  "counterparty": "شرکت آلفا",   // drawer (received) or payee (issued)
-  "bankId": "mellat",            // optional: standard bank id or custom bank id
-  "bankName": "",                // optional: free-text bank name
-  "chequeNumber": "123456",      // optional, digits (/ and - allowed)
-  "sayadId": "1234567812345678", // optional, exactly 16 digits
-  "notes": "",
-  "history": [                   // tracking log; defaults to the registration entry
-    { "status": "pending", "date": "2026-09-25", "note": "" }
-  ]
-}
-```
+All are end-to-end encrypted vault records (`/api/v1/vault/records/income`, `.../cheque`, `.../loan`) and run in the browser: cheques validate with `api/src/domain/chequeDocument.js`, and every loan operation is `api/src/domain/loanDocument.js` (one loan is one document: its parameters, installment states and extra payments).
 
 ### AI Cheque Scan
 
@@ -249,20 +180,6 @@ The model is chosen by the server (`api/src/config/ai.config.js`), with the busy
 ```
 *Note: Cheque amounts on physical Iranian cheques are printed in Rials, but `fields.amount` is automatically converted to Tomans to match the app standard (`amountRials / 10`). `raw` is returned exclusively in the admin beta stage for model evaluation.*
 
-### Loans (Protected)
-
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/api/v1/loans` | List loans with aggregates (`remainingBalance`, `paidCount`, `totalCount`, `nextDueInstallment`) |
-| `POST` | `/api/v1/loans` | Create a loan (`bankId` or `lenderName`, optional `customInstallments` / `totalRepaymentAmount` / `customFirstInstallmentAmount`) |
-| `GET` | `/api/v1/loans/:id` | Loan with its full computed installment schedule and extra payments |
-| `PUT` | `/api/v1/loans/:id` | Update a loan (financial changes rebuild pending installments) |
-| `DELETE` | `/api/v1/loans/:id` | Delete a loan and its installments |
-| `PUT` | `/api/v1/loans/:id/installments/:installmentId` | Mark paid (`{ isPaid: true, paidDate, paidAmount, cascade }`) or unpaid (`{ isPaid: false }`) |
-| `PUT` | `/api/v1/loans/:id/installments/bulk` | Re-plan pending installments (`{ knownAmounts, totalRepaymentAmount }`) |
-| `GET` / `POST` | `/api/v1/loans/:id/extra-payments` | List / record an extra payment (`{ amount, paymentDate, reductionMode }`) |
-| `GET` | `/api/v1/loans/:id/document` | Raw stored loan `{ loan, states, extraPayments }` (used to encrypt it) |
-
 ### Custom Banks (Protected)
 
 Standard banks are static (`api/src/config/banks.config.js`) and ship with the client.
@@ -271,11 +188,11 @@ Standard banks are static (`api/src/config/banks.config.js`) and ship with the c
 | :--- | :--- | :--- |
 | `GET` | `/api/v1/banks/custom` | List the user's custom banks |
 | `POST` | `/api/v1/banks/custom` | Add a custom bank (`{ name }`; returns the existing one for a duplicate name) |
-| `DELETE` | `/api/v1/banks/custom/:id` | Remove a custom bank (loans keep their lender name) |
+| `DELETE` | `/api/v1/banks/custom/:id` | Remove a custom bank (encrypted loans keep its name as their lender name) |
 
 ### Free Plan Limits (Protected)
 
-Users outside the `pro` group (admins and the demo account are never limited) are held to the limits of `api/src/config/planLimits.js`. A create past a limit (`PUT /api/v1/vault/records/:kind[/:id]`, `POST /api/v1/portfolios`) returns `403 PLAN_LIMIT`; replacing an existing record never counts. The monthly limit counts records first stored in the month even if deleted later, a `replacePlain` write skips the check only when a plaintext copy of that record exists, and a total limit is re-checked after the store (parallel requests over it are rolled back). Email reminders (`PUT /api/v1/alerts/email`, `POST /api/v1/alerts/email/test`) return the same code to a user without the `email_reminders` feature.
+Users outside the `pro` group (admins and the demo account are never limited) are held to the limits of `api/src/config/planLimits.js`. A create past a limit (`PUT /api/v1/vault/records/:kind[/:id]`, `POST /api/v1/portfolios`) returns `403 PLAN_LIMIT`; replacing an existing record never counts. The monthly limit counts records first stored in the month even if deleted later, and a total limit is re-checked after the store (parallel requests over it are rolled back). Email reminders (`PUT /api/v1/alerts/email`, `POST /api/v1/alerts/email/test`) return the same code to a user without the `email_reminders` feature.
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
@@ -284,17 +201,16 @@ Users outside the `pro` group (admins and the demo account are never limited) ar
 ### End-to-End Encryption Vault (Protected)
 
 All payloads are ciphertext produced in the browser (`enc:e2ee:v1:...`); see [E2EE_VAULT.md](E2EE_VAULT.md).
-Encryption is mandatory. Without a vault, every save (`POST`/`PUT` of loans, incomes, cheques, portfolios, holdings,
-transactions and custom banks) returns `403 ENCRYPTION_REQUIRED`; reads and deletes still work. With a vault, the plaintext
-loan / income / cheque endpoints return `409 VAULT_ENABLED` and portfolio data must be ciphertext. The vault cannot be turned off.
+Encryption is mandatory: a new account sets up its vault before anything else, and until then every save (portfolios,
+custom banks, vault records) returns `403 ENCRYPTION_REQUIRED`. Portfolio data must be ciphertext. The vault cannot be turned off.
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/api/v1/vault` | The account vault `{ salt, wrappedKey, version }` or `null`, plus `hasPlaintextData` (whether an account without it has data) |
+| `GET` | `/api/v1/vault` | The account vault `{ salt, wrappedKey, version }` or `null` (a new account, before it sets one up) |
 | `PUT` | `/api/v1/vault` | Turn on, or re-wrap after a passphrase change (`previousWrappedKey` required; `409` on mismatch) |
-| `POST` | `/api/v1/vault/reset` | Forgotten passphrase: deletes the vault and **all** the user's financial data (portfolios, holdings, transactions, loans, incomes, fixed incomes, cheques, custom banks, vault records and tombstones). `{ confirm: "RESET_ALL_DATA", password }` — `password` is the account password, required when the account has one (`400 INVALID_PASSWORD`, rate limited); not for the demo account. Sign-in and the home layout stay |
+| `POST` | `/api/v1/vault/reset` | Forgotten passphrase: deletes the vault and **all** the user's financial data (portfolios, custom banks, every vault record, tombstones and reminders). `{ confirm: "RESET_ALL_DATA", password }` — `password` is the account password, required when the account has one (`400 INVALID_PASSWORD`, rate limited); not for the demo account. Sign-in and the home layout stay |
 | `GET` | `/api/v1/vault/records/:kind` | Encrypted records of `loan`, `income`, `cheque`, `recurring_income` (older records only: fixed incomes were removed), `holding`, `transaction`, `portfolio_layout`, `risk_profile`, `expense_group`, `expense`, `bank_account`, `transfer`, `category_settings` or `subscription` (`expense_group` and `expense` only with the `expenses` feature, `bank_account` and `transfer` only with `bank_accounts`, else `404`) — newest date first. Filters on the plaintext metadata only: `?from`, `?to` (inclusive `YYYY-MM-DD`), `?parent`, `?undated=1` (date missing or not yet Gregorian); `?order=asc\|desc`; with `?limit` (1–200) and `?offset` one page plus `total` |
-| `PUT` | `/api/v1/vault/records/:kind/:id` | Create/replace a record (`{ payload, recordDate, parentId, replacePlain, vaultEpoch, reminder? }` — `recordDate` (`YYYY-MM-DD`) and `parentId` (portfolio for `holding`/`transaction`/`portfolio_layout`/`risk_profile`, required; section for `expense`, required) are plaintext; optional `reminder` for `loan`, `cheque` or `subscription` upserts or deletes the plaintext reminder index row in the same batch; `replacePlain` deletes the plaintext row with the same id in the same batch; `vaultEpoch`, the vault's `createdAt` the record was encrypted for, is refused with `409 VAULT_CHANGED` after a reset) |
+| `PUT` | `/api/v1/vault/records/:kind/:id` | Create/replace a record (`{ payload, recordDate, parentId, vaultEpoch, reminder? }` — `recordDate` (`YYYY-MM-DD`) and `parentId` (portfolio for `holding`/`transaction`/`portfolio_layout`/`risk_profile`, required; section for `expense`, required) are plaintext; optional `reminder` for `loan`, `cheque` or `subscription` upserts or deletes the plaintext reminder index row in the same batch; `vaultEpoch`, the vault's `createdAt` the record was encrypted for, is refused with `409 VAULT_CHANGED` after a reset) |
 | `DELETE` | `/api/v1/vault/records/:kind/:id` | Delete a record (also deletes its reminder row in the same batch) |
 | `POST` | `/api/v1/vault/records/:kind/delete` | Delete several records of one kind at once: `{ ids }`, up to 100, all or none in one batch (reminder rows and tombstones as for the single delete). `{ success, deleted }` — how many existed |
 | `GET` | `/api/v1/vault/sync` | Incremental sync for devices keeping a copy (the Android app, offline): every change after `?cursor` (`time\|kind\|id`, empty = from the start), oldest first, `?limit` 1–500 (default 200). `{ epoch, records: [{kind, id, payload, recordDate, parentId, createdAt, updatedAt}], deleted: [{kind, id, deletedAt}], cursor, more, reset? }` — a different `epoch` (the vault was recreated) or `reset` (cursor older than the 180 days of tombstones kept) means start over. Only kinds the user's features allow |
@@ -348,7 +264,6 @@ A feature can be open to every user or only to the members of some groups (rules
 | `POST` | `/api/v1/admin/users/signout` | `{ userId }` — end all of the user's sessions |
 | `POST` | `/api/v1/admin/users/resend-verification` | `{ userId }` — email the verification link again |
 | `GET` | `/api/v1/admin/growth?days=30` | Daily series `[{ day, signups, active, appActive }]` |
-| `GET` | `/api/v1/admin/users/portfolio` | A user's portfolio summary (`?userId&portfolioId`) |
 | `POST` | `/api/v1/admin/settings` | Save system-wide settings |
 | `GET` | `/api/v1/admin/price-sources` | Every source as the sources page shows it: `{ tickSec, summary: { total, ok, error, stale, pending, off }, sources: [{ id, name, kind (single\|multi\|catalog), kindLabel, quote, quoteLabel, adapterName, category, categoryName, unit, endpoint, series, isActive, isPrimary, isReferenceRate, guard: { maxJumpPct, confirmTicks }, schedule: { status, intervalSec, staleAfterSec, syncedAt, failedAt, error, nextDueAt }, count, held, price, preview }] }` — a catalog sends only its size and three items |
 | `GET` | `/api/v1/admin/price-sources/items?id=` | A source's items as its last sync stored them `{ id, items: [{ id, name, price }] }` (404 for an unknown id) |

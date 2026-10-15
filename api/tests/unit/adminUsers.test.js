@@ -62,7 +62,7 @@ describe('admin users list', () => {
 });
 
 describe('admin user detail', () => {
-  function detailEnv({ vault, plain, vaultRows, e2eePortfolios }) {
+  function detailEnv({ vault, portfolios, vaultRows }) {
     const DB = {
       prepare(sql) {
         const stmt = {
@@ -70,8 +70,7 @@ describe('admin user detail', () => {
           async run() { return {}; },
           async first() {
             if (/FROM users WHERE id = \?/.test(sql)) return { id: 'u1', email: 'u1@example.com', emailVerified: 1, disabled: 0, googleLinked: 1, hasPassword: 0, shareEnabled: 0 };
-            if (/is_e2ee = 1/.test(sql)) return { count: e2eePortfolios };
-            if (/AS activeSessions/.test(sql)) return { ...plain, activeSessions: 1, vaultEnabled: vault ? 1 : 0, activeDays30: 3 };
+            if (/AS activeSessions/.test(sql)) return { portfolios, activeSessions: 1, vaultEnabled: vault ? 1 : 0, activeDays30: 3 };
             return null;
           },
           async all() { return { results: /FROM vault_records/.test(sql) ? vaultRows : [] }; },
@@ -82,30 +81,18 @@ describe('admin user detail', () => {
     return { DB };
   }
 
-  it('counts encrypted records apart from plaintext ones and flags plaintext left behind', async () => {
-    const env = detailEnv({
-      vault: true,
-      plain: { portfolios: 2, holdings: 5, transactions: 0, loans: 0, cheques: 0, incomes: 1 },
-      vaultRows: [{ kind: 'income', count: 36 }, { kind: 'loan', count: 2 }],
-      e2eePortfolios: 2,
-    });
+  it('counts the portfolios and the encrypted records of each kind, never their contents', async () => {
+    const env = detailEnv({ vault: true, portfolios: 2, vaultRows: [{ kind: 'income', count: 36 }, { kind: 'loan', count: 2 }, { kind: 'holding', count: 5 }] });
     const detail = await dbGetUserDetail(env, 'u1');
-    expect(detail.usage.incomes).toBe(1);
-    expect(detail.encrypted).toMatchObject({ incomes: 36, loans: 2, cheques: 0, portfolios: 2 });
-    expect(detail.plaintextPending).toBe(1);
+    expect(detail.vaultEnabled).toBe(true);
+    expect(detail.usage).toMatchObject({ portfolios: 2, incomes: 36, loans: 2, holdings: 5, cheques: 0 });
+    expect(detail.encrypted).toBeUndefined();
   });
 
-  it('never flags plaintext data of an account without the vault', async () => {
-    const env = detailEnv({
-      vault: false,
-      plain: { portfolios: 1, holdings: 0, transactions: 0, loans: 3, cheques: 1, incomes: 10 },
-      vaultRows: [],
-      e2eePortfolios: 0,
-    });
-    const detail = await dbGetUserDetail(env, 'u1');
+  it('tells an account that has not set up the vault yet', async () => {
+    const detail = await dbGetUserDetail(detailEnv({ vault: false, portfolios: 0, vaultRows: [] }), 'u1');
     expect(detail.vaultEnabled).toBe(false);
-    expect(detail.plaintextPending).toBe(0);
-    expect(detail.usage.loans).toBe(3);
+    expect(detail.usage.portfolios).toBe(0);
   });
 });
 

@@ -19,9 +19,6 @@
  * Shared by the browser and the API, like the other domain modules.
  */
 
-/** The record sides that link by category */
-export const LINK_SIDES = ['expense', 'income'];
-
 /** What a category links to: the picker each target shows is the form's (CategoryLinkField) */
 export const CATEGORY_LINKS = {
   expense: [

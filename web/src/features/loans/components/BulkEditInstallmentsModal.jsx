@@ -7,7 +7,7 @@
  * rate-derived baseline, which would ignore extra payments or prior customization). Already-paid
  * installments are shown as frozen/read-only and excluded from the split. This is the sole way to
  * edit installment amounts (no single-installment edit exists). Saving switches the loan into
- * "distributed" schedule mode (dbBulkDistributeInstallments), after which the extra-payment flow
+ * "distributed" schedule mode (bulkDistributeInstallmentsDoc), after which the extra-payment flow
  * is disabled in favor of reopening this panel.
  *
  * Its error banner and footer are the entry forms' own (AlertBanner, EntryFormActions).

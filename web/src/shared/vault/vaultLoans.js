@@ -18,9 +18,9 @@ import {
   bulkDistributeInstallmentsDoc,
   addExtraPaymentDoc,
   listExtraPaymentsDoc,
+  loanBankResolver,
   LoanDocumentError,
 } from '../../utils/loanDocument.js';
-import { getBankById, isCustomBankId, matchBankIdByName } from '../../config/banks.config.js';
 import { ensureCustomBanks } from '../banks/useCustomBanks.js';
 import { listVaultRecords, deleteVaultRecord } from './vaultApi.js';
 import { putRecord, backfillRecordDates, backfillReminders } from './vaultRecordMeta.js';
@@ -34,25 +34,9 @@ let docs = new Map();
 
 const notFound = (message = t('وام مورد نظر یافت نشد.')) => new LoanDocumentError(message, 404);
 
-/** Same rules as the server's resolveLoanBank */
+/** The user's banks, for naming a loan's bank (loanBankResolver) */
 async function makeBankResolver() {
-  const customBanks = await ensureCustomBanks().catch(() => []);
-  return ({ bankId, lenderName }) => {
-    const cleanName = String(lenderName || '').trim();
-    const cleanId = String(bankId || '').trim();
-    if (cleanId) {
-      const standard = getBankById(cleanId);
-      if (standard) return { bankId: standard.id, lenderName: standard.name };
-      if (isCustomBankId(cleanId)) {
-        const custom = customBanks.find((b) => b.id === cleanId);
-        if (custom) return { bankId: custom.id, lenderName: custom.name };
-      }
-      throw new LoanDocumentError(t('بانک انتخاب‌شده معتبر نیست.'), 400);
-    }
-    const matched = matchBankIdByName(cleanName);
-    if (matched) return { bankId: matched, lenderName: cleanName || getBankById(matched).name };
-    return { bankId: '', lenderName: cleanName };
-  };
+  return loanBankResolver(await ensureCustomBanks().catch(() => []));
 }
 
 async function loadDocs() {

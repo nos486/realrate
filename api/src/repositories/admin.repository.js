@@ -181,17 +181,7 @@ export async function dbSetUserDisabled(env, userId, disabled) {
   await env.DB.prepare("UPDATE users SET disabled = ? WHERE id = ?").bind(disabled ? 1 : 0, userId).run();
 }
 
-/** Tables counted on the user detail view: [key, table] (all keyed by user_id) */
-const USAGE_TABLES = [
-  ["portfolios", "portfolios"],
-  ["holdings", "portfolio_holdings"],
-  ["transactions", "transactions"],
-  ["loans", "loans"],
-  ["cheques", "cheques"],
-  ["incomes", "incomes"],
-];
-
-/** Encrypted-account record kinds counted like the plain tables above */
+/** Encrypted record kinds counted on the user detail view: kind → usage key */
 const VAULT_KIND_KEYS = {
   loan: "loans",
   cheque: "cheques",
@@ -202,9 +192,6 @@ const VAULT_KIND_KEYS = {
   bank_account: "accounts",
   transfer: "transfers",
 };
-/** Kinds whose plaintext rows are leftovers once the vault is on (portfolio items of a
- *  portfolio still behind its own older passphrase legitimately stay in their tables) */
-const PENDING_KEYS = ["loans", "cheques", "incomes"];
 
 /**
  * One user's account facts and usage counts (never the records themselves)
@@ -219,30 +206,22 @@ export async function dbGetUserDetail(env, userId, { now = Date.now() } = {}) {
   `).bind(userId).first();
   if (!user) return null;
 
-  const usageParts = USAGE_TABLES.map(([key, table]) => `(SELECT COUNT(*) FROM ${table} WHERE user_id = ?1) AS "${key}"`);
   const usageRow = await env.DB.prepare(`
-    SELECT ${usageParts.join(", ")},
+    SELECT (SELECT COUNT(*) FROM portfolios WHERE user_id = ?1) AS portfolios,
            (SELECT COUNT(*) FROM sessions WHERE user_id = ?1 AND expires_at > ?2) AS activeSessions,
            (SELECT COUNT(*) FROM user_vaults WHERE user_id = ?1) AS vaultEnabled,
            (SELECT COUNT(*) FROM user_activity WHERE user_id = ?1 AND day >= ?3) AS activeDays30
   `).bind(userId, now, new Date(now - 29 * DAY_MS).toISOString().slice(0, 10)).first();
 
-  // `usage` counts the plaintext rows; `encrypted` the browser-encrypted vault records of the
-  // same kinds, so the panel can tell stored-encrypted data from data still in plaintext
-  const usage = Object.fromEntries(USAGE_TABLES.map(([key]) => [key, Number(usageRow?.[key]) || 0]));
-  const encrypted = Object.fromEntries(Object.values(VAULT_KIND_KEYS).map((key) => [key, 0]));
-  const vaultEnabled = Number(usageRow?.vaultEnabled) > 0;
+  // How many records of each kind (all encrypted: the counts, never the contents)
+  const usage = { portfolios: Number(usageRow?.portfolios) || 0, ...Object.fromEntries(Object.values(VAULT_KIND_KEYS).map((key) => [key, 0])) };
   const { results: vaultCounts = [] } = await env.DB.prepare(`
     SELECT kind, COUNT(*) AS count FROM vault_records WHERE user_id = ? GROUP BY kind
   `).bind(userId).all();
   for (const { kind, count } of vaultCounts) {
     const key = VAULT_KIND_KEYS[kind];
-    if (key) encrypted[key] += Number(count) || 0;
+    if (key) usage[key] += Number(count) || 0;
   }
-  const encryptedPortfolios = await env.DB.prepare(`
-    SELECT COUNT(*) AS count FROM portfolios WHERE user_id = ? AND is_e2ee = 1
-  `).bind(userId).first();
-  encrypted.portfolios = Number(encryptedPortfolios?.count) || 0;
 
   // The clients the user opens RealRate with (the site, the Android app), most recent first
   const { results: clientRows = [] } = await env.DB.prepare(`
@@ -256,14 +235,8 @@ export async function dbGetUserDetail(env, userId, { now = Date.now() } = {}) {
     passwordUpdatedAt: user.passwordUpdatedAt || "",
     activeSessions: Number(usageRow?.activeSessions) || 0,
     activeDays30: Number(usageRow?.activeDays30) || 0,
-    vaultEnabled,
+    vaultEnabled: Number(usageRow?.vaultEnabled) > 0,
     usage,
-    encrypted,
-    // With the vault on, plaintext loans / incomes / cheques / fixed incomes are leftovers of an
-    // unfinished migration (new ones can only be stored encrypted)
-    plaintextPending: vaultEnabled
-      ? PENDING_KEYS.reduce((sum, key) => sum + (usage[key] || 0), 0)
-      : 0,
   };
 }
 

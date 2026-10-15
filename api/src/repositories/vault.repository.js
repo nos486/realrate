@@ -141,27 +141,6 @@ export async function dbSaveUserVault(env, userId, { salt, wrappedKey, previousW
   return dbGetUserVault(env, userId);
 }
 
-/** Plaintext tables of a user's own data (an empty auto-created portfolio does not count) */
-const PLAINTEXT_DATA_TABLES = ["portfolio_holdings", "transactions", "loans", "incomes", "cheques"];
-
-/** Whether the user has any data stored in the plaintext tables */
-export async function dbUserHasPlaintextData(env, userId) {
-  await ensureSchema(env);
-  const checks = PLAINTEXT_DATA_TABLES.map((table) => `EXISTS (SELECT 1 FROM ${table} WHERE user_id = ?1)`);
-  const row = await env.DB.prepare(`SELECT (${checks.join(" OR ")}) AS has`).bind(userId).first();
-  return Number(row?.has) === 1;
-}
-
-/**
- * With account-wide encryption on, new records are stored only as vault ciphertext — a
- * plaintext create can only come from an outdated client and must not leak data.
- */
-export async function rejectWhenVaultEnabled(env, userId) {
-  if (await dbHasUserVault(env, userId)) {
-    throw new AppError("رمزنگاری سرتاسری حساب فعال است؛ لطفاً صفحه را تازه کنید تا داده رمزنگاری‌شده ذخیره شود.", 409, "VAULT_ENABLED");
-  }
-}
-
 async function requireVault(env, userId) {
   const vault = await dbGetUserVault(env, userId);
   if (!vault) {
@@ -171,18 +150,11 @@ async function requireVault(env, userId) {
 }
 
 /**
- * Tables holding a user's own financial data (plaintext or encrypted) and the vault itself:
- * everything a vault reset deletes. Sign-in, sessions and preferences (the home layout) stay.
+ * Tables holding a user's own financial data and the vault itself: everything a vault reset
+ * deletes. Sign-in, sessions and preferences (the home layout) stay.
  */
 const USER_DATA_TABLES = [
   "portfolios",
-  "portfolio_holdings",
-  "transactions",
-  "loans",
-  "loan_installment_states",
-  "loan_extra_payments",
-  "incomes",
-  "cheques",
   "custom_banks",
   "vault_records",
   "vault_tombstones",
@@ -264,38 +236,11 @@ function parsePage(limit, offset) {
   return { limit: size, offset: skip };
 }
 
-function deletePlainStatements(env, userId, kind, id) {
-  if (kind === "loan") {
-    return [
-      env.DB.prepare(`DELETE FROM loan_installment_states WHERE loan_id = ? AND user_id = ?`).bind(id, userId),
-      env.DB.prepare(`DELETE FROM loan_extra_payments WHERE loan_id = ? AND user_id = ?`).bind(id, userId),
-      env.DB.prepare(`DELETE FROM loans WHERE id = ? AND user_id = ?`).bind(id, userId),
-    ];
-  }
-  if (kind === "cheque") {
-    return [env.DB.prepare(`DELETE FROM cheques WHERE id = ? AND user_id = ?`).bind(id, userId)];
-  }
-  if (kind === "holding") {
-    return [env.DB.prepare(`DELETE FROM portfolio_holdings WHERE id = ? AND user_id = ?`).bind(id, userId)];
-  }
-  if (kind === "transaction") {
-    return [env.DB.prepare(`DELETE FROM transactions WHERE id = ? AND user_id = ?`).bind(id, userId)];
-  }
-  if (kind === "income") {
-    return [env.DB.prepare(`DELETE FROM incomes WHERE id = ? AND user_id = ?`).bind(id, userId)];
-  }
-  // Kinds that were never stored in plaintext (portfolio_layout, expenses) have nothing to delete
-  return [];
-}
-
 /** Records stored in one request at most (dbPutVaultRecords) */
 export const VAULT_BATCH_MAX = 100;
 
-/**
- * One record checked, and the statements that store it (with its reminder and, with
- * `replacePlain`, the delete of its plaintext copy)
- */
-function putRecordStatements(env, userId, kind, id, { payload, replacePlain = false, recordDate = "", parentId = "", reminder } = {}, now) {
+/** One record checked, and the statements that store it (with its reminder) */
+function putRecordStatements(env, userId, kind, id, { payload, recordDate = "", parentId = "", reminder } = {}, now) {
   assertRecordId(id);
   assertPayload(payload);
   const date = parseRecordDate(recordDate);
@@ -342,7 +287,6 @@ function putRecordStatements(env, userId, kind, id, { payload, replacePlain = fa
     }
   }
 
-  if (replacePlain) statements.push(...deletePlainStatements(env, userId, kind, id));
   return { statements, record: { id, kind, payload, recordDate: date, parentId: parent, updatedAt: now } };
 }
 
@@ -357,8 +301,7 @@ async function requireCurrentVault(env, userId, vaultEpoch) {
 }
 
 /**
- * Create or replace an encrypted record. With `replacePlain`, the plaintext record with the same
- * id is deleted in the same batch (used when encrypting existing data).
+ * Create or replace an encrypted record.
  * Optional `reminder` upserts or removes the minimal plaintext reminder row in the same batch.
  */
 export async function dbPutVaultRecord(env, userId, kind, id, { vaultEpoch = "", ...input } = {}) {
@@ -386,8 +329,7 @@ export async function dbPutVaultRecords(env, userId, kind, records, { vaultEpoch
     const id = r?.id;
     if (ids.has(id)) throw AppError.badRequest("یک مورد دو بار فرستاده شده است.");
     ids.add(id);
-    // Encrypting plaintext data stays one record at a time (dbPutVaultRecord)
-    return putRecordStatements(env, userId, kind, id, { ...r, replacePlain: false }, now);
+    return putRecordStatements(env, userId, kind, id, r, now);
   });
   await requireCurrentVault(env, userId, vaultEpoch);
   await env.DB.batch(built.flatMap((b) => b.statements));
@@ -587,20 +529,6 @@ export async function dbExistingVaultRecordIds(env, userId, kind, ids) {
     `SELECT id FROM vault_records WHERE user_id = ? AND kind = ? AND id IN (${marks})`
   ).bind(userId, kind, ...ids).all();
   return new Set((results || []).map((r) => r.id));
-}
-
-/** Tables that held a kind's records in plaintext, before they were stored encrypted */
-const PLAIN_TABLES = { loan: "loans", cheque: "cheques", holding: "portfolio_holdings", transaction: "transactions", income: "incomes" };
-
-/**
- * Whether the record still exists as a plaintext row (only then is storing it with `replacePlain`
- * a migration of existing data rather than a new record)
- */
-export async function dbPlainRecordExists(env, userId, kind, id) {
-  const table = PLAIN_TABLES[kind];
-  if (!table) return false;
-  const row = await env.DB.prepare(`SELECT 1 AS x FROM ${table} WHERE id = ? AND user_id = ?`).bind(id, userId).first();
-  return Boolean(row);
 }
 
 /**

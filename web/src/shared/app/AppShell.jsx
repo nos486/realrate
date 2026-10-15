@@ -60,7 +60,7 @@ export function AppTopBar({ activeTab, navItems = [] }) {
   const hideValues = usePrivacyMode();
   const vault = useVault();
   const { user } = useAuth();
-  const canLock = Boolean(user) && (vault.status === 'unlocked' || vault.legacyUnlocked);
+  const canLock = Boolean(user) && vault.status === 'unlocked';
   const current = navItems.find((i) => i.value === activeTab);
   const isHome = activeTab === 'market';
 
@@ -117,7 +117,7 @@ export function AppBottomNav({ activeTab, navItems = [], onSelect }) {
   const moreItems = navItems.filter((i) => !mainValues.includes(i.value));
   const inMore = !mainValues.includes(activeTab);
   const has = (value) => navItems.some((i) => i.value === value);
-  const canLock = Boolean(user) && (vault.status === 'unlocked' || vault.legacyUnlocked);
+  const canLock = Boolean(user) && vault.status === 'unlocked';
 
   const go = (value) => {
     tap();

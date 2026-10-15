@@ -7,4 +7,3 @@
 export { default as TransactionForm } from './components/TransactionForm.jsx';
 export * from './hooks/useTransactions.js';
 export * from './utils/calculationEngine.js';
-export * from './api/transactionApi.js';
