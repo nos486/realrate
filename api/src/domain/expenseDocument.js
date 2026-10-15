@@ -84,6 +84,7 @@ export const DAILY_EXPENSE_CATEGORIES = [
   { value: 'running_costs', label: t('هزینه‌های جاری') },
   { value: 'investment', label: t('سرمایه‌گذاری') },
   { value: 'cash_management', label: t('مدیریت نقدینگی') },
+  { value: 'rejected', label: t('رد شده') },
   { value: 'other', label: t('سایر') },
 ];
 

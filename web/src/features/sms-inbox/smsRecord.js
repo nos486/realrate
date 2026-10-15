@@ -9,6 +9,9 @@
  * form, and the message leaves the inbox. Before recording automatically, the waiting messages are
  * checked against what is already recorded (recordedCheck.js), so nothing is recorded twice —
  * from another device, or by hand.
+ * - «رد» with «نگه‌داشتن پیامک‌های ردشده» on (app settings, off by default): the dismissed message is
+ *   recorded in «رد شده» (REJECTED_SMS_CATEGORY, outside the totals) instead of being dropped, so
+ *   every message read ends up somewhere; its category can be changed later like any record
  */
 
 import { t } from '../../utils/i18n.js';
@@ -19,7 +22,8 @@ import { createIncomes } from '../../shared/vault/vaultIncomes.js';
 import { getIncomeCategory } from '../incomes/constants/incomeCategories.js';
 import { getAccounts } from '../../shared/vault/vaultAccounts.js';
 import { getPendingSms, getSmsSettings, markSmsHandled, markSmsHandledMany, dropRecordedSms } from '../../shared/native/smsInbox.js';
-import { smsExpenseDraft, smsIncomeDraft } from './smsDrafts.js';
+import { REJECTED_SMS_CATEGORY } from '../../utils/categoryDocument.js';
+import { smsExpenseDraft, smsIncomeDraft, smsProjectExpenseDraft } from './smsDrafts.js';
 import { ensureSmsAccount } from './smsAccounts.js';
 import { findRecorded, sameDayKey } from './recordedCheck.js';
 
@@ -73,9 +77,11 @@ export async function recordSmsLoanDeposit(item, loan) {
  * Record several waiting withdrawals together, each as `recordSmsExpense` would (its account, the
  * category's title), but stored in batches rather than one request each
  * @param {Array<{ fingerprint: string, tx: object }>} items waiting messages
+ * @param {{ accounts?: object[]|null, category?: string, title?: (tx: object) => string }} [options]
+ *   `title`: each expense's title (the category's name unless given)
  * @returns {Promise<number>} how many were recorded
  */
-async function recordSmsExpenses(items, { accounts = [], category = getSmsSettings().recordCategory } = {}) {
+async function recordSmsExpenses(items, { accounts = [], category = getSmsSettings().recordCategory, title = () => getExpenseCategory(category).label } = {}) {
   let recorded = 0;
   // A chunk at a time, each leaving the inbox once stored: a long run never holds the screen, and
   // one that fails midway keeps the rest waiting
@@ -84,7 +90,7 @@ async function recordSmsExpenses(items, { accounts = [], category = getSmsSettin
     const inputs = [];
     for (const item of chunk) {
       const accountId = accounts ? await ensureSmsAccount(item.tx, accounts) : '';
-      inputs.push({ ...smsExpenseDraft(item.tx, accounts || []), accountId, category, title: getExpenseCategory(category).label, currency: 'IRT' });
+      inputs.push({ ...smsExpenseDraft(item.tx, accounts || []), accountId, category, title: title(item.tx), currency: 'IRT' });
     }
     await expensesApi.saveExpenses(inputs);
     markSmsHandledMany(chunk.map((item) => item.fingerprint));
@@ -96,17 +102,17 @@ async function recordSmsExpenses(items, { accounts = [], category = getSmsSettin
 
 /**
  * Record several waiting deposits together as incomes of `category`, a chunk at a time like
- * recordSmsExpenses
+ * recordSmsExpenses (`title` too)
  * @returns {Promise<number>} how many were recorded
  */
-async function recordSmsIncomes(items, { accounts = [], category = getSmsSettings().incomeCategory } = {}) {
+async function recordSmsIncomes(items, { accounts = [], category = getSmsSettings().incomeCategory, title = () => getIncomeCategory(category).label } = {}) {
   let recorded = 0;
   for (let i = 0; i < items.length; i += RECORD_CHUNK) {
     const chunk = items.slice(i, i + RECORD_CHUNK);
     const inputs = [];
     for (const item of chunk) {
       const accountId = accounts ? await ensureSmsAccount(item.tx, accounts) : '';
-      inputs.push({ ...smsIncomeDraft(item.tx, accounts || []), accountId, category, title: getIncomeCategory(category).label, currency: 'IRT' });
+      inputs.push({ ...smsIncomeDraft(item.tx, accounts || []), accountId, category, title: title(item.tx), currency: 'IRT' });
     }
     await createIncomes(inputs);
     markSmsHandledMany(chunk.map((item) => item.fingerprint));
@@ -114,6 +120,22 @@ async function recordSmsIncomes(items, { accounts = [], category = getSmsSetting
     await new Promise((resolve) => setTimeout(resolve, 0));
   }
   return recorded;
+}
+
+/**
+ * «رد» with «نگه‌داشتن پیامک‌های ردشده» on: the dismissed messages recorded in «رد شده» — withdrawals
+ * as everyday expenses, deposits as incomes — outside the totals and tied to no account (a message
+ * set aside never moves a balance), titled after the message («برداشت <bank>», the deposit's
+ * description) so each can be told apart and moved to a real category later. Needs the vault open.
+ * @param {Array<{ fingerprint: string, tx: object }>} items waiting messages
+ * @returns {Promise<number>} how many were recorded
+ */
+export async function recordSmsRejected(items) {
+  const byOrder = [...items].reverse();
+  const options = { accounts: null, category: REJECTED_SMS_CATEGORY };
+  const expenses = await recordSmsExpenses(byOrder.filter((p) => p.tx?.direction === 'debit'), { ...options, title: (tx) => smsProjectExpenseDraft(tx).title });
+  const incomes = await recordSmsIncomes(byOrder.filter((p) => p.tx?.direction === 'credit'), { ...options, title: (tx) => smsIncomeDraft(tx).title });
+  return expenses + incomes;
 }
 
 async function accountsOrNone() {

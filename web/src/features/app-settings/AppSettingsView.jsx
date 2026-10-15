@@ -4,7 +4,8 @@
  * - Bank SMS: automatic reading on/off (a notification for each bank message as it arrives);
  *   the messages wait on the «پیامک‌های بانکی» page, which also reads older ones on request.
  *   Small withdrawals: recorded by themselves up to an amount (off by default), in a category
- *   that «ثبت سریع» uses too (features/sms-inbox/smsRecord.js)
+ *   that «ثبت سریع» uses too (features/sms-inbox/smsRecord.js). «نگه‌داشتن پیامک‌های ردشده» (off by
+ *   default): what «رد» dismisses is recorded in «رد شده», outside the totals, instead of dropped
  * - «حذف ثبت‌های خودکار پیامک»: deletes the expenses and incomes made from bank SMS in a date range
  *   (never hand-entered ones), after showing how many and asking to confirm (smsRecordsCleanup.js)
  * - Fingerprint: open the encrypted data with the fingerprint instead of the passphrase
@@ -224,6 +225,21 @@ function SmsIncomeRecordSettings({ settings }) {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/** «نگه‌داشتن پیامک‌های ردشده»: dismissed messages kept in «رد شده» rather than dropped (off by default) */
+function SmsRejectedSettings({ settings }) {
+  return (
+    <div className="app-setting-block">
+      <div className="app-setting-row">
+        <div>
+          <strong>{t('نگه‌داشتن پیامک‌های ردشده')}</strong>
+          <p>{t('پیامک‌هایی که «رد» می‌کنید به‌جای کنار گذاشته شدن، در دسته‌ی «رد شده» (هزینه یا درآمد) ثبت می‌شوند تا همه یک‌جا بمانند. این دسته جزو جمع‌ها، نمودارها و بودجه نیست، به حسابی وصل نمی‌شود و هر وقت بخواهید می‌توانید دسته‌ی هر کدام را عوض کنید.')}</p>
+        </div>
+        <Switch checked={settings.keepRejected} onChange={(on) => setSmsSettings({ keepRejected: on })} label={t('نگه‌داشتن پیامک‌های ردشده')} />
+      </div>
     </div>
   );
 }
@@ -620,6 +636,7 @@ export default function AppSettingsView({ onOpenSms }) {
 
           <SmsRecordSettings key={settings.autoRecordMax} settings={settings} />
           <SmsIncomeRecordSettings key={`income-${settings.autoRecordIncomeMax}`} settings={settings} />
+          <SmsRejectedSettings settings={settings} />
 
           {permission === 'denied' && (
             <AlertBanner type="warning" message={t('اجازه‌ی خواندن پیامک داده نشده است. از تنظیمات گوشی (برنامه‌ها ← RealRate ← مجوزها ← پیامک) آن را بدهید.')} />

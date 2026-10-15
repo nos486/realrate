@@ -9,6 +9,8 @@
  * - "read earlier messages": automatic reading only picks up messages from the moment it is on;
  *   older ones are read here on demand: the last 24 hours, 7, 30 or 90 days, a year, or any number
  *   of days the user types («دلخواه», up to MAX_READ_DAYS; a long span is read a window at a time)
+ * With «نگه‌داشتن پیامک‌های ردشده» on (app settings), «رد» / «رد همه» record the messages in «رد شده»
+ * (outside the totals, smsRecord.js recordSmsRejected) instead of dropping them.
  * Recording writes encrypted records, so the vault must be unlocked for it. Once it is, messages
  * already recorded (recordedCheck.js) leave the list — by their transaction key, or a
  * hand-recorded expense/income of the same day, amount and kind.
@@ -38,7 +40,7 @@ import TransferForm from '../accounts/components/TransferForm.jsx';
 import { saveTransfer } from '../../shared/vault/vaultTransfers.js';
 import { smsExpenseDraft, smsProjectExpenseDraft, smsIncomeDraft, smsTransferDraft, findTransferCounterpart } from './smsDrafts.js';
 import { ensureSmsAccount } from './smsAccounts.js';
-import { saveSmsExpense, recordSmsExpense, dropAlreadyRecorded, autoRecordSms } from './smsRecord.js';
+import { saveSmsExpense, recordSmsExpense, recordSmsRejected, dropAlreadyRecorded, autoRecordSms } from './smsRecord.js';
 import { getExpenseCategory } from '../expenses/constants/expenseCategories.js';
 import { bumpVaultEpoch } from '../../shared/vault/vaultStore.js';
 import { DateField } from '../../shared/form/index.js';
@@ -110,7 +112,7 @@ export default function SmsInboxPage() {
   const [transferDraft, setTransferDraft] = useState(null); // { draft, items: [message, counterpart?] }
 
   const locked = vaultStatus === 'locked';
-  const { pending } = useSmsInbox();
+  const { pending, settings: smsSettings } = useSmsInbox();
   const pendingIds = pending.map((p) => p.fingerprint).join(',');
 
   // Messages already recorded (from an SMS here or on another device, or by hand: the same day,
@@ -194,6 +196,21 @@ export default function SmsInboxPage() {
     }
   };
 
+  /** «رد» / «رد همه» with «رد شده» kept: recorded there (the vault must be open), else they wait */
+  const handleReject = async (items) => {
+    if (locked || readOnly) {
+      toast.error(t('برای انتقال به «رد شده»، اطلاعات رمزنگاری‌شده را باز کنید.'));
+      return;
+    }
+    try {
+      const n = await recordSmsRejected(items);
+      bumpVaultEpoch();
+      toast.success(t('{n} پیامک در «رد شده» ثبت شد.', { n: n.toLocaleString(intlLocale()) }));
+    } catch (err) {
+      toast.error(err?.message || t('ثبت در «رد شده» ممکن نشد.'));
+    }
+  };
+
   /** A message dismissed by mistake: back in the inbox, ready to record or edit */
   const handleRestore = (item) => {
     if (!restoreSms(item)) return;
@@ -271,6 +288,7 @@ export default function SmsInboxPage() {
           onShareDeposit={setShareItem}
           onRecordToProject={setProjectItem}
           onTransfer={accounts.filter((a) => !a.archived).length >= 2 ? handleTransfer : undefined}
+          onReject={smsSettings.keepRejected ? handleReject : undefined}
           canRecord={!locked && !readOnly}
         />
       </Card>

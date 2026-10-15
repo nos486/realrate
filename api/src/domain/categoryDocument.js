@@ -14,6 +14,11 @@
  * Those are excluded by default; any category can be switched. A stored item without the field
  * keeps the built-in's default.
  *
+ * «رد شده» (REJECTED_SMS_CATEGORY): bank SMS the user dismissed, kept as records when the app
+ * setting asks for it (features/sms-inbox/smsRecord.js). Excluded, and hidden from the pickers by
+ * default (`hidden` on a built-in is its default, like `excluded`): nothing is put there by hand
+ * unless the user shows it.
+ *
  * `retired`: a built-in no longer offered — never in a picker or in «دسته‌ها», only shown on the
  * older records that have it, always out of the totals. «مدیریت نقدینگی» (money moved between the
  * user's own accounts) is retired: such a move is a transfer between the accounts, never an
@@ -34,6 +39,8 @@ export const CATEGORY_RECORD_KIND = 'category_settings';
 export const CATEGORY_RECORD_ID = 'main';
 export const CUSTOM_CATEGORY_RE = /^c_[a-z0-9]{4,16}$/;
 export const FALLBACK_CATEGORY = 'other';
+/** Where dismissed bank SMS are kept, as an expense or an income, when the app setting is on */
+export const REJECTED_SMS_CATEGORY = 'rejected';
 
 export const CATEGORY_LIMITS = { labelLength: 30, customPerKind: 50 };
 
@@ -45,7 +52,7 @@ export const CATEGORY_ICON_NAMES = [
   'Coffee', 'Fuel', 'Bus', 'Baby', 'PawPrint', 'Dumbbell', 'Shirt', 'Smartphone', 'Book',
   'Music', 'Film', 'Gamepad2', 'Wrench', 'Hammer', 'Pill', 'Stethoscope', 'Scissors', 'Sparkles',
   'Users', 'PiggyBank', 'Wallet', 'CreditCard', 'Building2', 'Tag', 'Star', 'Heart', 'Zap',
-  'FileCheck',
+  'FileCheck', 'Ban',
 ];
 
 export const CATEGORY_COLORS = [
@@ -77,6 +84,7 @@ const SOURCE_BUILTINS = {
     { value: 'investment', label: msg('سرمایه‌گذاری'), icon: 'TrendingUp', color: '#34d399', excluded: true },
     // Retired: a move between the user's own accounts is a transfer
     { value: 'cash_management', label: msg('مدیریت نقدینگی'), icon: 'Wallet', color: '#22d3ee', excluded: true, retired: true },
+    { value: REJECTED_SMS_CATEGORY, label: msg('رد شده'), icon: 'Ban', color: '#64748b', excluded: true, hidden: true },
     { value: 'other', label: msg('سایر'), icon: 'CircleEllipsis', color: '#94a3b8' },
   ],
   income: [
@@ -94,6 +102,7 @@ const SOURCE_BUILTINS = {
     { value: 'credit_settlement', label: msg('تسویه بدهی اعتباری'), icon: 'CreditCard', color: '#60a5fa', excluded: true },
     { value: 'small_income', label: msg('درآمد خرد'), icon: 'HandCoins', color: '#a3e635' },
     { value: 'loan_received', label: msg('دریافت وام'), icon: 'Landmark', color: '#fb923c', excluded: true },
+    { value: REJECTED_SMS_CATEGORY, label: msg('رد شده'), icon: 'Ban', color: '#64748b', excluded: true, hidden: true },
     { value: 'other', label: msg('سایر'), icon: 'CircleDollarSign', color: '#94a3b8' },
   ],
 };
@@ -150,7 +159,7 @@ export function validateCategoryList(kind, list) {
     labels.add(label);
     const icon = ICON_SET.has(raw?.icon) ? raw.icon : (builtin?.icon || 'Tag');
     const color = COLOR_RE.test(String(raw?.color ?? '')) ? String(raw.color).toLowerCase() : (builtin?.color || '#94a3b8');
-    const hidden = key !== FALLBACK_CATEGORY && Boolean(raw?.hidden);
+    const hidden = key !== FALLBACK_CATEGORY && (raw?.hidden === undefined ? Boolean(builtin?.hidden) : Boolean(raw.hidden));
     const excluded = raw?.excluded === undefined ? Boolean(builtin?.excluded) : Boolean(raw.excluded);
     value.push({ value: key, label, icon, color, hidden, excluded });
   }
@@ -184,7 +193,7 @@ export function mergeCategories(kind, stored) {
   const merged = [
     ...list,
     // Built-ins the stored list doesn't mention yet, before "other" when it is at the end
-    ...builtins.filter((c) => !listed.has(c.value)).map((c) => ({ ...c, hidden: false, excluded: Boolean(c.excluded) })),
+    ...builtins.filter((c) => !listed.has(c.value)).map((c) => ({ ...c, hidden: Boolean(c.hidden), excluded: Boolean(c.excluded) })),
   ].map((c) => {
     // A retired built-in stays as it was made: shown on its old records, out of the totals
     const builtin = builtins.find((b) => b.value === c.value);

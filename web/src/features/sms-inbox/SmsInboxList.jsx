@@ -14,7 +14,9 @@
  * either kind can be «انتقال بین حساب‌های خودم» (`onTransfer`: money moved between the user's own
  * accounts — neither expense nor income). «رد همه» above the list drops every message on show (after a
  * confirmation). «رد» (beside the main action, not in the menu) drops it
- * for good. With messages from more than one bank, pills above the list filter them by bank.
+ * for good — or, when the page gives `onReject` (the «رد شده» setting on), hands the messages to it
+ * instead, to be kept there. With messages from more than one bank, pills above the list filter
+ * them by bank.
  */
 
 import { intlLocale, t } from '../../utils/i18n.js';
@@ -83,9 +85,11 @@ function EnableCard({ onChange }) {
 }
 
 /**
- * @param {{ accounts?: object[], onRecord: (item: object) => void, canRecord?: boolean }} props
+ * @param {{ accounts?: object[], onRecord: (item: object) => void, canRecord?: boolean,
+ *   onReject?: (items: object[]) => Promise<void>|void }} props `onReject`: what «رد» / «رد همه» do
+ *   in place of dropping the messages (kept in «رد شده»)
  */
-export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, quickRecordingId = null, onLoanDeposit, onShareDeposit, onRecordToProject, onTransfer, canRecord = true }) {
+export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, quickRecordingId = null, onLoanDeposit, onShareDeposit, onRecordToProject, onTransfer, onReject, canRecord = true }) {
   const { pending, settings } = useSmsInbox();
   const { confirm, toast } = useFeedback();
   const [permission, setPermission] = useState(null);
@@ -114,13 +118,20 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
 
   /** «رد همه»: after a confirmation, every message of the bank on show (all banks when none is picked) is dismissed */
   const handleDismissAll = async () => {
+    const n = matching.length.toLocaleString(intlLocale());
     const ok = await confirm({
       title: t('رد همه‌ی پیامک‌ها'),
-      message: t('{n} پیامک کنار گذاشته می‌شود و ثبت نمی‌شود. ادامه می‌دهید؟', { n: matching.length.toLocaleString(intlLocale()) }),
+      message: onReject
+        ? t('{n} پیامک در دسته‌ی «رد شده» ثبت می‌شود (جزو جمع‌ها نیست). ادامه می‌دهید؟', { n })
+        : t('{n} پیامک کنار گذاشته می‌شود و ثبت نمی‌شود. ادامه می‌دهید؟', { n }),
       confirmLabel: t('رد همه'),
       danger: true,
     });
     if (!ok) return;
+    if (onReject) {
+      await onReject(matching);
+      return;
+    }
     dismissSmsMany(matching.map((item) => item.fingerprint));
     toast.success(t('{n} پیامک رد شد.', { n: matching.length.toLocaleString(intlLocale()) }));
   };
@@ -211,8 +222,8 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
                 variant="secondary"
                 icon={<X size={14} />}
                 className="sms-inbox-dismiss"
-                onClick={() => dismissSms(item.fingerprint)}
-                title={t('این پیامک کنار گذاشته شود (ثبت نمی‌شود)')}
+                onClick={() => (onReject ? onReject([item]) : dismissSms(item.fingerprint))}
+                title={onReject ? t('این پیامک در دسته‌ی «رد شده» ثبت شود (جزو جمع‌ها نیست)') : t('این پیامک کنار گذاشته شود (ثبت نمی‌شود)')}
               >
                 {t('رد')}
               </Button>
