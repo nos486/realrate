@@ -1,7 +1,13 @@
-# Android app: builds the signed release APK from the web app (web/) and its Android shell (web/android).
-# Push to main publishes a signed release APK when the signing secrets are set (see docs/ANDROID.md).
-# Files of one GitHub release (v1.0.<run>): realrate-<version>.apk (reads bank SMS; also as realrate.apk, the stable name) and realrate-nosms-<version>.apk
-# (no SMS permission, for stores that refuse it), plus realrate-nosms-<version>.aab (the same build as an app bundle, for Google Play). Latest: releases/latest/download/realrate.apk.
+# Android app: the signed release APKs (web app web/ in its Android shell web/android) and the web bundles
+# that update the app's pages without a new APK. Push to main publishes when the signing secrets are set (docs/ANDROID.md).
+# - Web bundles, every run: the app's pages (dist-app) of each flavor, zipped and signed with the APK's own key, on the
+#   moving release `web-bundle` with manifest.json (.github/scripts/web-bundle-manifest.mjs). An installed app takes the
+#   newest one built for its exact native side (WebBundlePlugin.java).
+# - APKs, only when the native side changed (.github/scripts/native-hash.mjs: Java, Android manifest/resources, Gradle,
+#   Capacitor plugins) since the latest release, or when run by hand with "apk". Files of one GitHub release (v1.0.<run>):
+#   realrate-<version>.apk (reads bank SMS; also as realrate.apk, the stable name) and realrate-nosms-<version>.apk
+#   (no SMS permission, for stores that refuse it), plus realrate-nosms-<version>.aab (the same build as an app bundle, for
+#   Google Play), and native-hash.txt. Latest: releases/latest/download/realrate.apk.
 name: Android
 
 on:
@@ -9,6 +15,11 @@ on:
     branches: [main]
     paths: ['web/**', 'api/src/domain/**', 'package-lock.json', '.github/workflows/android.yml', '.github/scripts/**', 'CHANGELOG.md']
   workflow_dispatch:
+    inputs:
+      apk:
+        description: Publish a new APK even if the native side did not change
+        type: boolean
+        default: false
 
 concurrency:
   group: android-${{ github.ref }}
@@ -43,40 +54,81 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Build the web app into the Android project
-        working-directory: web
+      - name: Native side changed? (a new APK only then)
         env:
-          # The app tells the server its version (X-RealRate-Client, for the admin panel)
-          VITE_APP_VERSION: ${{ env.VERSION_NAME }}
+          FORCE_APK: ${{ github.event_name == 'workflow_dispatch' && inputs.apk }}
         run: |
-          npm run build:app
-          npx cap sync android
+          hash=$(node .github/scripts/native-hash.mjs)
+          echo "NATIVE_HASH=$hash" >> "$GITHUB_ENV"
+          released=$(curl -fsSL "https://github.com/$GITHUB_REPOSITORY/releases/latest/download/native-hash.txt" 2>/dev/null | tr -d '[:space:]' || true)
+          if [ "$FORCE_APK" = "true" ] || [ "$hash" != "$released" ]; then build=true; else build=false; fi
+          echo "BUILD_APK=$build" >> "$GITHUB_ENV"
+          echo "Native hash $hash, latest release ${released:-none}: new APK = $build"
 
-      - name: Release APKs (signed)
+      - name: Signing key (the APKs and the web bundles)
         if: env.HAS_SIGNING == 'true'
-        working-directory: web/android
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/release.jks"
-          echo "$KEYSTORE_BASE64" | base64 -d > "$ANDROID_KEYSTORE_PATH"
-          ./gradlew --no-daemon assembleFullRelease -PversionCode=$VERSION_CODE -PversionName=$VERSION_NAME
+          keystore="$RUNNER_TEMP/release.jks"
+          echo "$KEYSTORE_BASE64" | base64 -d > "$keystore"
+          echo "ANDROID_KEYSTORE_PATH=$keystore" >> "$GITHUB_ENV"
+          # The web bundles are signed with the same key; the APK carries its certificate to check them
+          keytool -importkeystore -noprompt -srckeystore "$keystore" -srcstorepass "$ANDROID_KEYSTORE_PASSWORD" \
+            -srcalias "$ANDROID_KEY_ALIAS" -srckeypass "$ANDROID_KEY_PASSWORD" \
+            -destkeystore "$RUNNER_TEMP/bundle.p12" -deststoretype PKCS12 -deststorepass "$ANDROID_KEYSTORE_PASSWORD" -destkeypass "$ANDROID_KEYSTORE_PASSWORD" >/dev/null
+          openssl pkcs12 -in "$RUNNER_TEMP/bundle.p12" -nocerts -nodes -passin env:ANDROID_KEYSTORE_PASSWORD -out "$RUNNER_TEMP/bundle-key.pem"
+          rm -f "$RUNNER_TEMP/bundle.p12"
+          cert=$(keytool -exportcert -keystore "$keystore" -storepass "$ANDROID_KEYSTORE_PASSWORD" -alias "$ANDROID_KEY_ALIAS" | base64 -w0)
+          echo "WEB_BUNDLE_CERT=$cert" >> "$GITHUB_ENV"
+
+      - name: Build the web bundles (and the APKs when the native side changed)
+        working-directory: web
+        env:
+          # The app tells the server its version (X-RealRate-Client, for the admin panel)
+          VITE_APP_VERSION: ${{ env.VERSION_NAME }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          out="$RUNNER_TEMP/out"
+          mkdir -p "$out"
+          gradle_args="--no-daemon -PversionCode=$VERSION_CODE -PversionName=$VERSION_NAME -PnativeHash=$NATIVE_HASH -PwebBundleCert=$WEB_BUNDLE_CERT"
+          # One flavor: its web build, zipped and signed as a web bundle, then (when due) its APK
+          build_flavor() {
+            flavor=$1
+            if [ "$flavor" = "nosms" ]; then VITE_NO_SMS=1 npm run build:app; else npm run build:app; fi
+            zip="$out/web-$VERSION_CODE-$flavor.zip"
+            (cd dist-app && zip -qrX "$zip" .)
+            if [ "$HAS_SIGNING" = "true" ]; then
+              openssl dgst -sha256 -sign "$RUNNER_TEMP/bundle-key.pem" -out "$zip.sig" "$zip"
+            fi
+            if [ "$BUILD_APK" = "true" ]; then
+              npx cap sync android
+              if [ "$HAS_SIGNING" = "true" ]; then
+                (cd android && ./gradlew $gradle_args "$2")
+                if [ -n "$3" ]; then (cd android && ./gradlew $gradle_args "$3"); fi
+              fi
+            fi
+          }
+          build_flavor full assembleFullRelease
           # The no-SMS build: its own web bundle (SMS screens hidden) and manifest (no SMS permission)
-          (cd .. && VITE_NO_SMS=1 npm run build:app && npx cap sync android)
-          ./gradlew --no-daemon assembleNosmsRelease -PversionCode=$VERSION_CODE -PversionName=$VERSION_NAME
-          ./gradlew --no-daemon bundleNosmsRelease -PversionCode=$VERSION_CODE -PversionName=$VERSION_NAME
-          rm -f "$ANDROID_KEYSTORE_PATH"
-          # Files carry the version; realrate.apk stays too (the website's stable download link)
-          cp app/build/outputs/apk/full/release/*.apk "$RUNNER_TEMP/realrate-$VERSION_NAME.apk"
-          cp app/build/outputs/apk/full/release/*.apk "$RUNNER_TEMP/realrate.apk"
-          cp app/build/outputs/apk/nosms/release/*.apk "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.apk"
-          cp app/build/outputs/bundle/nosmsRelease/*.aab "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.aab"
+          build_flavor nosms assembleNosmsRelease bundleNosmsRelease
+          rm -f "$RUNNER_TEMP/bundle-key.pem" "$ANDROID_KEYSTORE_PATH"
+          if [ "$BUILD_APK" = "true" ] && [ "$HAS_SIGNING" = "true" ]; then
+            # Files carry the version; realrate.apk stays too (the website's stable download link)
+            cp android/app/build/outputs/apk/full/release/*.apk "$RUNNER_TEMP/realrate-$VERSION_NAME.apk"
+            cp android/app/build/outputs/apk/full/release/*.apk "$RUNNER_TEMP/realrate.apk"
+            cp android/app/build/outputs/apk/nosms/release/*.apk "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.apk"
+            cp android/app/build/outputs/bundle/nosmsRelease/*.aab "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.aab"
+            echo "$NATIVE_HASH" > "$RUNNER_TEMP/native-hash.txt"
+          fi
 
       - uses: actions/upload-artifact@v4
-        if: env.HAS_SIGNING == 'true'
+        if: env.HAS_SIGNING == 'true' && env.BUILD_APK == 'true'
         with:
           name: realrate-release-${{ env.VERSION_NAME }}
           path: |
@@ -87,11 +139,11 @@ jobs:
           retention-days: 90
 
       - name: Release notes (only what changed since the last release)
-        if: env.HAS_SIGNING == 'true'
+        if: env.HAS_SIGNING == 'true' && env.BUILD_APK == 'true'
         run: node .github/scripts/release-notes.mjs "$VERSION_NAME" "$RUNNER_TEMP/release_notes.md"
 
       - name: Publish the signed APKs as a release
-        if: env.HAS_SIGNING == 'true'
+        if: env.HAS_SIGNING == 'true' && env.BUILD_APK == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -103,12 +155,36 @@ jobs:
           fi
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             # A re-run (or a publish that failed half way): replace the file, make sure it is out
-            gh release upload "$tag" "$RUNNER_TEMP/realrate-$VERSION_NAME.apk" "$RUNNER_TEMP/realrate.apk" "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.apk" "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.aab" --repo "$GITHUB_REPOSITORY" --clobber
+            gh release upload "$tag" "$RUNNER_TEMP/realrate-$VERSION_NAME.apk" "$RUNNER_TEMP/realrate.apk" "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.apk" "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.aab" "$RUNNER_TEMP/native-hash.txt" --repo "$GITHUB_REPOSITORY" --clobber
             gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest \
               --title "RealRate $VERSION_NAME" \
               --notes-file "$RUNNER_TEMP/release_notes.md"
           else
-            gh release create "$tag" "$RUNNER_TEMP/realrate-$VERSION_NAME.apk" "$RUNNER_TEMP/realrate.apk" "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.apk" "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.aab" --repo "$GITHUB_REPOSITORY" --verify-tag --latest \
+            gh release create "$tag" "$RUNNER_TEMP/realrate-$VERSION_NAME.apk" "$RUNNER_TEMP/realrate.apk" "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.apk" "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.aab" "$RUNNER_TEMP/native-hash.txt" --repo "$GITHUB_REPOSITORY" --verify-tag --latest \
               --title "RealRate $VERSION_NAME" \
               --notes-file "$RUNNER_TEMP/release_notes.md"
           fi
+
+      # After the APKs: a web bundle must never name a native hash no released APK has yet
+      - name: Publish the web bundles
+        if: env.HAS_SIGNING == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=web-bundle
+          out="$RUNNER_TEMP/out"
+          node .github/scripts/web-bundle-manifest.mjs "$VERSION_CODE" "$NATIVE_HASH" "$out" "$out/manifest.json" full nosms
+          if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease --latest=false \
+              --title "Web bundles" --notes "The app's pages, updated without a new APK (docs/en/ANDROID.md). Not for download."
+          fi
+          # The zips first, the manifest that names them last
+          gh release upload "$tag" "$out/web-$VERSION_CODE-full.zip" "$out/web-$VERSION_CODE-nosms.zip" --repo "$GITHUB_REPOSITORY" --clobber
+          gh release upload "$tag" "$out/manifest.json" --repo "$GITHUB_REPOSITORY" --clobber
+          # Older zips: an app mid-download may still need the previous build's
+          for name in $(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name'); do
+            build=$(echo "$name" | sed -n 's/^web-\([0-9]*\)-.*\.zip$/\1/p')
+            if [ -n "$build" ] && [ "$build" -lt $((VERSION_CODE - 1)) ]; then
+              gh release delete-asset "$tag" "$name" --repo "$GITHUB_REPOSITORY" --yes
+            fi
+          done

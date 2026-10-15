@@ -2,7 +2,7 @@
 
 Persian: [../ANDROID.md](../ANDROID.md)
 
-The Android app is the same web app (`web/`) packaged in an Android shell (`web/android`) with [Capacitor](https://capacitorjs.com). Every new website feature is in the app with the next build; only native abilities (like reading SMS) have their own Android code.
+The Android app is the same web app (`web/`) packaged in an Android shell (`web/android`) with [Capacitor](https://capacitorjs.com). Every new website feature reaches the installed app as a web bundle, without a new APK ([Updates without a new APK](#updates-without-a-new-apk-web-bundles)); only native abilities (like reading SMS) have their own Android code, and only a change there needs a new APK.
 
 ## Structure
 
@@ -12,9 +12,9 @@ The Android app is the same web app (`web/`) packaged in an Android shell (`web/
 | `web/android/` | The Android project (Gradle). Icons in `app/src/main/res/mipmap-*` |
 | `web/src/shared/native/nativeApp.js` | What differs in the app: no service worker, colors, share links to the website, Google sign-in |
 | `api/src/lib/appAuth.js` | Google sign-in from the app (one-time code) |
-| `.github/workflows/android.yml` | Automatic APK builds |
+| `.github/workflows/android.yml` | Automatic APK builds and web bundles |
 
-- The app's pages load from the phone (not from the website): fast, offline, and the encryption code is exactly what shipped with the app. Their origin is `https://localhost`, which the API accepts.
+- The app's pages load from the phone (not from the website): fast and offline. They are the pages built into the APK, or a newer signed web bundle the app downloaded (below); either way the encryption code is only ever code signed with the app's own key. Their origin is `https://localhost`, which the API accepts.
 - A guest in the app doesn't see the landing page and goes straight to sign-in.
 - Android's status and navigation bars stay visible and the page sits between them: the app build (`vite build --mode app`) removes `viewport-fit=cover` from `index.html`, otherwise Capacitor draws the page under the status bar (Android 15+).
 - **Setup after installing** (`shared/app/AppSetupPrompt.jsx`): the first time a user's records are open in the app, a sheet offers reading bank SMS and opening with the fingerprint; «فعال کن» sends both requests in turn (Android's SMS and notification permission, then the fingerprint), «بعداً» closes it. Shown once per user on each phone, offering only what is not on yet; both are in the app settings too.
@@ -41,7 +41,8 @@ Email and password sign-in works as on the site. Email links (verification, pass
 
 ### Automatic (GitHub Actions)
 
-- Every merge into `main`: a signed release APK (when the signing key is configured) is published in the repository's **Releases** (`v1.0.<run number>`, asset `realrate.apk`), with release notes holding only this release's changes: the lines added to `CHANGELOG.md` since the previous release (or, with none, the commit subjects since then) — `.github/scripts/release-notes.mjs`. The stable link to the latest version, for direct download on a phone: `https://github.com/nos486/realrate/releases/latest/download/realrate.apk`
+- Every merge into `main` publishes the app's pages as signed web bundles (below). A new APK is built only when the **native side** changed since the latest release: `.github/scripts/native-hash.mjs` hashes every tracked file under `web/android`, `web/capacitor.config.json` and the `@capacitor/*` versions in `package-lock.json`, and the release keeps it as `native-hash.txt`. Running the workflow by hand with «apk» forces an APK.
+- When an APK is due: a signed release APK (when the signing key is configured) is published in the repository's **Releases** (`v1.0.<run number>`, asset `realrate.apk`), with release notes holding only this release's changes: the lines added to `CHANGELOG.md` since the previous release (or, with none, the commit subjects since then) — `.github/scripts/release-notes.mjs`. The stable link to the latest version, for direct download on a phone: `https://github.com/nos486/realrate/releases/latest/download/realrate.apk`
 - Versioning: `versionCode` = the Actions run number, `versionName` = `1.0.<number>`; each build installs over the previous one.
 
 ### Signing key (once)
@@ -83,6 +84,22 @@ cd android && ./gradlew assembleDebug   # → app/build/outputs/apk/debug/app-de
 - **Knowing the app's users**: each app request carries `X-RealRate-Client: android/<version>`, and the admin panel shows active app users, each user's version and how many users are on each version ([FEATURES.md](FEATURES.md), section 12). The version is set by `VITE_APP_VERSION` at build time.
 
 - **Automatic updates** (not in the no-SMS build, which has no `REQUEST_INSTALL_PACKAGES` and no update banner or settings, since the store delivers its updates): every time the app opens and every time it comes back (even when a newer version is already known, since an even newer one may be out) the app asks `GET /api/app/latest` for the latest release (the server reads GitHub and keeps it in D1 for 5 minutes; `api/src/handlers/appUpdateRoutes.js`). When the release's version (from its `v<versionName>` tag) is newer than the installed one, a «نسخه‌ی … آماده است» banner shows at the top, and tapping it opens the «نسخه‌ی جدید» prompt with the CHANGELOG notes; «به‌روزرسانی» asks once more and downloads the newest APK inside the app (`AppUpdatePlugin.java`, with progress), checks it is this app and newer, and opens Android's installer (the download holds a wake lock so a screen-off does not stall it; if it finishes while the app is in the background, the installer opens when the app comes back, because Android drops installers launched from the background). Android asks once for "install unknown apps" (`REQUEST_INSTALL_PACKAGES`) and installs only an APK signed with the same key, over the app (data is kept). the banner's × hides it until the app opens again; in the app settings the automatic check can be turned off, and «بررسی به‌روزرسانی» checks right away. App side: `web/src/shared/native/appUpdate.js`.
+
+## Updates without a new APK (web bundles)
+
+| File | What it is |
+|---|---|
+| `.github/workflows/android.yml` | Builds, zips and signs the pages of each flavor; publishes them on the release `web-bundle` |
+| `.github/scripts/web-bundle-manifest.mjs` | `manifest.json`: build number, native hash, and each flavor's zip, size and signature |
+| `web/android/.../WebBundlePlugin.java` | The `WebBundle` plugin: downloads, checks and unpacks a bundle; picks the pages at each start |
+| `web/src/shared/native/webBundle.js` | Looks for a bundle when the app opens and comes back (at most every 10 minutes); confirms the pages started |
+
+- **Which bundle**: the app reads `https://github.com/nos486/realrate/releases/download/web-bundle/manifest.json` and takes its own flavor's zip only when the manifest's native hash is the one built into the APK (`BuildConfig.NATIVE_HASH`), and the build is newer than the APK and than the bundle in use. An APK with another native side ignores bundles until it is updated (the usual APK update prompt offers it).
+- **Signed**: each zip is signed (SHA-256) with the APK's own signing key, and the APK carries that key's certificate (`BuildConfig.WEB_BUNDLE_CERT`); a zip that does not verify is dropped before it is unpacked. Local builds have neither the hash nor the certificate and never take a bundle. No new secret: CI derives both from the existing keystore secrets.
+- **When it applies**: it downloads in the background and is used from the **next start** of the app (`prepare()` in `MainActivity`, before Capacitor loads; Capacitor's own `serverBasePath`), never in the middle of a session.
+- **Safe rollback**: the new pages call `WebBundle.ready()` once they have run for a few seconds; a bundle that starts twice without it is dropped (never retried) and the last good pages come back. A new APK drops every bundle and starts from its own pages.
+- **Still needs a new APK**: Java plugins, `AndroidManifest.xml` (permissions), icons and widget layouts, Gradle, `capacitor.config.json` and adding or upgrading a Capacitor plugin.
+- The version the app reports (`X-RealRate-Client`, the admin panel) is the pages' build; the APK update prompt compares the APK's own version.
 
 ## App settings (app only)
 
