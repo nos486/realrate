@@ -114,4 +114,9 @@ export default {
   'واریز {bank}': '{bank} deposit',
   'دریافت وام {title}': 'Loan received: {title}',
   '{n} تراکنش کوچک از پیامک خودکار ثبت شد.': '{n} small transactions recorded automatically from SMS.',
+  '{n} پیامک در دسته‌ی «رد شده» ثبت می‌شود (جزو جمع‌ها نیست). ادامه می‌دهید؟': '{n} SMS will be recorded in "Dismissed" (not counted in the totals). Continue?',
+  'این پیامک در دسته‌ی «رد شده» ثبت شود (جزو جمع‌ها نیست)': 'Record this SMS in "Dismissed" (not counted in the totals)',
+  'برای انتقال به «رد شده»، اطلاعات رمزنگاری‌شده را باز کنید.': 'Unlock your encrypted data to move SMS to "Dismissed".',
+  '{n} پیامک در «رد شده» ثبت شد.': '{n} SMS recorded in "Dismissed".',
+  'ثبت در «رد شده» ممکن نشد.': 'Could not record in "Dismissed".',
 };

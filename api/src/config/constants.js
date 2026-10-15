@@ -42,6 +42,7 @@ export const INCOME_CATEGORIES = [
   "credit_settlement",
   "loan_received",
   "small_income",
+  "rejected",
   "other",
 ];
 

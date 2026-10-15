@@ -145,4 +145,6 @@ export default {
   'این نسخه بدون پیامک است. برای داشتن ویژگی‌های بیشتر (مثل خواندن خودکار پیامک بانک) نسخه‌ی گیت‌هاب را نصب کنید.': 'This version has no SMS access. For more features (like automatic bank SMS reading), install the GitHub version.',
   'پروژه در گیت‌هاب': 'Project on GitHub',
   'دانلود آخرین نسخه': 'Download the latest version',
+  'نگه‌داشتن پیامک‌های ردشده': 'Keep dismissed SMS',
+  'پیامک‌هایی که «رد» می‌کنید به‌جای کنار گذاشته شدن، در دسته‌ی «رد شده» (هزینه یا درآمد) ثبت می‌شوند تا همه یک‌جا بمانند. این دسته جزو جمع‌ها، نمودارها و بودجه نیست، به حسابی وصل نمی‌شود و هر وقت بخواهید می‌توانید دسته‌ی هر کدام را عوض کنید.': 'SMS you dismiss are recorded in the "Dismissed" category (as an expense or income) instead of being dropped, so they all stay in one place. This category is not counted in totals, charts or budgets, is not tied to any account, and you can change any of them to another category whenever you like.',
 };

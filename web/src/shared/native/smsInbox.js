@@ -129,13 +129,17 @@ export const DEFAULT_AUTO_RECORD_MAX = 500_000;
 /**
  * @returns {{ auto: boolean, lastRead: number, startedAt: number, autoRecord: boolean,
  *   autoRecordIncome: boolean, autoRecordIncomeMax: number, incomeCategory: string,
- *   autoRecordMax: number, quickRecord: boolean, recordCategory: string, disabledBanks: string[] }}
+ *   autoRecordMax: number, quickRecord: boolean, recordCategory: string, keepRejected: boolean,
+ *   disabledBanks: string[] }}
  *   `auto`: automatic reading, on unless turned off; `startedAt`: when it started (it never reads
  *   messages older than that). `autoRecord`: withdrawals up to `autoRecordMax` tomans are recorded
  *   as everyday expenses by themselves (off unless turned on); `quickRecord`: the «ثبت سریع» button
  *   on small withdrawals (off unless turned on: «ثبت» otherwise); `recordCategory`: the category of
  *   those and of «ثبت سریع»; `autoRecordIncome` / `autoRecordIncomeMax` / `incomeCategory`: the same
- *   for deposits, recorded as incomes of that category (off unless turned on); `disabledBanks`: banks whose messages are not read (activeSmsBanks)
+ *   for deposits, recorded as incomes of that category (off unless turned on); `keepRejected`: a
+ *   message dismissed with «رد» / «رد همه» is kept as an expense or income in «رد شده» (outside the
+ *   totals) instead of being dropped (off unless turned on — features/sms-inbox/smsRecord.js);
+ *   `disabledBanks`: banks whose messages are not read (activeSmsBanks)
  */
 export function getSmsSettings() {
   const s = read(SETTINGS_KEY, {});
@@ -150,6 +154,7 @@ export function getSmsSettings() {
     autoRecordIncome: s.autoRecordIncome === true,
     autoRecordIncomeMax: Number(s.autoRecordIncomeMax) > 0 ? Number(s.autoRecordIncomeMax) : DEFAULT_AUTO_RECORD_MAX,
     incomeCategory: typeof s.incomeCategory === 'string' && s.incomeCategory ? s.incomeCategory : 'other',
+    keepRejected: s.keepRejected === true,
     disabledBanks: Array.isArray(s.disabledBanks) ? s.disabledBanks.filter((id) => typeof id === 'string') : [],
   };
 }

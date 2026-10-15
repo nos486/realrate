@@ -44,6 +44,8 @@ const incomes = vi.hoisted(() => ({
   getIncomes: vi.fn(async () => ({ incomes: [] })),
 }));
 vi.mock('../../../web/src/features/incomes/api/incomeApi.js', () => incomes);
+const vaultIncomes = vi.hoisted(() => ({ createIncomes: vi.fn(async (list) => list.map((i, n) => ({ id: `inc_${n}`, ...i }))) }));
+vi.mock('../../../web/src/shared/vault/vaultIncomes.js', () => vaultIncomes);
 const transfers = vi.hoisted(() => ({
   getTransfers: vi.fn(async () => ({ transfers: [] })),
   saveTransfer: vi.fn(async (input) => ({ transfer: { id: 'trf_1', ...input } })),
@@ -60,7 +62,7 @@ vi.mock('react-router-dom', async (importOriginal) => ({ ...(await importOrigina
 import { pickRow } from '../helpers/entryForm.js';
 import SmsInboxPage from '../../../web/src/features/sms-inbox/SmsInboxPage.jsx';
 import { setSmsPlanPro } from '../../../web/src/shared/native/smsPlan.js';
-import { addSmsMessages, getPendingSms } from '../../../web/src/shared/native/smsInbox.js';
+import { addSmsMessages, getPendingSms, setSmsSettings } from '../../../web/src/shared/native/smsInbox.js';
 
 const RECEIVED = new Date(2026, 8, 28, 12, 0).getTime();
 const BLU_DEBIT = 'بلو\nبرداشت پول\nسینا عزیز، 20,000,000 ریال از حساب شما پرید.\nموجودی: 77,436,726 ریال\n۱۰:۴۷\n۱۴۰۵.۰۷.۰۶';
@@ -232,8 +234,26 @@ describe('SmsInboxPage', () => {
     await waitFor(() => expect(screen.getAllByText('رد')).toHaveLength(2));
     fireEvent.click(screen.getAllByText('رد')[0].closest('button'));
     await waitFor(() => expect(getPendingSms()).toHaveLength(1));
+    // Off by default: dropped, nothing recorded
+    expect(expenses.saveExpenses).not.toHaveBeenCalled();
     fireEvent.click(screen.getAllByLabelText('گزینه‌های این پیامک')[0]);
     expect(screen.queryByText('رد این پیامک')).toBeNull();
+  });
+
+  it('with «نگه‌داشتن پیامک‌های ردشده» on, «رد» records the message in «رد شده», tied to no account', async () => {
+    setSmsSettings({ keepRejected: true });
+    render(<SmsInboxPage />);
+    await waitFor(() => expect(screen.getAllByText('رد')).toHaveLength(2));
+    // The withdrawal (newest first), then the deposit
+    fireEvent.click(screen.getAllByText('رد')[0].closest('button'));
+    await waitFor(() => expect(getPendingSms()).toHaveLength(1));
+    expect(expenses.saveExpenses.mock.calls[0][0]).toEqual([expect.objectContaining({
+      amount: 2000000, category: 'rejected', accountId: '', title: 'برداشت بلو', smsKey: 'blu|debit|2000000|2026-09-28|10:47',
+    })]);
+    fireEvent.click(screen.getAllByText('رد')[0].closest('button'));
+    await waitFor(() => expect(getPendingSms()).toHaveLength(0));
+    expect(vaultIncomes.createIncomes.mock.calls[0][0]).toEqual([expect.objectContaining({ amount: 250000, category: 'rejected', accountId: '' })]);
+    expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('«رد شده»'));
   });
 });
 

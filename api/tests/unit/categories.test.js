@@ -13,6 +13,7 @@ import {
   splitByExclusion,
   CUSTOM_CATEGORY_RE,
   BUILTIN_CATEGORIES,
+  REJECTED_SMS_CATEGORY,
 } from '../../src/domain/categoryDocument.js';
 import { validateExpense } from '../../src/domain/expenseDocument.js';
 
@@ -186,5 +187,30 @@ describe('built-in «جاری» and «دریافت وام» categories', () => {
     expect(BUILTIN_CATEGORIES.expense.find((c) => c.value === 'running_costs').label).toBe('هزینه‌های جاری');
     expect(isCategoryValue('income', 'loan_received')).toBe(true);
     expect(BUILTIN_CATEGORIES.income.find((c) => c.value === 'loan_received').excluded).toBe(true);
+  });
+});
+
+describe('«رد شده»: where dismissed bank SMS are kept', () => {
+  beforeEach(() => {
+    vault.records = [];
+    store.resetCategories();
+  });
+
+  it('is a built-in of both kinds, outside the totals and hidden from the pickers until shown', async () => {
+    expect(REJECTED_SMS_CATEGORY).toBe('rejected');
+    for (const kind of ['expense', 'income']) {
+      expect(isCategoryValue(kind, 'rejected')).toBe(true);
+      expect(store.isExcludedCategory(kind, 'rejected')).toBe(true);
+      expect(store.listCategories(kind).some((c) => c.value === 'rejected')).toBe(false);
+      expect(store.listCategories(kind, { includeHidden: true }).some((c) => c.value === 'rejected')).toBe(true);
+    }
+    expect(getExpenseCategory('rejected').label).toBe('رد شده');
+    expect(validateExpense({ groupId: 'exg_1', title: 't', amount: 1, date: '2026-09-01', category: 'rejected' }).value.category).toBe('rejected');
+    expect(parseIncomeInput({ title: 't', amount: 1, incomeDate: '2026-09-01', category: 'rejected' }).category).toBe('rejected');
+    // Stored without the field: still hidden; shown by the user: in the pickers
+    expect(validateCategoryList('expense', [{ value: 'rejected', label: 'رد شده' }]).value[0].hidden).toBe(true);
+    vault.records = [{ id: 'main', payload: JSON.stringify({ expense: [{ value: 'rejected', label: 'رد شده', hidden: false }], income: [] }) }];
+    await store.loadCategories(9);
+    expect(store.listCategories('expense').some((c) => c.value === 'rejected')).toBe(true);
   });
 });
