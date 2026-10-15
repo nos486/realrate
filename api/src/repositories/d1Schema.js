@@ -8,7 +8,8 @@
 
 /**
  * @type {Array<{ name: string, columns: string[], ddl: string[],
- *   addColumns?: Array<{ column: string, sql: string }>, afterAddColumns?: string[] }>}
+ *   addColumns?: Array<{ column: string, sql: string }>, afterAddColumns?: string[],
+ *   dropColumns?: string[] }>}
  */
 export const APP_TABLES = [
   {
@@ -81,8 +82,8 @@ export const APP_TABLES = [
   },
   {
     name: "portfolios",
-    columns: ["id", "user_id", "name", "is_default", "share_slug", "share_password", "share_enabled", "is_e2ee",
-      "e2ee_salt", "e2ee_verifier", "e2ee_wrapped_key", "created_at", "updated_at"],
+    columns: ["id", "user_id", "name", "is_default", "share_slug", "share_password", "share_enabled",
+      "e2ee_wrapped_key", "created_at", "updated_at"],
     ddl: [
       `CREATE TABLE IF NOT EXISTS portfolios (
         id TEXT PRIMARY KEY,
@@ -92,82 +93,14 @@ export const APP_TABLES = [
         share_slug TEXT UNIQUE,
         share_password TEXT,
         share_enabled INTEGER DEFAULT 0,
-        is_e2ee INTEGER DEFAULT 0,
-        e2ee_salt TEXT DEFAULT '',
-        e2ee_verifier TEXT DEFAULT '',
         e2ee_wrapped_key TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       )`,
       "CREATE INDEX IF NOT EXISTS idx_portfolios_user ON portfolios(user_id)",
     ],
-  },
-  {
-    name: "portfolio_holdings",
-    columns: ["id", "user_id", "portfolio_id", "asset_id", "amount", "buy_price", "current_price", "buy_date", "notes",
-      "reference_asset_id", "reference_quantity", "created_at", "updated_at"],
-    ddl: [
-      `CREATE TABLE IF NOT EXISTS portfolio_holdings (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        portfolio_id TEXT,
-        asset_id TEXT NOT NULL,
-        amount REAL NOT NULL,
-        buy_price REAL NOT NULL,
-        current_price REAL DEFAULT 0,
-        buy_date TEXT DEFAULT '',
-        notes TEXT DEFAULT '',
-        reference_asset_id TEXT NOT NULL DEFAULT '',
-        reference_quantity REAL NOT NULL DEFAULT 0,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      )`,
-      "CREATE INDEX IF NOT EXISTS idx_portfolio_holdings_user ON portfolio_holdings(user_id)",
-      "CREATE INDEX IF NOT EXISTS idx_portfolio_holdings_portfolio ON portfolio_holdings(portfolio_id)",
-      "CREATE INDEX IF NOT EXISTS idx_portfolio_holdings_created ON portfolio_holdings(created_at DESC)",
-    ],
-  },
-  {
-    name: "transactions",
-    columns: ["id", "user_id", "portfolio_id", "encrypted_payload", "created_at", "updated_at"],
-    ddl: [
-      `CREATE TABLE IF NOT EXISTS transactions (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        portfolio_id TEXT NOT NULL,
-        encrypted_payload TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      )`,
-      "CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id)",
-      "CREATE INDEX IF NOT EXISTS idx_transactions_portfolio ON transactions(portfolio_id)",
-      "CREATE INDEX IF NOT EXISTS idx_transactions_created ON transactions(created_at DESC)",
-    ],
-  },
-  {
-    name: "loans",
-    columns: ["id", "user_id", "title", "lender_name", "principal_amount", "annual_interest_rate", "installment_count",
-      "interval_months", "start_date", "annual_fee_amount", "schedule_mode", "bank_id", "notes", "created_at", "updated_at"],
-    ddl: [
-      `CREATE TABLE IF NOT EXISTS loans (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        title TEXT NOT NULL,
-        lender_name TEXT DEFAULT '',
-        principal_amount REAL NOT NULL,
-        annual_interest_rate REAL NOT NULL DEFAULT 0,
-        installment_count INTEGER NOT NULL,
-        interval_months INTEGER NOT NULL DEFAULT 1,
-        start_date TEXT NOT NULL,
-        annual_fee_amount REAL NOT NULL DEFAULT 0,
-        schedule_mode TEXT NOT NULL DEFAULT 'formula',
-        bank_id TEXT NOT NULL DEFAULT '',
-        notes TEXT DEFAULT '',
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      )`,
-      "CREATE INDEX IF NOT EXISTS idx_loans_user ON loans(user_id)",
-    ],
+    // The per-portfolio passphrase of the encryption that came before the account vault
+    dropColumns: ["is_e2ee", "e2ee_salt", "e2ee_verifier"],
   },
   {
     name: "custom_banks",
@@ -180,101 +113,6 @@ export const APP_TABLES = [
         created_at TEXT NOT NULL
       )`,
       "CREATE INDEX IF NOT EXISTS idx_custom_banks_user ON custom_banks(user_id)",
-    ],
-  },
-  {
-    name: "loan_installment_states",
-    columns: ["id", "loan_id", "user_id", "installment_number", "due_date", "principal_portion", "interest_portion",
-      "total_amount", "remaining_balance_after", "is_paid", "paid_date", "paid_amount", "is_manual_override",
-      "created_at", "updated_at"],
-    ddl: [
-      `CREATE TABLE IF NOT EXISTS loan_installment_states (
-        id TEXT PRIMARY KEY,
-        loan_id TEXT NOT NULL,
-        user_id TEXT NOT NULL,
-        installment_number INTEGER NOT NULL,
-        due_date TEXT NOT NULL,
-        principal_portion REAL NOT NULL,
-        interest_portion REAL NOT NULL,
-        total_amount REAL NOT NULL,
-        remaining_balance_after REAL NOT NULL,
-        is_paid INTEGER DEFAULT 0,
-        paid_date TEXT DEFAULT '',
-        paid_amount REAL DEFAULT 0,
-        is_manual_override INTEGER DEFAULT 0,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      )`,
-      "CREATE INDEX IF NOT EXISTS idx_loan_installment_states_loan ON loan_installment_states(loan_id)",
-      "CREATE INDEX IF NOT EXISTS idx_loan_installment_states_user ON loan_installment_states(user_id)",
-      "CREATE INDEX IF NOT EXISTS idx_loan_installment_states_due ON loan_installment_states(due_date)",
-    ],
-  },
-  {
-    name: "loan_extra_payments",
-    columns: ["id", "loan_id", "user_id", "amount", "payment_date", "reduction_mode", "notes", "anchor_installment_number",
-      "resulting_balance", "resulting_installment_count", "created_at"],
-    ddl: [
-      `CREATE TABLE IF NOT EXISTS loan_extra_payments (
-        id TEXT PRIMARY KEY,
-        loan_id TEXT NOT NULL,
-        user_id TEXT NOT NULL,
-        amount REAL NOT NULL,
-        payment_date TEXT NOT NULL,
-        reduction_mode TEXT NOT NULL DEFAULT 'reduce_amount',
-        notes TEXT DEFAULT '',
-        anchor_installment_number INTEGER NOT NULL DEFAULT 0,
-        resulting_balance REAL NOT NULL DEFAULT 0,
-        resulting_installment_count INTEGER,
-        created_at TEXT NOT NULL
-      )`,
-      "CREATE INDEX IF NOT EXISTS idx_loan_extra_payments_loan ON loan_extra_payments(loan_id)",
-      "CREATE INDEX IF NOT EXISTS idx_loan_extra_payments_user ON loan_extra_payments(user_id)",
-    ],
-  },
-  {
-    name: "incomes",
-    columns: ["id", "user_id", "title", "category", "amount", "income_date", "notes", "recurring_id", "created_at", "updated_at"],
-    ddl: [
-      `CREATE TABLE IF NOT EXISTS incomes (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        title TEXT NOT NULL,
-        category TEXT NOT NULL DEFAULT 'other',
-        amount REAL NOT NULL,
-        income_date TEXT NOT NULL,
-        notes TEXT DEFAULT '',
-        recurring_id TEXT NOT NULL DEFAULT '',
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      )`,
-      "CREATE INDEX IF NOT EXISTS idx_incomes_user_date ON incomes(user_id, income_date DESC)",
-    ],
-  },
-  {
-    name: "cheques",
-    columns: ["id", "user_id", "direction", "status", "amount", "due_date", "issue_date", "counterparty", "bank_id",
-      "bank_name", "cheque_number", "sayad_id", "notes", "history", "created_at", "updated_at"],
-    ddl: [
-      `CREATE TABLE IF NOT EXISTS cheques (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        direction TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'pending',
-        amount REAL NOT NULL,
-        due_date TEXT NOT NULL,
-        issue_date TEXT DEFAULT '',
-        counterparty TEXT NOT NULL,
-        bank_id TEXT DEFAULT '',
-        bank_name TEXT DEFAULT '',
-        cheque_number TEXT DEFAULT '',
-        sayad_id TEXT DEFAULT '',
-        notes TEXT DEFAULT '',
-        history TEXT NOT NULL DEFAULT '[]',
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL
-      )`,
-      "CREATE INDEX IF NOT EXISTS idx_cheques_user_due ON cheques(user_id, due_date)",
     ],
   },
   {
@@ -628,6 +466,17 @@ export const APP_TABLES = [
     ],
   },
   {
+    // The one-time data changes this database has had (ONE_TIME_CLEANUPS)
+    name: "app_cleanups",
+    columns: ["id", "done_at"],
+    ddl: [
+      `CREATE TABLE IF NOT EXISTS app_cleanups (
+        id TEXT PRIMARY KEY,
+        done_at TEXT NOT NULL
+      )`,
+    ],
+  },
+  {
     // The version of the DDL above that was last applied (see ensureD1Schema)
     name: "app_schema",
     columns: ["id", "version"],
@@ -640,6 +489,48 @@ export const APP_TABLES = [
       "DROP TABLE IF EXISTS pg_migration",
       // Recurring incomes were retired; the table and its rows go with the next schema run
       "DROP TABLE IF EXISTS recurring_incomes",
+      // The plaintext tables from before end-to-end encryption became mandatory: loans, incomes,
+      // cheques and portfolio items are vault records only
+      "DROP TABLE IF EXISTS loan_installment_states",
+      "DROP TABLE IF EXISTS loan_extra_payments",
+      "DROP TABLE IF EXISTS loans",
+      "DROP TABLE IF EXISTS incomes",
+      "DROP TABLE IF EXISTS cheques",
+      "DROP TABLE IF EXISTS portfolio_holdings",
+      "DROP TABLE IF EXISTS transactions",
+    ],
+  },
+];
+
+/** Tables keyed by user_id: every row of a user, wherever it is */
+const USER_ROW_TABLES = () => APP_TABLES.filter((t) => t.columns.includes("user_id") && t.name !== "users").map((t) => t.name);
+
+/** An account that never set up end-to-end encryption (the demo account aside) */
+const UNENCRYPTED_USERS = "SELECT id FROM users WHERE is_demo = 0 AND id NOT IN (SELECT user_id FROM user_vaults)";
+
+/** A portfolio without a data key: from before the account vault, unreadable to the app now */
+const KEYLESS_PORTFOLIOS = "SELECT id FROM portfolios WHERE e2ee_wrapped_key = ''";
+
+/**
+ * Data changes that run once in a database, after the DDL above: each is one batch (one
+ * transaction) that also records its id in app_cleanups, so it never runs again
+ * @type {Array<{ id: string, statements: () => string[] }>}
+ */
+export const ONE_TIME_CLEANUPS = [
+  {
+    // End-to-end encryption is mandatory: accounts without the vault, and portfolios without
+    // a data key, go with everything they hold (2026-10, the owner's decision)
+    id: "2026-10-unencrypted-accounts",
+    statements: () => [
+      ...USER_ROW_TABLES().map((table) => `DELETE FROM ${table} WHERE user_id IN (${UNENCRYPTED_USERS})`),
+      `DELETE FROM users WHERE id IN (${UNENCRYPTED_USERS})`,
+      `DELETE FROM vault_records WHERE parent_id IN (${KEYLESS_PORTFOLIOS})`,
+      `DELETE FROM portfolios WHERE id IN (${KEYLESS_PORTFOLIOS})`,
+      // A user whose default portfolio went: their oldest one left is the default
+      `UPDATE portfolios SET is_default = 1 WHERE id IN (
+        SELECT (SELECT p2.id FROM portfolios p2 WHERE p2.user_id = p.user_id ORDER BY p2.created_at ASC LIMIT 1)
+        FROM portfolios p GROUP BY p.user_id HAVING MAX(p.is_default) = 0
+      )`,
     ],
   },
 ];
@@ -647,7 +538,11 @@ export const APP_TABLES = [
 /** A fingerprint of every DDL statement: any change to the schema above changes it */
 export const SCHEMA_VERSION = (() => {
   let hash = 5381;
-  for (const sql of APP_TABLES.flatMap((t) => [...t.ddl, ...(t.addColumns || []).map((a) => a.sql), ...(t.afterAddColumns || [])])) {
+  const parts = [
+    ...APP_TABLES.flatMap((t) => [...t.ddl, ...(t.addColumns || []).map((a) => a.sql), ...(t.afterAddColumns || []), ...(t.dropColumns || [])]),
+    ...ONE_TIME_CLEANUPS.map((c) => c.id),
+  ];
+  for (const sql of parts) {
     for (let i = 0; i < sql.length; i++) hash = ((hash * 33) ^ sql.charCodeAt(i)) >>> 0;
   }
   return `v1-${hash.toString(36)}`;
@@ -673,6 +568,30 @@ async function addMissingColumns(db) {
   }
 }
 
+/** Columns a table no longer has (SQLite has no DROP COLUMN IF EXISTS) */
+async function dropRemovedColumns(db) {
+  for (const table of APP_TABLES) {
+    if (!table.dropColumns?.length) continue;
+    const { results } = await db.prepare(`SELECT name FROM pragma_table_info('${table.name}')`).all();
+    const have = new Set((results || []).map((r) => r.name));
+    const present = table.dropColumns.filter((column) => have.has(column));
+    if (!present.length) continue;
+    await db.batch(present.map((column) => db.prepare(`ALTER TABLE ${table.name} DROP COLUMN ${column}`)));
+  }
+}
+
+/** The one-time data changes this database has not had yet, each in its own batch */
+async function runOneTimeCleanups(db) {
+  for (const cleanup of ONE_TIME_CLEANUPS) {
+    const done = await db.prepare("SELECT 1 AS x FROM app_cleanups WHERE id = ?").bind(cleanup.id).first();
+    if (done) continue;
+    await db.batch([
+      ...cleanup.statements().map((sql) => db.prepare(sql)),
+      db.prepare("INSERT INTO app_cleanups (id, done_at) VALUES (?, ?)").bind(cleanup.id, new Date().toISOString()),
+    ]);
+  }
+}
+
 /**
  * Create the app's tables if they aren't there (idempotent)
  * @param {{ prepare: Function, batch: Function }} db - the D1 binding
@@ -685,6 +604,8 @@ export function ensureD1Schema(db) {
       // All the DDL in one round trip (D1 runs a batch as one transaction)
       await db.batch(APP_TABLES.flatMap((table) => table.ddl).map((sql) => db.prepare(sql)));
       await addMissingColumns(db);
+      await dropRemovedColumns(db);
+      await runOneTimeCleanups(db);
       await db.prepare(
         "INSERT INTO app_schema (id, version) VALUES (1, ?) ON CONFLICT (id) DO UPDATE SET version = excluded.version"
       ).bind(SCHEMA_VERSION).run();

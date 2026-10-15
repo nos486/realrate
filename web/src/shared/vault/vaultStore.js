@@ -54,7 +54,7 @@ const SESSION_KEY = 'rr_vault_session';
 /**
  * @typedef {'idle'|'loading'|'off'|'locked'|'unlocked'|'error'} VaultStatus
  */
-let state = { status: 'idle', vault: null, error: null, epoch: 0, userId: null, legacyUnlocked: false, hasPlaintextData: false };
+let state = { status: 'idle', vault: null, error: null, epoch: 0, userId: null };
 let dataKey = null;
 // The unwrapped data key (base64), for the Android app's fingerprint unlock (biometricUnlock.js)
 let rawKeyB64 = null;
@@ -149,7 +149,7 @@ export function loadVault(userId, { force = false } = {}) {
         dataKey = null;
         writeSession(null);
         // Encryption is mandatory: an account without data sets it up before anything else
-        setState({ status: 'off', vault: null, hasPlaintextData: Boolean(res?.hasPlaintextData) });
+        setState({ status: 'off', vault: null });
         return state;
       }
       if (dataKey && state.vault?.wrappedKey === vault.wrappedKey) {
@@ -184,12 +184,6 @@ export function loadVault(userId, { force = false } = {}) {
       loadPromise = null;
     });
   return loadPromise;
-}
-
-/** Wait until the vault state is known (not idle/loading) */
-export async function whenVaultReady() {
-  if (loadPromise) await loadPromise;
-  return state;
 }
 
 /** @returns {Promise<boolean>} false when the passphrase is wrong */
@@ -233,32 +227,17 @@ export function lockVault() {
 }
 
 export const LOCK_ALL_EVENT = 'realrate:vault-lock-all';
-const LEGACY_PASS_PREFIX = 'rr_e2ee_pass_';
-
-/** A portfolio with its own (older) passphrase vault was opened in this tab */
-export function markLegacyVaultUnlocked() {
-  if (!state.legacyUnlocked) setState({ legacyUnlocked: true });
-}
-
 /**
- * Lock everything in this tab at once: the account vault and every portfolio opened with its
- * own older passphrase. Screens holding a passphrase key listen for LOCK_ALL_EVENT.
+ * Lock everything in this tab at once: the account vault and every portfolio key unwrapped with
+ * it. Screens holding a key listen for LOCK_ALL_EVENT.
  */
 export function lockAll() {
   rawKeyB64 = null;
-  try {
-    Object.keys(sessionStorage)
-      .filter((key) => key.startsWith(LEGACY_PASS_PREFIX))
-      .forEach((key) => sessionStorage.removeItem(key));
-  } catch {
-    // sessionStorage unavailable — nothing cached to clear
-  }
   dataKey = null;
   portfolioKeys.clear();
   writeSession(null);
   setState({
     status: state.vault ? 'locked' : state.status,
-    legacyUnlocked: false,
     epoch: state.epoch + 1,
   });
   window.dispatchEvent(new Event(LOCK_ALL_EVENT));
@@ -272,7 +251,7 @@ export function resetVault() {
   portfolioKeys.clear();
   loadPromise = null;
   writeSession(null);
-  setState({ status: 'idle', vault: null, error: null, userId: null, legacyUnlocked: false, hasPlaintextData: false, epoch: state.epoch + 1 });
+  setState({ status: 'idle', vault: null, error: null, userId: null, epoch: state.epoch + 1 });
 }
 
 /**
@@ -290,7 +269,7 @@ export async function resetAccountVault({ password } = {}) {
   portfolioKeys.clear();
   loadPromise = null;
   writeSession(null);
-  setState({ status: 'loading', vault: null, legacyUnlocked: false, epoch: state.epoch + 1 });
+  setState({ status: 'loading', vault: null, epoch: state.epoch + 1 });
   return loadVault(userId, { force: true });
 }
 
@@ -301,8 +280,8 @@ function assertPassphrase(passphrase) {
 }
 
 /**
- * Create the account vault (data is migrated separately — see vaultMigration.js). The vault is
- * unlocked right away with the new key.
+ * Create the account vault (the first portfolio comes with it: defaultPortfolio.js). The vault
+ * is unlocked right away with the new key.
  */
 export async function createVault(passphrase) {
   assertPassphrase(passphrase);

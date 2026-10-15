@@ -8,14 +8,6 @@ import {
   e2eeDecryptMany,
   bytesToBase64,
   base64ToBytes,
-  createE2eeVerifier,
-  verifyE2eeKey,
-  encryptHoldingForApi,
-  decryptHoldingFromApi,
-  isHoldingE2eeEncrypted,
-  saveVaultPassphraseToSession,
-  getVaultPassphraseFromSession,
-  clearVaultPassphraseFromSession,
 } from '../../../web/src/lib/e2ee.js';
 
 const PREFIX = 'enc:e2ee:v1:';
@@ -115,123 +107,6 @@ describe('E2EE client crypto (web/src/lib/e2ee.js)', () => {
       expect(await e2eeDecrypt(key, 'plain note')).toBe('plain note');
       expect(await e2eeDecrypt(key, '')).toBe('');
       expect(await e2eeDecrypt(key, null)).toBeNull();
-    });
-  });
-
-  describe('vault verifier', () => {
-    it('accepts the right key and rejects a wrong or missing verifier', async () => {
-      const verifier = await createE2eeVerifier(key);
-      expect(await verifyE2eeKey(key, verifier)).toBe(true);
-      expect(await verifyE2eeKey(otherKey, verifier)).toBe(false);
-      expect(await verifyE2eeKey(key, '')).toBe(false);
-    });
-
-    it('rejects a verifier that decrypts to something else', async () => {
-      const forged = await e2eeEncrypt(key, 'NOT_THE_SIGNATURE');
-      expect(await verifyE2eeKey(key, forged)).toBe(false);
-    });
-  });
-
-  describe('holding encryption for the API', () => {
-    const holding = {
-      id: 'h1',
-      portfolioId: 'p1',
-      assetId: 'gold_18k',
-      assetName: 'طلای ۱۸ عیار',
-      amount: 12.5,
-      buyPrice: 4200000,
-      currentPrice: 4300000,
-      buyDate: '1403/05/10',
-      notes: 'یادداشت محرمانه',
-      referenceAssetId: 'usd',
-      referenceQuantity: 950,
-    };
-
-    it('moves every sensitive field into the ciphertext', async () => {
-      const sent = await encryptHoldingForApi(key, holding);
-      expect(sent).toMatchObject({
-        id: 'h1',
-        portfolioId: 'p1',
-        assetId: 'gold_18k',
-        amount: 0,
-        buyPrice: 0,
-        currentPrice: 0,
-        buyDate: '',
-        referenceAssetId: '',
-        referenceQuantity: 0,
-      });
-      expect(isHoldingE2eeEncrypted(sent)).toBe(true);
-      // The ciphertext (random base64) may contain any digits by chance: only the plain fields count
-      const { notes: cipher, ...plain } = sent;
-      expect(cipher).toMatch(/^enc:e2ee:v1:/);
-      const serialized = JSON.stringify(plain);
-      for (const secret of ['یادداشت محرمانه', '4200000', '1403/05/10', '950']) {
-        expect(serialized).not.toContain(secret);
-      }
-    });
-
-    it('accepts (key, holding) and (holding, key) argument orders', async () => {
-      const a = await encryptHoldingForApi(key, holding);
-      const b = await encryptHoldingForApi(holding, key);
-      expect(await decryptHoldingFromApi(key, a)).toMatchObject({ amount: 12.5 });
-      expect(await decryptHoldingFromApi(b, key)).toMatchObject({ amount: 12.5 });
-    });
-
-    it('refuses to encrypt without a key, whichever argument is missing', async () => {
-      await expect(encryptHoldingForApi(null, holding)).rejects.toThrow();
-      await expect(encryptHoldingForApi(undefined, holding)).rejects.toThrow();
-      await expect(encryptHoldingForApi(holding, null)).rejects.toThrow();
-      await expect(encryptHoldingForApi(holding, { not: 'a key' })).rejects.toThrow();
-    });
-
-    it('returns the holding unchanged when decrypting without a key', async () => {
-      const sent = await encryptHoldingForApi(key, holding);
-      expect(await decryptHoldingFromApi(null, sent)).toBe(sent);
-      expect(await decryptHoldingFromApi(sent, null)).toBe(sent);
-    });
-
-    it('restores the original values on decrypt', async () => {
-      const restored = await decryptHoldingFromApi(key, await encryptHoldingForApi(key, holding));
-      expect(restored).toMatchObject({
-        amount: 12.5,
-        buyPrice: 4200000,
-        currentPrice: 4300000,
-        buyDate: '1403/05/10',
-        notes: 'یادداشت محرمانه',
-        assetName: 'طلای ۱۸ عیار',
-        referenceAssetId: 'usd',
-        referenceQuantity: 950,
-        isE2eeEncrypted: true,
-      });
-    });
-
-    it('leaves the holding encrypted when the key is wrong', async () => {
-      const sent = await encryptHoldingForApi(key, holding);
-      const result = await decryptHoldingFromApi(otherKey, sent);
-      expect(result.amount).toBe(0);
-      expect(isHoldingE2eeEncrypted(result)).toBe(true);
-      expect(result.isE2eeEncrypted).toBeUndefined();
-    });
-
-    it('passes plaintext holdings through untouched', async () => {
-      expect(await decryptHoldingFromApi(key, holding)).toBe(holding);
-      expect(isHoldingE2eeEncrypted(holding)).toBe(false);
-      expect(isHoldingE2eeEncrypted(null)).toBe(false);
-    });
-  });
-
-  describe('session passphrase cache', () => {
-    beforeEach(() => sessionStorage.clear());
-
-    it('stores, reads and clears the passphrase per portfolio', () => {
-      saveVaultPassphraseToSession('p1', 'pass-1');
-      saveVaultPassphraseToSession('p2', 'pass-2');
-      expect(getVaultPassphraseFromSession('p1')).toBe('pass-1');
-      expect(getVaultPassphraseFromSession('p2')).toBe('pass-2');
-
-      clearVaultPassphraseFromSession('p1');
-      expect(getVaultPassphraseFromSession('p1')).toBeNull();
-      expect(getVaultPassphraseFromSession('p2')).toBe('pass-2');
     });
   });
 });

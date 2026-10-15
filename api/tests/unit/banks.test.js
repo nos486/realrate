@@ -156,13 +156,11 @@ describe('custom banks repository', () => {
     await expect(dbCreateCustomBank(env, 'u1', 'یکی دیگر')).rejects.toMatchObject({ statusCode: 400 });
   });
 
-  it("deletes only the owner's bank and unlinks that user's loans", async () => {
+  it("deletes only the owner's bank", async () => {
     const bank = await dbCreateCustomBank(env, 'u1', 'صندوق');
     expect(await dbDeleteCustomBank(env, 'u2', bank.id)).toBe(false);
     expect(await dbDeleteCustomBank(env, 'u1', bank.id)).toBe(true);
-    // Unlinking is always scoped to the requesting user's own loans
-    const unlinks = env.DB.executed.filter((e) => e.q.startsWith("UPDATE loans SET bank_id = ''"));
-    expect(unlinks.map((e) => e.args)).toEqual([[bank.id, 'u2'], [bank.id, 'u1']]);
+    expect(await dbListCustomBanks(env, 'u1')).toEqual([]);
   });
 });
 

@@ -51,7 +51,6 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
   // browsers never send the fragment to the server, so only link holders can decrypt.
   const vault = useVault();
   const accountManaged = isAccountVaultPortfolio(portfolio);
-  const isLegacyVault = Boolean(portfolio?.isE2ee && !accountManaged);
   const [linkKey, setLinkKey] = useState({ wrapped: '', token: '' });
 
   useEffect(() => {
@@ -336,18 +335,14 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
             </div>
 
             {/* End-to-end encryption status (managed account-wide from account settings) */}
-            <div className={`vault-toggle-card ${portfolio?.isE2ee ? 'active' : ''}`}>
+            <div className={`vault-toggle-card ${accountManaged ? 'active' : ''}`}>
               <div className="toggle-info">
                 <div className="toggle-title-row">
-                  {portfolio?.isE2ee ? <ShieldCheck size={15} className="vault-modal-icon on" /> : <Lock size={15} className="vault-modal-icon" />}
+                  {accountManaged ? <ShieldCheck size={15} className="vault-modal-icon on" /> : <Lock size={15} className="vault-modal-icon" />}
                   <strong>{t('رمزنگاری سرتاسری (E2EE)')}</strong>
                 </div>
                 <span className="vault-subtitle">
-                  {accountManaged
-                    ? t('این پورتفو با رمزنگاری سرتاسری حساب محافظت می‌شود.')
-                    : isLegacyVault
-                    ? t('این پورتفو با رمز جداگانه خودش رمزنگاری شده است. با فعال‌سازی رمزنگاری در «تنظیمات حساب»، به رمزنگاری حساب منتقل می‌شود.')
-                    : t('رمزنگاری سرتاسری از «تنظیمات حساب» برای همه پورتفوها، وام‌ها و درآمدها یک‌جا فعال می‌شود.')}
+                  {t('این پورتفو با رمزنگاری سرتاسری حساب محافظت می‌شود.')}
                 </span>
               </div>
             </div>

@@ -8,82 +8,19 @@
  */
 
 import { intlLocale, t } from '../../utils/i18n.js';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { LockOpen, ShieldCheck, KeyRound, RefreshCw } from 'lucide-react';
 import Button from '../ui/Button.jsx';
-import Input from '../ui/Input.jsx';
 import AlertBanner from '../ui/AlertBanner.jsx';
 import { useFeedback } from '../ui/FeedbackProvider.jsx';
 import { useVault } from './useVault.js';
 import VaultUnlockCard from './VaultUnlockCard.jsx';
 import VaultResetSection from './VaultResetSection.jsx';
 import { useDemo } from '../../features/demo/index.js';
-import VaultEnableForm, { PassphraseInput, ProgressBar, ReportBanner } from './VaultEnableForm.jsx';
-import { useWarnBeforeUnload } from './useWarnBeforeUnload.js';
-import { changeVaultPassphrase, lockAll, loadVault, bumpVaultEpoch, VAULT_MIN_PASSPHRASE_LENGTH } from './vaultStore.js';
-import { encryptAccountData, findPendingPlaintext, adoptLegacyPortfolio } from './vaultMigration.js';
+import VaultEnableForm, { PassphraseInput } from './VaultEnableForm.jsx';
+import { changeVaultPassphrase, lockAll, loadVault, VAULT_MIN_PASSPHRASE_LENGTH } from './vaultStore.js';
 
 const faNum = (n) => Number(n || 0).toLocaleString(intlLocale());
-
-/** Portfolios that still have their own (older) vault passphrase */
-function LegacyPortfolios({ portfolios, onAdopted }) {
-  const [passes, setPasses] = useState({});
-  const [busyId, setBusyId] = useState(null);
-  const [errors, setErrors] = useState({});
-
-  if (!portfolios.length) return null;
-
-  const adopt = async (portfolio) => {
-    setBusyId(portfolio.id);
-    setErrors((prev) => ({ ...prev, [portfolio.id]: '' }));
-    try {
-      const ok = await adoptLegacyPortfolio(portfolio, passes[portfolio.id]);
-      if (!ok) {
-        setErrors((prev) => ({ ...prev, [portfolio.id]: t('رمز گاوصندوق این پورتفو نادرست است.') }));
-      } else {
-        onAdopted();
-      }
-    } catch (err) {
-      setErrors((prev) => ({ ...prev, [portfolio.id]: err.message || t('خطا در انتقال') }));
-    } finally {
-      setBusyId(null);
-    }
-  };
-
-  return (
-    <div className="vault-settings-block">
-      <h5 className="vault-settings-subtitle">{t('پورتفوهایی با رمز جداگانه')}</h5>
-      <p className="vault-settings-text">
-        {t('این پورتفوها قبلاً با رمز اختصاصی خودشان رمزنگاری شده‌اند. با وارد کردن رمز قبلی هر کدام، به رمزنگاری حساب منتقل می‌شوند و از این پس با همان رمز حساب باز می‌شوند (داده‌هایشان دست نمی‌خورد). تا آن موقع، مثل قبل با رمز خودشان کار می‌کنند.')}
-      </p>
-      {portfolios.map((p) => (
-        <form
-          key={p.id}
-          className="vault-legacy-row"
-          onSubmit={(e) => {
-            e.preventDefault();
-            adopt(p);
-          }}
-        >
-          <strong className="vault-legacy-name">{p.name}</strong>
-          <Input
-            type="password"
-            dir="ltr"
-            placeholder={t('رمز قبلی گاوصندوق این پورتفو')}
-            value={passes[p.id] || ''}
-            onChange={(e) => setPasses((prev) => ({ ...prev, [p.id]: e.target.value }))}
-            error={errors[p.id] || undefined}
-            disabled={busyId === p.id}
-            aria-label={t('رمز قبلی پورتفوی {name}', { name: p.name })}
-          />
-          <Button type="submit" variant="secondary" size="sm" loading={busyId === p.id} disabled={!passes[p.id]}>
-            {t('انتقال')}
-          </Button>
-        </form>
-      ))}
-    </div>
-  );
-}
 
 export default function VaultSettingsSection() {
   const vault = useVault();
@@ -92,59 +29,12 @@ export default function VaultSettingsSection() {
 
   const [showPass, setShowPass] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState(null);
-  const [report, setReport] = useState(null);
   const [error, setError] = useState('');
-  const [pending, setPending] = useState(null);
 
   const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass] = useState('');
   const [newPassConfirm, setNewPassConfirm] = useState('');
   const [changing, setChanging] = useState(false);
-
-  const refreshPending = useCallback(async () => {
-    try {
-      setPending(await findPendingPlaintext());
-    } catch {
-      setPending(null);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (vault.status !== 'unlocked' || busy) return undefined;
-    let cancelled = false;
-    findPendingPlaintext()
-      .then((res) => {
-        if (!cancelled) setPending(res);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [vault.status, vault.epoch, busy]);
-
-  const runEncrypt = async (passphrase) => {
-    setProgress({ done: 0, total: 0, label: t('در حال آماده‌سازی…') });
-    const res = await encryptAccountData({ passphrase, onProgress: setProgress });
-    setReport(res);
-    setProgress(null);
-    await refreshPending();
-    return res;
-  };
-
-  const handleEncryptPending = async () => {
-    setBusy(true);
-    setError('');
-    try {
-      const res = await runEncrypt();
-      if (res.failed.length === 0) toast.success(t('داده‌های باقی‌مانده رمزنگاری شدند.'));
-    } catch (err) {
-      setError(err.message || t('خطا در رمزنگاری'));
-      setProgress(null);
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const handleChangePass = async (e) => {
     e.preventDefault();
@@ -168,14 +58,6 @@ export default function VaultSettingsSection() {
     }
   };
 
-  // Leaving mid-migration is safe (the next run finishes it) but leaves data half-converted
-  // until then — ask the browser to confirm closing or reloading the tab meanwhile.
-  useWarnBeforeUnload(Boolean(progress));
-
-  const pendingCount = pending
-    ? pending.plainPortfolios.length + pending.plainLoans + pending.plainIncomes + pending.plainCheques
-    : 0;
-
   return (
     <section className="vault-settings" aria-labelledby="vault-settings-title">
       <div className="section-title">
@@ -193,8 +75,6 @@ export default function VaultSettingsSection() {
       </p>
 
       {error && <AlertBanner type="error" message={error} onClose={() => setError('')} />}
-      <ReportBanner report={report} onClose={() => setReport(null)} />
-      <ProgressBar progress={progress} />
 
       {(vault.status === 'loading' || vault.status === 'idle') && (
         <p className="vault-settings-text">{t('در حال بررسی وضعیت رمزنگاری…')}</p>
@@ -218,13 +98,7 @@ export default function VaultSettingsSection() {
             type="error"
             message={t('رمزنگاری سرتاسری برای حساب شما هنوز فعال نشده است. تا آن را فعال نکنید، امکان ذخیره اطلاعات جدید وجود ندارد.')}
           />
-          <VaultEnableForm
-            onDone={(res) => {
-              setReport(res);
-              refreshPending();
-              if (res.failed.length === 0) toast.success(t('رمزنگاری سرتاسری حساب فعال شد و همه داده‌ها رمزنگاری شدند.'));
-            }}
-          />
+          <VaultEnableForm onDone={() => toast.success(t('رمزنگاری سرتاسری حساب فعال شد.'))} />
         </>
       )}
 
@@ -248,22 +122,6 @@ export default function VaultSettingsSection() {
               {t('تغییر رمز عبور')}
             </Button>
           </div>
-
-          {pendingCount > 0 && (
-            <div className="vault-settings-block">
-              <AlertBanner
-                type="info"
-                message={t('{n} مورد هنوز رمزنگاری نشده است (مثلاً داده‌ای که از دستگاه دیگری با نسخه قدیمی ثبت شده).', { n: faNum(pendingCount) })}
-                action={
-                  <Button size="sm" variant="secondary" loading={busy} onClick={handleEncryptPending}>
-                    {t('رمزنگاری')}
-                  </Button>
-                }
-              />
-            </div>
-          )}
-
-          <LegacyPortfolios portfolios={pending?.legacyPortfolios || []} onAdopted={() => { refreshPending(); bumpVaultEpoch(); }} />
 
           {changing && (
             <form className="vault-settings-block" onSubmit={handleChangePass}>

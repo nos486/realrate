@@ -11,9 +11,8 @@ The server stores only ciphertext and the passphrase never leaves the device.
 > **The passphrase cannot be recovered.** If it is forgotten, the encrypted data is lost for good.
 
 **Mandatory** (`api/src/lib/encryptionGate.js`):
-- A **new user** (with no data) sees the "one step to start" screen before anything else and must create an encryption passphrase (`VaultSetupScreen`). `GET /api/vault` returns `hasPlaintextData` for an account without encryption.
-- An **older user without encryption** sees a banner that can't be closed; until encryption is turned on from the settings, the server refuses every save or edit with `403 ENCRYPTION_REQUIRED`. Reading and deleting existing data still work, and turning encryption on encrypts all of it.
-- The plaintext loan, income, fixed-income and cheque routes **never** write (with encryption on: `409 VAULT_ENABLED`).
+- A **new user** sees the "one step to start" screen before anything else and must create an encryption passphrase (`VaultSetupScreen`); until then the server refuses every save with `403 ENCRYPTION_REQUIRED`. Setting it up creates the account's first portfolio with its own key (`shared/vault/defaultPortfolio.js`): the server never creates a portfolio without one.
+- There is no plaintext copy of any record and no plaintext route: every record is a vault record. The tables from before encryption became mandatory, the accounts that never set it up and the portfolios still behind their own older passphrase were removed once (`ONE_TIME_CLEANUPS` in `repositories/d1Schema.js`, 2026-10).
 - Encryption **can't be turned off**: `DELETE /api/vault` and the restore route are refused with `403 ENCRYPTION_MANDATORY`, and a portfolio can't go back to plaintext. Only the passphrase can be changed.
 
 ---
@@ -85,33 +84,23 @@ The server accepts no plaintext data: without encryption `403`, and with encrypt
 
 ## 3. Loan calculations in the browser
 
-The server can't compute on encrypted data, so for encrypted accounts every loan operation runs in the browser:
+The server can't compute on encrypted data, so every loan operation runs in the browser:
 
 - Each loan is a "document": `{ loan, states, extraPayments }`, stored as one encrypted record.
-- The engine `api/src/domain/loanDocument.js` (shared with the web app) is the only implementation of the loan rules. The server keeps no loan logic of its own: it reads older plaintext loans into the same document and builds their view with the same engine (`loans.repository.js`).
-- `loanApi.js`, `incomeApi.js` and `chequeApi.js` (in `features/`) keep a fixed signature and route to the encrypted stores (`shared/vault/vaultLoans.js`, `vaultIncomes.js`, `vaultCheques.js`; expenses and accounts use `vaultExpenses.js` and `vaultAccounts.js`).
-- Cheques validate with the same `api/src/domain/chequeDocument.js` either way.
-- The rules are tested on the engine (`tests/unit/loanRules.test.js`), and reading a stored plaintext loan back into a document is tested on SQLite (`tests/unit/loansRepository.test.js`).
+- The engine `api/src/domain/loanDocument.js` (shared with the web app) is the only implementation of the loan rules; the server has no loan logic.
+- `loanApi.js`, `incomeApi.js` and `chequeApi.js` (in `features/`) are the encrypted stores' functions (`shared/vault/vaultLoans.js`, `vaultIncomes.js`, `vaultCheques.js`; expenses and accounts use `vaultExpenses.js` and `vaultAccounts.js`).
+- Cheques validate with `api/src/domain/chequeDocument.js`.
+- The rules are tested on the engine (`tests/unit/loanRules.test.js`).
 
-## 4. Turning encryption on
+## 4. Setting up encryption
 
-**Enabling** (`encryptAccountData`):
-1. A data key is created, wrapped with the passphrase and saved in `user_vaults`.
-2. Each plain portfolio gets a new key; the flag and the wrapped key are saved **first**, then its holdings and transactions are encrypted.
-3. Each loan (the raw document from `GET /api/loans/:id/document`), income and cheque is encrypted and saved; the server deletes the plaintext row in **the same batch**.
+**Setting up** (`VaultEnableForm`):
+1. A data key is created, wrapped with the passphrase and saved in `user_vaults` (`createVault`).
+2. The first portfolio is created with its own random key, wrapped with the account key (`ensureDefaultPortfolio`); a portfolio page opened with no portfolio creates it too.
 
-Every step can be repeated; if it stops half-way, running it again finishes the job, and the "unencrypted items" section in the settings shows what is left.
+There is no way back once enabled.
 
-There is no way back once enabled: no data ever returns to the plaintext tables.
-
-## 5. Older portfolios with their own passphrase
-
-Portfolios encrypted earlier with their own passphrase (`e2ee_salt` and `e2ee_verifier`) **keep working unchanged**.
-When account encryption is turned on, that portfolio's key (derived from its old passphrase) is wrapped with the account key; **its holdings and transactions are not touched**.
-The old passphrase is tried from: the new account passphrase, a passphrase opened in the same tab, or one the user types in the settings.
-Until then the portfolio opens with its own passphrase.
-
-## 6. Session and lock
+## 5. Session and lock
 
 - After unlocking, the data key is kept in the tab's `sessionStorage` so a refresh doesn't ask again; closing the tab, "lock" or signing out clears it.
 - **Fingerprint (Android app)**: the unlocked data key (not the passphrase) is encrypted with an Android Keystore key that works only right after a fingerprint check (`BiometricVaultPlugin`, `shared/native/biometricUnlock.js`). Changing the passphrase, another account, or a change to the phone's fingerprints invalidates it — see [ANDROID.md](ANDROID.md#fingerprint).
@@ -122,17 +111,17 @@ Until then the portfolio opens with its own passphrase.
 The encryption passphrase is stored nowhere and can't be recovered. Someone who forgot it starts over from "account settings → end-to-end encryption → forgot your encryption passphrase?" (or "forgot the passphrase?" on the unlock card) (`VaultResetSection.jsx`):
 
 - The list of what will be deleted is shown; the user types «حذف همه اطلاعات» ("delete all data") and, if the account has a sign-in password, enters it too (checked by the server as well, rate limited).
-- `POST /api/vault/reset` deletes the vault and **all** of the user's financial data in one batch: portfolios, holdings, transactions, loans (with installments and extra payments), incomes, fixed incomes, cheques, custom banks, encrypted records and tombstones. The account, sign-in and home layout stay. Not allowed for the demo account.
+- `POST /api/vault/reset` deletes the vault and **all** of the user's financial data in one batch: portfolios, custom banks, every encrypted record, tombstones and reminders. The account, sign-in and home layout stay. Not allowed for the demo account.
 - The browser clears the key, the phone's offline copy and the fingerprint, and starts again at the encryption setup screen with a new passphrase.
 - Other devices: each record is saved with `vaultEpoch` (the creation time of the vault whose key encrypted it); after a reset, a save with the old key is refused (`409 VAULT_CHANGED`, or `VAULT_DISABLED` until a new vault exists) and that tab reloads the vault. Devices rebuild their offline copy from the new `epoch`.
 
-## 7. Sharing an encrypted portfolio
+## 6. Sharing an encrypted portfolio
 
 The share link carries that portfolio's key in the `#k=...` fragment. Browsers never send the fragment to the server;
 the public page `/p/:slug` reads the key from the link and decrypts the data in the viewer's browser.
 Without the full link nothing is shown.
 
-## 8. The demo account and public encryption
+## 7. The demo account and public encryption
 
 For the demo account (the public demo for visitors) the E2EE vault is kept intact, so the server's encryption gate, the client layer and the encrypted data model all work with no special or unsafe paths:
 - The demo data isn't confidential, so **the demo vault's passphrase is public**.
@@ -141,18 +130,18 @@ For the demo account (the public demo for visitors) the E2EE vault is kept intac
 - While the admin edits the demo, if the vault doesn't exist yet it is created with the same public passphrase (`createVault(demoVaultPassphrase)`).
 - When the admin returns to their own account, the demo vault is reset and locked, and all its keys and encrypted data are cleared from memory and `sessionStorage`.
 
-## 9. API
+## 8. API
 
 Details in [API.md](../API.md#end-to-end-encryption-vault-protected).
 
-## 10. AI cheque scanning
+## 9. AI cheque scanning
 
 - **One-time, unencrypted processing**: cheque scanning sends the cheque image once, unencrypted (`multipart/form-data`), to `POST /api/cheques/scan`, and the server sends it to Gemini (Google) to read. The user is told this before scanning.
 - **Explicit exemption in the encryption gate (`encryptionGate.js`)**: the endpoint only processes and is stateless — it **stores nothing on the server or in the database** — so it is explicitly exempted from the ciphertext requirement (`path === '/api/cheques/scan'`).
 - **No image or text storage**: the uploaded image and the model's output are never stored in any database, cloud storage or log.
 - **The saved cheque stays confidential**: the extracted values only prefill the cheque form in the browser. The user reviews and edits them and chooses the cheque type. On save, the cheque is end-to-end encrypted (AES-GCM-256) with the vault key like any other and its ciphertext goes to `vault_records`. The server has no access to the final cheque data.
 
-## 11. What the server sees for reminders
+## 10. What the server sees for reminders
 
 To send due reminders (the server's daily email, the Android app's local notifications, and Web Push), a minimal plaintext index is stored in the `vault_reminders` table:
 

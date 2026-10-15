@@ -1,18 +1,16 @@
+/**
+ * sharedPortfolioRoute.test.js — A shared portfolio's public answer: its encrypted records
+ * (holdings, transactions, layout) for the link key to open in the viewer's browser, and
+ * nothing before the share password
+ */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../../src/repositories/index.js', () => ({
   dbGetPortfolioByShareSlug: vi.fn(),
-  dbGetPortfolioHoldings: vi.fn(),
-  dbGetTransactionsByPortfolio: vi.fn(),
   dbListVaultRecords: vi.fn(),
 }));
 
-import {
-  dbGetPortfolioByShareSlug,
-  dbGetPortfolioHoldings,
-  dbGetTransactionsByPortfolio,
-  dbListVaultRecords,
-} from '../../src/repositories/index.js';
+import { dbGetPortfolioByShareSlug, dbListVaultRecords } from '../../src/repositories/index.js';
 import { handleGetSharedPortfolio } from '../../src/handlers/portfolioRoutes.js';
 
 describe('handleGetSharedPortfolio (اشتراک‌گذاری عمومی پورتفو)', () => {
@@ -22,45 +20,14 @@ describe('handleGetSharedPortfolio (اشتراک‌گذاری عمومی پور�
     vi.clearAllMocks();
   });
 
-  it('includes transactions alongside holdings, so transaction-derived positions are never silently missing from the shared view', async () => {
-    dbGetPortfolioByShareSlug.mockResolvedValue({
-      id: 'p1',
-      userId: 'u1',
-      name: 'پورتفوی من',
-      shareSlug: 'abc123',
-      shareEnabled: true,
-      sharePassword: '',
-      isE2ee: false,
-      userCustomName: 'کاربر تست',
-    });
-    dbGetPortfolioHoldings.mockResolvedValue([
-      { id: 'h1', assetId: 'gold_18k', amount: 5, buyPrice: 1000000 },
-    ]);
-    dbGetTransactionsByPortfolio.mockResolvedValue([
-      { id: 'tx1', encryptedPayload: JSON.stringify({ assetId: 'USD', transactionType: 'buy', quantity: 100, unitPrice: 500000 }) },
-    ]);
-
-    const req = new Request('https://realrate.ir/api/portfolio/shared?slug=abc123');
-    const res = await handleGetSharedPortfolio(req, mockEnv);
-    const body = await res.json();
-
-    expect(body.success).toBe(true);
-    expect(dbGetTransactionsByPortfolio).toHaveBeenCalledWith(mockEnv, 'u1', 'p1');
-    expect(Array.isArray(body.transactions)).toBe(true);
-    expect(body.transactions).toHaveLength(1);
-    expect(body.transactions[0].id).toBe('tx1');
-    expect(body.holdings).toHaveLength(1);
-  });
-
-  it('does not fetch holdings/transactions when the portfolio is not found or sharing is disabled', async () => {
+  it('does not read any record when the portfolio is not found or sharing is disabled', async () => {
     dbGetPortfolioByShareSlug.mockResolvedValue(null);
-
     const req = new Request('https://realrate.ir/api/portfolio/shared?slug=nope');
     await expect(handleGetSharedPortfolio(req, mockEnv)).rejects.toThrow();
-    expect(dbGetTransactionsByPortfolio).not.toHaveBeenCalled();
+    expect(dbListVaultRecords).not.toHaveBeenCalled();
   });
 
-  it('does not leak holdings/transactions before a correct share password is provided', async () => {
+  it('does not leak records before a correct share password is provided', async () => {
     dbGetPortfolioByShareSlug.mockResolvedValue({
       id: 'p1',
       userId: 'u1',
@@ -68,20 +35,19 @@ describe('handleGetSharedPortfolio (اشتراک‌گذاری عمومی پور�
       shareSlug: 'abc123',
       shareEnabled: true,
       sharePassword: 'secret',
-      isE2ee: false,
+      e2eeWrappedKey: 'wrapped-portfolio-key',
     });
 
     const req = new Request('https://realrate.ir/api/portfolio/shared?slug=abc123');
-    const res = await handleGetSharedPortfolio(req, mockEnv);
-    const body = await res.json();
+    const body = await (await handleGetSharedPortfolio(req, mockEnv)).json();
 
     expect(body.requirePassword).toBe(true);
-    expect(body.holdings).toBeUndefined();
-    expect(body.transactions).toBeUndefined();
-    expect(dbGetTransactionsByPortfolio).not.toHaveBeenCalled();
+    expect(body.vaultHoldings).toBeUndefined();
+    expect(body.vaultTransactions).toBeUndefined();
+    expect(dbListVaultRecords).not.toHaveBeenCalled();
   });
 
-  it('returns encrypted vault records including vaultLayout for a portfolio under account vault', async () => {
+  it('returns the encrypted holdings, transactions and layout (transaction-built positions included)', async () => {
     dbGetPortfolioByShareSlug.mockResolvedValue({
       id: 'p1',
       userId: 'u1',
@@ -89,11 +55,8 @@ describe('handleGetSharedPortfolio (اشتراک‌گذاری عمومی پور�
       shareSlug: 'e2ee-slug',
       shareEnabled: true,
       sharePassword: '',
-      isE2ee: true,
       e2eeWrappedKey: 'wrapped-portfolio-key',
     });
-    dbGetPortfolioHoldings.mockResolvedValue([]);
-    dbGetTransactionsByPortfolio.mockResolvedValue([]);
     dbListVaultRecords.mockImplementation(async (env, userId, kind) => {
       if (kind === 'holding') return [{ id: 'h1', payload: 'enc:h1', recordDate: '2026-01-01' }];
       if (kind === 'transaction') return [{ id: 't1', payload: 'enc:t1', recordDate: '2026-01-01' }];
@@ -102,15 +65,14 @@ describe('handleGetSharedPortfolio (اشتراک‌گذاری عمومی پور�
     });
 
     const req = new Request('https://realrate.ir/api/portfolio/shared?slug=e2ee-slug');
-    const res = await handleGetSharedPortfolio(req, mockEnv);
-    const body = await res.json();
+    const body = await (await handleGetSharedPortfolio(req, mockEnv)).json();
 
     expect(body.success).toBe(true);
     expect(body.portfolio.e2eeLinkKey).toBe(true);
+    expect(dbListVaultRecords).toHaveBeenCalledWith(mockEnv, 'u1', 'transaction', { parentId: 'p1' });
     expect(body.vaultHoldings).toHaveLength(1);
     expect(body.vaultTransactions).toHaveLength(1);
-    expect(body.vaultLayout).toHaveLength(1);
-    expect(body.vaultLayout[0].id).toBe('l1');
-    expect(body.vaultLayout[0].payload).toBe('enc:l1');
+    expect(body.vaultLayout).toEqual([{ id: 'l1', payload: 'enc:l1', recordDate: '' }]);
+    expect(body.holdings).toBeUndefined();
   });
 });

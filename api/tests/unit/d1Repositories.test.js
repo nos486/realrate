@@ -19,7 +19,7 @@ import { dbGetUsersPage, dbGetUserStats, dbSetUserDisabled, dbGetUserDetail, dbG
 import { getGlobalSettings, saveGlobalSettings } from '../../src/repositories/settings.repository.js';
 import { dbListCustomBanks, dbCreateCustomBank, dbDeleteCustomBank } from '../../src/repositories/customBanks.repository.js';
 import {
-  dbSaveUserVault, dbGetUserVault, dbHasUserVault, dbPutVaultRecord, dbDeleteVaultRecord, dbResetUserVaultData, dbUserHasPlaintextData, dbPurgeOldVaultTombstones, VAULT_TOMBSTONE_RETENTION_DAYS,
+  dbSaveUserVault, dbGetUserVault, dbHasUserVault, dbPutVaultRecord, dbDeleteVaultRecord, dbResetUserVaultData, dbPurgeOldVaultTombstones, VAULT_TOMBSTONE_RETENTION_DAYS,
 } from '../../src/repositories/vault.repository.js';
 import {
   dbSaveAlertEmailPrefs, dbGetAlertEmailPrefs, dbGetReminderEmailRecipients, dbGetRemindersForUsers,
@@ -29,11 +29,6 @@ import {
   dbSavePushSubscription, dbGetPushSubscriptionsForUser, dbSavePushReminders, dbGetDuePushReminders, dbDeletePushReminder, dbDeletePushSubscription,
 } from '../../src/repositories/push.repository.js';
 import { dbGetUserPortfolios, dbCreatePortfolio, dbUpdatePortfolio, dbGetPortfolioByShareSlug, dbDeletePortfolio } from '../../src/repositories/portfolio.repository.js';
-import { dbAddPortfolioHolding, dbGetPortfolioHoldings } from '../../src/repositories/holdings.repository.js';
-import { dbCreateTransaction, dbGetTransactionsByPortfolio } from '../../src/repositories/transactionRepository.js';
-import { dbCreateIncome, dbGetUserIncomes, dbUpdateIncome, dbDeleteIncome } from '../../src/repositories/incomes.repository.js';
-import { dbCreateCheque, dbGetUserCheques } from '../../src/repositories/cheques.repository.js';
-import { dbGetUserLoans, dbGetLoanDocument, dbDeleteLoan } from '../../src/repositories/loans.repository.js';
 
 let env;
 const CIPHER = (n) => `enc:e2ee:v1:${n}`;
@@ -160,7 +155,6 @@ describe('the encrypted vault', () => {
     await dbDeleteVaultRecord(env, 'u1', 'loan', 'ln1');
     expect(await env.DB.prepare('SELECT COUNT(*) AS n FROM vault_reminders').first('n')).toBe(0);
     expect(await env.DB.prepare('SELECT COUNT(*) AS n FROM vault_tombstones WHERE id = ?').bind('ln1').first('n')).toBe(1);
-    expect(await dbUserHasPlaintextData(env, 'u1')).toBe(false);
     await dbResetUserVaultData(env, 'u1');
     expect(await dbHasUserVault(env, 'u1')).toBe(false);
     expect(await env.DB.prepare('SELECT COUNT(*) AS n FROM vault_records WHERE user_id = ?').bind('u1').first('n')).toBe(0);
@@ -205,40 +199,26 @@ describe('reminders: email and web push', () => {
   });
 });
 
-describe('portfolios and the older plaintext tables', () => {
-  it('portfolios, holdings and transactions', async () => {
-    const portfolios = await dbGetUserPortfolios(env, 'u1'); // the default one is created
-    expect(portfolios.length).toBeGreaterThanOrEqual(1);
-    const created = await dbCreatePortfolio(env, 'u1', { name: 'دوم' });
-    const id = created?.id || created?.portfolio?.id;
-    await dbUpdatePortfolio(env, id, 'u1', { name: 'دوم', shareSlug: 'pf-share', shareEnabled: true });
-    expect((await dbGetPortfolioByShareSlug(env, 'pf-share'))?.id).toBe(id);
-    await dbAddPortfolioHolding(env, { userId: 'u1', portfolioId: id, assetId: 'usd', amount: 10, buyPrice: 90000, buyDate: '1405/01/01' });
-    expect((await dbGetPortfolioHoldings(env, 'u1', id)).length).toBe(1);
-    await dbCreateTransaction(env, { userId: 'u1', portfolioId: id, encryptedPayload: CIPHER(9) });
-    expect((await dbGetTransactionsByPortfolio(env, 'u1', id)).length).toBe(1);
-    await dbDeletePortfolio(env, id, 'u1');
-    expect((await dbGetUserPortfolios(env, 'u1')).some((p) => p.id === id)).toBe(false);
-  });
+describe('portfolios', () => {
+  it('are created with their key, the first one as the default, and deleted with their items', async () => {
+    await dbUpsertUser(env, { id: 'u_pf', email: 'pf@x.com', name: 'P', picture: '', role: 'user', createdAt: NOW, lastLogin: NOW });
+    expect(await dbGetUserPortfolios(env, 'u_pf')).toEqual([]); // the browser creates the first one
+    const first = await dbCreatePortfolio(env, 'u_pf', { name: 'اصلی', e2eeWrappedKey: CIPHER('k1') });
+    expect(first.isDefault).toBe(1);
+    const second = await dbCreatePortfolio(env, 'u_pf', { name: 'دوم', e2eeWrappedKey: CIPHER('k2') });
+    expect(second.isDefault).toBe(0);
+    await dbUpdatePortfolio(env, second.id, 'u_pf', { name: 'دوم', shareSlug: 'pf-share', shareEnabled: true });
+    expect((await dbGetPortfolioByShareSlug(env, 'pf-share'))?.e2eeWrappedKey).toBe(CIPHER('k2'));
 
-  it('incomes, cheques and loans', async () => {
-    const income = await dbCreateIncome(env, 'u1', { title: 'حقوق', category: 'salary', amount: 1000, incomeDate: '2026-10-01', notes: '', recurringId: '' });
-    expect((await dbGetUserIncomes(env, 'u1')).length).toBe(1);
-    await dbUpdateIncome(env, 'u1', income.id, { title: 'حقوق', category: 'salary', amount: 1200, incomeDate: '2026-10-01', notes: '', recurringId: '' });
-    expect((await dbGetUserIncomes(env, 'u1'))[0].amount).toBe(1200);
-    await dbDeleteIncome(env, 'u1', income.id);
-    expect(await dbGetUserIncomes(env, 'u1')).toEqual([]);
+    await dbSaveUserVault(env, 'u_pf', { salt: 's', wrappedKey: CIPHER('w') });
+    await dbPutVaultRecord(env, 'u_pf', 'holding', 'h1', { payload: CIPHER(1), parentId: first.id });
+    expect((await dbGetUserPortfolios(env, 'u_pf')).find((p) => p.id === first.id).itemCount).toBe(1);
 
-    await dbCreateCheque(env, 'u1', { direction: 'issued', amount: 5000, dueDate: '2026-11-01', counterparty: 'علی', status: 'pending' });
-    expect((await dbGetUserCheques(env, 'u1')).length).toBe(1);
-
-    // Loans are no longer written in plaintext; an older stored one reads back and deletes
-    await env.DB.prepare(`INSERT INTO loans (id, user_id, title, principal_amount, annual_interest_rate, installment_count,
-      interval_months, start_date, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .bind('ln_old', 'u1', 'وام', 12_000_000, 18, 12, 1, '2026-10-01', '2026-10-01T00:00:00Z', '2026-10-01T00:00:00Z').run();
-    expect((await dbGetUserLoans(env, 'u1')).map((l) => l.totalCount)).toEqual([12]);
-    expect((await dbGetLoanDocument(env, 'u1', 'ln_old')).loan.title).toBe('وام');
-    expect(await dbDeleteLoan(env, 'u1', 'ln_old')).toBe(true);
-    expect(await dbGetUserLoans(env, 'u1')).toEqual([]);
+    // The default goes: the other one becomes the default; its items go with it
+    await dbDeletePortfolio(env, first.id, 'u_pf');
+    const left = await dbGetUserPortfolios(env, 'u_pf');
+    expect(left.map((p) => [p.id, p.isDefault])).toEqual([[second.id, 1]]);
+    expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM vault_records WHERE id = 'h1'").first('n')).toBe(0);
+    await expect(dbDeletePortfolio(env, second.id, 'u_pf')).rejects.toThrow();
   });
 });

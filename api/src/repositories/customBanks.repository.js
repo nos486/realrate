@@ -31,20 +31,6 @@ export async function dbListCustomBanks(env, userId) {
 }
 
 /**
- * @param {object} env
- * @param {string} userId
- * @param {string} bankId
- */
-export async function dbGetCustomBank(env, userId, bankId) {
-  if (!env?.DB || !userId || !bankId) return null;
-  await ensureSchema(env);
-  const row = await env.DB.prepare(
-    "SELECT id, name, created_at FROM custom_banks WHERE id = ? AND user_id = ?"
-  ).bind(bankId, userId).first();
-  return formatRow(row);
-}
-
-/**
  * Create a custom bank, or return the user's existing one with the same (normalized) name.
  * @param {object} env
  * @param {string} userId
@@ -77,15 +63,12 @@ export async function dbCreateCustomBank(env, userId, rawName) {
 }
 
 /**
- * Delete a custom bank. Loans that used it keep their lender name and just lose the link.
+ * Delete a custom bank. Encrypted loans that named it keep its name (their lender name).
  * @returns {Promise<boolean>} whether a bank was deleted
  */
 export async function dbDeleteCustomBank(env, userId, bankId) {
   if (!env?.DB || !userId || !bankId) return false;
   await ensureSchema(env);
-  const results = await env.DB.batch([
-    env.DB.prepare("DELETE FROM custom_banks WHERE id = ? AND user_id = ?").bind(bankId, userId),
-    env.DB.prepare("UPDATE loans SET bank_id = '' WHERE bank_id = ? AND user_id = ?").bind(bankId, userId),
-  ]);
-  return Number(results?.[0]?.meta?.changes || 0) > 0;
+  const result = await env.DB.prepare("DELETE FROM custom_banks WHERE id = ? AND user_id = ?").bind(bankId, userId).run();
+  return Number(result?.meta?.changes || 0) > 0;
 }

@@ -8,11 +8,12 @@ import {
 } from '../api/portfolioApi.js';
 import { useAuth } from '../../auth/index.js';
 import { useVault } from '../../../shared/vault/useVault.js';
-import { isVaultOn, createPortfolioKey } from '../../../shared/vault/vaultStore.js';
+import { getVaultState, createPortfolioKey } from '../../../shared/vault/vaultStore.js';
+import { ensureDefaultPortfolio } from '../../../shared/vault/defaultPortfolio.js';
 
 export function usePortfolio(initialPortfolioId = null) {
   const { user } = useAuth();
-  // Migrations into / out of the account vault change portfolio flags — reload after them
+  // Unlocking the vault (or setting it up) lets the first portfolio be created — reload then
   const { epoch: vaultEpoch } = useVault();
   const [portfolios, setPortfolios] = useState([]);
   const [activePortfolioId, setActivePortfolioId] = useState(null);
@@ -44,8 +45,11 @@ export function usePortfolio(initialPortfolioId = null) {
     try {
       setLoadingPortfolios(true);
       const res = await getPortfolios();
-      if (res && res.success && Array.isArray(res.portfolios) && res.portfolios.length > 0) {
-        setPortfolios(res.portfolios);
+      let list = Array.isArray(res?.portfolios) ? res.portfolios : [];
+      // An account with no portfolio gets its first one, with its key (the vault must be open)
+      if (!list.length && getVaultState().status === 'unlocked') list = await ensureDefaultPortfolio(list);
+      if (list.length > 0) {
+        setPortfolios(list);
 
         let savedId = null;
         try {
@@ -53,22 +57,22 @@ export function usePortfolio(initialPortfolioId = null) {
         } catch {}
 
         let resolvedId = null;
-        if (targetPortfolioId && res.portfolios.some((p) => p.id === targetPortfolioId)) {
+        if (targetPortfolioId && list.some((p) => p.id === targetPortfolioId)) {
           resolvedId = targetPortfolioId;
-        } else if (initialIdRef.current && res.portfolios.some((p) => p.id === initialIdRef.current)) {
+        } else if (initialIdRef.current && list.some((p) => p.id === initialIdRef.current)) {
           resolvedId = initialIdRef.current;
-        } else if (savedId && res.portfolios.some((p) => p.id === savedId)) {
+        } else if (savedId && list.some((p) => p.id === savedId)) {
           resolvedId = savedId;
         } else {
-          const def = res.portfolios.find((p) => p.isDefault);
-          resolvedId = def ? def.id : res.portfolios[0].id;
+          const def = list.find((p) => p.isDefault);
+          resolvedId = def ? def.id : list[0].id;
         }
 
         setActivePortfolioId(resolvedId);
         try {
           localStorage.setItem('realrate_last_portfolio_id', resolvedId);
         } catch {}
-        return res.portfolios;
+        return list;
       } else {
         setPortfolios([]);
         setActivePortfolioId(null);
@@ -108,10 +112,8 @@ export function usePortfolio(initialPortfolioId = null) {
 
   const createPortfolio = useCallback(async (name) => {
     if (!name || !name.trim()) return null;
-    // With account-wide encryption on, a new portfolio is born encrypted with its own key
-    const payload = { name: name.trim() };
-    if (isVaultOn()) payload.e2eeWrappedKey = (await createPortfolioKey()).wrapped;
-    const res = await apiCreatePortfolio(payload);
+    // Every portfolio is born encrypted, with its own key
+    const res = await apiCreatePortfolio({ name: name.trim(), e2eeWrappedKey: (await createPortfolioKey()).wrapped });
     if (res && res.success && res.portfolio) {
       await fetchPortfolios(res.portfolio.id);
       return res.portfolio;

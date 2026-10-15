@@ -1,6 +1,7 @@
 /**
- * VaultEnableForm.jsx — Set up end-to-end encryption: choose the passphrase, then encrypt every
- * existing record in the browser. Used by account settings and by the first-run setup screen.
+ * VaultEnableForm.jsx — Set up end-to-end encryption: choose the passphrase; the account vault is
+ * created and the first portfolio with it (defaultPortfolio.js). Used by the first-run setup
+ * screen (and account settings, for an account still without it).
  */
 
 import { intlLocale, t } from '../../utils/i18n.js';
@@ -10,8 +11,7 @@ import Button from '../ui/Button.jsx';
 import Input from '../ui/Input.jsx';
 import AlertBanner from '../ui/AlertBanner.jsx';
 import { createVault, VAULT_MIN_PASSPHRASE_LENGTH } from './vaultStore.js';
-import { encryptAccountData } from './vaultMigration.js';
-import { useWarnBeforeUnload } from './useWarnBeforeUnload.js';
+import { ensureDefaultPortfolio } from './defaultPortfolio.js';
 
 const faNum = (n) => Number(n || 0).toLocaleString(intlLocale());
 
@@ -42,35 +42,18 @@ export function ProgressBar({ progress }) {
   );
 }
 
-export function ReportBanner({ report, onClose }) {
-  if (!report) return null;
-  const failed = report.failed || [];
-  if (failed.length === 0) return null;
-  return (
-    <AlertBanner
-      type="warning"
-      onClose={onClose}
-      message={t('{n} مورد پردازش نشد ({list}). هیچ داده‌ای از دست نرفته — دوباره تلاش کنید.', { n: faNum(failed.length), list: `${failed.slice(0, 3).join(`${t('،')} `)}${failed.length > 3 ? ` ${t('و')} …` : ''}` })}
-    />
-  );
-}
-
 /**
  * @param {object} props
- * @param {(report: { failed: string[] }) => void} [props.onDone] called once the vault is on
+ * @param {() => void} [props.onDone] called once the vault is on
  * @param {string} [props.submitLabel]
  */
-export default function VaultEnableForm({ onDone, submitLabel = t('فعال‌سازی و رمزنگاری همه داده‌ها') }) {
+export default function VaultEnableForm({ onDone, submitLabel = t('فعال‌سازی رمزنگاری') }) {
   const [pass, setPass] = useState('');
   const [passConfirm, setPassConfirm] = useState('');
   const [acknowledged, setAcknowledged] = useState(false);
   const [showPass, setShowPass] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState(null);
-  const [report, setReport] = useState(null);
   const [error, setError] = useState('');
-
-  useWarnBeforeUnload(Boolean(progress));
 
   const handleEnable = async (e) => {
     e.preventDefault();
@@ -90,17 +73,13 @@ export default function VaultEnableForm({ onDone, submitLabel = t('فعال‌س
     setBusy(true);
     try {
       await createVault(pass);
-      setProgress({ done: 0, total: 0, label: t('در حال آماده‌سازی…') });
-      const res = await encryptAccountData({ passphrase: pass, onProgress: setProgress });
-      setProgress(null);
-      setReport(res);
+      await ensureDefaultPortfolio();
       setPass('');
       setPassConfirm('');
       setAcknowledged(false);
-      onDone?.(res);
+      onDone?.();
     } catch (err) {
       setError(err.message || t('خطا در فعال‌سازی رمزنگاری'));
-      setProgress(null);
     } finally {
       setBusy(false);
     }
@@ -109,8 +88,6 @@ export default function VaultEnableForm({ onDone, submitLabel = t('فعال‌س
   return (
     <form className="vault-settings-block" onSubmit={handleEnable}>
       {error && <AlertBanner type="error" message={error} onClose={() => setError('')} />}
-      <ReportBanner report={report} onClose={() => setReport(null)} />
-      <ProgressBar progress={progress} />
       <AlertBanner
         type="warning"
         message={t('رمز عبور رمزنگاری هیچ‌جا ذخیره نمی‌شود و قابل بازیابی نیست. اگر آن را فراموش کنید، داده‌های رمزنگاری‌شده برای همیشه از دست می‌روند.')}
@@ -123,7 +100,7 @@ export default function VaultEnableForm({ onDone, submitLabel = t('فعال‌س
         value={pass}
         onChange={(e) => setPass(e.target.value)}
         disabled={busy}
-        hint={t('حداقل {n} کاراکتر؛ آن را با رمز ورود به حساب یکی نکنید. اگر قبلاً برای پورتفویی رمز گذاشته‌اید، همان رمز را وارد کنید تا آن پورتفو خودکار منتقل شود.', { n: faNum(VAULT_MIN_PASSPHRASE_LENGTH) })}
+        hint={t('حداقل {n} کاراکتر؛ آن را با رمز ورود به حساب یکی نکنید.', { n: faNum(VAULT_MIN_PASSPHRASE_LENGTH) })}
       />
       <PassphraseInput
         show={showPass}

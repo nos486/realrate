@@ -70,7 +70,6 @@ import {
   handleAdminStatsRoute,
   handleAdminUsersRoute,
   handleAdminSaveSettings,
-  handleAdminGetUserPortfolio,
   handleAdminGetPriceSources,
   handleAdminSavePriceSource,
   handleAdminDeletePriceSource,
@@ -89,37 +88,10 @@ import {
   handleCreatePortfolio,
   handleUpdatePortfolio,
   handleDeletePortfolioGroup,
-  handleGetPortfolio,
-  handleAddPortfolio,
-  handleDeletePortfolio,
   handleGetUserSettings,
   handleUpdateUserSettings,
   handleGetSharedPortfolio,
 } from "./handlers/portfolioRoutes.js";
-import {
-  handleGetTransactions,
-  handleCreateTransaction,
-  handleUpdateTransaction,
-  handleDeleteTransaction,
-} from "./handlers/transactionRoutes.js";
-import {
-  handleGetLoans,
-  handleGetLoan,
-  handleDeleteLoan,
-  handleGetLoanExtraPayments,
-} from "./handlers/loanRoutes.js";
-import {
-  handleGetIncomes,
-  handleCreateIncome,
-  handleUpdateIncome,
-  handleDeleteIncome,
-} from "./handlers/incomeRoutes.js";
-import {
-  handleGetCheques,
-  handleCreateCheque,
-  handleUpdateCheque,
-  handleDeleteCheque,
-} from "./handlers/chequeRoutes.js";
 import { handleChequeScanRoute, handleChequeScanQuotaRoute } from "./handlers/chequeScanRoutes.js";
 import {
   handleRegister,
@@ -145,7 +117,6 @@ import {
   handlePutVaultRecords,
   handleDeleteVaultRecord,
   handleDeleteVaultRecords,
-  handleGetLoanDocument,
   handleSyncVaultRecords,
   handleResetVault,
 } from "./handlers/vaultRoutes.js";
@@ -309,7 +280,6 @@ async function handleRequest(request, env, ctx) {
 
   // ── Admin API Routes ────────────────────────────────────────────────────
   if (normalizedPath === "/api/admin/stats")                                   return wrap(handleAdminStatsRoute)(request, env);
-  if (normalizedPath === "/api/admin/users/portfolio")                         return wrap(handleAdminGetUserPortfolio)(request, env);
   if (normalizedPath === "/api/admin/users/detail")                            return wrap(handleAdminUserDetail)(request, env);
   if (normalizedPath === "/api/admin/users/block" && request.method === "POST") return wrap(handleAdminBlockUser)(request, env);
   if (normalizedPath === "/api/admin/users/signout" && request.method === "POST") return wrap(handleAdminSignOutUser)(request, env);
@@ -397,23 +367,6 @@ async function handleRequest(request, env, ctx) {
     if (request.method === "PUT") return wrap(handleUpdatePortfolio)(request, env);
     if (request.method === "DELETE") return wrap(handleDeletePortfolioGroup)(request, env);
   }
-  if (normalizedPath === "/api/portfolio") {
-    if (request.method === "GET") return wrap(handleGetPortfolio)(request, env);
-    if (request.method === "POST" || request.method === "PUT") return wrap(handleAddPortfolio)(request, env);
-    if (request.method === "DELETE") return wrap(handleDeletePortfolio)(request, env);
-  }
-
-  // ── Portfolio Transactions API Routes ───────────────────────────────────
-  const portfolioTransactionsMatch = normalizedPath.match(/^\/api\/portfolios?\/([^/]+)\/transactions(?:\/([^/]+))?$/);
-  if (portfolioTransactionsMatch) {
-    const portfolioId = portfolioTransactionsMatch[1];
-    const txId = portfolioTransactionsMatch[2];
-    if (request.method === "GET")    return wrap((req, env) => handleGetTransactions(req, env, { portfolioId }))(request, env);
-    if (request.method === "POST")   return wrap((req, env) => handleCreateTransaction(req, env, { portfolioId }))(request, env);
-    if (request.method === "PUT")    return wrap((req, env) => handleUpdateTransaction(req, env, { portfolioId, txId }))(request, env);
-    if (request.method === "DELETE") return wrap((req, env) => handleDeleteTransaction(req, env, { portfolioId, txId }))(request, env);
-  }
-
   // ── Free plan limits and usage ──────────────────────────────────────────
   if (normalizedPath === "/api/plan" && request.method === "GET") return wrap(handleGetPlan)(request, env);
 
@@ -491,61 +444,12 @@ async function handleRequest(request, env, ctx) {
     return wrap(handleSendTestPush)(request, env);
   }
 
-  // ── Loans (the older plaintext data; loans are saved as vault records) ───
-  const loanDocumentMatch = normalizedPath.match(/^\/api\/loans\/([^/]+)\/document$/);
-  if (loanDocumentMatch && request.method === "GET") {
-    const loanId = loanDocumentMatch[1];
-    return wrap((req, e) => handleGetLoanDocument(req, e, { loanId }))(request, env);
-  }
-
-  const loanExtraPaymentsMatch = normalizedPath.match(/^\/api\/loans\/([^/]+)\/extra-payments$/);
-  if (loanExtraPaymentsMatch && request.method === "GET") {
-    const loanId = loanExtraPaymentsMatch[1];
-    return wrap((req, e) => handleGetLoanExtraPayments(req, e, { loanId }))(request, env);
-  }
-
-  const loanSingleMatch = normalizedPath.match(/^\/api\/loans\/([^/]+)$/);
-  if (loanSingleMatch) {
-    const loanId = loanSingleMatch[1];
-    if (request.method === "GET")    return wrap((req, e) => handleGetLoan(req, e, { loanId }))(request, env);
-    if (request.method === "DELETE") return wrap((req, e) => handleDeleteLoan(req, e, { loanId }))(request, env);
-  }
-
-  if (normalizedPath === "/api/loans" && request.method === "GET") {
-    return wrap(handleGetLoans)(request, env);
-  }
-
-  // ── Incomes API Routes ──────────────────────────────────────────────────
-  const incomeSingleMatch = normalizedPath.match(/^\/api\/incomes\/([^/]+)$/);
-  if (incomeSingleMatch) {
-    const incomeId = incomeSingleMatch[1];
-    if (request.method === "PUT")    return wrap((req, e) => handleUpdateIncome(req, e, { incomeId }))(request, env);
-    if (request.method === "DELETE") return wrap((req, e) => handleDeleteIncome(req, e, { incomeId }))(request, env);
-  }
-
-  if (normalizedPath === "/api/incomes") {
-    if (request.method === "GET")  return wrap(handleGetIncomes)(request, env);
-    if (request.method === "POST") return wrap(handleCreateIncome)(request, env);
-  }
-
-  // ── Cheques API Routes ──────────────────────────────────────────────────
+  // ── Cheque scan (AI vision; stores nothing; cheques are vault records) ──
   if (normalizedPath === "/api/cheques/scan" && request.method === "POST") {
     return wrap(handleChequeScanRoute)(request, env);
   }
   if (normalizedPath === "/api/cheques/scan/quota" && request.method === "GET") {
     return wrap(handleChequeScanQuotaRoute)(request, env);
-  }
-
-  const chequeSingleMatch = normalizedPath.match(/^\/api\/cheques\/([^/]+)$/);
-  if (chequeSingleMatch) {
-    const chequeId = chequeSingleMatch[1];
-    if (request.method === "PUT")    return wrap((req, e) => handleUpdateCheque(req, e, { chequeId }))(request, env);
-    if (request.method === "DELETE") return wrap((req, e) => handleDeleteCheque(req, e, { chequeId }))(request, env);
-  }
-
-  if (normalizedPath === "/api/cheques") {
-    if (request.method === "GET")  return wrap(handleGetCheques)(request, env);
-    if (request.method === "POST") return wrap(handleCreateCheque)(request, env);
   }
 
   // ── Custom Banks API Routes ─────────────────────────────────────────────

@@ -7,8 +7,6 @@
 
 export default {
   // Errors
-  'شناسه وام الزامی است': 'Loan ID is required',
-  'شناسه وام و قسط الزامی است': 'Loan ID and installment ID are required',
   'محاسبه ممکن نشد.': 'The calculation failed.',
   'لطفاً عنوان یا نام وام را وارد نمایید.': 'Please enter the loan title or name.',
   'مبلغ اصل وام باید مقداری بزرگتر از صفر باشد.': 'The loan principal must be greater than zero.',

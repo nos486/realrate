@@ -2,8 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../../src/repositories/index.js', () => ({
   dbGetPortfolioByShareSlug: vi.fn(),
-  dbGetPortfolioHoldings: vi.fn(),
-  dbGetTransactionsByPortfolio: vi.fn(),
+  dbListVaultRecords: vi.fn(async () => []),
   dbGetPortfolioById: vi.fn(),
   dbUpdatePortfolio: vi.fn(),
 }));
@@ -11,8 +10,6 @@ vi.mock('../../src/repositories/index.js', () => ({
 import { memoryStateDb } from '../helpers/memoryStateDb.js';
 import {
   dbGetPortfolioByShareSlug,
-  dbGetPortfolioHoldings,
-  dbGetTransactionsByPortfolio,
   dbGetPortfolioById,
   dbUpdatePortfolio,
 } from '../../src/repositories/index.js';
@@ -25,7 +22,6 @@ import {
 import { getCorsHeaders } from '../../src/lib/helpers.js';
 import { buildFrontendRedirect } from '../../src/handlers/authRoutes.js';
 import { handleGetSharedPortfolio } from '../../src/handlers/portfolioRoutes.js';
-import { dbAddPortfolioHolding } from '../../src/repositories/holdings.repository.js';
 import worker from '../../src/index.js';
 
 describe('isTrustedOrigin', () => {
@@ -71,17 +67,17 @@ describe('preflight and server timing', () => {
   });
 
   it('every answer says how long the Worker took, readable by our site', async () => {
-    const res = await worker.fetch(new Request('https://api.realrate.ir/api/cheques', { headers: { Origin: 'https://realrate.ir' } }), {}, {});
+    const res = await worker.fetch(new Request('https://api.realrate.ir/api/portfolios', { headers: { Origin: 'https://realrate.ir' } }), {}, {});
     expect(res.headers.get('Server-Timing')).toMatch(/^app;dur=\d+$/);
     expect(res.headers.get('Timing-Allow-Origin')).toBe('https://realrate.ir');
-    const foreign = await worker.fetch(new Request('https://api.realrate.ir/api/cheques', { headers: { Origin: 'https://evil.example' } }), {}, {});
+    const foreign = await worker.fetch(new Request('https://api.realrate.ir/api/portfolios', { headers: { Origin: 'https://evil.example' } }), {}, {});
     expect(foreign.headers.get('Timing-Allow-Origin')).toBeNull();
   });
 });
 
 describe('CSRF guard', () => {
   const send = (method, origin) => worker.fetch(
-    new Request('https://api.realrate.ir/api/cheques', {
+    new Request('https://api.realrate.ir/api/portfolios', {
       method,
       headers: { 'Content-Type': 'text/plain', ...(origin ? { Origin: origin } : {}) },
       body: method === 'GET' ? undefined : '{}',
@@ -164,10 +160,8 @@ describe('handleGetSharedPortfolio password protection', () => {
       shareSlug: 'abc123',
       shareEnabled: true,
       sharePassword: await hashSharePassword('secret'),
-      isE2ee: false,
+      e2eeWrappedKey: 'enc:e2ee:v1:key',
     });
-    dbGetPortfolioHoldings.mockResolvedValue([{ id: 'h1', assetId: 'gold_18k', amount: 1 }]);
-    dbGetTransactionsByPortfolio.mockResolvedValue([]);
   });
 
   const post = (body) => new Request('https://api.realrate.ir/api/portfolio/shared', {
@@ -180,7 +174,7 @@ describe('handleGetSharedPortfolio password protection', () => {
     const req = new Request('https://api.realrate.ir/api/portfolio/shared?slug=abc123&password=secret');
     const body = await (await handleGetSharedPortfolio(req, env)).json();
     expect(body.requirePassword).toBe(true);
-    expect(body.holdings).toBeUndefined();
+    expect(body.vaultHoldings).toBeUndefined();
   });
 
   it('unlocks with the right password and never echoes the stored hash', async () => {
@@ -210,32 +204,6 @@ describe('handleGetSharedPortfolio password protection', () => {
     expect(dbUpdatePortfolio).toHaveBeenCalledTimes(1);
     const saved = dbUpdatePortfolio.mock.calls[0][3].sharePassword;
     expect(isHashedSharePassword(saved)).toBe(true);
-  });
-});
-
-describe('dbAddPortfolioHolding ownership', () => {
-  function createDb(changes) {
-    const run = vi.fn(async () => ({ meta: { changes } }));
-    return {
-      prepare: vi.fn(() => ({ bind: vi.fn(() => ({ run, first: vi.fn(async () => null), all: vi.fn(async () => ({ results: [] })) })) })),
-      batch: vi.fn(async () => []),
-      exec: vi.fn(async () => ({})),
-      run,
-    };
-  }
-
-  it('only updates an existing holding owned by the same user', async () => {
-    const DB = createDb(1);
-    await dbAddPortfolioHolding({ DB }, { id: 'h1', userId: 'u1', portfolioId: 'p1', assetId: 'gold_18k', amount: 1 });
-    const sql = DB.prepare.mock.calls.map((c) => c[0]).find((q) => q.includes('INSERT INTO portfolio_holdings'));
-    expect(sql).toMatch(/WHERE portfolio_holdings\.user_id = excluded\.user_id/);
-  });
-
-  it("rejects writing to another user's holding id", async () => {
-    const DB = createDb(0);
-    await expect(
-      dbAddPortfolioHolding({ DB }, { id: 'victim_h', userId: 'attacker', portfolioId: 'p9', assetId: 'gold_18k', amount: 1 })
-    ).rejects.toMatchObject({ statusCode: 404 });
   });
 });
 

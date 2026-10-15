@@ -58,9 +58,6 @@ import {
 } from './currencies.js';
 import { t } from './i18n.js';
 
-/** The currencies an expense can be in (currencies.js), as picker options */
-export const EXPENSE_CURRENCIES = CURRENCIES.map(({ code, label, symbol }) => ({ value: code, label, symbol }));
-
 export const EXPENSE_GROUP_TYPES = ['project', 'daily'];
 
 /** Name of the daily section, created the first time an everyday expense is recorded */

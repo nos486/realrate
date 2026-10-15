@@ -197,5 +197,3 @@ export const deleteVaultRecords = async (kind, ids, options) => {
   }
 };
 
-/** Raw stored loan (parameters + states + extra payments), used to encrypt an existing loan */
-export const getLoanDocument = (loanId, options) => httpClient.get(`/api/loans/${seg(loanId)}/document`, options);

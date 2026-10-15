@@ -364,7 +364,6 @@ export default {
   بازگشایی: 'Unlock',
   'رمزگشایی در مرورگر انجام می‌شود و رمز در سرور ذخیره نمی‌گردد.': 'Decryption happens in the browser and the password is never stored on the server.',
   'رمز عبور رمزنگاری حساب اشتباه است.': 'The account encryption password is wrong.',
-  'رمز عبور گاوصندوق اشتباه است.': 'The vault password is wrong.',
   'خطا در بررسی رمز عبور: {message}': 'Error checking the password: {message}',
   'پورتفو قفل است، ابتدا آن را باز کنید.': 'The portfolio is locked; unlock it first.',
   'خطا در دریافت چیدمان دسته‌ها': 'Error loading the category layout',
@@ -391,8 +390,6 @@ export default {
   'نام اصلی: {name}': 'Original name: {name}',
 
   // Transactions
-  'شناسه پورتفو الزامی است.': 'The portfolio ID is required.',
-  'شناسه پورتفو و تراکنش الزامی است.': 'The portfolio ID and transaction ID are required.',
   'طلای ۱۸ عیار': '18k gold',
   'خرید (ورود دارایی)': 'Buy (asset in)',
   'فروش (خروج دارایی)': 'Sell (asset out)',

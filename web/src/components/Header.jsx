@@ -43,7 +43,7 @@ export default function Header({ activeTab, navItems = null }) {
   // One lock for everything encrypted that is open in this tab (account vault and any
   // portfolio opened with its own older passphrase)
   const vault = useVault();
-  const canLock = Boolean(user) && (vault.status === 'unlocked' || vault.legacyUnlocked);
+  const canLock = Boolean(user) && vault.status === 'unlocked';
 
   // On phones the app's sections live in a side menu instead of the tab bar
 
