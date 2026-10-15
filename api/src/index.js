@@ -153,7 +153,6 @@ import {
   handleAdminResetFeatureRule,
 } from "./handlers/groupRoutes.js";
 import { handleGetLatestAppRelease } from "./handlers/appUpdateRoutes.js";
-import { handleGetWebBundleFile } from "./handlers/webBundleRoutes.js";
 import {
   handleGetNews,
   handleAdminGetNewsChannels,
@@ -248,7 +247,6 @@ async function handleRequest(request, env, ctx) {
 
   // ── The Android app's update check (public; answered during maintenance too) ──
   if (normalizedPath === "/api/app/latest" && request.method === "GET") return wrap(handleGetLatestAppRelease)(request, env);
-  if (normalizedPath.startsWith("/api/app/web-bundle/") && request.method === "GET") return wrap(handleGetWebBundleFile)(request, env);
 
   // ── Maintenance mode: past the sign-in routes, only admins get through ────
   const maintenanceBlock = await wrap(async (req, e) => {
