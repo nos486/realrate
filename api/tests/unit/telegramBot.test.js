@@ -87,7 +87,7 @@ describe('the message', () => {
   it('is a bold headline, a short escaped summary and the source linking to the article', () => {
     const html = formatNewsMessage({ title: 'A <b> & B', summary: 'x'.repeat(400), url: 'https://e.com/a?x=1&y=2', sourceTitle: 'BBC' });
     expect(html).toContain('<b>A &lt;b&gt; &amp; B</b>');
-    expect(html).toContain('<a href="https://e.com/a?x=1&amp;y=2">BBC</a>');
+    expect(html).toContain('<a href="https://e.com/a?x=1&amp;y=2">منبع: BBC</a>');
     expect(html.split('\n\n')[1].length).toBeLessThanOrEqual(BOT_LIMITS.summaryChars + 1);
   });
 });
@@ -160,6 +160,56 @@ describe('queuing and posting', () => {
     await enqueueFeedNews(env, [article(1), article(2)], {}, NOW);
     expect(await runBot(env, { now: NOW, fetchFn })).toMatchObject({ sent: 2 });
     expect(await getBotStatus(env)).toMatchObject({ lastSentAt: NOW, sentTotal: 2, error: '' });
+  });
+});
+
+describe('the Persian translation', () => {
+  const turnOn = () => saveBotConfig(env, { token: TOKEN, channel: '@realrate_news', enabled: true });
+  /** An AI binding that answers with a JSON array for the numbered articles it is given */
+  const fakeAi = (answer) => ({ run: vi.fn(async (_model, req) => ({ response: typeof answer === 'function' ? answer(req) : answer })) });
+
+  it('posts the Persian headline and summary with the original link', async () => {
+    await turnOn();
+    env.AI = fakeAi(JSON.stringify([{ i: 1, t: 'تیتر فارسی ۱', s: 'خلاصه‌ی فارسی ۱' }, { i: 2, t: 'تیتر فارسی ۲', s: 'خلاصه ۲' }]));
+    const { fetchFn, calls } = fakeApi();
+    await enqueueFeedNews(env, [article(1), article(2)], { bbc: 'BBC' }, NOW);
+    expect(await flushNewsQueue(env, { now: NOW, fetchFn })).toMatchObject({ sent: 2 });
+    expect(env.AI.run).toHaveBeenCalledTimes(1);
+    const text = calls[0].params.text;
+    expect(text).toContain('<b>تیتر فارسی ۱</b>');
+    expect(text).toContain('خلاصه‌ی فارسی ۱');
+    expect(text).toContain('<a href="https://example.com/a/1?utm=1">منبع: BBC</a>');
+    expect(text).not.toContain('Headline 1');
+  });
+
+  it('keeps an article the model skipped for the next run, then posts it as it is', async () => {
+    await turnOn();
+    env.AI = fakeAi(JSON.stringify([{ i: 1, t: 'تیتر فارسی', s: 'خلاصه' }]));
+    const { fetchFn, calls } = fakeApi();
+    await enqueueFeedNews(env, [article(1), article(2)], {}, NOW);
+    expect(await flushNewsQueue(env, { now: NOW, fetchFn })).toMatchObject({ sent: 1, waiting: 1 });
+    // The skipped one is asked again (as #1), skipped again, and finally goes out in English
+    env.AI = fakeAi('[]');
+    await flushNewsQueue(env, { now: NOW + 1, fetchFn });
+    expect(await flushNewsQueue(env, { now: NOW + 2, fetchFn })).toMatchObject({ sent: 1, waiting: 0 });
+    expect(calls.at(-1).params.text).toContain('Headline 2');
+  });
+
+  it('holds everything back while the model fails, and reports the error', async () => {
+    await turnOn();
+    env.AI = { run: vi.fn(async () => { throw new Error('3040: capacity'); }) };
+    const { fetchFn, calls } = fakeApi();
+    await enqueueFeedNews(env, [article(1)], {}, NOW);
+    expect(await flushNewsQueue(env, { now: NOW, fetchFn })).toMatchObject({ sent: 0, waiting: 1, aiError: '3040: capacity' });
+    expect(calls).toHaveLength(0);
+  });
+
+  it('ignores a translation without Persian letters', async () => {
+    await turnOn();
+    env.AI = fakeAi(JSON.stringify([{ i: 1, t: 'English again', s: 'x' }]));
+    const { fetchFn } = fakeApi();
+    await enqueueFeedNews(env, [article(1)], {}, NOW);
+    expect(await flushNewsQueue(env, { now: NOW, fetchFn })).toMatchObject({ sent: 0, waiting: 1 });
   });
 });
 

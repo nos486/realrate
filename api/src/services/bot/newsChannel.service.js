@@ -6,14 +6,19 @@
  * minute run (`flushNewsQueue`) posts the waiting ones, oldest first, a few at a time, so a burst
  * of articles never trips Telegram's rate limit. An article is posted once: the queue and the list
  * of sent links are kept in `app_state`, and the same link from two feeds is the same article.
- * The articles are posted as the feeds give them (headline, a short summary, a link to the source);
- * the news page's filtering and translation do not apply here.
+ * Every article is translated to Persian by Workers AI just before it is posted: the Persian
+ * headline in bold, a Persian summary, and the link to the original article. When the model fails
+ * the article waits (up to BOT_LIMITS.translateTries runs), then goes out as the feed gave it;
+ * without an AI binding it goes out as the feed gave it at once. The news page's filtering does
+ * not apply here: every article is posted.
  */
 
 import { BOT_LIMITS } from "../../config/telegramBot.config.js";
 import { getStateStore } from "../../repositories/stateStore.repository.js";
 import { getBotConfig } from "./botConfig.service.js";
 import { sendMessage, escapeHtml } from "./telegramApi.js";
+import { translateArticles } from "./translate.js";
+import { hasWorkersAi } from "../news/workersAi.js";
 import { logger } from "../../lib/logger.js";
 
 const QUEUE_KEY = "bot:news:queue";
@@ -23,7 +28,7 @@ const SENT_KEY = "bot:news:sent";
 const articleKey = (url) => String(url || "").split(/[?#]/)[0];
 
 /**
- * The message of an article: headline in bold, a short summary, the source's name linking to the article
+ * The message of an article: headline in bold, a short summary, the source's name linking to the original article
  * @param {{ title: string, summary?: string, url: string, sourceTitle?: string }} item
  * @returns {string} Telegram HTML
  */
@@ -32,7 +37,7 @@ export function formatNewsMessage({ title, summary, url, sourceTitle }) {
   const short = body.length > BOT_LIMITS.summaryChars ? `${body.slice(0, BOT_LIMITS.summaryChars).replace(/\s+\S*$/, "")}…` : body;
   const parts = [`<b>${escapeHtml(title)}</b>`];
   if (short) parts.push(escapeHtml(short));
-  parts.push(`<a href="${escapeHtml(url)}">${escapeHtml(sourceTitle || "Source")}</a>`);
+  parts.push(`<a href="${escapeHtml(url)}">منبع: ${escapeHtml(sourceTitle || "Source")}</a>`);
   return parts.join("\n\n");
 }
 
@@ -86,7 +91,7 @@ export async function enqueueFeedNews(env, posts, titles = {}, now = Date.now())
  * Post the waiting articles (at most BOT_LIMITS.sendPerRun), oldest first
  * @param {object} env
  * @param {{ now?: number, fetchFn?: Function }} [opts]
- * @returns {Promise<{ sent: number, waiting: number, error?: string }>}
+ * @returns {Promise<{ sent: number, waiting: number, aiError?: string, error?: string }>}
  */
 export async function flushNewsQueue(env, { now = Date.now(), fetchFn } = {}) {
   const store = getStateStore(env);
@@ -98,9 +103,34 @@ export async function flushNewsQueue(env, { now = Date.now(), fetchFn } = {}) {
   if (!queue.length) return { sent: 0, waiting: 0 };
   const sent = Array.isArray(stored.get(SENT_KEY)) ? stored.get(SENT_KEY) : [];
 
+  // Translate the run's articles in one request. An article the model did not translate waits
+  // for the next run (it counts a try), and past BOT_LIMITS.translateTries it goes out as it is.
+  const batch = queue.slice(0, BOT_LIMITS.sendPerRun);
+  let translated = new Map();
+  let aiError = "";
+  if (hasWorkersAi(env)) {
+    try {
+      translated = await translateArticles(env, batch);
+    } catch (err) {
+      aiError = String(err?.message || err).slice(0, 240);
+      logger.warn("[Bot] translating the news failed", { error: aiError });
+    }
+  }
+  const aiOn = hasWorkersAi(env);
+  const ready = [];
+  queue = queue.map((q) => {
+    const i = batch.indexOf(q);
+    if (i < 0) return q;
+    const done = translated.get(i);
+    if (done) ready.push({ ...q, ...done });
+    else if (!aiOn || (q.translateTries || 0) + 1 >= BOT_LIMITS.translateTries) ready.push(q);
+    else return { ...q, translateTries: (q.translateTries || 0) + 1 };
+    return q;
+  });
+
   let count = 0;
   let error = "";
-  for (const item of queue.slice(0, BOT_LIMITS.sendPerRun)) {
+  for (const item of ready) {
     const res = await sendMessage(config.token, config.channel, formatNewsMessage(item), { fetchFn });
     if (res.ok) {
       count++;
@@ -125,5 +155,5 @@ export async function flushNewsQueue(env, { now = Date.now(), fetchFn } = {}) {
     count ? store.put(SENT_KEY, JSON.stringify(sent.slice(-BOT_LIMITS.sentMax))) : null,
   ]);
   if (error) logger.warn("[Bot] sending to the channel failed", { error });
-  return { sent: count, waiting: queue.length, ...(error ? { error } : {}) };
+  return { sent: count, waiting: queue.length, aiError, ...(error ? { error } : {}) };
 }
