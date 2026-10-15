@@ -4,7 +4,7 @@
  * — no timer. The last answer of each query is kept for this visit, so the home card and the
  * news page open with it at once, without asking the server again.
  *
- *   useNews({ limit, page, category, important }) — one page of the list, with the total
+ *   useNews({ limit, page, category, important, source }) — one page of the list, with the total
  *   useNewsToday()                                — the analyst's card, today's and the week's top news
  */
 
@@ -65,13 +65,13 @@ function useNewsQuery(key, load) {
 }
 
 /**
- * @param {{ limit?: number, page?: number, category?: string, important?: boolean }} [opts]
+ * @param {{ limit?: number, page?: number, category?: string, important?: boolean, source?: string }} [opts]
  * @returns {{ items: object[], total: number, loading: boolean, error: string, refresh: () => Promise<void>,
  *   removeItem: (id: string) => void }}
  */
-export function useNews({ limit = 20, page = 1, category = '', important = false } = {}) {
-  const key = `list|${limit}|${page}|${category}|${important ? 1 : 0}`;
-  const { data, loading, error, refresh, setData } = useNewsQuery(key, () => getNews({ limit, page, category, important }));
+export function useNews({ limit = 20, page = 1, category = '', important = false, source = '' } = {}) {
+  const key = `list|${limit}|${page}|${category}|${important ? 1 : 0}|${source}`;
+  const { data, loading, error, refresh, setData } = useNewsQuery(key, () => getNews({ limit, page, category, important, source }));
 
   const removeItem = useCallback((id) => {
     const drop = (d) => ({ ...d, items: (d.items || []).filter((n) => n.id !== id), total: Math.max(0, (d.total || 0) - 1) });

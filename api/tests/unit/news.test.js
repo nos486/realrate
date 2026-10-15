@@ -17,10 +17,11 @@ import {
   fallbackNewsItem,
   normalizeChannel,
 } from '../../src/domain/news.js';
-import { runNewsPolling, saveNewsChannels, getNewsChannels, getNewsStatus, newsReport } from '../../src/services/news/news.service.js';
+import { runNewsPolling, saveNewsChannels, getNewsChannels, saveNewsFeeds, getNewsFeeds, getNewsStatus, newsReport } from '../../src/services/news/news.service.js';
+import { parseNewsFeed, feedPostId, normalizeFeed, feedIdFromUrl } from '../../src/domain/newsFeeds.js';
 import { dbListNews, dbSetNewsHidden, dbPurgeOldNews } from '../../src/repositories/news.repository.js';
 import { resetD1SchemaCache } from '../../src/repositories/d1Schema.js';
-import { DEFAULT_NEWS_CHANNELS, NEWS_LIMITS, NEWS_AI_MODEL } from '../../src/config/news.config.js';
+import { DEFAULT_NEWS_CHANNELS, DEFAULT_NEWS_FEEDS, NEWS_LIMITS, NEWS_AI_MODEL } from '../../src/config/news.config.js';
 import { sqliteD1 } from '../helpers/sqliteD1.js';
 
 const post = (channel, id, text, time = '2026-10-05T08:00:00+00:00', extra = '') => `
@@ -229,6 +230,8 @@ describe('runNewsPolling', () => {
     env = { DB: db };
     pages = {};
     await saveNewsChannels(env, ['@chan_one', 'chan_two']);
+    // The international feeds have tests of their own (below)
+    await saveNewsFeeds(env, []);
   });
 
   const at = (min) => new Date(Date.parse('2026-10-05T08:00:00Z') + min * 60000).toISOString();
@@ -501,5 +504,152 @@ describe('channels and the list', () => {
     expect(await dbSetNewsHidden(env, 'c/4', true)).toBe(true);
     await dbPurgeOldNews(env, 1500);
     expect((await dbListNews(env)).items.map((i) => i.postId)).toEqual([3, 2]);
+  });
+});
+
+const rssItem = (id, title, description, time, extra = '') => `
+  <item>
+    <title><![CDATA[${title}]]></title>
+    <link>https://example.com/news/${id}</link>
+    <guid isPermaLink="false">story-${id}</guid>
+    <description>${description}</description>
+    <pubDate>${new Date(time).toUTCString()}</pubDate>
+    ${extra}
+  </item>`;
+const rss = (items, title = 'World Markets') =>
+  `<?xml version="1.0"?><rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/"><channel><title>${title}</title><link>https://example.com</link>${items.join('')}</channel></rss>`;
+
+describe('parseNewsFeed', () => {
+  it('reads an RSS feed: headline, summary (HTML escaped or not), link, time, picture, oldest first', () => {
+    const xml = rss([
+      rssItem(2, 'Fed holds rates', '&lt;p&gt;The Federal Reserve kept rates &amp;amp; signalled cuts.&lt;/p&gt;', '2026-10-05T09:00:00Z',
+        '<media:content url="https://img.example.com/fed.jpg" medium="image"/>'),
+      rssItem(1, 'Gold hits a record', 'Gold rose above $4,000 an ounce.', '2026-10-05T08:00:00Z'),
+    ]);
+    const { title, posts } = parseNewsFeed(xml, 'world_feed');
+    expect(title).toBe('World Markets');
+    expect(posts.map((p) => p.title)).toEqual(['Gold hits a record', 'Fed holds rates']);
+    expect(posts[1]).toMatchObject({
+      channel: 'world_feed',
+      postId: feedPostId('story-2'),
+      url: 'https://example.com/news/2',
+      text: 'Fed holds rates\nThe Federal Reserve kept rates & signalled cuts.',
+      image: 'https://img.example.com/fed.jpg',
+      publishedAt: Date.parse('2026-10-05T09:00:00Z'),
+    });
+  });
+
+  it('reads an Atom feed (link href, published/updated) and skips an entry without a link', () => {
+    const xml = `<feed xmlns="http://www.w3.org/2005/Atom"><title>Oil Desk</title>
+      <entry><title>OPEC+ agrees output cut</title><link rel="alternate" href="https://oil.example.com/a"/><id>tag:a</id>
+        <updated>2026-10-05T07:00:00Z</updated><summary>Brent jumped 3%.</summary></entry>
+      <entry><title>No link</title><id>tag:b</id></entry></feed>`;
+    const { title, posts } = parseNewsFeed(xml, 'oil');
+    expect(title).toBe('Oil Desk');
+    expect(posts).toHaveLength(1);
+    expect(posts[0]).toMatchObject({ url: 'https://oil.example.com/a', text: 'OPEC+ agrees output cut\nBrent jumped 3%.', postId: feedPostId('tag:a') });
+  });
+
+  it('English market news passes the keywords; a single company or sport does not', () => {
+    expect(isNewsCandidate('Gold hits a record as the dollar slides')).toBe(true);
+    expect(isNewsCandidate('Fed signals rate cuts after inflation cools')).toBe(true);
+    expect(isNewsCandidate('Oil prices jump after missile attack near Strait of Hormuz')).toBe(true);
+    expect(isNewsCandidate('Iran and Israel exchange threats')).toBe(false); // politics alone
+    expect(isNewsCandidate('Real Madrid win the league')).toBe(false);
+  });
+});
+
+describe('feeds in the list', () => {
+  beforeEach(() => resetD1SchemaCache());
+
+  it('defaults to the configured feeds; saving checks the address, makes an id and drops repeats', async () => {
+    const env = { DB: sqliteD1() };
+    expect((await getNewsFeeds(env)).map((f) => f.id)).toEqual(DEFAULT_NEWS_FEEDS.map((f) => f.id));
+    const saved = await saveNewsFeeds(env, [
+      { title: 'FX', url: 'https://www.fxstreet.com/rss/news' },
+      { title: 'again', url: 'https://www.fxstreet.com/rss/news' },
+      { id: 'kitco', title: 'Kitco', url: 'https://kitco.example.com/rss', enabled: false },
+      { title: 'bad', url: 'javascript:alert(1)' },
+      { title: 'ftp', url: 'ftp://example.com/feed' },
+    ]);
+    expect(saved).toEqual([
+      { id: feedIdFromUrl('https://www.fxstreet.com/rss/news'), title: 'FX', url: 'https://www.fxstreet.com/rss/news', enabled: true },
+      { id: 'kitco', title: 'Kitco', url: 'https://kitco.example.com/rss', enabled: false },
+    ]);
+    expect(saved[0].id).toMatch(/^fxstreet_[a-z0-9]{1,4}$/);
+    expect(await getNewsFeeds(env)).toEqual(saved);
+    expect(normalizeFeed({ url: 'https://user:pw@example.com/rss' })).toBeNull();
+  });
+});
+
+describe('runNewsPolling with the international feeds', () => {
+  let env;
+  let feeds;
+  const NOW = Date.parse('2026-10-05T10:00:00Z');
+  const fetchFeed = async (url) => {
+    if (!feeds[url]) throw new Error('HTTP 503');
+    return feeds[url];
+  };
+  const answer = (count) => ({ response: JSON.stringify(Array.from({ length: count }, (_, i) => ({ i: i + 1, k: 1, c: 'gold', p: 3, t: `طلا رکورد زد ${i + 1}`, s: 'قیمت جهانی طلا از ۴۰۰۰ دلار گذشت.' }))) });
+
+  beforeEach(async () => {
+    resetD1SchemaCache();
+    env = { DB: sqliteD1() };
+    feeds = {};
+    await saveNewsChannels(env, []);
+    await saveNewsFeeds(env, [
+      { id: 'markets', title: 'Markets Wire', url: 'https://wire.example.com/rss' },
+      { id: 'broken', title: 'Broken', url: 'https://down.example.com/rss' },
+    ]);
+    env.AI = { run: vi.fn(async (model, { messages }) => answer((messages[1].content.match(/^#\d+$/gm) || []).length)) };
+  });
+
+  it('publishes the model\'s Persian with the English original and its link; a seen article is never sent again', async () => {
+    feeds['https://wire.example.com/rss'] = rss([
+      rssItem(1, 'Gold hits a record as the dollar slides', 'Spot gold rose above $4,000 an ounce.', NOW - 30 * 60000),
+      rssItem(2, 'Real Madrid win the league', 'Football.', NOW - 20 * 60000),
+      rssItem(3, 'Old news: oil prices fell', 'Brent fell.', NOW - 2 * 86400000),
+    ]);
+    const result = await runNewsPolling(env, { now: NOW, fetchFeed });
+    expect(result).toMatchObject({ checked: 2, published: 1 }); // the 2-day-old article isn't read
+    expect(env.AI.run).toHaveBeenCalledTimes(1);
+    const { items } = await dbListNews(env);
+    expect(items[0]).toMatchObject({
+      id: `markets/${feedPostId('story-1')}`,
+      channel: 'markets',
+      channelTitle: 'Markets Wire',
+      source: 'world',
+      url: 'https://example.com/news/1',
+      title: 'طلا رکورد زد 1',
+      text: 'Gold hits a record as the dollar slides\nSpot gold rose above $4,000 an ounce.',
+      category: 'gold',
+    });
+    expect((await dbListNews(env, { source: 'world' })).items).toHaveLength(1);
+    expect((await dbListNews(env, { source: 'telegram' })).items).toHaveLength(0);
+
+    const status = await getNewsStatus(env);
+    expect(status.feeds.markets).toMatchObject({ ok: true, items: 3, published: 1, title: 'Markets Wire' });
+    expect(status.feeds.broken).toMatchObject({ ok: false, error: 'HTTP 503' });
+
+    // The next minute: one new article (dated earlier than one already read: it still counts)
+    feeds['https://wire.example.com/rss'] = rss([
+      rssItem(4, 'Oil prices jump after OPEC cut', 'Brent rose 4%.', NOW - 40 * 60000),
+      rssItem(1, 'Gold hits a record as the dollar slides', 'Spot gold rose above $4,000 an ounce.', NOW - 30 * 60000),
+      rssItem(2, 'Real Madrid win the league', 'Football.', NOW - 20 * 60000),
+    ]);
+    env.AI.run.mockClear();
+    const again = await runNewsPolling(env, { now: NOW + 60000, fetchFeed });
+    expect(again).toMatchObject({ checked: 1, published: 1 });
+    expect(env.AI.run.mock.calls[0][1].messages[1].content).toContain('Oil prices jump after OPEC cut');
+    expect(env.AI.run.mock.calls[0][1].messages[1].content).not.toContain('Gold hits a record');
+  });
+
+  it("an article whose Persian came back with English words isn't published in English", async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    feeds['https://wire.example.com/rss'] = rss([rssItem(1, 'Gold hits a record as the dollar slides', 'Spot gold rose.', NOW - 60000)]);
+    env.AI.run = vi.fn(async () => ({ response: '[{"i":1,"k":1,"c":"gold","p":2,"t":"gold price رکورد زد","s":"خلاصه"}]' }));
+    const result = await runNewsPolling(env, { now: NOW, fetchFeed });
+    expect(result.published).toBe(0);
+    expect((await dbListNews(env)).items).toHaveLength(0);
   });
 });

@@ -1,5 +1,6 @@
 /**
- * NewsPage.jsx — «اخبار»: market news picked from Telegram news channels
+ * NewsPage.jsx — «اخبار»: market news picked from Telegram news channels and international (English)
+ * news feeds; the «بین‌الملل» filter shows the feeds' news only
  *
  * Only what can move the dollar, gold, coins, metals, the stock index or the economy is published
  * (the server picks and summarizes it with AI, api/src/services/news/news.service.js).
@@ -12,14 +13,14 @@
  * list, the analysis beside them (in place). A phone: the analysis, then the list (no top lists).
  * The analysis stays in place while the list scrolls; the top news scroll with it. Each item shows its headline, summary,
  * source and time; a tap opens the post's full text and image (no link out to Telegram: the news is
- * read here). An item of the top lists or of the analysis that isn't on the list's page opens in a
+ * read here). An international article shows its English original and a link to it on its site. An item of the top lists or of the analysis that isn't on the list's page opens in a
  * window of its own. The list comes in pages; new news comes in by itself every minute.
  */
 
 import { intlLocale, t } from '../../utils/i18n.js';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Newspaper, Share2, EyeOff, ChevronDown, Sparkles, Flame, CalendarDays, Bell, BellOff } from 'lucide-react';
+import { Newspaper, Share2, EyeOff, ChevronDown, Sparkles, Flame, CalendarDays, Bell, BellOff, ExternalLink } from 'lucide-react';
 import { FeaturePageHeader, FilterPills, EmptyState, AlertBanner, Pagination, Modal } from '../../shared/ui/index.js';
 import Skeleton from '../../shared/ui/Skeleton.jsx';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
@@ -28,7 +29,7 @@ import { useNews, useNewsToday } from './useNews.js';
 import { setNewsHidden } from './newsApi.js';
 import NewsAnalysisCard from './NewsAnalysisCard.jsx';
 import { newsAlertsSupported, getNewsAlertsEnabled, setNewsAlertsEnabled } from './newsAlerts.js';
-import { NEWS_CATEGORIES, newsTimeAgo, newsFullTime, newsSource } from './newsFormat.js';
+import { NEWS_CATEGORIES, newsTimeAgo, newsFullTime, newsSource, isWorldNews, newsSite } from './newsFormat.js';
 
 const PAGE_SIZE = 12;
 const FRESH_MS = 30 * 60000;
@@ -36,6 +37,7 @@ const FRESH_MS = 30 * 60000;
 const FILTERS = [
   { value: 'all', label: t('همه') },
   { value: 'important', label: t('مهم‌ها') },
+  { value: 'world', label: t('بین‌الملل') },
   ...Object.entries(NEWS_CATEGORIES).map(([value, label]) => ({ value, label })),
 ];
 
@@ -78,6 +80,7 @@ function NewsItem({ item, open, onToggle, isAdmin, onHide }) {
   const { toast } = useFeedback();
   const showSummary = item.summary && item.summary !== item.title;
   const fresh = Date.now() - item.publishedAt < FRESH_MS;
+  const world = isWorldNews(item);
 
   const share = async (e) => {
     e.stopPropagation();
@@ -99,6 +102,7 @@ function NewsItem({ item, open, onToggle, isAdmin, onHide }) {
         <span className="news-item-tags">
           {item.importance >= 3 && <span className="news-tag is-important">{t('مهم')}</span>}
           <span className={`news-tag is-${item.category}`}>{NEWS_CATEGORIES[item.category] || t('اقتصاد')}</span>
+          {world && <span className="news-tag is-world">{t('بین‌الملل')}</span>}
           {fresh && <span className="news-tag is-fresh">{t('تازه')}</span>}
         </span>
         <h3 className="news-item-title">{item.title}</h3>
@@ -117,8 +121,19 @@ function NewsItem({ item, open, onToggle, isAdmin, onHide }) {
       {open && (
         <div className="news-item-body">
           {item.image && <img className="news-item-image" src={item.image} alt="" loading="lazy" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = 'none'; }} />}
-          {item.text && <p className="news-item-text">{item.text}</p>}
+          {item.text && world ? (
+            <div className="news-item-original">
+              <span className="news-item-original-label">{t('متن اصلی خبر')}</span>
+              <p className="news-item-text" lang="en" dir="auto">{item.text}</p>
+            </div>
+          ) : item.text && <p className="news-item-text">{item.text}</p>}
           <div className="news-item-actions">
+            {world && item.url && (
+              <a className="news-action" href={item.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                <ExternalLink size={15} />
+                {t('خبر اصلی در {source}', { source: newsSource(item) })}
+              </a>
+            )}
             <button type="button" className="news-action" onClick={share}>
               <Share2 size={15} />
               {t('اشتراک‌گذاری')}
@@ -132,7 +147,7 @@ function NewsItem({ item, open, onToggle, isAdmin, onHide }) {
           </div>
           <p className="news-item-footnote">
             {item.ai && <><Sparkles size={12} aria-hidden="true" /> {t('تیتر و خلاصه با هوش مصنوعی')} · </>}
-            {newsFullTime(item.publishedAt)} · <bdi dir="ltr">@{item.channel}</bdi>
+            {newsFullTime(item.publishedAt)} · <bdi dir="ltr">{world ? newsSite(item.url) || item.channel : `@${item.channel}`}</bdi>
           </p>
         </div>
       )}
@@ -187,7 +202,8 @@ export default function NewsPage() {
     limit: PAGE_SIZE,
     page,
     important: filter === 'important',
-    category: filter !== 'all' && filter !== 'important' ? filter : '',
+    source: filter === 'world' ? 'world' : '',
+    category: !['all', 'important', 'world'].includes(filter) ? filter : '',
   }), [filter, page]);
   const { items, total, loading, error, removeItem } = useNews(query);
   const today = useNewsToday();
@@ -246,7 +262,7 @@ export default function NewsPage() {
         icon={<Newspaper size={22} />}
         title={t('اخبار')}
         help="news"
-        subtitle={t('خبرهای مهم دلار، طلا، بورس و اقتصاد — هر دقیقه از کانال‌های خبری')}
+        subtitle={t('خبرهای مهم دلار، طلا، بورس و اقتصاد — هر دقیقه از کانال‌های خبری و خبرگزاری‌های بین‌المللی')}
         actions={<NewsAlertsToggle />}
       />
 

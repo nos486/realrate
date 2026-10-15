@@ -2,16 +2,17 @@
 /**
  * adminNewsErrors.test.jsx — The admin's news panel: the report (today's totals, the last runs,
  * the last published news); it says when the model failed (screening or the day's analysis) and
- * that no other model was tried; «تحلیل الان» reports the model's error
+ * that no other model was tried; «تحلیل الان» reports the model's error; the international feeds
  */
 import React from 'react';
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, cleanup, screen, fireEvent, waitFor } from '@testing-library/react';
 
-const api = { getNewsChannels: vi.fn(), runNewsAnalysisNow: vi.fn() };
+const api = { getNewsChannels: vi.fn(), runNewsAnalysisNow: vi.fn(), saveNewsFeeds: vi.fn() };
 vi.mock('../../../web/src/features/news/newsApi.js', () => ({
   getNewsChannels: (...a) => api.getNewsChannels(...a),
   saveNewsChannels: vi.fn(),
+  saveNewsFeeds: (...a) => api.saveNewsFeeds(...a),
   runNewsNow: vi.fn(),
   runNewsAnalysisNow: (...a) => api.runNewsAnalysisNow(...a),
 }));
@@ -76,5 +77,39 @@ describe('model errors in the news panel', () => {
     fireEvent.click(await screen.findByRole('button', { name: /تحلیل الان/ }));
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('مدل خطا داد: جواب قالب درستی نداشت (JSON)', { duration: 8000 }));
     expect(await screen.findByText(/جواب قالب درستی نداشت/)).toBeTruthy();
+  });
+});
+
+describe('the international feeds', () => {
+  it("lists each feed with how it did, and saves a new one apart from the channels", async () => {
+    const feed = { id: 'cnbc_economy', title: 'CNBC', url: 'https://www.cnbc.com/rss', enabled: true };
+    api.getNewsChannels.mockResolvedValue({
+      ...DATA,
+      feeds: [feed],
+      status: { ...DATA.status, feeds: { cnbc_economy: { ok: true, items: 30, published: 4, title: 'CNBC' } } },
+    });
+    const added = { id: 'fxstreet_ab12', title: 'FXStreet', url: 'https://www.fxstreet.com/rss/news', enabled: true };
+    api.saveNewsFeeds.mockResolvedValue({ feeds: [feed, added] });
+    render(<AdminNewsPage />);
+    expect(await screen.findByText('خبرگزاری‌های بین‌المللی (RSS)')).toBeTruthy();
+    expect(screen.getByText(/۳۰ خبر در فید · ۴ خبر منتشرشده/)).toBeTruthy();
+
+    fireEvent.change(screen.getByPlaceholderText('نام (مثل Reuters)'), { target: { value: 'FXStreet' } });
+    fireEvent.change(screen.getByPlaceholderText('https://example.com/rss'), { target: { value: 'https://www.fxstreet.com/rss/news' } });
+    fireEvent.submit(screen.getByPlaceholderText('https://example.com/rss').closest('form'));
+    const saveButtons = screen.getAllByText('ذخیره فهرست');
+    fireEvent.click(saveButtons[saveButtons.length - 1]);
+    await waitFor(() => expect(api.saveNewsFeeds).toHaveBeenCalledWith([feed, { title: 'FXStreet', url: 'https://www.fxstreet.com/rss/news', enabled: true }]));
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('فهرست خبرگزاری‌ها ذخیره شد.'));
+  });
+
+  it('an address that is not http(s) is not added', async () => {
+    api.getNewsChannels.mockResolvedValue({ ...DATA, feeds: [] });
+    render(<AdminNewsPage />);
+    const url = await screen.findByPlaceholderText('https://example.com/rss');
+    fireEvent.change(url, { target: { value: 'not a feed' } });
+    fireEvent.submit(url.closest('form'));
+    expect(toast.error).toHaveBeenCalled();
+    expect(screen.getByText('فیدی نیست')).toBeTruthy();
   });
 });

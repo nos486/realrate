@@ -1,5 +1,6 @@
 /**
- * news.repository.js — The news section's items in D1 (table `news`)
+ * news.repository.js — The news section's items in D1 (table `news`): Telegram posts and the
+ * international feeds' articles (`source`)
  */
 
 import { ensureSchema } from "./schema.repository.js";
@@ -19,6 +20,7 @@ const toItem = (row) => ({
   importance: row.importance,
   image: row.image || "",
   publishedAt: row.published_at,
+  source: row.source === "world" ? "world" : "telegram",
   ...(row.created_at ? { savedAt: row.created_at } : {}),
   ai: Boolean(row.ai),
 });
@@ -34,23 +36,24 @@ export async function dbInsertNews(env, items) {
   const now = Date.now();
   await env.DB.batch(items.map((n) => env.DB.prepare(
     `INSERT OR IGNORE INTO news (id, channel, channel_title, post_id, url, title, summary, text, category, importance,
-       image, published_at, created_at, ai, hidden)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`
+       image, published_at, created_at, ai, hidden, source)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`
   ).bind(
     n.id, n.channel, n.channelTitle || "", n.postId, n.url, n.title, n.summary || "", n.text || "",
     n.category || "economy", n.importance || 1, n.image || "", n.publishedAt || now, now, n.ai ? 1 : 0,
+    n.source === "world" ? "world" : "telegram",
   )));
 }
 
 /**
  * Published news, newest first
  * @param {object} env
- * @param {{ limit?: number, page?: number, before?: number, category?: string, importance?: number }} [opts]
+ * @param {{ limit?: number, page?: number, before?: number, category?: string, importance?: number, source?: string }} [opts]
  *   page: 1-based page of `limit` items (with the total); before: only news published before this
- *   time (ms) — either one
+ *   time (ms) — either one; source: "telegram" or "world" (the international feeds) only
  * @returns {Promise<{ items: object[], hasMore: boolean, total: number }>}
  */
-export async function dbListNews(env, { limit = 20, page = 0, before = 0, category = "", importance = 0 } = {}) {
+export async function dbListNews(env, { limit = 20, page = 0, before = 0, category = "", importance = 0, source = "" } = {}) {
   if (!hasDatabase(env)) return { items: [], hasMore: false, total: 0 };
   await ensureSchema(env);
   const where = ["hidden = 0"];
@@ -62,6 +65,10 @@ export async function dbListNews(env, { limit = 20, page = 0, before = 0, catego
   if (category) {
     where.push("category = ?");
     params.push(category);
+  }
+  if (source) {
+    where.push("source = ?");
+    params.push(source);
   }
   if (importance > 1) {
     where.push("importance >= ?");

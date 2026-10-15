@@ -2,11 +2,13 @@
  * newsRoutes.js — The news section
  *
  * Endpoints:
- *   GET    /api/news                     — Published news, newest first (?limit, ?page or ?before, ?category, ?important=1); the `news` feature (Pro)
+ *   GET    /api/news                     — Published news, newest first (?limit, ?page or ?before, ?category, ?important=1,
+ *                                           ?source=world|telegram); the `news` feature (Pro)
  *   GET    /api/news/today               — The analyst's card, today's and the week's most important news (the `news` feature); ?scope=analysis: only the analyst's card, public
- *   GET    /api/admin/news/channels      — The channels read, the last runs' report, the last published news (admin)
- *   PUT    /api/admin/news/channels      — Save the channels ({ channels: [{ username, enabled }] }) (admin)
- *   POST   /api/admin/news/run           — Read the channels now (admin)
+ *   GET    /api/admin/news/channels      — The channels and feeds read, the last runs' report, the last published news (admin)
+ *   PUT    /api/admin/news/channels      — Save the channels and/or the feeds ({ channels: [{ username, enabled }],
+ *                                           feeds: [{ id?, title, url, enabled }] }) (admin)
+ *   POST   /api/admin/news/run           — Read the channels and feeds now (admin)
  *   POST   /api/admin/news/analysis      — Write the analyst's card now (admin)
  *   POST   /api/admin/news/:id/hidden    — Take an item down or put it back ({ hidden }) (admin)
  */
@@ -23,8 +25,23 @@ import {
   getNewsAnalysisStatus,
 } from "../services/news/newsAnalysis.service.js";
 import { tehranDayStart } from "../domain/news.js";
-import { getNewsChannels, saveNewsChannels, getNewsStatus, runNewsPolling } from "../services/news/news.service.js";
-import { NEWS_CATEGORIES, DEFAULT_NEWS_CHANNELS, NEWS_LIMITS, NEWS_ANALYSIS, NEWS_AI_MODEL } from "../config/news.config.js";
+import {
+  getNewsChannels,
+  saveNewsChannels,
+  getNewsFeeds,
+  saveNewsFeeds,
+  getNewsStatus,
+  runNewsPolling,
+} from "../services/news/news.service.js";
+import {
+  NEWS_CATEGORIES,
+  NEWS_SOURCES,
+  DEFAULT_NEWS_CHANNELS,
+  DEFAULT_NEWS_FEEDS,
+  NEWS_LIMITS,
+  NEWS_ANALYSIS,
+  NEWS_AI_MODEL,
+} from "../config/news.config.js";
 
 /** The last published news shown in the admin's report */
 const ADMIN_LATEST = 8;
@@ -42,10 +59,11 @@ export async function handleGetNews(request, env) {
   const page = Math.min(1000, Math.max(0, parseInt(params.get("page") || "0", 10) || 0));
   const category = Object.hasOwn(NEWS_CATEGORIES, params.get("category") || "") ? params.get("category") : "";
   const importance = params.get("important") === "1" ? 2 : 0;
+  const source = NEWS_SOURCES.includes(params.get("source")) ? params.get("source") : "";
   // New news comes at most once a minute: every visitor of a data center shares one read per 30 s
-  const query = new URLSearchParams({ limit, page, before, category, importance }).toString();
+  const query = new URLSearchParams({ limit, page, before, category, importance, source }).toString();
   const { items, hasMore, total } = await edgeCachedJson(`https://news.cache/list?${query}`, PUBLIC_CACHE_SEC, () =>
-    dbListNews(env, { limit, page, before, category, importance }));
+    dbListNews(env, { limit, page, before, category, importance, source }));
   return jsonResponse({ success: true, items, hasMore, total, categories: NEWS_CATEGORIES }, 200, request, {
     "Cache-Control": `public, max-age=${PUBLIC_CACHE_SEC}`,
   });
@@ -85,8 +103,9 @@ async function requireAdmin(request, env) {
 
 export async function handleAdminGetNewsChannels(request, env) {
   await requireAdmin(request, env);
-  const [channels, status, analysisStatus, latest] = await Promise.all([
+  const [channels, feeds, status, analysisStatus, latest] = await Promise.all([
     getNewsChannels(env),
+    getNewsFeeds(env),
     getNewsStatus(env),
     getNewsAnalysisStatus(env),
     dbListNews(env, { limit: ADMIN_LATEST }),
@@ -94,9 +113,11 @@ export async function handleAdminGetNewsChannels(request, env) {
   return jsonResponse({
     success: true,
     channels,
+    feeds,
     status,
     defaults: DEFAULT_NEWS_CHANNELS,
-    limits: { maxChannels: NEWS_LIMITS.maxChannels, aiCallsPerDay: NEWS_LIMITS.aiCallsPerDay },
+    feedDefaults: DEFAULT_NEWS_FEEDS,
+    limits: { maxChannels: NEWS_LIMITS.maxChannels, maxFeeds: NEWS_LIMITS.maxFeeds, aiCallsPerDay: NEWS_LIMITS.aiCallsPerDay },
     aiConfigured: typeof env.AI?.run === "function",
     model: NEWS_AI_MODEL.label,
     analysisModel: NEWS_ANALYSIS.model.label,
@@ -108,9 +129,14 @@ export async function handleAdminGetNewsChannels(request, env) {
 export async function handleAdminSaveNewsChannels(request, env) {
   await requireAdmin(request, env);
   const body = await request.json().catch(() => null);
-  if (!Array.isArray(body?.channels)) throw AppError.badRequest("فهرست کانال‌ها نامعتبر است.");
-  const channels = await saveNewsChannels(env, body.channels);
-  return jsonResponse({ success: true, channels }, 200, request);
+  const hasChannels = Array.isArray(body?.channels);
+  const hasFeeds = Array.isArray(body?.feeds);
+  if (!hasChannels && !hasFeeds) throw AppError.badRequest("فهرست کانال‌ها نامعتبر است.");
+  const [channels, feeds] = await Promise.all([
+    hasChannels ? saveNewsChannels(env, body.channels) : getNewsChannels(env),
+    hasFeeds ? saveNewsFeeds(env, body.feeds) : getNewsFeeds(env),
+  ]);
+  return jsonResponse({ success: true, channels, feeds }, 200, request);
 }
 
 export async function handleAdminRunNews(request, env) {
