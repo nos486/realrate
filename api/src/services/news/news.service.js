@@ -26,6 +26,7 @@
 import {
   DEFAULT_NEWS_CHANNELS,
   DEFAULT_NEWS_FEEDS,
+  LEGACY_DEFAULT_FEED_IDS,
   NEWS_LIMITS,
   NEWS_AI_MODEL,
 } from "../../config/news.config.js";
@@ -91,11 +92,19 @@ export async function saveNewsChannels(env, list) {
   return channels;
 }
 
-/** The international feeds read (the admin's list, or the default one) */
+/**
+ * The international feeds read: the admin's list, or the default one. A default feed added to the
+ * code after the admin saved their list is added to it (enabled), once: the saved list remembers
+ * which defaults it has seen (`known`), so a default the admin removed does not come back.
+ */
 export async function getNewsFeeds(env) {
   const saved = await getStateStore(env)?.get(FEEDS_KEY, "json").catch(() => null);
-  if (Array.isArray(saved?.feeds)) return saved.feeds;
-  return DEFAULT_NEWS_FEEDS.map((feed) => ({ ...feed, enabled: true }));
+  if (!Array.isArray(saved?.feeds)) return DEFAULT_NEWS_FEEDS.map((feed) => ({ ...feed, enabled: true }));
+  const known = new Set(Array.isArray(saved.known) ? saved.known : LEGACY_DEFAULT_FEED_IDS);
+  const ids = new Set(saved.feeds.map((f) => f.id));
+  const urls = new Set(saved.feeds.map((f) => f.url));
+  const added = DEFAULT_NEWS_FEEDS.filter((f) => !known.has(f.id) && !ids.has(f.id) && !urls.has(f.url)).map((f) => ({ ...f, enabled: true }));
+  return added.length ? [...saved.feeds, ...added].slice(0, NEWS_LIMITS.maxFeeds) : saved.feeds;
 }
 
 /**
@@ -115,7 +124,8 @@ export async function saveNewsFeeds(env, list) {
     feeds.push(feed);
   }
   if (feeds.length > NEWS_LIMITS.maxFeeds) feeds.length = NEWS_LIMITS.maxFeeds;
-  await getStateStore(env)?.put(FEEDS_KEY, JSON.stringify({ feeds }));
+  // Every default now in the code counts as seen: what is not in the list was removed on purpose
+  await getStateStore(env)?.put(FEEDS_KEY, JSON.stringify({ feeds, known: DEFAULT_NEWS_FEEDS.map((f) => f.id) }));
   return feeds;
 }
 
