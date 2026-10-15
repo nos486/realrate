@@ -31,6 +31,16 @@ export const DEFAULT_NEWS_FEEDS = [
   { id: "aljazeera", title: "Al Jazeera", url: "https://www.aljazeera.com/xml/rss/all.xml" },
   { id: "fxstreet", title: "FXStreet", url: "https://www.fxstreet.com/rss/news" },
   { id: "oilprice", title: "OilPrice.com", url: "https://oilprice.com/rss/main" },
+  { id: "guardian_world", title: "The Guardian", url: "https://www.theguardian.com/world/rss" },
+  { id: "guardian_business", title: "The Guardian", url: "https://www.theguardian.com/business/rss" },
+  { id: "nyt_world", title: "The New York Times", url: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml" },
+  { id: "nyt_business", title: "The New York Times", url: "https://rss.nytimes.com/services/xml/rss/nyt/Business.xml" },
+  { id: "wsj_markets", title: "WSJ", url: "https://feeds.a.dj.com/rss/RSSMarketsMain.xml" },
+  { id: "marketwatch", title: "MarketWatch", url: "https://feeds.content.dowjones.io/public/rss/mw_topstories" },
+  { id: "france24", title: "France 24", url: "https://www.france24.com/en/rss" },
+  { id: "skynews_world", title: "Sky News", url: "https://feeds.skynews.com/feeds/rss/world.xml" },
+  { id: "middle_east_eye", title: "Middle East Eye", url: "https://www.middleeasteye.net/rss" },
+  { id: "cointelegraph", title: "Cointelegraph", url: "https://cointelegraph.com/rss" },
 ];
 
 /** Where a news item came from (the `source` column; the news page's «بین‌الملل» filter is `world`) */
