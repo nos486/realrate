@@ -156,6 +156,22 @@ describe('ExpensesPage', () => {
     expect(screen.getByText('عنوان (اختیاری)')).toBeTruthy();
   });
 
+  it('shows today\'s total in «هزینه‌های روزانه», without the categories left out of the totals', async () => {
+    const { todayIso } = await import('../../../web/src/shared/utils/dates.js');
+    const today = todayIso();
+    const earlier = today.endsWith('-01') ? today : `${today.slice(0, 8)}01`;
+    daily.expenses = [
+      { id: 'd1', groupId: 'exg_d', title: 'نان', category: 'groceries', amount: 70_000, currency: 'IRT', date: today },
+      { id: 'd2', groupId: 'exg_d', title: 'تاکسی', category: 'transport', amount: 50_000, currency: 'IRT', date: today },
+      { id: 'd3', groupId: 'exg_d', title: 'پیامک', category: 'rejected', amount: 9_000_000, currency: 'IRT', date: today },
+      ...(earlier === today ? [] : [{ id: 'd4', groupId: 'exg_d', title: 'قبض', category: 'bills', amount: 1_000_000, currency: 'IRT', date: earlier }]),
+    ];
+    renderPage();
+    const card = screen.getByText('هزینه‌های روزانه').closest('.ui-mini-card');
+    expect(card.textContent).toContain((120_000).toLocaleString('fa-IR'));
+    expect(card.textContent).toContain('امروز، ۲ هزینه');
+  });
+
   it('projects are their own page: the expenses page has no projects switch', () => {
     renderPage();
     expect(screen.queryByText('پروژه‌ها')).toBeNull();
