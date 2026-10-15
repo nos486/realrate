@@ -251,16 +251,14 @@ The model is chosen by the server (`api/src/config/ai.config.js`), with the busy
 
 ### Loans (Protected)
 
+Loans are saved only as encrypted vault records (`/api/v1/vault/records/loan/...`); the browser runs every loan operation (`domain/loanDocument.js`). Any plaintext loan write (`POST`/`PUT`/`PATCH` under `/api/v1/loans`) is refused before a handler runs (see Encryption below). These routes read and delete the older plaintext loans until they move into the vault:
+
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/api/v1/loans` | List loans with aggregates (`remainingBalance`, `paidCount`, `totalCount`, `nextDueInstallment`) |
-| `POST` | `/api/v1/loans` | Create a loan (`bankId` or `lenderName`, optional `customInstallments` / `totalRepaymentAmount` / `customFirstInstallmentAmount`) |
+| `GET` | `/api/v1/loans` | List loans with aggregates (`remainingBalance`, `paidCount`, `totalCount`, `nextDueInstallment`, `totalRepaymentAmount`), newest first |
 | `GET` | `/api/v1/loans/:id` | Loan with its full computed installment schedule and extra payments |
-| `PUT` | `/api/v1/loans/:id` | Update a loan (financial changes rebuild pending installments) |
-| `DELETE` | `/api/v1/loans/:id` | Delete a loan and its installments |
-| `PUT` | `/api/v1/loans/:id/installments/:installmentId` | Mark paid (`{ isPaid: true, paidDate, paidAmount, cascade }`) or unpaid (`{ isPaid: false }`) |
-| `PUT` | `/api/v1/loans/:id/installments/bulk` | Re-plan pending installments (`{ knownAmounts, totalRepaymentAmount }`) |
-| `GET` / `POST` | `/api/v1/loans/:id/extra-payments` | List / record an extra payment (`{ amount, paymentDate, reductionMode }`) |
+| `GET` | `/api/v1/loans/:id/extra-payments` | Its extra payments, newest first |
+| `DELETE` | `/api/v1/loans/:id` | Delete a loan with its installments and extra payments |
 | `GET` | `/api/v1/loans/:id/document` | Raw stored loan `{ loan, states, extraPayments }` (used to encrypt it) |
 
 ### Custom Banks (Protected)

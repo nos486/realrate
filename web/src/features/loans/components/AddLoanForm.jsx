@@ -285,7 +285,7 @@ export default function AddLoanForm({
   }, [editingLoan, cleanPrincipal, cleanRate, cleanCount]);
 
   // Number of installments already paid on the loan being edited (0 for a new loan) — used to
-  // warn/block edits the server would reject anyway (see dbUpdateLoan's guard rails).
+  // warn/block edits updateLoanDoc would reject anyway (its guard rails in domain/loanDocument.js).
   const editingPaidCount = editingLoan ? Number(editingLoan.paidCount || 0) : 0;
   const isCountBelowPaid = editingPaidCount > 0 && cleanCount < editingPaidCount;
   const isStartDateChangedAfterPaid = useMemo(() => {

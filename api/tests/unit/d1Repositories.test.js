@@ -33,7 +33,7 @@ import { dbAddPortfolioHolding, dbGetPortfolioHoldings } from '../../src/reposit
 import { dbCreateTransaction, dbGetTransactionsByPortfolio } from '../../src/repositories/transactionRepository.js';
 import { dbCreateIncome, dbGetUserIncomes, dbUpdateIncome, dbDeleteIncome } from '../../src/repositories/incomes.repository.js';
 import { dbCreateCheque, dbGetUserCheques } from '../../src/repositories/cheques.repository.js';
-import { dbCreateLoan, dbGetUserLoans, dbGetLoanDocument } from '../../src/repositories/loans.repository.js';
+import { dbGetUserLoans, dbGetLoanDocument, dbDeleteLoan } from '../../src/repositories/loans.repository.js';
 
 let env;
 const CIPHER = (n) => `enc:e2ee:v1:${n}`;
@@ -232,10 +232,13 @@ describe('portfolios and the older plaintext tables', () => {
     await dbCreateCheque(env, 'u1', { direction: 'issued', amount: 5000, dueDate: '2026-11-01', counterparty: 'علی', status: 'pending' });
     expect((await dbGetUserCheques(env, 'u1')).length).toBe(1);
 
-    const loan = await dbCreateLoan(env, 'u1', { title: 'وام', principalAmount: 12_000_000, annualInterestRate: 18, installmentCount: 12, intervalMonths: 1, startDate: '2026-10-01' });
-    expect(loan?.id || loan?.loan?.id).toBeTruthy();
-    expect((await dbGetUserLoans(env, 'u1')).length).toBe(1);
-    const doc = await dbGetLoanDocument(env, 'u1', loan?.id || loan?.loan?.id);
-    expect(doc).toBeTruthy();
+    // Loans are no longer written in plaintext; an older stored one reads back and deletes
+    await env.DB.prepare(`INSERT INTO loans (id, user_id, title, principal_amount, annual_interest_rate, installment_count,
+      interval_months, start_date, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .bind('ln_old', 'u1', 'وام', 12_000_000, 18, 12, 1, '2026-10-01', '2026-10-01T00:00:00Z', '2026-10-01T00:00:00Z').run();
+    expect((await dbGetUserLoans(env, 'u1')).map((l) => l.totalCount)).toEqual([12]);
+    expect((await dbGetLoanDocument(env, 'u1', 'ln_old')).loan.title).toBe('وام');
+    expect(await dbDeleteLoan(env, 'u1', 'ln_old')).toBe(true);
+    expect(await dbGetUserLoans(env, 'u1')).toEqual([]);
   });
 });

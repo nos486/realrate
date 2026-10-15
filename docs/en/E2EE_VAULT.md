@@ -88,10 +88,10 @@ The server accepts no plaintext data: without encryption `403`, and with encrypt
 The server can't compute on encrypted data, so for encrypted accounts every loan operation runs in the browser:
 
 - Each loan is a "document": `{ loan, states, extraPayments }`, stored as one encrypted record.
-- The engine `api/src/domain/loanDocument.js` (shared with the web app) applies the same rules as `loans.repository.js` to the document.
+- The engine `api/src/domain/loanDocument.js` (shared with the web app) is the only implementation of the loan rules. The server keeps no loan logic of its own: it reads older plaintext loans into the same document and builds their view with the same engine (`loans.repository.js`).
 - `loanApi.js`, `incomeApi.js` and `chequeApi.js` (in `features/`) keep a fixed signature and route to the encrypted stores (`shared/vault/vaultLoans.js`, `vaultIncomes.js`, `vaultCheques.js`; expenses and accounts use `vaultExpenses.js` and `vaultAccounts.js`).
 - Cheques validate with the same `api/src/domain/chequeDocument.js` either way.
-- **A parity test** (`tests/unit/loanDocument.test.js`) runs the same scenarios on the server and the engine; the results must match installment by installment.
+- The rules are tested on the engine (`tests/unit/loanRules.test.js`), and reading a stored plaintext loan back into a document is tested on SQLite (`tests/unit/loansRepository.test.js`).
 
 ## 4. Turning encryption on
 

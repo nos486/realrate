@@ -14,7 +14,7 @@ import {
   dbListCustomBanks,
   MAX_CUSTOM_BANKS_PER_USER,
 } from '../../src/repositories/customBanks.repository.js';
-import { resolveLoanBank } from '../../src/repositories/loans.repository.js';
+import { loanBankResolver } from '../../src/domain/loanDocument.js';
 import worker from '../../src/index.js';
 
 /** Minimal in-memory D1 for the custom_banks table */
@@ -166,34 +166,28 @@ describe('custom banks repository', () => {
   });
 });
 
-describe('resolveLoanBank', () => {
-  let env;
-  beforeEach(() => {
-    env = { DB: createDb() };
-  });
+describe('loanBankResolver', () => {
+  const custom = [{ id: 'cb_family', name: 'صندوق خانوادگی' }];
 
-  it('takes the display name from a standard bank id', async () => {
-    expect(await resolveLoanBank(env, 'u1', { bankId: 'mellat', lenderName: 'whatever' }))
+  it('takes the display name from a standard bank id', () => {
+    expect(loanBankResolver(custom)({ bankId: 'mellat', lenderName: 'whatever' }))
       .toEqual({ bankId: 'mellat', lenderName: 'بانک ملت' });
   });
 
-  it("resolves the user's own custom bank and rejects someone else's", async () => {
-    const bank = await dbCreateCustomBank(env, 'u1', 'صندوق خانوادگی');
-    expect(await resolveLoanBank(env, 'u1', { bankId: bank.id }))
-      .toEqual({ bankId: bank.id, lenderName: 'صندوق خانوادگی' });
-    await expect(resolveLoanBank(env, 'u2', { bankId: bank.id })).rejects.toMatchObject({ statusCode: 400 });
+  it("resolves the user's own custom bank and refuses one they don't have", () => {
+    expect(loanBankResolver(custom)({ bankId: 'cb_family' })).toEqual({ bankId: 'cb_family', lenderName: 'صندوق خانوادگی' });
+    expect(() => loanBankResolver([])({ bankId: 'cb_family' })).toThrow(expect.objectContaining({ statusCode: 400 }));
   });
 
-  it('rejects an unknown bank id', async () => {
-    await expect(resolveLoanBank(env, 'u1', { bankId: 'not-a-bank' })).rejects.toMatchObject({ statusCode: 400 });
+  it('refuses an unknown bank id', () => {
+    expect(() => loanBankResolver(custom)({ bankId: 'not-a-bank' })).toThrow(expect.objectContaining({ statusCode: 400 }));
   });
 
-  it('links a free-text lender name to a standard bank when it matches, else keeps the name', async () => {
-    expect(await resolveLoanBank(env, 'u1', { lenderName: 'بانک مسکن' }))
-      .toEqual({ bankId: 'maskan', lenderName: 'بانک مسکن' });
-    expect(await resolveLoanBank(env, 'u1', { lenderName: 'پدرم' }))
-      .toEqual({ bankId: '', lenderName: 'پدرم' });
-    expect(await resolveLoanBank(env, 'u1', {})).toEqual({ bankId: '', lenderName: '' });
+  it('links a free-text lender name to a standard bank when it matches, else keeps the name', () => {
+    const resolve = loanBankResolver(custom);
+    expect(resolve({ lenderName: 'بانک مسکن' })).toEqual({ bankId: 'maskan', lenderName: 'بانک مسکن' });
+    expect(resolve({ lenderName: 'پدرم' })).toEqual({ bankId: '', lenderName: 'پدرم' });
+    expect(resolve({})).toEqual({ bankId: '', lenderName: '' });
   });
 });
 

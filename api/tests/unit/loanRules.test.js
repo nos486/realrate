@@ -1,0 +1,1260 @@
+/**
+ * loanRules.test.js — The loan rules (domain/loanDocument.js, the one loan engine the browser
+ * runs on encrypted loans): the virtual schedule (only paid events and manual overrides are
+ * stored), paying and unpaying, cascades, edits and their guard rails, custom and distributed
+ * schedules, the annual fee and extra payments
+ */
+import { describe, it, expect, beforeEach } from 'vitest';
+import {
+  createLoanStore,
+  loanCount,
+  stateRows,
+  extraPaymentCount,
+  createLoan,
+  getUserLoans,
+  getLoanById,
+  updateLoan,
+  deleteLoan,
+  markInstallmentPaid,
+  markInstallmentPaidCascade,
+  unmarkInstallmentPaid,
+  bulkDistributeInstallments,
+  addExtraPayment,
+  getLoanExtraPayments,
+  seedManualOverride,
+} from '../helpers/loanDocStore.js';
+
+describe('Loan rules', () => {
+  let store;
+
+  beforeEach(() => {
+    store = createLoanStore();
+  });
+
+  it('creates a loan without inserting any installment rows into the installment states', async () => {
+    const loan = await createLoan(store, 'user_1', {
+      title: 'وام مسکن',
+      lenderName: 'بانک مسکن',
+      principalAmount: 12000000,
+      annualInterestRate: 0,
+      installmentCount: 12,
+      startDate: '2026-01-31',
+    });
+
+    expect(loan).toBeDefined();
+    expect(loan.id).toMatch(/^loan_/);
+    expect(loan.title).toBe('وام مسکن');
+    expect(loan.principalAmount).toBe(12000000);
+    expect(loan.installments).toHaveLength(12);
+
+    // Stored: exactly 1 loan and 0 installment states
+    expect(loanCount(store)).toBe(1);
+    expect(stateRows(store).length).toBe(0);
+
+    // Verify day clamping on installment dates (Jalali calendar: start 2026-01-31 = 1404-11-11)
+    expect(loan.installments[0].dueDate).toBe('2026-03-02'); // Jalali 1404-12-11
+    expect(loan.installments[1].dueDate).toBe('2026-03-31'); // Jalali 1405-01-11
+
+    // Retrieve by ID
+    const fetched = await getLoanById(store, 'user_1', loan.id);
+    expect(fetched).toBeDefined();
+    expect(fetched.title).toBe('وام مسکن');
+    expect(fetched.installments).toHaveLength(12);
+  });
+
+  it('creates a loan with customFirstInstallmentAmount and inserts only 1 override row into the installment states', async () => {
+    const loan = await createLoan(store, 'user_1', {
+      title: 'وام خرید کالا با قسط اول متفاوت',
+      principalAmount: 10000000,
+      annualInterestRate: 0,
+      installmentCount: 5,
+      startDate: '2026-01-01',
+      customFirstInstallmentAmount: 4000000,
+    });
+
+    expect(loan).toBeDefined();
+    expect(loanCount(store)).toBe(1);
+    // Exactly 1 override state row inserted
+    expect(stateRows(store).length).toBe(1);
+
+    const storedOverride = stateRows(store)[0];
+    expect(storedOverride.installmentNumber).toBe(1);
+    expect(storedOverride.isManualOverride).toBe(true);
+    expect(storedOverride.isPaid).toBe(false);
+    expect(storedOverride.totalAmount).toBe(4000000);
+
+    // Generated schedule reflects custom first installment + remaining 4 re-amortized
+    expect(loan.installments).toHaveLength(5);
+    expect(loan.installments[0].totalAmount).toBe(4000000);
+    expect(loan.installments[0].isManualOverride).toBe(true);
+    expect(loan.installments[1].totalAmount).toBe(1500000);
+  });
+
+  it('retrieves user loans with accurate aggregate counts and next due installment (No N+1)', async () => {
+    const loan = await createLoan(store, 'user_1', {
+      title: 'وام خودرو',
+      principalAmount: 30000000,
+      annualInterestRate: 0,
+      installmentCount: 3,
+      startDate: '2026-04-10',
+    });
+
+    // Mark first installment as paid
+    const firstInst = loan.installments[0];
+    await markInstallmentPaid(store, 'user_1', firstInst.id, {
+      paidDate: '2026-05-10',
+      paidAmount: 10000000,
+    });
+
+    const loansList = await getUserLoans(store, 'user_1');
+    expect(loansList).toHaveLength(1);
+
+    const item = loansList[0];
+    expect(item.id).toBe(loan.id);
+    expect(item.totalCount).toBe(3);
+    expect(item.paidCount).toBe(1);
+    expect(item.remainingBalance).toBe(20000000); // 2 remaining installments of 10M each
+
+    // Next due should be installment 2
+    expect(item.nextDueInstallment).toBeDefined();
+    expect(item.nextDueInstallment.installmentNumber).toBe(2);
+  });
+
+  it('marks and unmarks an installment as paid: deletes simple payment row, preserves override row on unmark', async () => {
+    const loan = await createLoan(store, 'user_1', {
+      title: 'وام تحصیلی',
+      principalAmount: 5000000,
+      annualInterestRate: 0,
+      installmentCount: 5,
+      startDate: '2026-01-01',
+    });
+
+    expect(stateRows(store).length).toBe(0);
+
+    // 1. Mark installment 1 as paid -> stores 1 installment state
+    const inst1 = loan.installments[0];
+    const paid = await markInstallmentPaid(store, 'user_1', inst1.id, {
+      paidDate: '2026-02-01',
+      paidAmount: 1000000,
+    });
+
+    expect(paid).toBeDefined();
+    expect(paid.isPaid).toBe(true);
+    expect(paid.paidDate).toBe('2026-02-01');
+    expect(paid.paidAmount).toBe(1000000);
+    expect(stateRows(store).length).toBe(1);
+
+    // 2. Unmark installment 1 (no override) -> REMOVES its state
+    const unpaid = await unmarkInstallmentPaid(store, 'user_1', inst1.id);
+    expect(unpaid).toBeDefined();
+    expect(unpaid.isPaid).toBe(false);
+    expect(unpaid.paidDate).toBe('');
+    expect(unpaid.paidAmount).toBe(0);
+    expect(stateRows(store).length).toBe(0);
+
+    // 3. A manual override on installment 2 (as an older loan may carry) -> 1 override row
+    const inst2 = loan.installments[1];
+    seedManualOverride(store, 'user_1', loan.id, inst2.id, 2000000);
+    expect(stateRows(store).length).toBe(1);
+    const overrideBefore = stateRows(store)[0];
+    expect(overrideBefore.isManualOverride).toBe(true);
+    expect(overrideBefore.isPaid).toBe(false);
+
+    // 4. Mark overridden installment 2 as paid -> updates existing row
+    const paidOverride = await markInstallmentPaid(store, 'user_1', inst2.id, {
+      paidDate: '2026-03-01',
+      paidAmount: 2000000,
+    });
+    expect(paidOverride.isPaid).toBe(true);
+    expect(stateRows(store).length).toBe(1);
+
+    // 5. Unmark overridden installment 2 -> DOES NOT DELETE row, resets is_paid=0 and keeps override
+    const unmarkOverride = await unmarkInstallmentPaid(store, 'user_1', inst2.id);
+    expect(unmarkOverride.isPaid).toBe(false);
+    expect(unmarkOverride.isManualOverride).toBe(true);
+    expect(stateRows(store).length).toBe(1);
+    const overrideAfter = stateRows(store)[0];
+    expect(overrideAfter.isManualOverride).toBe(true);
+    expect(overrideAfter.isPaid).toBe(false);
+  });
+
+  it('CRITICAL: updates loan financial params and rebuilds ONLY pending installments while paid installments remain untouched', async () => {
+    // 1. Create a loan with 4 installments of 1,000,000 each (principal = 4,000,000, 0% interest)
+    const loan = await createLoan(store, 'user_1', {
+      title: 'وام آزمایش تغییر اقساط',
+      principalAmount: 4000000,
+      annualInterestRate: 0,
+      installmentCount: 4,
+      startDate: '2026-01-01',
+    });
+
+    // 2. Mark installment 1 and installment 2 as PAID
+    const inst1 = loan.installments[0];
+    const inst2 = loan.installments[1];
+    await markInstallmentPaid(store, 'user_1', inst1.id, {
+      paidDate: '2026-02-01',
+      paidAmount: 1000000,
+    });
+    await markInstallmentPaid(store, 'user_1', inst2.id, {
+      paidDate: '2026-03-01',
+      paidAmount: 1000000,
+    });
+
+    // Total principal already paid = 2,000,000
+    // 3. User updates loan: new principal = 8,000,000 and total installmentCount = 5
+    // Remaining principal to amortize = 8,000,000 - 2,000,000 = 6,000,000
+    // Remaining installments = 5 - 2 = 3 installments (installments 3, 4, 5)
+    const updated = await updateLoan(store, 'user_1', loan.id, {
+      principalAmount: 8000000,
+      installmentCount: 5,
+    });
+
+    expect(updated).toBeDefined();
+    expect(updated.principalAmount).toBe(8000000);
+    expect(updated.installmentCount).toBe(5);
+    expect(updated.installments).toHaveLength(5);
+
+    // Paid installments MUST REMAIN UNTOUCHED
+    expect(updated.installments[0].id).toBe(inst1.id);
+    expect(updated.installments[0].isPaid).toBe(true);
+    expect(updated.installments[0].paidDate).toBe('2026-02-01');
+    expect(updated.installments[0].principalPortion).toBe(1000000);
+
+    expect(updated.installments[1].id).toBe(inst2.id);
+    expect(updated.installments[1].isPaid).toBe(true);
+    expect(updated.installments[1].paidDate).toBe('2026-03-01');
+    expect(updated.installments[1].principalPortion).toBe(1000000);
+
+    // Pending installments (3, 4, 5) must be rebuilt to amortize remaining 6,000,000
+    expect(updated.installments[2].installmentNumber).toBe(3);
+    expect(updated.installments[2].isPaid).toBe(false);
+
+    expect(updated.installments[3].installmentNumber).toBe(4);
+    expect(updated.installments[3].isPaid).toBe(false);
+
+    expect(updated.installments[4].installmentNumber).toBe(5);
+    expect(updated.installments[4].isPaid).toBe(false);
+    expect(updated.installments[4].remainingBalanceAfter).toBe(0);
+
+    // Total principal of all 5 installments must equal exactly 8,000,000
+    const totalPrincipal = updated.installments.reduce(
+      (sum, item) => sum + item.principalPortion,
+      0
+    );
+    expect(totalPrincipal).toBe(8000000);
+  });
+
+  it('deletes a loan and cascades deletion to all installments', async () => {
+    const loan = await createLoan(store, 'user_1', {
+      title: 'وام برای حذف',
+      principalAmount: 1000000,
+      installmentCount: 2,
+      startDate: '2026-01-01',
+    });
+
+    const deleted = await deleteLoan(store, 'user_1', loan.id);
+    expect(deleted).toBe(true);
+
+    const fetched = await getLoanById(store, 'user_1', loan.id);
+    const list = await getUserLoans(store, 'user_1');
+    expect(list).toHaveLength(0);
+  });
+
+  it('E2E Full Lifecycle Scenario: 100,000,000 Tomans, 18%, 12 installments, pay 2, update rate, verify summary & paid persistence, cascade delete', async () => {
+    // 1. Create loan (100,000,000, 18%, 12 installments)
+    const loan = await createLoan(store, 'user_1', {
+      title: 'وام خرید کالا تستی',
+      lenderName: 'بانک ملی',
+      principalAmount: 100000000,
+      annualInterestRate: 18,
+      installmentCount: 12,
+      intervalMonths: 1,
+      startDate: '2026-01-01',
+    });
+
+    expect(loan.id).toBeDefined();
+    expect(loan.installments).toHaveLength(12);
+
+    // Verify schedule: sum of principalPortion === 100,000,000, final remaining balance === 0
+    const sumPrincipal = loan.installments.reduce((sum, inst) => sum + inst.principalPortion, 0);
+    expect(sumPrincipal).toBe(100000000);
+    expect(loan.installments[11].remainingBalanceAfter).toBe(0);
+
+    // Verify summary via getUserLoans
+    let userLoans = await getUserLoans(store, 'user_1');
+    expect(userLoans).toHaveLength(1);
+    expect(userLoans[0].paidCount).toBe(0);
+    expect(userLoans[0].totalCount).toBe(12);
+    expect(userLoans[0].remainingBalance).toBeGreaterThan(100000000); // principal + interest
+
+    // 2. Mark first two installments as paid
+    const inst1 = loan.installments[0];
+    const inst2 = loan.installments[1];
+    await markInstallmentPaid(store, 'user_1', inst1.id, {
+      paidDate: '2026-02-01',
+      paidAmount: inst1.totalAmount,
+    });
+    await markInstallmentPaid(store, 'user_1', inst2.id, {
+      paidDate: '2026-03-01',
+      paidAmount: inst2.totalAmount,
+    });
+
+    // 3. Verify updated summary (paidCount = 2, remaining balance reduced)
+    userLoans = await getUserLoans(store, 'user_1');
+    expect(userLoans[0].paidCount).toBe(2);
+    expect(userLoans[0].remainingBalance).toBe(
+      loan.installments.slice(2).reduce((sum, inst) => sum + inst.totalAmount, 0)
+    );
+
+    // 4. Edit loan: change interest rate from 18% to 23%
+    const updated = await updateLoan(store, 'user_1', loan.id, {
+      annualInterestRate: 23,
+    });
+    expect(updated.annualInterestRate).toBe(23);
+    expect(updated.installments).toHaveLength(12);
+
+    // The first 2 paid installments MUST BE UNTOUCHED
+    expect(updated.installments[0].id).toBe(inst1.id);
+    expect(updated.installments[0].isPaid).toBe(true);
+    expect(updated.installments[0].paidDate).toBe('2026-02-01');
+    expect(updated.installments[0].principalPortion).toBe(inst1.principalPortion);
+    expect(updated.installments[0].interestPortion).toBe(inst1.interestPortion);
+
+    expect(updated.installments[1].id).toBe(inst2.id);
+    expect(updated.installments[1].isPaid).toBe(true);
+    expect(updated.installments[1].paidDate).toBe('2026-03-01');
+    expect(updated.installments[1].principalPortion).toBe(inst2.principalPortion);
+    expect(updated.installments[1].interestPortion).toBe(inst2.interestPortion);
+
+    // Installments 3-12 are recalculated with new rate (23%) and amortize remaining principal
+    const totalPrincipalAfterUpdate = updated.installments.reduce(
+      (sum, inst) => sum + inst.principalPortion,
+      0
+    );
+    expect(totalPrincipalAfterUpdate).toBe(100000000);
+    expect(updated.installments[11].remainingBalanceAfter).toBe(0);
+
+    // Installment 3 interest portion with 23% rate should be higher than it was at 18%
+    expect(updated.installments[2].interestPortion).toBeGreaterThan(loan.installments[2].interestPortion);
+
+    // 5. Delete loan and verify cascade
+    const deleteResult = await deleteLoan(store, 'user_1', loan.id);
+    expect(deleteResult).toBe(true);
+
+    const loanAfterDelete = await getLoanById(store, 'user_1', loan.id);
+    expect(loanAfterDelete).toBeNull();
+
+    const loansListAfterDelete = await getUserLoans(store, 'user_1');
+    expect(loansListAfterDelete).toHaveLength(0);
+  });
+
+  describe('updateLoan guard rails against paid-history-contradicting edits', () => {
+    async function createAndPayTwo() {
+      const loan = await createLoan(store, 'user_1', {
+        title: 'وام آزمایش گارد ادیت',
+        principalAmount: 4000000,
+        annualInterestRate: 0,
+        installmentCount: 4,
+        startDate: '2026-01-01',
+      });
+      await markInstallmentPaid(store, 'user_1', loan.installments[0].id, {
+        paidDate: '2026-02-01',
+        paidAmount: 1000000,
+      });
+      await markInstallmentPaid(store, 'user_1', loan.installments[1].id, {
+        paidDate: '2026-03-01',
+        paidAmount: 1000000,
+      });
+      return loan;
+    }
+
+    it('rejects reducing installmentCount below the number of already-paid installments', async () => {
+      const loan = await createAndPayTwo();
+      await expect(
+        updateLoan(store, 'user_1', loan.id, { installmentCount: 1 })
+      ).rejects.toThrow(/تعداد اقساط جدید/);
+
+      // Loan must remain unchanged after the rejected edit
+      const unchanged = await getLoanById(store, 'user_1', loan.id);
+      expect(unchanged.installmentCount).toBe(4);
+    });
+
+    it('rejects reducing principalAmount below the principal already paid', async () => {
+      const loan = await createAndPayTwo();
+      // 2,000,000 of principal already paid (2 installments x 1,000,000)
+      await expect(
+        updateLoan(store, 'user_1', loan.id, { principalAmount: 1500000 })
+      ).rejects.toThrow(/مبلغ اصل وام جدید/);
+
+      const unchanged = await getLoanById(store, 'user_1', loan.id);
+      expect(unchanged.principalAmount).toBe(4000000);
+    });
+
+    it('rejects changing startDate once at least one installment has been paid', async () => {
+      const loan = await createAndPayTwo();
+      await expect(
+        updateLoan(store, 'user_1', loan.id, { startDate: '2026-06-01' })
+      ).rejects.toThrow(/تاریخ شروع وام/);
+
+      const unchanged = await getLoanById(store, 'user_1', loan.id);
+      expect(unchanged.startDate).toBe('2026-01-01');
+    });
+
+    it('still allows increasing principalAmount/installmentCount after paid installments (regression)', async () => {
+      const loan = await createAndPayTwo();
+      const updated = await updateLoan(store, 'user_1', loan.id, {
+        principalAmount: 8000000,
+        installmentCount: 5,
+      });
+      expect(updated.principalAmount).toBe(8000000);
+      expect(updated.installmentCount).toBe(5);
+    });
+
+    it('allows any edit (including startDate) before any installment has been paid', async () => {
+      const loan = await createLoan(store, 'user_1', {
+        title: 'وام بدون پرداخت',
+        principalAmount: 4000000,
+        installmentCount: 4,
+        startDate: '2026-01-01',
+      });
+      const updated = await updateLoan(store, 'user_1', loan.id, {
+        principalAmount: 1000000,
+        installmentCount: 1,
+        startDate: '2026-06-01',
+      });
+      expect(updated.principalAmount).toBe(1000000);
+      expect(updated.installmentCount).toBe(1);
+      expect(updated.startDate).toBe('2026-06-01');
+    });
+  });
+
+  describe('annualFeeAmount (کارمزد سالانه) persistence', () => {
+    it('persists annualFeeAmount on create and reflects it in the computed schedule', async () => {
+      const loan = await createLoan(store, 'user_1', {
+        title: 'وام با کارمزد سالانه',
+        principalAmount: 12000000,
+        annualInterestRate: 0,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+        annualFeeAmount: 500000,
+      });
+
+      expect(loan.annualFeeAmount).toBe(500000);
+      expect(loan.installments[11].feePortion).toBe(500000);
+      expect(loan.installments[11].totalAmount).toBe(loan.installments[10].totalAmount + 500000);
+    });
+
+    it('defaults annualFeeAmount to 0 when not provided (backward compatible)', async () => {
+      const loan = await createLoan(store, 'user_1', {
+        title: 'وام بدون کارمزد',
+        principalAmount: 12000000,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+      });
+      expect(loan.annualFeeAmount).toBe(0);
+      expect(loan.installments.every((i) => !i.feePortion)).toBe(true);
+    });
+
+    it('updates annualFeeAmount via updateLoan without requiring other financial params to change', async () => {
+      const loan = await createLoan(store, 'user_1', {
+        title: 'وام برای ویرایش کارمزد',
+        principalAmount: 12000000,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+      });
+      const updated = await updateLoan(store, 'user_1', loan.id, {
+        annualFeeAmount: 300000,
+      });
+      expect(updated.annualFeeAmount).toBe(300000);
+      expect(updated.installments[11].feePortion).toBe(300000);
+    });
+  });
+
+  describe('createLoan with bulk customInstallments (سفارشی‌سازی تک‌تک اقساط — تقسیم مساوی)', () => {
+    it('applies the given amounts to the specified installments and equally divides every other one, materializing the full schedule', async () => {
+      const loan = await createLoan(store, 'user_1', {
+        title: 'وام با اقساط سفارشی',
+        principalAmount: 12000000,
+        annualInterestRate: 0,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+        customInstallments: [
+          { installmentNumber: 1, totalAmount: 2000000 },
+          { installmentNumber: 6, totalAmount: 500000 },
+        ],
+      });
+
+      expect(loan.installments).toHaveLength(12);
+      expect(loan.installments[0].totalAmount).toBe(2000000);
+      expect(loan.installments[0].isManualOverride).toBe(true);
+      expect(loan.installments[5].totalAmount).toBe(500000);
+      expect(loan.installments[5].isManualOverride).toBe(true);
+
+      // Once ANY installment is customized, every pending installment's specific value was
+      // decided (even the auto-divided ones), so the full schedule is materialized as rows —
+      // this loan intentionally departs from the sparse model.
+      expect(stateRows(store).length).toBe(12);
+
+      // Every OTHER installment (not #1 or #6) must be uniformly equal, regardless of position
+      const others = loan.installments.filter((_, i) => i !== 0 && i !== 5).map((i) => i.totalAmount);
+      expect(new Set(others).size).toBeLessThanOrEqual(2); // allow a 1-toman rounding remainder
+
+      // Total principal across the whole schedule must still equal the loan principal exactly
+      const sumPrincipal = loan.installments.reduce((sum, i) => sum + i.principalPortion, 0);
+      expect(sumPrincipal).toBe(12000000);
+      expect(loan.installments[11].remainingBalanceAfter).toBe(0);
+    });
+
+    it('dividing installments split symmetrically both BEFORE and AFTER a touched one, not just after it', async () => {
+      const loan = await createLoan(store, 'user_1', {
+        title: 'وام با قسط میانی سفارشی',
+        principalAmount: 300000000,
+        annualInterestRate: 4,
+        installmentCount: 60,
+        startDate: '2026-01-01',
+        customInstallments: [{ installmentNumber: 30, totalAmount: 3000000 }],
+      });
+
+      expect(loan.installments[29].totalAmount).toBe(3000000);
+      // Installments BEFORE #30 (e.g. #1) and AFTER #30 (e.g. #60) must both have changed to
+      // the same uniform divided amount — the whole point of the equal-split model.
+      expect(loan.installments[0].totalAmount).toBe(loan.installments[28].totalAmount);
+      expect(loan.installments[0].totalAmount).toBe(loan.installments[30].totalAmount);
+      expect(loan.installments[0].totalAmount).not.toBe(3000000);
+
+      const sumPrincipal = loan.installments.reduce((sum, i) => sum + i.principalPortion, 0);
+      expect(sumPrincipal).toBe(300000000);
+      expect(loan.installments[59].remainingBalanceAfter).toBe(0);
+    });
+
+    it('customInstallments for installment #1 supersedes customFirstInstallmentAmount when both are given', async () => {
+      const loan = await createLoan(store, 'user_1', {
+        title: 'وام تداخل قسط اول',
+        principalAmount: 6000000,
+        installmentCount: 3,
+        startDate: '2026-01-01',
+        customFirstInstallmentAmount: 999999,
+        customInstallments: [{ installmentNumber: 1, totalAmount: 3000000 }],
+      });
+      expect(loan.installments[0].totalAmount).toBe(3000000);
+      // The full 3-installment schedule is materialized (equal-split mode), not the single
+      // customFirstInstallmentAmount override row.
+      expect(stateRows(store).length).toBe(3);
+    });
+
+    it('rejects an installment number outside the valid range', async () => {
+      await expect(
+        createLoan(store, 'user_1', {
+          title: 'وام نامعتبر',
+          principalAmount: 1000000,
+          installmentCount: 3,
+          startDate: '2026-01-01',
+          customInstallments: [{ installmentNumber: 5, totalAmount: 100000 }],
+        })
+      ).rejects.toThrow(/خارج از بازه معتبر/);
+
+      // No loan row should have been left behind by the rejected create
+      const list = await getUserLoans(store, 'user_1');
+      expect(list.find((l) => l.title === 'وام نامعتبر')).toBeUndefined();
+    });
+
+    it('rejects a non-positive custom installment amount', async () => {
+      await expect(
+        createLoan(store, 'user_1', {
+          title: 'وام مبلغ نامعتبر',
+          principalAmount: 1000000,
+          installmentCount: 3,
+          startDate: '2026-01-01',
+          customInstallments: [{ installmentNumber: 1, totalAmount: 0 }],
+        })
+      ).rejects.toThrow(/باید عددی بزرگتر از صفر/);
+    });
+
+    it('a low custom LAST-installment amount no longer breaks reconciliation (the other installments absorb the difference)', async () => {
+      // Under the old forward-only cascade this specific combination used to leave the loan
+      // unamortized; under equal-split, the shortfall on #120 is simply absorbed by the other
+      // 118 untouched installments, since the pool is shared symmetrically.
+      const loan = await createLoan(store, 'user_1', {
+        title: 'وام با قسط آخر کم',
+        principalAmount: 300000000,
+        annualInterestRate: 4,
+        installmentCount: 120,
+        startDate: '2026-01-01',
+        customInstallments: [
+          { installmentNumber: 1, totalAmount: 12000000 },
+          { installmentNumber: 120, totalAmount: 2000000 },
+        ],
+      });
+
+      expect(loan.installments[0].totalAmount).toBe(12000000);
+      expect(loan.installments[119].totalAmount).toBe(2000000);
+      const sumPrincipal = loan.installments.reduce((sum, i) => sum + i.principalPortion, 0);
+      expect(sumPrincipal).toBe(300000000);
+      expect(loan.installments[119].remainingBalanceAfter).toBe(0);
+    });
+
+    it('rejects custom amounts that alone exceed the loan total repayment, without persisting anything', async () => {
+      await expect(
+        createLoan(store, 'user_1', {
+          title: 'وام مبلغ بیش‌ازحد',
+          principalAmount: 10000000,
+          installmentCount: 3,
+          startDate: '2026-01-01',
+          customInstallments: [{ installmentNumber: 1, totalAmount: 50000000 }],
+        })
+      ).rejects.toThrow(/بیشتر است/);
+
+      const list = await getUserLoans(store, 'user_1');
+      expect(list.find((l) => l.title === 'وام مبلغ بیش‌ازحد')).toBeUndefined();
+    });
+  });
+
+  describe('createLoan with totalRepaymentAmount (بر اساس کل بازپرداخت دقیق، بدون نرخ)', () => {
+    it('splits a known total repayment evenly across all installments, ignoring the rate field entirely', async () => {
+      const loan = await createLoan(store, 'user_1', {
+        title: 'وام بر اساس کل بازپرداخت',
+        principalAmount: 130000000,
+        annualInterestRate: 20, // should have no effect on the actual math in this mode
+        installmentCount: 12,
+        startDate: '2026-01-01',
+        totalRepaymentAmount: 151187328,
+      });
+
+      expect(loan.scheduleMode).toBe('distributed');
+      expect(loan.installments).toHaveLength(12);
+      const sumTotal = loan.installments.reduce((sum, i) => sum + i.totalAmount, 0);
+      expect(sumTotal).toBe(151187328);
+      const sumPrincipal = loan.installments.reduce((sum, i) => sum + i.principalPortion, 0);
+      expect(sumPrincipal).toBe(130000000);
+      expect(loan.installments[11].remainingBalanceAfter).toBe(0);
+
+      // All installments equal (or within 1 toman rounding remainder on the last)
+      const uniqueAmounts = new Set(loan.installments.map((i) => i.totalAmount));
+      expect(uniqueAmounts.size).toBeLessThanOrEqual(2);
+    });
+
+    it('exposes totalRepaymentAmount on both getLoanById and getUserLoans so the UI can show an effective rate instead of قرض‌الحسنه', async () => {
+      const loan = await createLoan(store, 'user_1', {
+        title: 'وام بر اساس کل بازپرداخت برای نمایش نرخ',
+        principalAmount: 130000000,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+        totalRepaymentAmount: 151187328,
+      });
+      expect(loan.annualInterestRate).toBe(0);
+
+      const fetched = await getLoanById(store, 'user_1', loan.id);
+      expect(fetched.totalRepaymentAmount).toBe(151187328);
+
+      const list = await getUserLoans(store, 'user_1');
+      const listed = list.find((l) => l.id === loan.id);
+      expect(listed.totalRepaymentAmount).toBe(151187328);
+    });
+
+    it('rejects a non-positive totalRepaymentAmount', async () => {
+      await expect(
+        createLoan(store, 'user_1', {
+          title: 'وام نامعتبر',
+          principalAmount: 10000000,
+          installmentCount: 12,
+          startDate: '2026-01-01',
+          totalRepaymentAmount: 0,
+        })
+      ).rejects.toThrow(/باید عددی بزرگتر از صفر/);
+    });
+
+    it('rejects a totalRepaymentAmount lower than the principal', async () => {
+      await expect(
+        createLoan(store, 'user_1', {
+          title: 'وام نامعتبر',
+          principalAmount: 10000000,
+          installmentCount: 12,
+          startDate: '2026-01-01',
+          totalRepaymentAmount: 5000000,
+        })
+      ).rejects.toThrow(/کمتر از مبلغ اصل وام/);
+    });
+
+    it('regression: installment state ids are namespaced per loan so a second distributed loan does not collide (they are stored by id)', async () => {
+      // Reproduces the exact production bug: distributeInstallmentAmounts was called without the
+      // loan's id, so every loan got installment_states rows with the same bare ids (inst_1,
+      // inst_2, ...) — fine against a real SQL engine's UNIQUE PRIMARY KEY the moment a second
+      // loan used this mode. The mock now enforces that constraint too, so this fails loudly if
+      // it regresses instead of silently overwriting rows via Map.set.
+      const loanA = await createLoan(store, 'user_1', {
+        title: 'وام اول',
+        principalAmount: 130000000,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+        totalRepaymentAmount: 151187328,
+      });
+      const loanB = await createLoan(store, 'user_1', {
+        title: 'وام دوم',
+        principalAmount: 60000000,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+        totalRepaymentAmount: 66000000,
+      });
+
+      expect(loanA.installments).toHaveLength(12);
+      expect(loanB.installments).toHaveLength(12);
+      // 24 distinct rows total, not overwritten into fewer
+      expect(stateRows(store).length).toBe(24);
+
+      const sumB = loanB.installments.reduce((sum, i) => sum + i.totalAmount, 0);
+      expect(sumB).toBe(66000000);
+    });
+  });
+
+  describe('markInstallmentPaid / unmarkInstallmentPaid never cross into another loan (regression)', () => {
+    it('marking loan A\'s never-touched installment #1 as paid does not match loan B\'s already-materialized installment #1', async () => {
+      // Reproduces a live production bug: user pays loan A's installment #1 (which has no
+      // installment state yet — first time being touched), but loan B (same user)
+      // already has a row for installment_number = 1 (e.g. from a prior bulk-edit, which
+      // materializes a row for EVERY pending installment). The lookup query used to be
+      // `WHERE (id = ? OR installment_number = ?) AND user_id = ?` — missing loan_id entirely —
+      // so it could match loan B's row purely by installment_number and silently mark the WRONG
+      // loan's installment as paid, leaving loan A's installment looking untouched.
+      const loanA = await createLoan(store, 'user_1', {
+        title: 'وام الف',
+        principalAmount: 12000000,
+        annualInterestRate: 0,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+      });
+      const loanB = await createLoan(store, 'user_1', {
+        title: 'وام ب',
+        principalAmount: 6000000,
+        annualInterestRate: 0,
+        installmentCount: 6,
+        startDate: '2026-01-01',
+      });
+      // Bulk-edit loan B so its installment #1 gets a materialized row (installment_number = 1).
+      await bulkDistributeInstallments(store, 'user_1', loanB.id, { 6: 500000 });
+      const loanBAfterBulk = await getLoanById(store, 'user_1', loanB.id);
+      expect(loanBAfterBulk.installments[0].isPaid).toBe(false);
+
+      // Now pay loan A's installment #1 — its first-ever touch, no row exists for it yet.
+      const loanAInst1 = loanA.installments[0];
+      const paid = await markInstallmentPaid(store, 'user_1', loanAInst1.id, {
+        paidDate: '2026-02-01',
+        paidAmount: loanAInst1.totalAmount,
+      }, loanA.id);
+
+      expect(paid.id).toBe(loanAInst1.id);
+      expect(paid.isPaid).toBe(true);
+
+      const loanAAfter = await getLoanById(store, 'user_1', loanA.id);
+      expect(loanAAfter.installments[0].isPaid).toBe(true);
+
+      // Loan B must be completely untouched by loan A's payment.
+      const loanBAfter = await getLoanById(store, 'user_1', loanB.id);
+      expect(loanBAfter.installments[0].isPaid).toBe(false);
+    });
+
+    it('unmarking loan A\'s installment #1 does not delete/reset loan B\'s installment #1 row', async () => {
+      const loanA = await createLoan(store, 'user_1', {
+        title: 'وام الف برای لغو پرداخت',
+        principalAmount: 12000000,
+        annualInterestRate: 0,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+      });
+      const loanB = await createLoan(store, 'user_1', {
+        title: 'وام ب برای لغو پرداخت',
+        principalAmount: 6000000,
+        annualInterestRate: 0,
+        installmentCount: 6,
+        startDate: '2026-01-01',
+      });
+      await bulkDistributeInstallments(store, 'user_1', loanB.id, { 6: 500000 });
+
+      const loanAInst1 = loanA.installments[0];
+      await markInstallmentPaid(store, 'user_1', loanAInst1.id, {
+        paidDate: '2026-02-01',
+        paidAmount: loanAInst1.totalAmount,
+      }, loanA.id);
+
+      await unmarkInstallmentPaid(store, 'user_1', loanAInst1.id, loanA.id);
+
+      const loanAAfter = await getLoanById(store, 'user_1', loanA.id);
+      expect(loanAAfter.installments[0].isPaid).toBe(false);
+
+      // Loan B's bulk-edited installment #1 row must still exist, untouched.
+      const loanBAfter = await getLoanById(store, 'user_1', loanB.id);
+      expect(loanBAfter.installments[0].isPaid).toBe(false);
+      expect(loanBAfter.installments[0].totalAmount).toBeGreaterThan(0);
+    });
+  });
+
+  describe('bulkDistributeInstallments (ویرایش گروهی اقساط پس از ساخت وام)', () => {
+    it('re-plans a plain formula loan into a distributed one, dividing symmetrically around the touched installment', async () => {
+      const loan = await createLoan(store, 'user_1', {
+        title: 'وام معمولی برای ویرایش گروهی',
+        principalAmount: 300000000,
+        annualInterestRate: 4,
+        installmentCount: 60,
+        startDate: '2026-01-01',
+      });
+      expect(loan.scheduleMode).toBe('formula');
+
+      const updated = await bulkDistributeInstallments(store, 'user_1', loan.id, { 30: 3000000 });
+
+      expect(updated.scheduleMode).toBe('distributed');
+      expect(updated.installments[29].totalAmount).toBe(3000000);
+      expect(updated.installments[0].totalAmount).toBe(updated.installments[28].totalAmount);
+      expect(updated.installments[0].totalAmount).toBe(updated.installments[30].totalAmount);
+
+      const sumPrincipal = updated.installments.reduce((sum, i) => sum + i.principalPortion, 0);
+      expect(sumPrincipal).toBe(300000000);
+      expect(updated.installments[59].remainingBalanceAfter).toBe(0);
+    });
+
+    it('survives a full read round-trip without corrupting the principal/interest split (regression)', async () => {
+      // This is the exact bug found during implementation: computeEffectiveSchedule's ordinary
+      // cascade used to silently recompute (and corrupt) a distributed row's principal/interest
+      // on every read. scheduleMode='distributed' must route through the trust-as-is path instead.
+      const loan = await createLoan(store, 'user_1', {
+        title: 'وام برای تست خرابی احتمالی',
+        principalAmount: 300000000,
+        annualInterestRate: 4,
+        installmentCount: 60,
+        startDate: '2026-01-01',
+      });
+      await bulkDistributeInstallments(store, 'user_1', loan.id, { 30: 3000000 });
+
+      const reread1 = await getLoanById(store, 'user_1', loan.id);
+      const reread2 = await getLoanById(store, 'user_1', loan.id);
+
+      expect(reread1.installments[0].principalPortion).toBe(reread2.installments[0].principalPortion);
+      expect(reread1.installments.reduce((s, i) => s + i.principalPortion, 0)).toBe(300000000);
+    });
+
+    it('excludes already-paid installments from the split and leaves them untouched', async () => {
+      const loan = await createLoan(store, 'user_1', {
+        title: 'وام با دو قسط پرداخت‌شده',
+        principalAmount: 12000000,
+        annualInterestRate: 0,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+      });
+      await markInstallmentPaid(store, 'user_1', loan.installments[0].id, { paidDate: '2026-02-01', paidAmount: 1000000 });
+      await markInstallmentPaid(store, 'user_1', loan.installments[1].id, { paidDate: '2026-03-01', paidAmount: 1000000 });
+
+      const updated = await bulkDistributeInstallments(store, 'user_1', loan.id, { 12: 500000 });
+
+      expect(updated.installments[0].isPaid).toBe(true);
+      expect(updated.installments[0].totalAmount).toBe(1000000);
+      expect(updated.installments[1].isPaid).toBe(true);
+      expect(updated.installments[11].totalAmount).toBe(500000);
+
+      const sumPrincipal = updated.installments.reduce((sum, i) => sum + i.principalPortion, 0);
+      expect(sumPrincipal).toBe(12000000);
+      expect(updated.installments[11].remainingBalanceAfter).toBe(0);
+    });
+
+    it('rejects trying to re-plan an already-paid installment', async () => {
+      const loan = await createLoan(store, 'user_1', {
+        title: 'وام با قسط پرداخت‌شده',
+        principalAmount: 6000000,
+        installmentCount: 6,
+        startDate: '2026-01-01',
+      });
+      await markInstallmentPaid(store, 'user_1', loan.installments[0].id, { paidDate: '2026-02-01', paidAmount: 1000000 });
+
+      await expect(
+        bulkDistributeInstallments(store, 'user_1', loan.id, { 1: 2000000 })
+      ).rejects.toThrow(/قبلاً پرداخت شده/);
+    });
+
+    it('a later bulk-edit call fully replaces the prior plan', async () => {
+      const loan = await createLoan(store, 'user_1', {
+        title: 'وام با دو بار ویرایش گروهی',
+        principalAmount: 12000000,
+        annualInterestRate: 0,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+      });
+      await bulkDistributeInstallments(store, 'user_1', loan.id, { 1: 2000000 });
+      const second = await bulkDistributeInstallments(store, 'user_1', loan.id, { 6: 500000 });
+
+      // The first plan's touch on #1 is gone; #1 now follows the new equal-split baseline
+      expect(second.installments[0].totalAmount).not.toBe(2000000);
+      expect(second.installments[5].totalAmount).toBe(500000);
+      const sumPrincipal = second.installments.reduce((sum, i) => sum + i.principalPortion, 0);
+      expect(sumPrincipal).toBe(12000000);
+    });
+
+    it('re-editing an already-distributed loan without an explicit total defaults to the loan\'s CURRENT total, not a stale rate-derived baseline (regression)', async () => {
+      // This is the bug reported as "the number shown in bulk-edit differs from the installment's
+      // real number": once a loan is in distributed mode, its stored totals are unrelated to
+      // annualInterestRate. A second bulk-edit call that doesn't explicitly pass
+      // totalRepaymentAmount must still redistribute around the loan's REAL current total
+      // (12,000,000 here), not silently fall back to a rate-derived formula total.
+      const loan = await createLoan(store, 'user_1', {
+        title: 'وام برای ویرایش گروهی دوباره',
+        principalAmount: 12000000,
+        annualInterestRate: 0,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+        totalRepaymentAmount: 12000000,
+      });
+      expect(loan.scheduleMode).toBe('distributed');
+
+      const updated = await bulkDistributeInstallments(store, 'user_1', loan.id, { 1: 2000000 });
+
+      const sumTotal = updated.installments.reduce((sum, i) => sum + i.totalAmount, 0);
+      expect(sumTotal).toBe(12000000);
+      expect(updated.installments[0].totalAmount).toBe(2000000);
+      // Remaining 10,000,000 split evenly across the other 11 installments
+      expect(updated.installments[1].totalAmount).toBe(Math.round(10000000 / 11));
+    });
+
+    it('first-time distribution of a formula-mode loan with an already-applied extra payment defaults to the loan\'s REDUCED current total, not the original full rate-derived total (regression)', async () => {
+      // generateAmortizationSchedule (used internally as distributeInstallmentAmounts' fallback
+      // baseline) recomputes purely from loan.principalAmount and ignores loan_extra_payments
+      // entirely. Before this fix, a first bulk-edit call on a loan that already had an extra
+      // payment applied would silently redistribute around the ORIGINAL (too-high) total instead
+      // of what's actually left to repay.
+      const loan = await createLoan(store, 'user_1', {
+        title: 'وام با پرداخت اضافه قبل از ویرایش گروهی',
+        principalAmount: 12000000,
+        annualInterestRate: 0,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+      });
+      const beforeExtraTotal = loan.installments.reduce((sum, i) => sum + i.totalAmount, 0);
+      expect(beforeExtraTotal).toBe(12000000);
+
+      await addExtraPayment(store, 'user_1', loan.id, {
+        amount: 3000000,
+        paymentDate: '2026-01-15',
+        reductionMode: 'reduce_amount',
+      });
+      const afterExtra = await getLoanById(store, 'user_1', loan.id);
+      const afterExtraTotal = afterExtra.installments.reduce((sum, i) => sum + i.totalAmount, 0);
+      expect(afterExtraTotal).toBe(9000000);
+
+      const distributed = await bulkDistributeInstallments(store, 'user_1', loan.id, { 1: 1000000 });
+      const distributedTotal = distributed.installments.reduce((sum, i) => sum + i.totalAmount, 0);
+      expect(distributedTotal).toBe(9000000);
+
+      // The sum of every installment's principalPortion must equal the ACTUAL remaining principal
+      // (9,000,000 — the original 12,000,000 minus the 3,000,000 extra payment), never the raw
+      // loan.principalAmount (12,000,000) which distributeInstallmentAmounts would otherwise wrongly
+      // reconcile against, silently overstating the principal by exactly the extra payment amount.
+      const distributedPrincipal = distributed.installments.reduce((sum, i) => sum + i.principalPortion, 0);
+      expect(distributedPrincipal).toBe(9000000);
+      expect(distributed.installments[11].remainingBalanceAfter).toBe(0);
+    });
+  });
+
+  describe('distributed-mode loans reject the extra-payment flow', () => {
+    it('addExtraPayment refuses a distributed-mode loan', async () => {
+      const loan = await createLoan(store, 'user_1', {
+        title: 'وام تقسیم‌شده برای پرداخت اضافه',
+        principalAmount: 12000000,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+        customInstallments: [{ installmentNumber: 1, totalAmount: 2000000 }],
+      });
+
+      await expect(
+        addExtraPayment(store, 'user_1', loan.id, { amount: 1000000, paymentDate: '2026-03-01' })
+      ).rejects.toThrow(/پشتیبانی نمی‌شود/);
+    });
+
+    it('editing financial params via updateLoan reverts a distributed loan back to formula mode', async () => {
+      const loan = await createLoan(store, 'user_1', {
+        title: 'وام تقسیم‌شده برای ادیت',
+        principalAmount: 12000000,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+        customInstallments: [{ installmentNumber: 1, totalAmount: 2000000 }],
+      });
+      expect(loan.scheduleMode).toBe('distributed');
+
+      const updated = await updateLoan(store, 'user_1', loan.id, { annualInterestRate: 10 });
+      expect(updated.scheduleMode).toBe('formula');
+    });
+  });
+
+  describe('addExtraPayment (پرداخت مازاد/یکجا)', () => {
+    it('records extra payment and reduces installment amounts in reduce_amount mode', async () => {
+      const loan = await createLoan(store, 'user_1', {
+        title: 'وام با سود',
+        principalAmount: 60000000,
+        annualInterestRate: 18,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+      });
+
+      const initialFirstInstAmount = loan.installments[0].totalAmount;
+
+      // Add extra payment of 20,000,000
+      const result = await addExtraPayment(store, 'user_1', loan.id, {
+        amount: 20000000,
+        paymentDate: '2026-01-15',
+        reductionMode: 'reduce_amount',
+        notes: 'پاداش پایان سال',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.fullyPaidOff).toBe(false);
+      expect(result.extraPayment.amount).toBe(20000000);
+      expect(result.extraPayment.reductionMode).toBe('reduce_amount');
+
+      // Subsequent installment amounts should be lower than original
+      expect(result.loan.installments[0].totalAmount).toBeLessThan(initialFirstInstAmount);
+      expect(result.loan.installmentCount).toBe(12);
+      expect(result.loan.installments[11].remainingBalanceAfter).toBe(0);
+
+      // Verify listing of extra payments
+      const epList = await getLoanExtraPayments(store, 'user_1', loan.id);
+      expect(epList).toHaveLength(1);
+      expect(epList[0].amount).toBe(20000000);
+      expect(epList[0].notes).toBe('پاداش پایان سال');
+    });
+
+    it('records extra payment and reduces loan term in reduce_term mode', async () => {
+      const loan = await createLoan(store, 'user_1', {
+        title: 'وام مسکن',
+        principalAmount: 120000000,
+        annualInterestRate: 18,
+        installmentCount: 24,
+        startDate: '2026-01-01',
+      });
+
+      // Add lump sum payment of 60,000,000 (half the loan)
+      const result = await addExtraPayment(store, 'user_1', loan.id, {
+        amount: 60000000,
+        paymentDate: '2026-01-15',
+        reductionMode: 'reduce_term',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.fullyPaidOff).toBe(false);
+      // New installment count must be strictly less than original 24
+      expect(result.loan.installmentCount).toBeLessThan(24);
+      expect(result.loan.installments.length).toBeLessThan(24);
+      expect(result.loan.installments[result.loan.installments.length - 1].remainingBalanceAfter).toBe(0);
+    });
+
+    it('handles extra payment exceeding remaining balance and fully pays off the loan', async () => {
+      const loan = await createLoan(store, 'user_1', {
+        title: 'وام تسویه کامل',
+        principalAmount: 10000000,
+        annualInterestRate: 12,
+        installmentCount: 10,
+        startDate: '2026-01-01',
+      });
+
+      // Extra payment larger than total principal
+      const result = await addExtraPayment(store, 'user_1', loan.id, {
+        amount: 15000000,
+        paymentDate: '2026-01-10',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.fullyPaidOff).toBe(true);
+      // All pending installments should be cleared
+      expect(result.loan.installments).toHaveLength(0);
+      expect(result.loan.installmentCount).toBe(0);
+    });
+  });
+
+  describe('markInstallmentPaidCascade', () => {
+    it('marks target installment and all prior unpaid installments as paid, leaving subsequent installments unpaid', async () => {
+      // 1. Create a loan with 12 installments
+      const loan = await createLoan(store, 'user_1', {
+        title: 'وام ۱۲ ماهه آبشار',
+        principalAmount: 12000000,
+        annualInterestRate: 0,
+        installmentCount: 12,
+        startDate: '2026-01-01',
+      });
+
+      expect(loan.installments).toHaveLength(12);
+
+      // 2. Pick installment #8 (index 7)
+      const targetInst = loan.installments[7];
+      expect(targetInst.installmentNumber).toBe(8);
+
+      // 3. Mark installment #8 as paid with cascade
+      const res = await markInstallmentPaidCascade(store, 'user_1', loan.id, targetInst.id, {
+        paidDate: '2026-08-15',
+        paidAmount: targetInst.totalAmount,
+      });
+
+      expect(res.installment.id).toBe(targetInst.id);
+      expect(res.installment.isPaid).toBe(true);
+      expect(res.installment.paidDate).toBe('2026-08-15');
+      expect(res.cascadedCount).toBe(7);
+      expect(res.cascadedInstallments).toHaveLength(7);
+
+      // 4. Fetch the full loan and verify installments 1-7, 8, and 9-12
+      const fullLoan = await getLoanById(store, 'user_1', loan.id);
+      expect(fullLoan.installments).toHaveLength(12);
+
+      for (let num = 1; num <= 7; num++) {
+        const inst = fullLoan.installments[num - 1];
+        expect(inst.installmentNumber).toBe(num);
+        expect(inst.isPaid).toBe(true);
+        expect(inst.paidDate).toBe(inst.dueDate);
+        expect(inst.paidAmount).toBe(inst.totalAmount);
+      }
+
+      const paidTarget = fullLoan.installments[7];
+      expect(paidTarget.installmentNumber).toBe(8);
+      expect(paidTarget.isPaid).toBe(true);
+      expect(paidTarget.paidDate).toBe('2026-08-15');
+
+      for (let num = 9; num <= 12; num++) {
+        const inst = fullLoan.installments[num - 1];
+        expect(inst.installmentNumber).toBe(num);
+        expect(inst.isPaid).toBe(false);
+      }
+    });
+
+    it('throws an error if the target installment is already marked as paid', async () => {
+      const loan = await createLoan(store, 'user_1', {
+        title: 'وام تست خطا',
+        principalAmount: 6000000,
+        annualInterestRate: 0,
+        installmentCount: 6,
+        startDate: '2026-01-01',
+      });
+
+      const firstInst = loan.installments[0];
+      // Mark it as paid first
+      await markInstallmentPaid(store, 'user_1', firstInst.id, {
+        paidDate: '2026-01-10',
+      });
+
+      // Attempting to cascade pay an already-paid installment should throw
+      await expect(
+        markInstallmentPaidCascade(store, 'user_1', loan.id, firstInst.id, {
+          paidDate: '2026-01-15',
+        })
+      ).rejects.toThrow('این قسط قبلاً پرداخت شده است.');
+    });
+  });
+
+  describe('Phase 4: 60-Month Comprehensive Lifecycle Verification (تست جامع وام ۶۰ ماهه)', () => {
+    it('executes full manual test scenario: create 60mo -> verify 1 loan row 0 installment rows -> pay 2 -> override 1 -> extra payments both modes -> verify complete schedules against manual calculations', async () => {
+      // 1. Create a 60-month loan: 300,000,000 Tomans, 23% interest, 60 installments
+      const loan = await createLoan(store, 'user_60', {
+        title: 'وام ۶۰ ماهه توسعه کسب‌وکار',
+        lenderName: 'بانک ملت',
+        principalAmount: 300000000,
+        annualInterestRate: 23,
+        installmentCount: 60,
+        intervalMonths: 1,
+        startDate: '2026-01-01',
+      });
+
+      // Verification Step 1: stored counts
+      expect(loanCount(store)).toBe(1);
+      expect(stateRows(store).length).toBe(0);
+      expect(extraPaymentCount(store)).toBe(0);
+
+      // Verify computed schedule length & mathematical convergence
+      expect(loan.installments).toHaveLength(60);
+      const monthlyRate = (23 / 100) * (1 / 12);
+      const expectedPmt = Math.round(
+        (300000000 * monthlyRate * Math.pow(1 + monthlyRate, 60)) /
+          (Math.pow(1 + monthlyRate, 60) - 1)
+      );
+      // Installment 1 total amount should match standard PMT formula (within rounding)
+      expect(Math.abs(loan.installments[0].totalAmount - expectedPmt)).toBeLessThanOrEqual(2);
+      // Final installment must perfectly close balance to 0
+      expect(loan.installments[59].remainingBalanceAfter).toBe(0);
+      expect(loan.remainingBalance).toBe(loan.installments.reduce((sum, i) => sum + i.totalAmount, 0));
+
+      // 2. Pay 2 installments (installment 1 and 2)
+      const inst1 = loan.installments[0];
+      const inst2 = loan.installments[1];
+      await markInstallmentPaid(store, 'user_60', inst1.id, {
+        paidDate: '2026-02-01',
+        paidAmount: inst1.totalAmount,
+      });
+      await markInstallmentPaid(store, 'user_60', inst2.id, {
+        paidDate: '2026-03-01',
+        paidAmount: inst2.totalAmount,
+      });
+
+      // Verification Step 2: exactly 2 installment states stored
+      expect(stateRows(store).length).toBe(2);
+      const loanAfter2Paid = await getLoanById(store, 'user_60', loan.id);
+      expect(loanAfter2Paid.paidCount).toBe(2);
+      expect(loanAfter2Paid.installments[0].isPaid).toBe(true);
+      expect(loanAfter2Paid.installments[1].isPaid).toBe(true);
+      expect(loanAfter2Paid.installments[2].isPaid).toBe(false);
+
+      // 3. A manual override (as an older loan may carry): installment 5 at 15,000,000 Tomans
+      const inst5 = loanAfter2Paid.installments[4];
+      const overrideRes = seedManualOverride(store, 'user_60', loan.id, inst5.id, 15000000);
+      expect(overrideRes.installment.isManualOverride).toBe(true);
+      expect(overrideRes.installment.totalAmount).toBe(15000000);
+
+      // Verification Step 3: exactly 3 installment states stored (2 paid + 1 override)
+      expect(stateRows(store).length).toBe(3);
+      const loanAfterOverride = await getLoanById(store, 'user_60', loan.id);
+      expect(loanAfterOverride.installments[4].totalAmount).toBe(15000000);
+      expect(loanAfterOverride.installments[4].isManualOverride).toBe(true);
+      expect(loanAfterOverride.installments[59].remainingBalanceAfter).toBe(0);
+
+      // 4. Extra payment in reduce_amount mode: 20,000,000 Tomans at installment 2
+      const epAmountRes = await addExtraPayment(store, 'user_60', loan.id, {
+        amount: 20000000,
+        paymentDate: '2026-03-15',
+        reductionMode: 'reduce_amount',
+        notes: 'واریز پاداش نوروزی',
+      });
+      expect(epAmountRes.success).toBe(true);
+      expect(extraPaymentCount(store)).toBe(1);
+      // Installment states table MUST STILL have only 3 rows
+      expect(stateRows(store).length).toBe(3);
+
+      const loanAfterEpAmount = await getLoanById(store, 'user_60', loan.id);
+      expect(loanAfterEpAmount.installmentCount).toBe(60);
+      expect(loanAfterEpAmount.installments).toHaveLength(60);
+      // Amounts of non-overridden pending installments should now be lower than original PMT
+      expect(loanAfterEpAmount.installments[2].totalAmount).toBeLessThan(expectedPmt);
+      expect(loanAfterEpAmount.installments[59].remainingBalanceAfter).toBe(0);
+
+      // 5. Extra payment in reduce_term mode: pay installment 3 & 4 then add lump sum 50,000,000
+      await markInstallmentPaid(store, 'user_60', loanAfterEpAmount.installments[2].id, {
+        paidDate: '2026-04-01',
+      });
+      await markInstallmentPaid(store, 'user_60', loanAfterEpAmount.installments[3].id, {
+        paidDate: '2026-05-01',
+      });
+      expect(stateRows(store).length).toBe(5);
+
+      const epTermRes = await addExtraPayment(store, 'user_60', loan.id, {
+        amount: 50000000,
+        paymentDate: '2026-05-15',
+        reductionMode: 'reduce_term',
+        notes: 'تسویه بخشی از اصل وام',
+      });
+      expect(epTermRes.success).toBe(true);
+      expect(extraPaymentCount(store)).toBe(2);
+
+      const loanAfterEpTerm = await getLoanById(store, 'user_60', loan.id);
+      expect(loanAfterEpTerm.installmentCount).toBeLessThan(60);
+      expect(loanAfterEpTerm.installments.length).toBeLessThan(60);
+      const finalInst = loanAfterEpTerm.installments[loanAfterEpTerm.installments.length - 1];
+      expect(finalInst.remainingBalanceAfter).toBe(0);
+
+      // Summary via getUserLoans matches exactly
+      const userLoans = await getUserLoans(store, 'user_60');
+      expect(userLoans).toHaveLength(1);
+      expect(userLoans[0].paidCount).toBe(4);
+      expect(userLoans[0].totalCount).toBe(loanAfterEpTerm.installments.length);
+      expect(userLoans[0].nextDueInstallment.installmentNumber).toBe(5);
+    });
+  });
+});
+
+

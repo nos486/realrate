@@ -85,10 +85,10 @@ KEK ──باز می‌کند──▶ کلید داده حساب (تصادفی
 سرور روی داده رمزشده نمی‌تواند محاسبه کند، پس برای حساب‌های رمزدار همه عملیات وام در مرورگر اجرا می‌شود:
 
 - هر وام یک «سند» است: `{ loan, states, extraPayments }` که به‌صورت یک رکورد رمزشده ذخیره می‌شود.
-- موتور `api/src/domain/loanDocument.js` (مشترک با وب) همان قواعد `loans.repository.js` را روی سند اجرا می‌کند.
+- موتور `api/src/domain/loanDocument.js` (مشترک با وب) تنها پیاده‌سازی قواعد وام است. سرور منطق وام جداگانه‌ای ندارد: وام‌های قدیمی رمزنشده را به همین سند می‌خواند و نمای آن‌ها را با همین موتور می‌سازد (`loans.repository.js`).
 - `loanApi.js`، `incomeApi.js` و `chequeApi.js` (در `features/`) امضای ثابت دارند و درخواست را به ذخیره‌ی رمزشده (`shared/vault/vaultLoans.js`، `vaultIncomes.js`، `vaultCheques.js`؛ هزینه‌ها و حساب‌ها با `vaultExpenses.js` و `vaultAccounts.js`) می‌فرستند.
 - اعتبارسنجی چک در هر دو مسیر همان `api/src/domain/chequeDocument.js` است.
-- **تست تطابق** (`tests/unit/loanDocument.test.js`) سناریوهای یکسان را روی سرور و موتور اجرا می‌کند و نتیجه قسط‌به‌قسط باید یکی باشد.
+- قواعد روی خود موتور تست می‌شوند (`tests/unit/loanRules.test.js`) و خواندن وام قدیمی از جدول‌ها به سند روی SQLite (`tests/unit/loansRepository.test.js`).
 
 ## ۴. فعال‌سازی
 

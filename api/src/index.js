@@ -104,13 +104,8 @@ import {
 } from "./handlers/transactionRoutes.js";
 import {
   handleGetLoans,
-  handleCreateLoan,
   handleGetLoan,
-  handleUpdateLoan,
   handleDeleteLoan,
-  handleUpdateInstallment,
-  handleBulkDistributeInstallments,
-  handleAddExtraPayment,
   handleGetLoanExtraPayments,
 } from "./handlers/loanRoutes.js";
 import {
@@ -496,7 +491,7 @@ async function handleRequest(request, env, ctx) {
     return wrap(handleSendTestPush)(request, env);
   }
 
-  // ── Loans & Installments API Routes ─────────────────────────────────────
+  // ── Loans (the older plaintext data; loans are saved as vault records) ───
   const loanDocumentMatch = normalizedPath.match(/^\/api\/loans\/([^/]+)\/document$/);
   if (loanDocumentMatch && request.method === "GET") {
     const loanId = loanDocumentMatch[1];
@@ -504,42 +499,20 @@ async function handleRequest(request, env, ctx) {
   }
 
   const loanExtraPaymentsMatch = normalizedPath.match(/^\/api\/loans\/([^/]+)\/extra-payments$/);
-  if (loanExtraPaymentsMatch) {
+  if (loanExtraPaymentsMatch && request.method === "GET") {
     const loanId = loanExtraPaymentsMatch[1];
-    if (request.method === "GET")  return wrap((req, e) => handleGetLoanExtraPayments(req, e, { loanId }))(request, env);
-    if (request.method === "POST") return wrap((req, e) => handleAddExtraPayment(req, e, { loanId }))(request, env);
-  }
-
-  // Must be matched before loanInstallmentMatch below, since that generic pattern would
-  // otherwise treat "bulk" as an installmentId.
-  const loanInstallmentsBulkMatch = normalizedPath.match(/^\/api\/loans\/([^/]+)\/installments\/bulk$/);
-  if (loanInstallmentsBulkMatch) {
-    const loanId = loanInstallmentsBulkMatch[1];
-    if (request.method === "PUT") {
-      return wrap((req, e) => handleBulkDistributeInstallments(req, e, { loanId }))(request, env);
-    }
-  }
-
-  const loanInstallmentMatch = normalizedPath.match(/^\/api\/loans\/([^/]+)\/installments\/([^/]+)$/);
-  if (loanInstallmentMatch) {
-    const loanId = loanInstallmentMatch[1];
-    const installmentId = loanInstallmentMatch[2];
-    if (request.method === "PUT") {
-      return wrap((req, e) => handleUpdateInstallment(req, e, { loanId, installmentId }))(request, env);
-    }
+    return wrap((req, e) => handleGetLoanExtraPayments(req, e, { loanId }))(request, env);
   }
 
   const loanSingleMatch = normalizedPath.match(/^\/api\/loans\/([^/]+)$/);
   if (loanSingleMatch) {
     const loanId = loanSingleMatch[1];
     if (request.method === "GET")    return wrap((req, e) => handleGetLoan(req, e, { loanId }))(request, env);
-    if (request.method === "PUT")    return wrap((req, e) => handleUpdateLoan(req, e, { loanId }))(request, env);
     if (request.method === "DELETE") return wrap((req, e) => handleDeleteLoan(req, e, { loanId }))(request, env);
   }
 
-  if (normalizedPath === "/api/loans") {
-    if (request.method === "GET")  return wrap(handleGetLoans)(request, env);
-    if (request.method === "POST") return wrap(handleCreateLoan)(request, env);
+  if (normalizedPath === "/api/loans" && request.method === "GET") {
+    return wrap(handleGetLoans)(request, env);
   }
 
   // ── Incomes API Routes ──────────────────────────────────────────────────
