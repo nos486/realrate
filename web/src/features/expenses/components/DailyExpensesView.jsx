@@ -3,8 +3,8 @@
  * incomes page: shared/flow). The year month by month is on the reports page (features/reports).
  *
  * - The month shown; only it and the month before are loaded
- * - The month's total, the change from the same days of last month, the daily average and the
- *   largest category; a donut of the categories; the monthly budgets (total and per category) as
+ * - The month's total, today's total («هزینه‌های روزانه», in the current month), the change from
+ *   the same days of last month, the daily average and the largest category; a donut of the categories; the monthly budgets (total and per category) as
  *   progress bars; and, with accounts, how much was paid from each
  * - The month's expenses, filterable by category and account, with the form to add and edit
  *   them and a CSV export of the month
@@ -121,6 +121,11 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
     [expenses, exclusionKey],
   );
   const summary = useMemo(() => summarizeExpenses(split.counted, rates), [split, rates]);
+  // Today's spending (the user's own calendar day), only while the current month is shown
+  const todaySummary = useMemo(
+    () => (isThisMonth ? summarizeExpenses(split.counted.filter((e) => e.date === today), rates) : null),
+    [isThisMonth, split, rates, today],
+  );
   const dollar = useMemo(() => summarizeDollarValue(split.counted, rates), [split, rates]);
   const byCategory = useMemo(() => summarizeByCategory(split.counted, rates), [split, rates]);
   const excludedByCategory = useMemo(() => summarizeByCategory(split.excluded, rates), [split, rates]);
@@ -252,6 +257,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
         hideValues={hideValues}
         totalFooter={Object.keys(summary.unpriced).length > 0 && <span>{t('{amount} بدون نرخ حساب نشده', { amount: formatCurrencyAmounts(summary.unpriced) })}</span>}
         dollar={dollar}
+        today={todaySummary && { total: todaySummary.totalToman, count: todaySummary.count }}
       />
       {donutItems.length > 0 && (
         <DonutChart title={t('تفکیک دسته‌ها')} items={donutItems} centerLabel={t('جمع ماه')} masked={hideValues} />

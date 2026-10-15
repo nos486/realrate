@@ -2,7 +2,8 @@
  * FlowCards.jsx — The headline cards of the incomes and expenses pages, the same on both
  *
  * - FlowMonthCards: the month's total, the change from the same days of the month before (all
- *   of it for a past month), the daily average and the largest category
+ *   of it for a past month), the daily average and the largest category; on the expenses page,
+ *   while the month is the current one, also today's total («هزینه‌های روزانه»)
  * - FlowYearCards: the year's total, the monthly average, the month with the most and the
  *   largest category
  * - CategoryPills: the list's category filter, with counts
@@ -13,7 +14,7 @@
 
 import { intlLocale, plural, t } from '../../utils/i18n.js';
 import React from 'react';
-import { Coins, Wallet, TrendingUp, TrendingDown, CalendarDays, CalendarRange, Tag, Trophy, Sigma, DollarSign } from 'lucide-react';
+import { Coins, Wallet, TrendingUp, TrendingDown, CalendarClock, CalendarDays, CalendarRange, Tag, Trophy, Sigma, DollarSign } from 'lucide-react';
 import { MiniCard } from '../ui/index.js';
 import { DollarValueFoot, formatUsd } from '../ui/DollarValue.jsx';
 import { formatAmountMasked } from './flowFormat.js';
@@ -51,7 +52,7 @@ const pct = (v) => t('{sign}{count}٪', { sign: v > 0 ? '+' : '', count: v.toLoc
  *   top: { label: string, total: number }|null, hideValues?: boolean, totalFooter?: React.ReactNode,
  *   dollar?: object|null }} props - dollar: the month in dollars (FlowDollarCard)
  */
-export function FlowMonthCards({ kind, monthLabel, total, count, previousTotal, previousCount, current, days, top, hideValues = false, totalFooter = null, dollar = null }) {
+export function FlowMonthCards({ kind, monthLabel, total, count, previousTotal, previousCount, current, days, top, hideValues = false, totalFooter = null, dollar = null, today = null }) {
   const k = KIND[kind];
   const money = (v) => formatAmountMasked(v, hideValues);
   const change = previousTotal > 0 ? ((total - previousTotal) / previousTotal) * 100 : null;
@@ -68,6 +69,20 @@ export function FlowMonthCards({ kind, monthLabel, total, count, previousTotal, 
         className="incomes-summary-card is-primary"
         footer={totalFooter}
       />
+      {/* Next to «نسبت به…» on a phone (two per row) */}
+      {today && (
+        <MiniCard
+          icon={<CalendarClock size={14} />}
+          title={t('هزینه‌های روزانه')}
+          value={money(today.total)}
+          unit={t('تومان')}
+          color={k.color}
+          className="incomes-summary-card is-today"
+          footer={<span>{today.count > 0
+            ? t('امروز، {count} {noun}', { count: today.count.toLocaleString(intlLocale()), noun: plural(today.count, k.noun, k.nouns) })
+            : t('امروز هنوز چیزی ثبت نشده')}</span>}
+        />
+      )}
       <MiniCard
         icon={change !== null && change < 0 ? <TrendingDown size={14} /> : <TrendingUp size={14} />}
         title={current ? t('نسبت به همین روزهای ماه قبل') : t('نسبت به ماه قبل')}
