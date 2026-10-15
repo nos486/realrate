@@ -5,7 +5,7 @@ import { DemoBanner } from '../../features/demo/index.js';
 import OfflineBar from '../offline/OfflineBar.jsx';
 import { useAppLayout } from '../app/appLayout.js';
 import { AppTopBar, AppBottomNav } from '../app/AppShell.jsx';
-import AppUpdatePrompt, { AppUpdateBanner } from '../app/AppUpdatePrompt.jsx';
+import AppUpdatePrompt, { AppUpdateBanner, WebBundleProgress } from '../app/AppUpdatePrompt.jsx';
 import AppSuggestBanner from '../app/AppSuggestBanner.jsx';
 import AppSetupPrompt from '../app/AppSetupPrompt.jsx';
 import StoreBuildNotice from '../app/StoreBuildNotice.jsx';
@@ -51,6 +51,7 @@ export default function AppLayout({
         {/* On an Android phone's browser: the app is easier and faster */}
         <AppSuggestBanner />
         <AppUpdateBanner />
+        <WebBundleProgress />
         <main className={`main-content ${className}`}>
           {/* Each section fades in, like switching screens in an app */}
           <div key={activeTab} className="app-page">{children}</div>

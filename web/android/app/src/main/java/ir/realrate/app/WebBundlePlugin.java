@@ -39,7 +39,8 @@ import java.util.zip.ZipInputStream;
  * - A bundle is taken only when its manifest's native hash is this APK's own (the Java side, the
  *   manifest and the Capacitor plugins are exactly what the pages were built with), its build is
  *   newer than the APK and the bundle in use, and its signature checks against the certificate
- *   built into the APK (the APK's own signing certificate, BuildConfig.WEB_BUNDLE_CERT). A build
+ *   built into the APK (the APK's own signing certificate, BuildConfig.WEB_BUNDLE_CERT). The
+ *   signed zip carries its own bundle.json (build and native hash), which must match too. A build
  *   without the hash or the certificate (a local build) never takes a bundle.
  * - A downloaded bundle waits and is used from the next start of the app (prepare(), before the
  *   Capacitor bridge loads), or right away when the user asks for it (apply(), the settings
@@ -51,6 +52,7 @@ import java.util.zip.ZipInputStream;
  *     WebBundle.ready()  → { build }   (the pages started: the bundle in use is good)
  *     WebBundle.update({ manifestUrl }) → { status: disabled | busy | latest | ready, build? }
  *     WebBundle.apply()  → { applied }  (loads the waiting bundle now; the pages reload)
+ * Events: "bundleProgress" { downloaded, total } while a bundle's zip downloads
  */
 @CapacitorPlugin(name = "WebBundle")
 public class WebBundlePlugin extends Plugin {
@@ -196,7 +198,7 @@ public class WebBundlePlugin extends Plugin {
             try {
                 Context context = getContext();
                 SharedPreferences prefs = prefs(context);
-                JSONObject manifest = new JSONObject(new String(fetch(manifestUrl, MAX_MANIFEST_BYTES, null), StandardCharsets.UTF_8));
+                JSONObject manifest = new JSONObject(new String(fetch(manifestUrl, MAX_MANIFEST_BYTES, null, null), StandardCharsets.UTF_8));
                 JSONObject bundle = manifest.optJSONObject("bundles") == null ? null : manifest.getJSONObject("bundles").optJSONObject(BuildConfig.FLAVOR);
                 long build = manifest.optLong("build", 0);
                 long newest = Math.max(apkBuild(context), Math.max(currentBuild(prefs), prefs.getLong(K_PENDING, 0)));
@@ -215,7 +217,12 @@ public class WebBundlePlugin extends Plugin {
 
                 File dir = bundlesDir(context);
                 part = new File(dir, build + ".zip.part");
-                fetch(new URL(new URL(manifestUrl), file).toString(), MAX_BUNDLE_BYTES, part);
+                fetch(new URL(new URL(manifestUrl), file).toString(), MAX_BUNDLE_BYTES, part, (downloaded, total) -> {
+                    JSObject data = new JSObject();
+                    data.put("downloaded", downloaded);
+                    data.put("total", total > 0 ? total : size);
+                    notifyListeners("bundleProgress", data);
+                });
                 if (part.length() != size) throw new Exception("size mismatch");
                 if (!verify(part, signature)) throw new Exception("bad signature");
 
@@ -223,6 +230,12 @@ public class WebBundlePlugin extends Plugin {
                 deleteDir(unpacking);
                 unzip(part, unpacking);
                 if (!new File(unpacking, "index.html").isFile()) throw new Exception("no index.html");
+                // The manifest is not signed, the zip is: its own bundle.json must say the same build
+                // and native side, or an old signed zip could be passed off as one for this APK
+                JSONObject stamp = new JSONObject(new String(readFile(new File(unpacking, "bundle.json"), MAX_MANIFEST_BYTES), StandardCharsets.UTF_8));
+                if (stamp.optLong("build", -1) != build || !BuildConfig.NATIVE_HASH.equals(stamp.optString("nativeHash"))) {
+                    throw new Exception("bundle stamp mismatch");
+                }
                 File target = bundleDir(context, build);
                 deleteDir(target);
                 if (!unpacking.renameTo(target)) throw new Exception("rename failed");
@@ -333,11 +346,16 @@ public class WebBundlePlugin extends Plugin {
         }
     }
 
+    /** Download progress: bytes so far and the whole size (0 when unknown) */
+    private interface Progress {
+        void on(long downloaded, long total);
+    }
+
     /**
      * Downloads `url` (following redirects: GitHub sends files from another host) into `out`, or
-     * returns it when `out` is null; at most `max` bytes
+     * returns it when `out` is null; at most `max` bytes, reporting to `progress` (may be null)
      */
-    private static byte[] fetch(String url, long max, File out) throws Exception {
+    private static byte[] fetch(String url, long max, File out, Progress progress) throws Exception {
         String current = url;
         for (int i = 0; i <= MAX_REDIRECTS; i++) {
             HttpURLConnection conn = (HttpURLConnection) new URL(current).openConnection();
@@ -359,13 +377,22 @@ public class WebBundlePlugin extends Plugin {
                 try (InputStream in = conn.getInputStream();
                      OutputStream os = out == null ? new ByteArrayOutputStream() : new FileOutputStream(out)) {
                     byte[] buf = new byte[64 * 1024];
+                    long length = conn.getContentLengthLong();
                     long total = 0;
+                    long lastEvent = 0;
                     int n;
+                    if (progress != null) progress.on(0, length);
                     while ((n = in.read(buf)) != -1) {
                         total += n;
                         if (total > max) throw new Exception("too large");
                         os.write(buf, 0, n);
+                        long now = System.currentTimeMillis();
+                        if (progress != null && now - lastEvent > 250) {
+                            lastEvent = now;
+                            progress.on(total, length);
+                        }
                     }
+                    if (progress != null) progress.on(total, length);
                     return out == null ? ((ByteArrayOutputStream) os).toByteArray() : null;
                 }
             } finally {
@@ -373,6 +400,16 @@ public class WebBundlePlugin extends Plugin {
             }
         }
         throw new Exception("too many redirects");
+    }
+
+    private static byte[] readFile(File file, long max) throws Exception {
+        if (!file.isFile() || file.length() > max) throw new Exception("missing or too large: " + file.getName());
+        try (InputStream in = new FileInputStream(file); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) != -1) out.write(buf, 0, n);
+            return out.toByteArray();
+        }
     }
 
     private static void deleteDir(File file) {

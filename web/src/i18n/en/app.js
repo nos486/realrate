@@ -85,6 +85,7 @@ export default {
   'صفحات اپ به‌روز شد.': 'The app is updated to the newest version.',
   'نسخه‌ی تازه دانلود شد؛ با باز کردن دوباره‌ی اپ اعمال می‌شود.': 'The new version is downloaded; it applies when you reopen the app.',
   'نسخه‌ی صفحات': 'Pages version',
+  'در حال دریافت نسخه‌ی تازه… {percent}٪': 'Downloading the new version… {percent}%',
   'بررسی به‌روزرسانی ممکن نشد.': 'Could not check for updates.',
   'بررسی خودکار به‌روزرسانی': 'Check for updates automatically',
   'با باز شدن اپ، اگر نسخه‌ی جدیدی منتشر شده باشد خبر می‌دهد تا با یک ضربه دانلود و نصب شود.': 'When the app opens, it tells you if a new version is out so you can download and install it with one tap.',

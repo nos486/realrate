@@ -15,7 +15,7 @@ vi.mock('../../../web/src/shared/app/AppShell.jsx', () => ({
   AppTopBar: () => <div className="app-topbar" />,
   AppBottomNav: () => <nav className="app-bottom-nav" />,
 }));
-vi.mock('../../../web/src/shared/app/AppUpdatePrompt.jsx', () => ({ default: () => null, AppUpdateBanner: () => null }));
+vi.mock('../../../web/src/shared/app/AppUpdatePrompt.jsx', () => ({ default: () => null, AppUpdateBanner: () => null, WebBundleProgress: () => null }));
 vi.mock('../../../web/src/shared/app/AppSuggestBanner.jsx', () => ({ default: () => null }));
 vi.mock('../../../web/src/shared/app/AppSetupPrompt.jsx', () => ({ default: () => null }));
 vi.mock('../../../web/src/features/demo/index.js', () => ({ DemoBanner: () => null }));
