@@ -4,6 +4,7 @@
  * BankSms: reads bank messages from the SMS inbox (BankSmsPlugin.java)
  * BiometricVault: keeps a secret only the fingerprint can release (BiometricVaultPlugin.java)
  * AppUpdate: downloads the new APK and opens Android's installer (AppUpdatePlugin.java)
+ * WebBundle: updates the app's pages without a new APK (WebBundlePlugin.java, webBundle.js)
  * FileExport: hands a file the app made to Android's share sheet (FileExportPlugin.java)
  * Widgets: the home-screen widgets' favourites and refresh (WidgetsPlugin.java)
  * Outside the app their calls fail ("not implemented"): check isNativeApp() first.
@@ -36,5 +37,6 @@ function localized(plugin) {
 export const BankSms = registerPlugin('BankSms');
 export const BiometricVault = localized(registerPlugin('BiometricVault'));
 export const AppUpdate = localized(registerPlugin('AppUpdate'));
+export const WebBundle = registerPlugin('WebBundle');
 export const FileExport = localized(registerPlugin('FileExport'));
 export const Widgets = registerPlugin('Widgets');

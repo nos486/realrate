@@ -9,6 +9,7 @@
  *    own local origin
  *  - Google sign-in runs in the phone's browser (Google refuses it inside a WebView) and comes
  *    back through the app's link with a one-time code (api/src/lib/appAuth.js)
+ *  - newer pages arrive as signed web bundles, without a new APK (webBundle.js)
  * The native plugins are loaded only inside the app, so the website never downloads them.
  */
 
@@ -78,6 +79,8 @@ export async function initNativeApp() {
   } catch (err) {
     console.warn('Native app setup failed:', err);
   }
+  // Newer pages without a new APK (webBundle.js)
+  import('./webBundle.js').then((m) => m.startWebBundleUpdates()).catch(() => {});
 }
 
 function base64Url(bytes) {
