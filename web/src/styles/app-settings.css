@@ -285,6 +285,16 @@
   cursor: pointer;
 }
 
+/* «در حال دریافت نسخه‌ی تازه» (AppUpdatePrompt.jsx: WebBundleProgress) */
+.web-bundle-progress .app-update-progress {
+  flex: 1;
+  margin-top: 0;
+}
+
+.web-bundle-progress .app-update-progress small {
+  color: var(--text-primary);
+}
+
 /* ── The banks whose SMS are read (AppSettingsView: SmsBankSettings) ── */
 .app-setting-banks {
   display: flex;

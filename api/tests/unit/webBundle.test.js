@@ -6,16 +6,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { nativeHash } from '../../../.github/scripts/native-hash.mjs';
 import { buildManifest, bundleFileName } from '../../../.github/scripts/web-bundle-manifest.mjs';
+import { handleGetWebBundleFile, webBundleFileFromPath, githubBundleUrl } from '../../src/handlers/webBundleRoutes.js';
 
 const update = vi.fn();
 const info = vi.fn();
 const apply = vi.fn();
+let progressHandler = null;
 vi.mock('../../../web/src/shared/native/nativePlugins.js', () => ({
   WebBundle: {
     update: (...args) => update(...args),
     info: (...args) => info(...args),
     apply: (...args) => apply(...args),
     ready: vi.fn(async () => ({})),
+    addListener: vi.fn(async (_name, handler) => {
+      progressHandler = handler;
+      return { remove: () => { progressHandler = null; } };
+    }),
   },
 }));
 
@@ -24,6 +30,9 @@ const {
   isWebBundleCheckDue,
   resetWebBundleChecks,
   updatePagesNow,
+  webBundleManifestUrls,
+  getWebBundleProgress,
+  progressShare,
   WEB_BUNDLE_CHECK_GAP_MS,
   WEB_BUNDLE_MANIFEST_URL,
 } = await import('../../../web/src/shared/native/webBundle.js');
@@ -152,5 +161,71 @@ describe('updating the pages now (settings)', () => {
   it('reports a failed download', async () => {
     update.mockRejectedValue(new Error('offline'));
     await expect(updatePagesNow()).resolves.toBe('error');
+  });
+});
+
+describe('serving the bundles from our own domain', () => {
+  it('reads the manifest from our API first, then GitHub', () => {
+    expect(webBundleManifestUrls('https://realrate-api.geekio.org')).toEqual([
+      'https://realrate-api.geekio.org/api/app/web-bundle/manifest.json',
+      WEB_BUNDLE_MANIFEST_URL,
+    ]);
+    expect(webBundleManifestUrls('')).toEqual([WEB_BUNDLE_MANIFEST_URL]);
+  });
+
+  it('relays only the bundle files', () => {
+    expect(webBundleFileFromPath('/api/app/web-bundle/manifest.json')).toBe('manifest.json');
+    expect(webBundleFileFromPath('/api/app/web-bundle/web-301-full.zip')).toBe('web-301-full.zip');
+    expect(webBundleFileFromPath('/api/app/web-bundle/realrate.apk')).toBeNull();
+    expect(webBundleFileFromPath('/api/app/web-bundle/../x.zip')).toBeNull();
+  });
+
+  it('fetches the file from the GitHub release', async () => {
+    const fetchMock = vi.fn(async () => new Response('zipbytes', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      const res = await handleGetWebBundleFile(new Request('https://api.test/api/app/web-bundle/web-301-full.zip'), {});
+      expect(fetchMock.mock.calls[0][0]).toBe(githubBundleUrl('web-301-full.zip'));
+      expect(res.headers.get('Content-Type')).toBe('application/zip');
+      expect(await res.text()).toBe('zipbytes');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('answers 404 for another file or a missing one', async () => {
+    await expect(handleGetWebBundleFile(new Request('https://api.test/api/app/web-bundle/x.txt'), {})).rejects.toMatchObject({ statusCode: 404 });
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 404 })));
+    try {
+      await expect(handleGetWebBundleFile(new Request('https://api.test/api/app/web-bundle/web-1-full.zip'), {})).rejects.toMatchObject({ statusCode: 404 });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+describe('download progress', () => {
+  beforeEach(() => {
+    resetWebBundleChecks();
+    update.mockReset();
+  });
+
+  it('turns the plugin event into a share', () => {
+    expect(progressShare({ downloaded: 50, total: 200 })).toBe(0.25);
+    expect(progressShare({ downloaded: 50, total: 0 })).toBe(0);
+    expect(progressShare({ downloaded: 300, total: 200 })).toBe(1);
+  });
+
+  it('shows while the zip downloads and hides when the check ends', async () => {
+    let seen = null;
+    update.mockImplementation(async () => {
+      progressHandler?.({ downloaded: 30, total: 100 });
+      seen = getWebBundleProgress();
+      return { status: 'ready', build: 11 };
+    });
+    await checkWebBundle(9_000_000);
+    expect(seen).toEqual({ downloading: true, progress: 0.3 });
+    expect(getWebBundleProgress().downloading).toBe(false);
+    expect(progressHandler).toBeNull();
   });
 });

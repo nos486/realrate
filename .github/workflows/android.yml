@@ -101,6 +101,8 @@ jobs:
           build_flavor() {
             flavor=$1
             if [ "$flavor" = "nosms" ]; then VITE_NO_SMS=1 npm run build:app; else npm run build:app; fi
+            # Inside the signed zip, so a manifest cannot pass it off as another build or native side
+            printf '{"build":%s,"nativeHash":"%s"}\n' "$VERSION_CODE" "$NATIVE_HASH" > dist-app/bundle.json
             zip="$out/web-$VERSION_CODE-$flavor.zip"
             (cd dist-app && zip -qrX "$zip" .)
             if [ "$HAS_SIGNING" = "true" ]; then
