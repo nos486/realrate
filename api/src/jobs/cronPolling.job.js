@@ -11,6 +11,7 @@ import { runReminderEmailDigest, tehranTime } from "./reminderEmail.job.js";
 import { runReminderPushDigest, purgeOldPushRemindersJob } from "./reminderPush.job.js";
 import { dbPurgeOldVaultTombstones } from "../repositories/vault.repository.js";
 import { runNewsPolling } from "../services/news/news.service.js";
+import { runBot } from "../services/bot/bot.service.js";
 import { dbPurgeOldNews } from "../repositories/news.repository.js";
 import { NEWS_LIMITS } from "../config/news.config.js";
 import { logger } from "../lib/logger.js";
@@ -30,10 +31,16 @@ export async function runCronPolling(event, env, ctx) {
   );
 
   // The news section: new posts of the Telegram channels (news.service.js)
+  // then the Telegram bot posts what the poll queued to its channel (bot.service.js)
   ctx.waitUntil(
-    runNewsPolling(env).catch(err => {
-      logger.error("[CronPolling] News polling error:", { error: err.message, stack: err.stack });
-    })
+    runNewsPolling(env)
+      .catch(err => {
+        logger.error("[CronPolling] News polling error:", { error: err.message, stack: err.stack });
+      })
+      .then(() => runBot(env))
+      .catch(err => {
+        logger.error("[CronPolling] Bot error:", { error: err.message, stack: err.stack });
+      })
   );
 
   // Hourly work: gated on getUTCMinutes() === 0. Keyed off the trigger's own

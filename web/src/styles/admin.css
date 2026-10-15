@@ -1519,3 +1519,22 @@
   font-size: 12.5px;
   color: var(--text-secondary);
 }
+
+/* The Telegram bot page: a checkbox per feed, and the small inline action under the token */
+.admin-bot-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-block: 6px;
+  cursor: pointer;
+}
+
+.admin-bot-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--color-warning-text);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
