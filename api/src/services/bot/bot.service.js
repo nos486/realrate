@@ -27,27 +27,24 @@ export async function runBot(env, opts = {}) {
   let sent = 0;
   let waiting = 0;
   let error = "";
-  let aiError = "";
   for (const feature of BOT_FEATURES) {
     try {
       const result = await feature.run(env, opts);
       sent += result.sent || 0;
       waiting += result.waiting || 0;
       if (result.error) error = result.error;
-      if (result.aiError) aiError = result.aiError;
     } catch (err) {
       error = String(err?.message || err).slice(0, 240);
       logger.error("[Bot] feature failed", { feature: feature.id, error });
     }
   }
   const now = opts.now ?? Date.now();
-  if (sent || error || aiError) {
+  if (sent || error) {
     const previous = (await getBotStatus(env)) || {};
     await saveBotStatus(env, {
       at: now,
       waiting,
       error,
-      aiError,
       ...(sent ? { lastSentAt: now, sentTotal: (Number(previous.sentTotal) || 0) + sent } : {}),
     }).catch(() => {});
   }

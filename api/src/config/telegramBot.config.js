@@ -22,8 +22,6 @@ export const BOT_LIMITS = {
   maxTries: 3,
   /** The article's summary under its headline, in characters */
   summaryChars: 280,
-  /** A message is held back this many runs when the translation fails, then posted as the feed gave it */
-  translateTries: 3,
   /** Time allowed for one Bot API request */
   timeoutMs: 10000,
 };
