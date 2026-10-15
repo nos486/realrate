@@ -42,13 +42,15 @@ import java.util.zip.ZipInputStream;
  *   built into the APK (the APK's own signing certificate, BuildConfig.WEB_BUNDLE_CERT). A build
  *   without the hash or the certificate (a local build) never takes a bundle.
  * - A downloaded bundle waits and is used from the next start of the app (prepare(), before the
- *   Capacitor bridge loads), never in the middle of a session. Its pages must call ready() on
- *   start; a bundle that starts twice without it is dropped and the last good pages come back.
+ *   Capacitor bridge loads), or right away when the user asks for it (apply(), the settings
+ *   page's «بررسی به‌روزرسانی»). Its pages must call ready() on start; a bundle that starts twice
+ *   without it is dropped and the last good pages come back.
  * - A new APK starts from its own built-in pages and drops every downloaded bundle.
  *
  * JS: WebBundle.info()   → { enabled, nativeHash, flavor, apkBuild, build, pendingBuild }
  *     WebBundle.ready()  → { build }   (the pages started: the bundle in use is good)
  *     WebBundle.update({ manifestUrl }) → { status: disabled | busy | latest | ready, build? }
+ *     WebBundle.apply()  → { applied }  (loads the waiting bundle now; the pages reload)
  */
 @CapacitorPlugin(name = "WebBundle")
 public class WebBundlePlugin extends Plugin {
@@ -100,17 +102,28 @@ public class WebBundlePlugin extends Plugin {
                 edit.remove(K_TRIAL).remove(K_TRIAL_STARTS).putLong(K_BAD, trial);
                 setServerPath(context, active > 0 ? bundleDir(context, active) : null);
             }
-            long pending = prefs.getLong(K_PENDING, 0);
-            if (pending > 0 && new File(bundleDir(context, pending), "index.html").exists()) {
-                edit.remove(K_PENDING).putLong(K_TRIAL, pending).putInt(K_TRIAL_STARTS, 1);
-                setServerPath(context, bundleDir(context, pending));
-            } else {
-                edit.remove(K_PENDING);
-            }
             edit.commit();
+            startPending(context);
         } catch (Exception ignored) {
             // Never block the app's start: the built-in pages always work
         }
+    }
+
+    /**
+     * Moves the waiting bundle into use (on trial) for the next load of the pages
+     * @return its folder, or null when none is waiting
+     */
+    private static File startPending(Context context) {
+        SharedPreferences prefs = prefs(context);
+        long pending = prefs.getLong(K_PENDING, 0);
+        File dir = pending > 0 ? bundleDir(context, pending) : null;
+        if (dir == null || !new File(dir, "index.html").exists()) {
+            prefs.edit().remove(K_PENDING).commit();
+            return null;
+        }
+        prefs.edit().remove(K_PENDING).putLong(K_TRIAL, pending).putInt(K_TRIAL_STARTS, 1).commit();
+        setServerPath(context, dir);
+        return dir;
     }
 
     /* ── JS ──────────────────────────────────────────────────────────────────────── */
@@ -141,6 +154,24 @@ public class WebBundlePlugin extends Plugin {
         JSObject ret = new JSObject();
         ret.put("build", currentBuild(prefs));
         call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void apply(PluginCall call) {
+        Context context = getContext();
+        SharedPreferences prefs = prefs(context);
+        if (busy || prefs.getLong(K_TRIAL, 0) > 0) {
+            // A download under way, or the pages in use are not confirmed yet: wait for the next start
+            JSObject ret = new JSObject();
+            ret.put("applied", false);
+            call.resolve(ret);
+            return;
+        }
+        File dir = startPending(context);
+        JSObject ret = new JSObject();
+        ret.put("applied", dir != null);
+        call.resolve(ret);
+        if (dir != null) bridge.setServerBasePath(dir.getAbsolutePath());
     }
 
     @PluginMethod

@@ -1,20 +1,29 @@
 /**
  * webBundle.test.js — the app's pages update without a new APK: the native-side hash that decides
- * when an APK is due, the bundle manifest, and when the app looks for a bundle
+ * when an APK is due, the bundle manifest, when the app looks for a bundle, and the settings'
+ * «بررسی به‌روزرسانی» that loads the newest pages right away
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { nativeHash } from '../../../.github/scripts/native-hash.mjs';
 import { buildManifest, bundleFileName } from '../../../.github/scripts/web-bundle-manifest.mjs';
 
 const update = vi.fn();
+const info = vi.fn();
+const apply = vi.fn();
 vi.mock('../../../web/src/shared/native/nativePlugins.js', () => ({
-  WebBundle: { update: (...args) => update(...args), ready: vi.fn(async () => ({})) },
+  WebBundle: {
+    update: (...args) => update(...args),
+    info: (...args) => info(...args),
+    apply: (...args) => apply(...args),
+    ready: vi.fn(async () => ({})),
+  },
 }));
 
 const {
   checkWebBundle,
   isWebBundleCheckDue,
   resetWebBundleChecks,
+  updatePagesNow,
   WEB_BUNDLE_CHECK_GAP_MS,
   WEB_BUNDLE_MANIFEST_URL,
 } = await import('../../../web/src/shared/native/webBundle.js');
@@ -101,5 +110,47 @@ describe('looking for a web bundle', () => {
   it('swallows a failed check (no connection)', async () => {
     update.mockRejectedValue(new Error('offline'));
     await expect(checkWebBundle(5_000_000)).resolves.toBeNull();
+  });
+});
+
+describe('updating the pages now (settings)', () => {
+  beforeEach(() => {
+    resetWebBundleChecks();
+    update.mockReset();
+    info.mockReset();
+    apply.mockReset();
+  });
+
+  it('downloads and loads a newer bundle at once, with no interval', async () => {
+    update.mockResolvedValue({ status: 'ready', build: 10 });
+    apply.mockResolvedValue({ applied: true });
+    await checkWebBundle(1000);
+    await expect(updatePagesNow(1001)).resolves.toBe('applied');
+    expect(update).toHaveBeenCalledTimes(2);
+  });
+
+  it('loads a bundle downloaded earlier that waits for the next start', async () => {
+    update.mockResolvedValue({ status: 'latest' });
+    info.mockResolvedValue({ pendingBuild: 9 });
+    apply.mockResolvedValue({ applied: true });
+    await expect(updatePagesNow()).resolves.toBe('applied');
+  });
+
+  it('says it is the newest when nothing is newer or waiting', async () => {
+    update.mockResolvedValue({ status: 'latest' });
+    info.mockResolvedValue({ pendingBuild: 0 });
+    await expect(updatePagesNow()).resolves.toBe('latest');
+    expect(apply).not.toHaveBeenCalled();
+  });
+
+  it('leaves it for the next start on an APK without apply', async () => {
+    update.mockResolvedValue({ status: 'ready', build: 10 });
+    apply.mockRejectedValue(new Error('not implemented'));
+    await expect(updatePagesNow()).resolves.toBe('next-start');
+  });
+
+  it('reports a failed download', async () => {
+    update.mockRejectedValue(new Error('offline'));
+    await expect(updatePagesNow()).resolves.toBe('error');
   });
 });
