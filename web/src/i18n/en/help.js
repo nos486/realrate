@@ -70,6 +70,8 @@ export default {
     'Your year at a glance: income and expenses, savings, investments and dollar value.',
   'سال را انتخاب کنید؛ همه‌ی عددها روی همین دستگاه از داده‌های رمزنگاری‌شده‌ی شما حساب می‌شوند.':
     'Pick a year; all numbers are calculated on this device from your encrypted data.',
+  'ارزش خالص: پورتفوها و چک‌های دریافتنی منهای اقساط وام‌ها و چک‌های پرداختنی، در پایان هر ماه و در برابر رشد دلار.':
+    'Net worth: your portfolios and receivable cheques minus loan installments and payable cheques, at the end of each month and against the dollar\'s rise.',
   'با «خروجی PDF» گزارش را ذخیره کنید.': 'Save the report with "Export PDF".',
   'کاوش بازار': 'Explore market',
   'هر دارایی بازار را پیدا کنید و قیمت و نمودارش را ببینید، بدون اینکه چیزی ذخیره شود.':

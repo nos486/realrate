@@ -4,6 +4,7 @@
  *
  *   ┌──────────────────────────── the year's figures ────────────────────────────┐
  *   │ income against expenses (7)              │ what stands out (5)             │
+ *   │ net worth: its figures (12), month by month (7) │ against the dollar (5)   │
  *   │ income by month and source (6)           │ expenses by month and category  │
  *   │ income sources (4) │ expense categories (4) │ what was invested in (4)     │
  *   │ share of income invested (6)             │ income and expenses in $ (6)    │
@@ -14,6 +15,7 @@
  *
  * Every figure comes from useReportData (worked out once per year). What was invested is the
  * expenses recorded as «سرمایه‌گذاری»; without the expenses feature those cards are left out.
+ * The net worth comes from useNetWorth (NetWorthSection), loaded on its own.
  */
 
 import { intlLocale, t } from '../../utils/i18n.js';
@@ -27,6 +29,8 @@ import { resolveAssetDisplayName } from '../../config/sourceRegistry.js';
 import { getIncomeCategory } from '../incomes/constants/incomeCategories.js';
 import { getExpenseCategory } from '../expenses/constants/expenseCategories.js';
 import MonthBarChart from './MonthBarChart.jsx';
+import ReportCard from './ReportCard.jsx';
+import NetWorthSection from './NetWorthSection.jsx';
 
 const INCOME_COLOR = CHART_COLORS[0];
 const EXPENSE_COLOR = CHART_COLORS[1];
@@ -35,19 +39,6 @@ const incomeLabel = (c) => getIncomeCategory(c).label;
 const expenseLabel = (c) => getExpenseCategory(c).label;
 /** What an investment went into: its asset's name, else the expense's own title */
 const investedName = (a) => (a.assetId ? resolveAssetDisplayName(a.assetId) || a.assetId : a.title || t('بدون عنوان'));
-
-/** A card of the grid with a title (charts and donuts bring their own) */
-function ReportCard({ title, Icon = null, actions = null, span, className = '', children }) {
-  return (
-    <section className={`portfolio-stat-card report-card ${span} ${className}`}>
-      <header className="report-card-head">
-        <h3>{Icon && <Icon size={15} aria-hidden="true" />}{title}</h3>
-        {actions}
-      </header>
-      {children}
-    </section>
-  );
-}
 
 /**
  * A translated sentence with its emphasis kept: `<b>…</b>` becomes <strong>, `<bdi>…</bdi>` stays
@@ -98,7 +89,7 @@ const donutOf = (byCategory, metaOf) => byCategory.map((c) => {
 const CSV_HEADERS = [t('ماه'), t('درآمد (تومان)'), t('هزینه (تومان)'), t('مانده (تومان)'), t('نرخ پس‌انداز (٪)'), t('سرمایه‌گذاری (تومان)'), t('سهم سرمایه‌گذاری از درآمد (٪)'), t('درآمد (دلار)'), t('هزینه (دلار)')];
 const round1 = (v) => (v === null || v === undefined ? '' : Math.round(v * 10) / 10);
 
-export default function ReportDashboard({ data, f, yearLabel, hideValues }) {
+export default function ReportDashboard({ data, netWorth = null, f, yearLabel, hideValues }) {
   const { hasExpenses, incomeSeries, expenseSeries, incomeYear, expenseYear, cash, cashMonths, shareMonths, shareYear, investedIn, subscriptionYear, apart, dollars, insights } = data;
   const apartRows = apart ? [
     ...apart.expenses.map((r) => ({ key: `e:${r.key}`, kind: t('هزینه'), label: expenseLabel(r.key), ...r })),
@@ -179,6 +170,9 @@ export default function ReportDashboard({ data, f, yearLabel, hideValues }) {
           <p className="report-empty">{t('با ثبت درآمد و هزینه‌های سال، نکته‌های مهم آن این‌جا می‌آید.')}</p>
         )}
       </ReportCard>
+
+      {/* What is owned minus what is owed, and how it moved against the dollar */}
+      {netWorth && <NetWorthSection netWorth={netWorth} f={f} yearLabel={yearLabel} />}
 
       {/* Month by month, by source and by category */}
       <div className={hasExpenses ? 'span-6' : 'span-12'}>
@@ -413,6 +407,7 @@ export default function ReportDashboard({ data, f, yearLabel, hideValues }) {
           <li>{t('همه‌ی خرج‌ها در هزینه‌ها ثبت می‌شوند؛ دسته‌های «خارج از جمع» (مثل سرمایه‌گذاری) و هزینه‌های پروژه‌ها در جمع‌ها حساب نمی‌شوند و در «خارج از جمع (جدا)» آمده‌اند.')}</li>
           <li>{t('سرمایه‌گذاری: هزینه‌های روزمره‌ای که با دسته‌ی «سرمایه‌گذاری» ثبت شده‌اند (سهم خود شما، هزینه‌ی دلاری به نرخ روزش)؛ این هزینه‌ها در جمع هزینه‌ها حساب نمی‌شوند. به تفکیک دارایی‌ای که به پورتفو اضافه شده، وگرنه به عنوان هزینه.')}</li>
           <li>{t('اشتراک‌ها: هزینه‌هایی که به یک اشتراک وصل شده‌اند («ثبت پرداخت» در اشتراک‌ها، یا انتخاب اشتراک در فرم هزینه)؛ پرداخت‌های دسته‌ی «اینترنت و اشتراک‌ها» که به اشتراکی وصل نیستند جدا آمده‌اند.')}</li>
+          <li>{t('ارزش خالص: ارزش همه‌ی پورتفوها (هر روز به قیمت همان روز) و چک‌های دریافتنی باز، منهای اقساط پرداخت‌نشده‌ی وام‌ها (با سودشان) و چک‌های پرداختنی باز، در پایان هر ماه. موجودی حساب‌ها ثبت نمی‌شود، پس پول نقد فقط اگر در پورتفو باشد حساب می‌شود. تغییر آن پس‌انداز تازه را هم دارد، نه فقط بازده؛ «به دلار» یعنی ارزش خالص هر روز تقسیم بر نرخ دلار همان روز.')}</li>
           <li>{t('دلار: هر مورد به نرخ دلار روز خودش (نرخ ثبت‌شده، وگرنه تاریخچه‌ی قیمت)؛ مورد بی‌نرخ به نرخ امروز حساب نمی‌شود')}{dollars.unpriced > 0 ? ` ${t('({n} مورد در این سال، با * کنار نام ماه در جدول)', { n: dollars.unpriced.toLocaleString(intlLocale()) })}` : ''}{t('.')}</li>
         </ul>
       </ReportCard>

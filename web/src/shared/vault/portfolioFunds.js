@@ -86,6 +86,29 @@ export async function listPortfolioPositions() {
 }
 
 /**
+ * Every portfolio's records, decrypted (a locked or unreadable one is left out)
+ * @returns {Promise<Array<{ portfolioId: string, holdings: object[], transactions: object[] }>>}
+ */
+export async function listPortfolioRecords() {
+  const portfolios = await accountPortfolios();
+  const all = await Promise.all(portfolios.map(async (portfolio) => {
+    try {
+      const key = await getPortfolioKey(portfolio);
+      if (!key) return null;
+      const [holdings, transactions] = await Promise.all([
+        listPortfolioHoldings(portfolio, key),
+        listPortfolioTransactions(portfolio, key),
+      ]);
+      return { portfolioId: portfolio.id, holdings, transactions };
+    } catch (err) {
+      console.warn('Reading a portfolio\'s records failed:', err);
+      return null;
+    }
+  }));
+  return all.filter(Boolean);
+}
+
+/**
  * How much of `assetId` each portfolio holds (its whole ledger: manual holdings and transactions)
  * @returns {Promise<Array<{ portfolioId: string, portfolioName: string, amount: number, averageCost: number }>>}
  */

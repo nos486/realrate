@@ -1,8 +1,9 @@
 /**
  * ReportsPage.jsx — «گزارش‌ها»: a Shamsi year across incomes, everyday expenses and the
  * portfolios, all on one page (ReportDashboard) — the year's figures, what stands out, income
- * against expenses, by source and category, what was invested and where, the year in dollars, and
- * every month in one table — laid out in a grid of cards to read (and later print) as one report.
+ * against expenses, by source and category, what was invested and where, the net worth against the
+ * dollar (useNetWorth), the year in dollars, and every month in one table — laid out in a grid of
+ * cards to read (and later print) as one report.
  *
  * The year is loaded once (useReportData); every card reads the same figures. «خروجی PDF» prints
  * the page on its own (printReport.js: the browser's «Save as PDF»; the website — the Android
@@ -22,6 +23,7 @@ import { todayIso } from '../../shared/utils/dates.js';
 import PeriodSwitcher from '../../shared/flow/PeriodSwitcher.jsx';
 import { formatShamsiYear, shamsiMonthOf } from '../../shared/flow/flowYear.js';
 import { useReportData } from './useReportData.js';
+import { useNetWorth } from './useNetWorth.js';
 import { reportFormatters } from './reportFormat.js';
 import ReportDashboard from './ReportDashboard.jsx';
 import { printReport } from './printReport.js';
@@ -31,11 +33,12 @@ const HEADER = {
   icon: <ChartColumn size={24} />,
   title: t('گزارش‌ها'),
   help: 'reports',
-  subtitle: t('سال شما در یک نگاه: درآمد و هزینه، پس‌انداز، سرمایه‌گذاری و ارزش دلاری'),
+  subtitle: t('سال شما در یک نگاه: درآمد و هزینه، پس‌انداز، سرمایه‌گذاری، ارزش خالص و ارزش دلاری'),
 };
 
 function ReportBody({ jy, throughMonth, hideValues }) {
   const data = useReportData(jy, throughMonth);
+  const netWorth = useNetWorth(jy, throughMonth);
   const f = useMemo(() => reportFormatters(hideValues), [hideValues]);
   if (data.loading) {
     return (
@@ -49,7 +52,7 @@ function ReportBody({ jy, throughMonth, hideValues }) {
   return (
     <>
       {data.errors.map((e) => <AlertBanner key={e} type="error" message={e} />)}
-      <ReportDashboard data={data} f={f} yearLabel={formatShamsiYear(jy)} hideValues={hideValues} />
+      <ReportDashboard data={data} netWorth={netWorth} f={f} yearLabel={formatShamsiYear(jy)} hideValues={hideValues} />
     </>
   );
 }

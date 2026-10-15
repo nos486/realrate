@@ -24,7 +24,8 @@ export const TAB_REFRESH_SCOPES = {
   expenses: ['expenses', 'accounts'],
   projects: ['expenses'],
   accounts: ['accounts', 'expenses'],
-  reports: ['incomes', 'expenses'],
+  // The net worth reads the portfolios, loans and cheques under the one «portfolio» scope
+  reports: ['incomes', 'expenses', 'portfolio'],
   explore: ['prices'],
   pro: [],
   sms: ['expenses'],
