@@ -170,3 +170,26 @@ export async function saveAdminFeatureRule(key, rule) {
 export async function resetAdminFeatureRule(key) {
   return httpClient.delete(`/api/admin/features/${encodeURIComponent(key)}`);
 }
+
+/**
+ * The Telegram bot: settings (never the token, only `tokenSet`), last status and the feeds to choose from
+ * @returns {Promise<{ config: object, status: object|null, feeds: Array<{ id: string, title: string, enabled: boolean }> }>}
+ */
+export async function getBotSettings() {
+  return httpClient.get('/api/admin/bot');
+}
+
+/** Save the bot's settings; only the fields sent change (`token: null` removes the saved token) */
+export async function saveBotSettings(patch) {
+  return httpClient.put('/api/admin/bot', patch);
+}
+
+/** Check the token and the channel and post a test message there */
+export async function testBot() {
+  return httpClient.post('/api/admin/bot/test', {});
+}
+
+/** Post the waiting news now */
+export async function runBotNow() {
+  return httpClient.post('/api/admin/bot/run', {});
+}

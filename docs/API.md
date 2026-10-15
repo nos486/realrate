@@ -279,6 +279,10 @@ A feature can be open to every user or only to the members of some groups (rules
 | `POST` | `/api/v1/admin/news/analysis` | Write the analyst's card now (whatever the interval) |
 | `POST` | `/api/v1/admin/news/run` | Read the channels and feeds now; `{ result: { checked, candidates, published, aiCalls }, status }` |
 | `POST` | `/api/v1/admin/news/<channel or feed>/<postId>/hidden` | `{ hidden }` — take a news item down (or put it back) |
+| `GET` | `/api/v1/admin/bot` | The Telegram bot: `config` (`enabled`, `channel`, `feeds` — ids posted, `null` = all, `tokenSet`, `tokenSource` `env`/`admin`; the token is never returned), `status` (last send, `sentTotal`, `waiting`, `error`) and the news `feeds` to choose from |
+| `PUT` | `/api/v1/admin/bot` | `{ enabled?, channel?, feeds?, token? }` — only the fields sent change (`token: null` removes the saved one; a `TELEGRAM_BOT_TOKEN` secret wins over it). Switching on needs a token and a channel |
+| `POST` | `/api/v1/admin/bot/test` | Check the token (`getMe`), the channel (`getChat`: must be a channel or group, not a bot or user) and post a test message; `{ ok, step, bot, chat, error }` |
+| `POST` | `/api/v1/admin/bot/run` | Post the waiting news now; `{ result: { sent, waiting, error? } }` |
 | `GET` | `/api/v1/admin/demo` | Inspect demo account state (existence, non-confidential record counts, last updated) |
 | `POST` | `/api/v1/admin/demo` | Idempotently create / ensure the single demo user account exists |
 | `POST` | `/api/v1/admin/demo/edit-session` | Issue a short-lived `demo_edit` session token for the admin to populate/edit demo data |

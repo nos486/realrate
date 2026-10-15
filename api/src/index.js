@@ -162,6 +162,7 @@ import {
   handleGetNewsToday,
   handleAdminRunNewsAnalysis,
 } from "./handlers/newsRoutes.js";
+import { handleAdminGetBot, handleAdminSaveBot, handleAdminTestBot, handleAdminRunBot } from "./handlers/botRoutes.js";
 import { fetchAllPrices } from "./services/market/priceAggregator.service.js";
 import {
   searchCatalogItems,
@@ -338,6 +339,13 @@ async function handleRequest(request, env, ctx) {
   if (normalizedPath === "/api/admin/price-sources/fetch-all" && request.method === "POST") {
     return wrap(handleAdminFetchAllSources)(request, env);
   }
+  // Admin: the Telegram bot's settings
+  if (normalizedPath === "/api/admin/bot") {
+    if (request.method === "GET") return wrap(handleAdminGetBot)(request, env);
+    if (request.method === "PUT") return wrap(handleAdminSaveBot)(request, env);
+  }
+  if (normalizedPath === "/api/admin/bot/test" && request.method === "POST") return wrap(handleAdminTestBot)(request, env);
+  if (normalizedPath === "/api/admin/bot/run" && request.method === "POST") return wrap(handleAdminRunBot)(request, env);
   // Admin: the news section's channels
   if (normalizedPath === "/api/admin/news/channels") {
     if (request.method === "GET") return wrap(handleAdminGetNewsChannels)(request, env);

@@ -49,6 +49,7 @@ import { USER_AGENT } from "../market/sources/parsingUtils.js";
 import { askWorkersAi, hasWorkersAi } from "./workersAi.js";
 import { maybeUpdateNewsAnalysis } from "./newsAnalysis.service.js";
 import { notifyImportantNews } from "./newsPush.service.js";
+import { enqueueFeedNews } from "../bot/newsChannel.service.js";
 import { logger } from "../../lib/logger.js";
 
 const CHANNELS_KEY = "news:channels";
@@ -332,6 +333,10 @@ async function pollChannels(env, store, now, fetchPage, fetchFeed) {
   }
   Object.assign(titles, feedRead.titles);
   fresh.push(...feedRead.fresh);
+  // The Telegram bot posts every new feed article to its channel (apart from the screening below)
+  await enqueueFeedNews(env, feedRead.fresh, feedRead.titles, now).catch((err) => {
+    logger.warn("[News] queuing for the bot failed:", { error: err?.message });
+  });
   fresh.sort((a, b) => a.publishedAt - b.publishedAt || a.postId - b.postId);
 
   // 2. Keywords: not market news, or vulgar, is never sent to the model (the waiting ones are
