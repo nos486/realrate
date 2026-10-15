@@ -2,7 +2,7 @@
  * webBundle.js — The app's pages update without a new APK (WebBundlePlugin.java)
  *
  * Every merge into main publishes the app's pages as a signed web bundle (the GitHub release
- * `web-bundle`, .github/workflows/android.yml), also served from our own domain. The app looks for a newer one when it opens and
+ * `web-bundle`, .github/workflows/android.yml). The app looks for a newer one when it opens and
  * when it comes back to the front (at most every WEB_BUNDLE_CHECK_GAP_MS); the native side takes
  * it only when it was built for this APK's exact native side and is signed with the APK's own
  * key, downloads it in the background and uses it from the next start of the app. A change to
@@ -19,20 +19,8 @@
 import { Capacitor } from '@capacitor/core';
 import { isNativeApp } from './nativeApp.js';
 import { WebBundle } from './nativePlugins.js';
-import { API_BASE } from '../api/httpClient.js';
 
 export const WEB_BUNDLE_MANIFEST_URL = 'https://github.com/nos486/realrate/releases/download/web-bundle/manifest.json';
-/**
- * Where the manifest is read, in order: our own domain first (api/src/handlers/webBundleRoutes.js
- * relays the GitHub release, for phones where GitHub is slow or blocked), then GitHub itself.
- * The zip is fetched next to the manifest that named it; either way its signature is checked
- * against the APK's own certificate, so the source does not change what runs.
- */
-export function webBundleManifestUrls(apiBase = API_BASE) {
-  const own = /^https:\/\//.test(apiBase || '') ? `${apiBase}/api/app/web-bundle/manifest.json` : null;
-  return own ? [own, WEB_BUNDLE_MANIFEST_URL] : [WEB_BUNDLE_MANIFEST_URL];
-}
-
 /* ── The download's progress, for the bar at the top of the app (WebBundleProgress) ── */
 
 export const WEB_BUNDLE_EVENT = 'realrate:web-bundle';
@@ -54,8 +42,8 @@ export function progressShare({ downloaded, total } = {}) {
   return size > 0 ? Math.min(1, Math.max(0, Number(downloaded) / size)) : 0;
 }
 
-/** WebBundle.update from the first source that answers (a failure tries the next one) */
-async function updateFromSources() {
+/** WebBundle.update with the manifest on GitHub, reporting the zip's download progress */
+async function fetchBundle() {
   // Only a zip's download reports progress: the bar shows then, not for the manifest
   let listener = null;
   try {
@@ -63,21 +51,14 @@ async function updateFromSources() {
       setProgress({ downloading: true, progress: progressShare(event) });
     });
   } catch {}
-  let lastError;
   try {
-    for (const manifestUrl of webBundleManifestUrls()) {
-      try {
-        return await WebBundle.update({ manifestUrl });
-      } catch (err) {
-        lastError = err;
-      }
-    }
-    throw lastError;
+    return await WebBundle.update({ manifestUrl: WEB_BUNDLE_MANIFEST_URL });
   } finally {
     listener?.remove?.();
     if (progressState.downloading) setProgress({ downloading: false, progress: 0 });
   }
 }
+
 /** Two checks closer than this are one (the manifest is small, but returns to the app are many) */
 export const WEB_BUNDLE_CHECK_GAP_MS = 10 * 60 * 1000;
 /** The pages count as started once they have run this long */
@@ -99,9 +80,9 @@ export async function checkWebBundle(now = Date.now(), { force = false } = {}) {
   if (!force && !isWebBundleCheckDue(lastCheck, now)) return null;
   lastCheck = now;
   try {
-    return await updateFromSources();
+    return await fetchBundle();
   } catch {
-    // No connection, neither source reachable: the next opening tries again
+    // No connection or GitHub unreachable: the next opening tries again
     return null;
   }
 }
@@ -116,7 +97,7 @@ export async function updatePagesNow(now = Date.now()) {
   lastCheck = now;
   let result;
   try {
-    result = await updateFromSources();
+    result = await fetchBundle();
   } catch {
     return 'error';
   }
