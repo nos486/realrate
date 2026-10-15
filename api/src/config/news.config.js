@@ -43,6 +43,13 @@ export const DEFAULT_NEWS_FEEDS = [
   { id: "cointelegraph", title: "Cointelegraph", url: "https://cointelegraph.com/rss" },
 ];
 
+/**
+ * The default feeds that existed before the admin's saved list started to remember which defaults
+ * it has seen (see getNewsFeeds): a saved list without that memory has seen exactly these, so a
+ * feed added to the defaults since then reaches it, and one the admin removed stays removed
+ */
+export const LEGACY_DEFAULT_FEED_IDS = ["cnbc_economy", "cnbc_world", "bbc_business", "bbc_middle_east", "aljazeera", "fxstreet", "oilprice"];
+
 /** Where a news item came from (the `source` column; the news page's «بین‌الملل» filter is `world`) */
 export const NEWS_SOURCES = ["telegram", "world"];
 

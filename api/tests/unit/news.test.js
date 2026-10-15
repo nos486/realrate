@@ -34,6 +34,35 @@ const post = (channel, id, text, time = '2026-10-05T08:00:00+00:00', extra = '')
 const page = (channel, posts, title = 'خبر فوری') =>
   `<html><head><meta property="og:title" content="${title}"></head><body>${posts.join('\n')}</body></html>`;
 
+describe('the feed list and the defaults', () => {
+  let env;
+  beforeEach(() => {
+    resetD1SchemaCache();
+    env = { DB: sqliteD1() };
+  });
+
+  it('adds a default feed that came after the admin saved their list, and keeps one they removed removed', async () => {
+    // A list saved before the defaults grew (no memory of the defaults it has seen): two of the old ones kept
+    await env.DB.exec("CREATE TABLE IF NOT EXISTS app_state (key TEXT PRIMARY KEY, value TEXT, expires_at INTEGER, updated_at INTEGER)");
+    const legacy = DEFAULT_NEWS_FEEDS.slice(0, 2).map((f) => ({ ...f, enabled: true }));
+    const { getStateStore } = await import('../../src/repositories/stateStore.repository.js');
+    await getStateStore(env).put('news:feeds', JSON.stringify({ feeds: legacy }));
+    const feeds = await getNewsFeeds(env);
+    const ids = feeds.map((f) => f.id);
+    expect(ids.slice(0, 2)).toEqual(legacy.map((f) => f.id));
+    expect(ids).toContain('guardian_world');
+    // The five other old defaults were seen and removed: they stay out
+    expect(ids).not.toContain('fxstreet');
+    // Saving the list remembers the defaults: a feed removed now stays removed
+    await saveNewsFeeds(env, feeds.filter((f) => f.id !== 'guardian_world'));
+    expect((await getNewsFeeds(env)).map((f) => f.id)).not.toContain('guardian_world');
+  });
+
+  it('gives the defaults when nothing is saved', async () => {
+    expect((await getNewsFeeds(env)).map((f) => f.id)).toEqual(DEFAULT_NEWS_FEEDS.map((f) => f.id));
+  });
+});
+
 describe('parseTelegramPosts', () => {
   it('reads every post with its id, link, time, text and photo, oldest first', () => {
     const html = page('Khabari', [
