@@ -333,10 +333,6 @@ async function pollChannels(env, store, now, fetchPage, fetchFeed) {
   }
   Object.assign(titles, feedRead.titles);
   fresh.push(...feedRead.fresh);
-  // The Telegram bot posts every new feed article to its channel (apart from the screening below)
-  await enqueueFeedNews(env, feedRead.fresh, feedRead.titles, now).catch((err) => {
-    logger.warn("[News] queuing for the bot failed:", { error: err?.message });
-  });
   fresh.sort((a, b) => a.publishedAt - b.publishedAt || a.postId - b.postId);
 
   // 2. Keywords: not market news, or vulgar, is never sent to the model (the waiting ones are
@@ -465,6 +461,10 @@ async function pollChannels(env, store, now, fetchPage, fetchFeed) {
   const waiting = writePendingList(deferred);
 
   await dbInsertNews(env, published);
+  // The Telegram bot posts the international news the site just published (translated once, here)
+  await enqueueFeedNews(env, published, now).catch((err) => {
+    logger.warn("[News] queuing for the bot failed:", { error: err?.message });
+  });
   // Important fresh news: a push to the browsers that asked for it
   if (published.length) {
     await notifyImportantNews(env, published, { now }).catch((err) => {

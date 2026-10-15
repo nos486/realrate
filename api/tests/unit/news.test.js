@@ -644,6 +644,28 @@ describe('runNewsPolling with the international feeds', () => {
     expect(env.AI.run.mock.calls[0][1].messages[1].content).not.toContain('Gold hits a record');
   });
 
+  it('hands the published article to the Telegram bot with the same Persian, and not the rejected one', async () => {
+    const { saveBotConfig } = await import('../../src/services/bot/botConfig.service.js');
+    const { flushNewsQueue } = await import('../../src/services/bot/newsChannel.service.js');
+    await saveBotConfig(env, { token: '123456789:AAFakeTokenFakeTokenFakeTokenFake_12', channel: '@realrate_news', enabled: true });
+    feeds['https://wire.example.com/rss'] = rss([
+      rssItem(1, 'Gold hits a record as the dollar slides', 'Spot gold rose above $4,000 an ounce.', NOW - 30 * 60000),
+      rssItem(2, 'Real Madrid win the league', 'Football.', NOW - 20 * 60000),
+    ]);
+    await runNewsPolling(env, { now: NOW, fetchFeed });
+    const posts = [];
+    const fetchFn = async (url, init) => {
+      posts.push(JSON.parse(init.body));
+      return { status: 200, json: async () => ({ ok: true, result: {} }) };
+    };
+    // The bot sends no model request of its own: the one translation is the site's
+    env.AI.run.mockClear();
+    expect(await flushNewsQueue(env, { now: NOW, fetchFn })).toMatchObject({ sent: 1 });
+    expect(env.AI.run).not.toHaveBeenCalled();
+    expect(posts[0].text).toContain('<b>طلا رکورد زد 1</b>');
+    expect(posts[0].text).toContain('<a href="https://example.com/news/1">منبع: Markets Wire</a>');
+  });
+
   it("an article whose Persian came back with English words isn't published in English", async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     feeds['https://wire.example.com/rss'] = rss([rssItem(1, 'Gold hits a record as the dollar slides', 'Spot gold rose.', NOW - 60000)]);

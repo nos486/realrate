@@ -4,7 +4,7 @@
  *  - «تست اتصال»: checks the token and the channel step by step and posts a test message
  *  - which international feeds are posted to the channel (all by default)
  *  - the last run: what was sent, what waits, the last error; «ارسال الان» posts the waiting news
- * The bot's features are listed here as they are added (today: the international news, translated to Persian).
+ * The bot's features are listed here as they are added (today: the international news the site publishes, in Persian).
  */
 
 import { intlLocale } from '../../../utils/i18n.js';
@@ -113,8 +113,8 @@ export default function AdminBotPage() {
           </button>
         </div>
         <p className="admin-card-hint">
-          ربات هر خبر تازه‌ی خبرگزاری‌های بین‌المللی (RSS) را یک بار در کانال می‌گذارد: تیتر و خلاصه‌ی فارسی (ترجمه با
-          هوش مصنوعی) و لینک خبر اصلی. اگر ترجمه خطا بدهد، خبر چند اجرا منتظر می‌ماند و بعد به همان زبان فید فرستاده می‌شود. ربات باید در کانال ادمین باشد و اجازه‌ی ارسال پیام داشته باشد.
+          ربات هر خبر بین‌المللی (RSS) را که سایت منتشر می‌کند، یک بار در کانال می‌گذارد: همان تیتر و خلاصه‌ی فارسی سایت
+          (یک بار با هوش مصنوعی ترجمه می‌شود) و لینک خبر اصلی. خبرهای غیربازاری و تکراری که سایت منتشر نمی‌کند در کانال هم نمی‌روند. ربات باید در کانال ادمین باشد و اجازه‌ی ارسال پیام داشته باشد.
         </p>
 
         <Input
@@ -194,12 +194,6 @@ export default function AdminBotPage() {
               {status.lastSentAt ? `آخرین خبر ${newsTimeAgo(status.lastSentAt)} فرستاده شد` : 'هنوز خبری فرستاده نشده'}
               {' · '}{fa(status.sentTotal)} خبر در مجموع · {fa(status.waiting)} در صف
             </p>
-            {status.aiError && (
-              <p className="admin-news-error">
-                <AlertTriangle size={14} aria-hidden="true" />
-                <span><strong>خطای ترجمه:</strong> <bdi dir="ltr">{status.aiError}</bdi></span>
-              </p>
-            )}
             {status.error && (
               <p className="admin-news-error">
                 <AlertTriangle size={14} aria-hidden="true" />

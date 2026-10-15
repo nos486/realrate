@@ -19,12 +19,15 @@ vi.mock('../../src/lib/auth.js', () => ({ getAuthenticatedUser: async () => admi
 
 const TOKEN = '123456789:AAFakeTokenFakeTokenFakeTokenFake_12';
 const NOW = Date.parse('2026-10-15T12:00:00Z');
+/** A news item as the pipeline publishes it: Persian headline and summary, the original link */
 const article = (n, extra = {}) => ({
+  source: 'world',
   channel: 'bbc',
+  channelTitle: 'BBC',
   postId: n,
   url: `https://example.com/a/${n}?utm=1`,
-  title: `Headline ${n}`,
-  text: `Headline ${n}\nSummary of ${n}`,
+  title: `تیتر ${n}`,
+  summary: `خلاصه ${n}`,
   publishedAt: NOW - (100 - n) * 1000,
   ...extra,
 });
@@ -96,41 +99,46 @@ describe('queuing and posting', () => {
   const turnOn = (patch = {}) => saveBotConfig(env, { token: TOKEN, channel: '@realrate_news', enabled: true, ...patch });
 
   it('queues nothing while the bot is off', async () => {
-    expect(await enqueueFeedNews(env, [article(1)], { bbc: 'BBC' }, NOW)).toBe(0);
+    expect(await enqueueFeedNews(env, [article(1)], NOW)).toBe(0);
   });
 
   it('posts an article once, even when its feed shows it again or another feed has the same link', async () => {
     await turnOn();
     const { fetchFn, calls } = fakeApi();
-    expect(await enqueueFeedNews(env, [article(1), article(2, { channel: 'cnbc', url: 'https://example.com/a/1' })], { bbc: 'BBC' }, NOW)).toBe(1);
+    expect(await enqueueFeedNews(env, [article(1), article(2, { channel: 'cnbc', url: 'https://example.com/a/1' })], NOW)).toBe(1);
     expect(await flushNewsQueue(env, { now: NOW, fetchFn })).toMatchObject({ sent: 1, waiting: 0 });
     expect(calls).toHaveLength(1);
     expect(calls[0].params).toMatchObject({ chat_id: '@realrate_news', parse_mode: 'HTML' });
-    expect(calls[0].params.text).toContain('Headline 1');
-    expect(calls[0].params.text).toContain('Summary of 1');
+    expect(calls[0].params.text).toContain('تیتر 1');
+    expect(calls[0].params.text).toContain('خلاصه 1');
     // The same article again, later
-    expect(await enqueueFeedNews(env, [article(1)], { bbc: 'BBC' }, NOW + 60000)).toBe(0);
+    expect(await enqueueFeedNews(env, [article(1)], NOW + 60000)).toBe(0);
+  });
+
+  it('queues only international items (a Telegram channel post is not)', async () => {
+    await turnOn();
+    expect(await enqueueFeedNews(env, [article(1, { source: 'telegram' })], NOW)).toBe(0);
   });
 
   it('only the chosen feeds are queued', async () => {
     await turnOn({ feeds: ['cnbc'] });
-    expect(await enqueueFeedNews(env, [article(1), article(2, { channel: 'cnbc', url: 'https://example.com/other' })], {}, NOW)).toBe(1);
+    expect(await enqueueFeedNews(env, [article(1), article(2, { channel: 'cnbc', url: 'https://example.com/other' })], NOW)).toBe(1);
   });
 
   it('sends a few per run, oldest first, and the rest the next run', async () => {
     await turnOn();
     const { fetchFn, calls } = fakeApi();
-    await enqueueFeedNews(env, Array.from({ length: 11 }, (_, i) => article(i + 1)), {}, NOW);
+    await enqueueFeedNews(env, Array.from({ length: 11 }, (_, i) => article(i + 1)), NOW);
     const first = await flushNewsQueue(env, { now: NOW, fetchFn });
     expect(first).toMatchObject({ sent: BOT_LIMITS.sendPerRun, waiting: 3 });
-    expect(calls[0].params.text).toContain('Headline 1');
+    expect(calls[0].params.text).toContain('تیتر 1');
     expect(await flushNewsQueue(env, { now: NOW + 60000, fetchFn })).toMatchObject({ sent: 3, waiting: 0 });
   });
 
   it('keeps the queue when Telegram refuses, and drops an article it keeps refusing', async () => {
     await turnOn();
     const bad = fakeApi({ sendMessage: () => ({ ok: false, description: 'chat not found' }) });
-    await enqueueFeedNews(env, [article(1)], {}, NOW);
+    await enqueueFeedNews(env, [article(1)], NOW);
     for (let i = 1; i < BOT_LIMITS.maxTries; i++) {
       expect(await flushNewsQueue(env, { now: NOW + i, fetchFn: bad.fetchFn })).toMatchObject({ sent: 0, waiting: 1, error: 'chat not found' });
     }
@@ -140,7 +148,7 @@ describe('queuing and posting', () => {
   it('stops on a rate limit without counting a try', async () => {
     await turnOn();
     const limited = fakeApi({ sendMessage: () => ({ ok: false, description: 'Too Many Requests', parameters: { retry_after: 5 } }) });
-    await enqueueFeedNews(env, [article(1), article(2)], {}, NOW);
+    await enqueueFeedNews(env, [article(1), article(2)], NOW);
     await flushNewsQueue(env, { now: NOW, fetchFn: limited.fetchFn });
     expect(limited.calls).toHaveLength(1);
   });
@@ -148,7 +156,7 @@ describe('queuing and posting', () => {
   it('drops an article that waited past the queue window', async () => {
     await turnOn();
     const { fetchFn, calls } = fakeApi();
-    await enqueueFeedNews(env, [article(1)], {}, NOW);
+    await enqueueFeedNews(env, [article(1)], NOW);
     expect(await flushNewsQueue(env, { now: NOW + (BOT_LIMITS.queueMaxHours + 1) * 3600_000, fetchFn })).toMatchObject({ sent: 0 });
     expect(calls).toHaveLength(0);
   });
@@ -157,59 +165,9 @@ describe('queuing and posting', () => {
     const { fetchFn } = fakeApi();
     expect(await runBot(env, { now: NOW, fetchFn })).toMatchObject({ skipped: true });
     await turnOn();
-    await enqueueFeedNews(env, [article(1), article(2)], {}, NOW);
+    await enqueueFeedNews(env, [article(1), article(2)], NOW);
     expect(await runBot(env, { now: NOW, fetchFn })).toMatchObject({ sent: 2 });
     expect(await getBotStatus(env)).toMatchObject({ lastSentAt: NOW, sentTotal: 2, error: '' });
-  });
-});
-
-describe('the Persian translation', () => {
-  const turnOn = () => saveBotConfig(env, { token: TOKEN, channel: '@realrate_news', enabled: true });
-  /** An AI binding that answers with a JSON array for the numbered articles it is given */
-  const fakeAi = (answer) => ({ run: vi.fn(async (_model, req) => ({ response: typeof answer === 'function' ? answer(req) : answer })) });
-
-  it('posts the Persian headline and summary with the original link', async () => {
-    await turnOn();
-    env.AI = fakeAi(JSON.stringify([{ i: 1, t: 'تیتر فارسی ۱', s: 'خلاصه‌ی فارسی ۱' }, { i: 2, t: 'تیتر فارسی ۲', s: 'خلاصه ۲' }]));
-    const { fetchFn, calls } = fakeApi();
-    await enqueueFeedNews(env, [article(1), article(2)], { bbc: 'BBC' }, NOW);
-    expect(await flushNewsQueue(env, { now: NOW, fetchFn })).toMatchObject({ sent: 2 });
-    expect(env.AI.run).toHaveBeenCalledTimes(1);
-    const text = calls[0].params.text;
-    expect(text).toContain('<b>تیتر فارسی ۱</b>');
-    expect(text).toContain('خلاصه‌ی فارسی ۱');
-    expect(text).toContain('<a href="https://example.com/a/1?utm=1">منبع: BBC</a>');
-    expect(text).not.toContain('Headline 1');
-  });
-
-  it('keeps an article the model skipped for the next run, then posts it as it is', async () => {
-    await turnOn();
-    env.AI = fakeAi(JSON.stringify([{ i: 1, t: 'تیتر فارسی', s: 'خلاصه' }]));
-    const { fetchFn, calls } = fakeApi();
-    await enqueueFeedNews(env, [article(1), article(2)], {}, NOW);
-    expect(await flushNewsQueue(env, { now: NOW, fetchFn })).toMatchObject({ sent: 1, waiting: 1 });
-    // The skipped one is asked again (as #1), skipped again, and finally goes out in English
-    env.AI = fakeAi('[]');
-    await flushNewsQueue(env, { now: NOW + 1, fetchFn });
-    expect(await flushNewsQueue(env, { now: NOW + 2, fetchFn })).toMatchObject({ sent: 1, waiting: 0 });
-    expect(calls.at(-1).params.text).toContain('Headline 2');
-  });
-
-  it('holds everything back while the model fails, and reports the error', async () => {
-    await turnOn();
-    env.AI = { run: vi.fn(async () => { throw new Error('3040: capacity'); }) };
-    const { fetchFn, calls } = fakeApi();
-    await enqueueFeedNews(env, [article(1)], {}, NOW);
-    expect(await flushNewsQueue(env, { now: NOW, fetchFn })).toMatchObject({ sent: 0, waiting: 1, aiError: '3040: capacity' });
-    expect(calls).toHaveLength(0);
-  });
-
-  it('ignores a translation without Persian letters', async () => {
-    await turnOn();
-    env.AI = fakeAi(JSON.stringify([{ i: 1, t: 'English again', s: 'x' }]));
-    const { fetchFn } = fakeApi();
-    await enqueueFeedNews(env, [article(1)], {}, NOW);
-    expect(await flushNewsQueue(env, { now: NOW, fetchFn })).toMatchObject({ sent: 0, waiting: 1 });
   });
 });
 
