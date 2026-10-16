@@ -8,10 +8,9 @@ import React, { useMemo } from 'react';
 import { ChevronLeft, Target } from 'lucide-react';
 import { t } from '../../../utils/i18n.js';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
-import { todayIso } from '../../../shared/utils/dates.js';
-import { compareGoals, goalProgress } from '../../../utils/goalDocument.js';
+import { compareGoals } from '../../../utils/goalDocument.js';
 import { useGoals } from '../hooks/useGoals.js';
-import { usePortfolioValues } from '../hooks/usePortfolioValues.js';
+import { useGoalProgress } from '../hooks/useGoalProgress.js';
 import { goalNumber } from '../constants/goalDisplay.js';
 
 /** How many goals the card lists */
@@ -21,13 +20,11 @@ const CARD_GOALS = 3;
 export default function GoalsHomeCard({ onOpen }) {
   const hideValues = usePrivacyMode();
   const { goals, vaultLocked } = useGoals();
-  const linked = goals.some((g) => g.portfolioId);
-  const { valueOf } = usePortfolioValues({ enabled: linked && !vaultLocked });
-  const today = todayIso();
-  const rows = useMemo(() => {
-    const progressOf = (goal) => goalProgress(goal, { today, portfolioValue: valueOf(goal.portfolioId) });
-    return [...goals].sort(compareGoals(progressOf)).map((goal) => ({ goal, progress: progressOf(goal) })).slice(0, CARD_GOALS);
-  }, [goals, today, valueOf]);
+  const { progressOf } = useGoalProgress(goals, { enabled: !vaultLocked });
+  const rows = useMemo(
+    () => [...goals].sort(compareGoals(progressOf)).map((goal) => ({ goal, progress: progressOf(goal) })).slice(0, CARD_GOALS),
+    [goals, progressOf],
+  );
   if (vaultLocked || rows.length === 0) return null;
 
   return (

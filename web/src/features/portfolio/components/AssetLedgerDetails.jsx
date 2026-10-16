@@ -56,6 +56,8 @@ export default function AssetLedgerDetails({
   onDeleteEntry,
   // The open position in dollars (utils/assetLedger.js assetDollarPnl), or null
   dollarPnl = null,
+  // What goals have reserved of this asset: [{ goalName, quantity }]
+  goalShares = [],
 }) {
   const money = (v) => (hideValues ? MASK : formatNum(v));
   const entryById = new Map(asset.entries.map((e) => [e.id, e]));
@@ -76,6 +78,9 @@ export default function AssetLedgerDetails({
             <span>{t('سود/زیان تحقق‌یافته:')}{' '}<Pnl value={asset.realizedPnl} hideValues={hideValues} /></span>
           )}
           <DollarPnl pnl={dollarPnl} hideValues={hideValues} />
+          {goalShares.map((share) => (
+            <span key={share.goalId} className="asset-ledger-muted">{t('{qty} {unit} برای هدف «{goal}»', { qty: qtyText(share.quantity), unit: asset.unit, goal: share.goalName })}</span>
+          ))}
           {asset.unpricedQty > EPS && (
             <span className="asset-ledger-muted">{t('{qty} {unit} بدون قیمت خرید (در سود/زیان حساب نمی‌شود)', { qty: qtyText(asset.unpricedQty), unit: asset.unit })}</span>
           )}
