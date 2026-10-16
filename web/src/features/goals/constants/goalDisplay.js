@@ -13,8 +13,8 @@ const fa = (n) => Number(n).toLocaleString(intlLocale(), { maximumFractionDigits
 
 export const goalIcon = (value) => categoryIcon(goalIconOf(value).value);
 
-/** «۱۵۰٬۰۰۰ تومان» */
-export const formatGoalAmount = (amount) => formatMoney(Math.round(amount), 'IRT');
+/** «۱۵۰٬۰۰۰ تومان» / «۳۰۰ دلار» — an amount in a goal's currency (tomans by default) */
+export const formatGoalAmount = (amount, currency = 'IRT') => formatMoney(amount, currency);
 
 export const shamsiDay = (iso) => (iso ? formatShamsiDisplay(`${iso}T00:00:00`) : '');
 

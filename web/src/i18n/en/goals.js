@@ -30,8 +30,8 @@ export default {
   'لیست اهداف': 'Goals list',
   'اهداف شما رمزنگاری شده‌اند': 'Your goals are encrypted',
   'هنوز هدفی ثبت نکرده‌اید': "You haven't added a goal yet",
-  'پیش‌پرداخت خانه، سفر، خرید ماشین… را با مبلغ هدف اضافه کنید، واریزهایتان را ثبت کنید یا ارزش یک پورتفو را وصل کنید تا پیشرفت را ببینید.':
-    'Add a down payment, a trip, a car… with its target amount, record what you set aside or link a portfolio, and watch your progress.',
+  'پیش‌پرداخت خانه، سفر، خرید ماشین، اسپرسوساز… را با مبلغ هدف (به تومان یا دلار) اضافه کنید، پول کنار بگذارید یا بخشی از دارایی‌های پورتفو را به آن اختصاص دهید تا پیشرفت را ببینید.':
+    'Add a down payment, a trip, a car, an espresso machine… with its target (in tomans or dollars), set money aside or assign part of your portfolio assets, and watch your progress.',
   'حذف هدف': 'Delete goal',
   '«{name}» با همه‌ی واریزهایش حذف شود؟': 'Delete "{name}" with all its deposits?',
   'حذف هدف ممکن نشد.': 'Could not delete the goal.',
@@ -42,7 +42,6 @@ export default {
   'طبق برنامه': 'On track',
   'تا {date}': 'By {date}',
   'بدون موعد': 'No deadline',
-  'با ارزش پورتفو': 'with a portfolio',
   'ماهی {amount} لازم است': '{amount} needed per month',
   'با روند فعلی تا {date}': 'At this pace, by {date}',
   'با واریز، تخمین رسیدن می‌آید': 'Add deposits to get an estimate',
@@ -74,16 +73,32 @@ export default {
   'می‌خواهم تا این روز برسم': 'I want to reach it by',
   'با تاریخ، می‌گوییم ماهی چقدر باید کنار بگذارید و آیا با روند فعلی می‌رسید.':
     'With a date, we tell you how much to set aside each month and whether your current pace gets you there.',
-  'ارزش یک پورتفو هم حساب شود': 'Also count a portfolio',
   هیچ‌کدام: 'None',
-  'ارزش امروز این پورتفو (با قیمت روز) به پس‌انداز این هدف اضافه می‌شود. یک پورتفو را برای دو هدف وصل نکنید.':
-    "This portfolio's value today (at today's prices) is added to this goal's savings. Don't link one portfolio to two goals.",
   واریزها: 'Deposits',
   'حذف واریز': 'Remove deposit',
   'ذخیره‌ی هدف ممکن نشد.': 'Could not save the goal.',
-  'واریز به «{name}»': 'Deposit to "{name}"',
   برداشت: 'Withdrawal',
   'ثبت واریز': 'Record deposit',
   'ثبت برداشت': 'Record withdrawal',
   'ثبت واریز ممکن نشد.': 'Could not record the deposit.',
+  // contributions: money or a share of a portfolio's asset
+  پول: 'Money',
+  'از پورتفو': 'From a portfolio',
+  'درصد از دارایی': 'Percent of the asset',
+  'افزودن به «{name}»': 'Add to "{name}"',
+  'اختصاص به هدف': 'Assign to goal',
+  '{amount} {unit} آزاد': '{amount} {unit} free',
+  '{amount} {unit} ≈ {value}': '{amount} {unit} ≈ {value}',
+  'فقط {amount} {unit} آزاد است؛ بقیه را هدف دیگری گرفته.': 'Only {amount} {unit} is free; another goal has the rest.',
+  'هنوز دارایی‌ای در پورتفوهایتان نیست. دارایی را در پورتفو اضافه کنید، بعد اینجا بخشی از آن را به هدف اختصاص دهید.':
+    'Your portfolios hold no assets yet. Add an asset to a portfolio, then assign part of it to the goal here.',
+  'دارایی در پورتفو می‌ماند و فروخته یا خرج نمی‌شود؛ با قیمت روز در هدف حساب می‌شود، پس ارزشش با بازار بالا و پایین می‌رود. هر مقدار دارایی فقط به یک هدف می‌رسد.':
+    'The asset stays in its portfolio and is not sold or spent; it counts in the goal at today\'s price, so its value moves with the market. Each quantity of an asset goes to one goal only.',
+  '{n}٪ از دارایی': '{n}% of the asset',
+  'با دارایی پورتفو': 'with portfolio assets',
+  '{qty} {unit} برای هدف «{goal}»': '{qty} {unit} reserved for the goal "{goal}"',
+  'نرخ {currency} در دسترس نیست': 'No rate available for {currency}',
+  'دارایی اختصاص‌یافته نامعتبر است.': 'The assigned asset is not valid.',
+  'مقدار یا درصد اختصاص نامعتبر است.': 'The assigned quantity or percent is not valid.',
+  'تعداد دارایی‌های اختصاص‌یافته به یک هدف از حد مجاز بیشتر است.': 'This goal has more assigned assets than allowed.',
 };

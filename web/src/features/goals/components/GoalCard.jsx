@@ -9,6 +9,7 @@ import React from 'react';
 import { PiggyBank, Pencil, Trash2, Link2 } from 'lucide-react';
 import { t } from '../../../utils/i18n.js';
 import { RowCard, RowCardAction, RowCardBadge, RowCardBlock, RowCardProgress } from '../../../shared/ui/index.js';
+import { currencyLabel } from '../../../utils/currencies.js';
 import { formatGoalAmount, goalDaysLabel, goalIcon, goalNumber, shamsiDay } from '../constants/goalDisplay.js';
 
 /** The state of a goal as its row card shows it (RowCard tones) */
@@ -27,13 +28,14 @@ function stateOf(p) {
  */
 export default function GoalCard({ goal, progress: p, hideValues, readOnly, onDeposit, onEdit, onDelete }) {
   const state = stateOf(p);
-  const money = (v) => (hideValues ? '****' : formatGoalAmount(v));
+  const money = (v) => (hideValues ? '****' : formatGoalAmount(v, goal.currency));
   const subtitle = [
     goal.targetDate ? t('تا {date}', { date: shamsiDay(goal.targetDate) }) : t('بدون موعد'),
-    goal.portfolioId && t('با ارزش پورتفو'),
+    (goal.allocations || []).length > 0 && t('با دارایی پورتفو'),
   ].filter(Boolean).join(' · ');
   // What helps next: the monthly amount a date asks for, else the pace estimate
-  const next = p.reached ? t('به هدف رسیده‌اید')
+  const next = p.unpriced ? t('نرخ {currency} در دسترس نیست', { currency: currencyLabel(goal.currency) })
+    : p.reached ? t('به هدف رسیده‌اید')
     : p.monthlyNeeded !== null ? t('ماهی {amount} لازم است', { amount: money(p.monthlyNeeded) })
       : p.eta ? t('با روند فعلی تا {date}', { date: shamsiDay(p.eta) })
         : t('با واریز، تخمین رسیدن می‌آید');
@@ -67,7 +69,7 @@ export default function GoalCard({ goal, progress: p, hideValues, readOnly, onDe
       <RowCardBlock
         label={t('جمع پس‌انداز')}
         value={money(p.saved)}
-        sub={p.linked > 0 ? <><Link2 size={11} /> {t('{amount} از پورتفو', { amount: money(p.linked) })}</> : t('از {amount}', { amount: money(p.target) })}
+        sub={p.allocated > 0 ? <><Link2 size={11} /> {t('{amount} از پورتفو', { amount: money(p.allocated) })}</> : t('از {amount}', { amount: money(p.target) })}
       />
       <RowCardProgress
         label={t('پیشرفت')}

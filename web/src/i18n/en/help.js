@@ -55,8 +55,8 @@ export default {
   'چیزهایی که برایشان پس‌انداز می‌کنید، با پیشرفت هرکدام و تخمین رسیدن به مبلغ هدف.':
     'What you save for, with how far each goal is and an estimate of when you reach its target.',
   'هدف را با مبلغ و (اگر دارید) تاریخ اضافه کنید.': 'Add a goal with its amount and, if you have one, a date.',
-  'واریزهایتان را ثبت کنید یا ارزش یک پورتفو را به هدف وصل کنید تا پیشرفت خودکار حساب شود.':
-    'Record what you set aside, or link a portfolio to the goal so progress is worked out automatically.',
+  'واریزهایتان را (به هر ارز) ثبت کنید یا بخشی از دارایی‌های پورتفو را به هدف اختصاص دهید؛ با قیمت روز حساب می‌شود.':
+    'Record what you set aside (in any currency) or assign part of your portfolio assets to the goal; they count at today\'s price.',
   'اشتراک‌ها': 'Subscriptions',
   'اشتراک‌هایی که هر دوره تمدید می‌شوند، با جمع ماهانه و یادآوری قبل از تمدید.':
     'Subscriptions that renew every period, with a monthly total and a reminder before renewal.',

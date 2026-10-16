@@ -47,6 +47,7 @@ import { useTransactions } from '../../transactions/index.js';
 import { Button, SplitPageLayout } from '../../../shared/ui/index.js';
 import { normalizeHolding } from '../utils/holdingHelpers.js';
 import { buildAssetLedgers, assetDollarPnl, sumDollarPnl } from '../utils/assetLedger.js';
+import { useAssetGoalShares } from '../../goals/hooks/useAssetGoalShares.js';
 import {
   buildCustomCategoryGroups,
   buildDefaultPortfolioLayout,
@@ -155,6 +156,8 @@ const HoldingsView = forwardRef(function HoldingsView(
     [normalizedHoldings, transactions, realPriceMap]
   );
   const transactionWarnings = ledger.warnings;
+  // What the goals have reserved of each asset (shown under it)
+  const goalShares = useAssetGoalShares(activePortfolio?.id, ledger.assets, !isVaultLocked);
 
   // Each asset in dollars: bought at the dollar's rate of each purchase day, valued today
   const usdAt = useUsdAt(ledger.assets.length > 0);
@@ -472,6 +475,7 @@ const HoldingsView = forwardRef(function HoldingsView(
                       onEditEntry={handleEditEntry}
                       onDeleteEntry={handleDeleteEntry}
                       dollarPnl={dollarByAsset.get(asset.id) || null}
+                      goalShares={goalShares.get(asset.assetId) || []}
                     />
                   )}
                 />

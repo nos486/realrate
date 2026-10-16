@@ -1,6 +1,6 @@
 /**
- * usePortfolioValues.js — What each of the user's portfolios is worth now, in tomans, for the goals
- * linked to one
+ * usePortfolioAssets.js — What the user's portfolios hold now, asset by asset, for the goals that
+ * reserve a share of one
  *
  * Reads every portfolio's records once (decrypted in the browser) and values their assets at the
  * price book's prices, as the portfolio page does (buildAssetLedgers). Nothing leaves the device.
@@ -12,12 +12,16 @@ import { listLinkablePortfolios, listPortfolioRecords } from '../../../shared/va
 import { usePricing } from '../../market/index.js';
 import { buildAssetLedgers } from '../../portfolio/utils/assetLedger.js';
 import { normalizeHolding } from '../../portfolio/utils/holdingHelpers.js';
+import { assetKey } from '../../../utils/goalDocument.js';
 
 /**
  * @param {{ enabled?: boolean }} [options] - enabled false: nothing is read
- * @returns {{ portfolios: Array<{ id: string, name: string }>, valueOf: (id: string) => number, loading: boolean }}
+ * @returns {{ portfolios: Array<{ id: string, name: string }>,
+ *   assets: Array<{ key: string, portfolioId: string, portfolioName: string, assetId: string, assetName: string,
+ *     unit: string, amount: number, unitPrice: number, value: number }>,
+ *   index: Map<string, { amount: number, unitPrice: number }>, loading: boolean }}
  */
-export function usePortfolioValues({ enabled = true } = {}) {
+export function usePortfolioAssets({ enabled = true } = {}) {
   const pricing = usePricing();
   const priceMap = pricing?.priceMap;
   const itemMap = pricing?.itemMap;
@@ -39,18 +43,34 @@ export function usePortfolioValues({ enabled = true } = {}) {
   }, [load]);
   useRefreshHandler('portfolio', load);
 
-  const values = useMemo(() => {
-    const map = new Map();
+  const assets = useMemo(() => {
+    const names = new Map(state.portfolios.map((p) => [p.id, p.name]));
+    const list = [];
     for (const { portfolioId, holdings, transactions } of state.records) {
-      const { assets } = buildAssetLedgers({
+      const built = buildAssetLedgers({
         holdings: holdings.map((h) => normalizeHolding(h, itemMap)),
         transactions,
         priceMap: priceMap || {},
       });
-      map.set(portfolioId, assets.reduce((sum, a) => sum + (Number(a.itemRealVal) || 0), 0));
+      for (const a of built.assets) {
+        if (!(a.amount > 0)) continue;
+        list.push({
+          key: assetKey(portfolioId, a.assetId),
+          portfolioId,
+          portfolioName: names.get(portfolioId) || '',
+          assetId: a.assetId,
+          assetName: a.assetName,
+          unit: a.unit,
+          amount: a.amount,
+          unitPrice: a.unitRealPrice,
+          value: a.itemRealVal,
+        });
+      }
     }
-    return map;
-  }, [state.records, priceMap, itemMap]);
+    return list;
+  }, [state.records, state.portfolios, priceMap, itemMap]);
 
-  return { portfolios: state.portfolios, valueOf: (id) => values.get(id) || 0, loading: state.loading };
+  const index = useMemo(() => new Map(assets.map((a) => [a.key, { amount: a.amount, unitPrice: a.unitPrice }])), [assets]);
+
+  return { portfolios: state.portfolios, assets, index, loading: state.loading };
 }

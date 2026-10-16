@@ -4,10 +4,11 @@
  * - Headline figures: everything saved against all the targets, the goals reached, the nearest
  *   goal with a day
  * - The list, goals with the nearest day first and reached ones last; a card shows what is saved
- *   (deposits set aside by hand, plus the value of a linked portfolio at today's prices), the bar,
+ *   (deposits at today's rates, plus the portfolio assets reserved for it at today's prices), the bar,
  *   what is left and the monthly amount a date asks for or the estimate from the deposits' pace
  *   (utils/goalDocument.js goalProgress)
- * - «واریز» sets money aside for a goal (or takes some back); nothing is recorded as an expense
+ * - «واریز» sets money aside for a goal (in any currency, or takes some back) or reserves a quantity
+ *   or percent of a portfolio's asset for it; nothing is recorded as an expense, sale or purchase
  * Everything is decrypted and worked out in the browser.
  */
 
@@ -19,14 +20,13 @@ import { AlertBanner, Button, EmptyState, FeaturePageHeader, SplitPageLayout } f
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 import VaultUnlockCard from '../../../shared/vault/VaultUnlockCard.jsx';
-import { todayIso } from '../../../shared/utils/dates.js';
 import { useQuickAddParam } from '../../../shared/hooks/useQuickAddParam.js';
 import { useDemo } from '../../demo/index.js';
-import { compareGoals, goalProgress, goalTotals } from '../../../utils/goalDocument.js';
+import { compareGoals, goalTotals } from '../../../utils/goalDocument.js';
 import { useGoals } from '../hooks/useGoals.js';
-import { usePortfolioValues } from '../hooks/usePortfolioValues.js';
+import { useGoalProgress } from '../hooks/useGoalProgress.js';
 import GoalForm from './GoalForm.jsx';
-import GoalDepositForm from './GoalDepositForm.jsx';
+import GoalContributionForm from './GoalContributionForm.jsx';
 import GoalCard from './GoalCard.jsx';
 import GoalSummary from './GoalSummary.jsx';
 
@@ -42,12 +42,10 @@ export default function GoalsPage() {
   const hideValues = usePrivacyMode();
   const { confirm, toast } = useFeedback();
   const { goals, vaultLocked, loading, submitting, error, clearError, fetchGoals, saveGoal, deleteGoal } = useGoals();
-  const { portfolios, valueOf } = usePortfolioValues({ enabled: !vaultLocked });
+  const { progressOf, resolved, assets } = useGoalProgress(goals, { enabled: !vaultLocked, withPortfolios: true });
   const [formState, setFormState] = useState(null);
   const [depositing, setDepositing] = useState(null);
 
-  const today = todayIso();
-  const progressOf = useMemo(() => (goal) => goalProgress(goal, { today, portfolioValue: valueOf(goal.portfolioId) }), [today, valueOf]);
   const rows = useMemo(
     () => [...goals].sort(compareGoals(progressOf)).map((goal) => ({ goal, progress: progressOf(goal) })),
     [goals, progressOf],
@@ -59,7 +57,10 @@ export default function GoalsPage() {
   // The app's "+" button: /goals?add=goal
   useQuickAddParam('goal', openNew, !vaultLocked && !readOnly);
 
-  const handleDeposit = (deposit) => saveGoal({ deposits: [...depositing.deposits, deposit] }, depositing);
+  const handleContribution = ({ deposit, allocation }) => saveGoal({
+    deposits: deposit ? [...depositing.deposits, deposit] : depositing.deposits,
+    allocations: allocation ? [...(depositing.allocations || []), allocation] : depositing.allocations || [],
+  }, depositing);
 
   const handleDelete = async (goal) => {
     const ok = await confirm({
@@ -122,7 +123,7 @@ export default function GoalsPage() {
               <EmptyState
                 icon={<Target size={38} strokeWidth={1.5} />}
                 title={t('هنوز هدفی ثبت نکرده‌اید')}
-                description={t('پیش‌پرداخت خانه، سفر، خرید ماشین… را با مبلغ هدف اضافه کنید، واریزهایتان را ثبت کنید یا ارزش یک پورتفو را وصل کنید تا پیشرفت را ببینید.')}
+                description={t('پیش‌پرداخت خانه، سفر، خرید ماشین، اسپرسوساز… را با مبلغ هدف (به تومان یا دلار) اضافه کنید، پول کنار بگذارید یا بخشی از دارایی‌های پورتفو را به آن اختصاص دهید تا پیشرفت را ببینید.')}
                 action={!readOnly && <Button icon={<Plus size={16} />} onClick={openNew}>{t('هدف جدید')}</Button>}
               />
             ) : (
@@ -148,14 +149,20 @@ export default function GoalsPage() {
       {formState && (
         <GoalForm
           goal={formState.goal}
-          portfolios={portfolios}
           onSubmit={(input) => saveGoal(input, formState.goal)}
           onClose={() => setFormState(null)}
           submitting={submitting}
         />
       )}
       {depositing && (
-        <GoalDepositForm goal={depositing} onSubmit={handleDeposit} onClose={() => setDepositing(null)} submitting={submitting} />
+        <GoalContributionForm
+          goal={depositing}
+          assets={assets}
+          leftOf={resolved.leftOf}
+          onSubmit={handleContribution}
+          onClose={() => setDepositing(null)}
+          submitting={submitting}
+        />
       )}
     </div>
   );
