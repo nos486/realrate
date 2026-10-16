@@ -117,8 +117,7 @@ const NORMALIZED_KEYWORDS = Object.fromEntries(
   Object.entries(NEWS_KEYWORDS).map(([kind, words]) => [kind, [...words, ...(NEWS_KEYWORDS_EN[kind] || [])].map(normalizeNewsText)]),
 );
 
-// Iran's words and the wider business words: what lets an international article reach the model
-const NORMALIZED_IRAN_WORDS = [...NEWS_IRAN_WORDS, ...(NEWS_KEYWORDS_EN.world || [])].map(normalizeNewsText);
+const NORMALIZED_IRAN_WORDS = NEWS_IRAN_WORDS.map(normalizeNewsText);
 
 const countWords = (t, words) => words.filter((w) => hasWord(t, w)).length;
 
@@ -135,13 +134,13 @@ export function keywordScore(text) {
 }
 
 /**
- * Worth the model, for an international article: any economic or business word, or a word of Iran's,
- * unless it is marked an ad (the model judges the rest: its wider rule takes any economy or Iran news)
+ * Worth the model, for an international article: it passes the market keywords like any post, or it
+ * has a word of Iran's (Iran news is wanted whatever its subject); an ad never passes
  */
 export function isWorldCandidate(text) {
   const t = normalizeNewsText(text);
-  const interesting = countWords(t, NORMALIZED_KEYWORDS.strong) + countWords(t, NORMALIZED_KEYWORDS.weak) + countWords(t, NORMALIZED_IRAN_WORDS);
-  return interesting > 0 && countWords(t, NORMALIZED_KEYWORDS.negative) === 0;
+  if (countWords(t, NORMALIZED_KEYWORDS.negative) > 0) return false;
+  return isNewsCandidate(text) || countWords(t, NORMALIZED_IRAN_WORDS) > 0;
 }
 
 /** Worth the model: enough score, and an economic word (political words alone are not enough) */
@@ -220,7 +219,9 @@ PUBLISH (k=1) only real, new news — an event, a decision, an official announce
 
 REJECT (k=0): news of a single stock, symbol, fund or company, Iranian or foreign (earnings, deals, a company's shares); another country's local news or politics with no effect on these markets; ads, promotions, channel invitations, signals or buy/sell calls; opinion, analysis or predictions without a new event; bare price lists or market reports with nothing but prices; greetings, quotes, jokes; anything not about markets or the economy; a recap of older news; a post with vulgar or insulting language.
 
-INTERNATIONAL ARTICLES — a post whose text starts with «[international]» follows this wider rule INSTEAD of REJECT and THE TEST below: publish it (k=1) when it is about the economy, finance, business, trade, markets, energy or prices anywhere in the world, OR can plausibly affect the economy or markets (war and security, sanctions, big political or policy changes of major economies, disasters hitting supply, shipping, technology that moves markets), OR is about Iran in any way (its government, politics, society, nuclear file, relations with other countries) even when no market effect is visible. Reject it only when it is an advertisement, or lifestyle, sport, entertainment, crime or local news with no economic link and nothing to do with Iran, or a recap of older news. Words, statements and analysis are fine for these when they carry information. Importance: 3 when it directly moves the dollar, gold, oil or Iran's economy; 2 for other economic news or major Iran news; 1 for minor or indirect items.
+INTERNATIONAL ARTICLES — a post whose text starts with «[international]» follows this rule INSTEAD of REJECT and THE TEST below: publish it (k=1) only when it is IMPORTANT news that affects the world economy or the global markets — central banks and interest rates, inflation and major economic data, the dollar and other major currencies, oil, gas, gold and other commodities, sanctions and trade wars or tariffs between major economies, war or a crisis that threatens energy supply or shipping, a major market crash or financial crisis — OR when it is about Iran in any way (its government, economy, politics, society, nuclear file, relations with other countries), even when no market effect is visible. Reject everything else: news of one company, stock or sector, local or national news of other countries, routine data, opinion pieces and market commentary without a new event, lifestyle, sport, entertainment, crime, advertisements and recaps of older news. When in doubt about a non-Iran article, reject it. Importance: 3 when it directly moves the dollar, gold, oil or Iran's economy; 2 for other important world-economy news or major Iran news; 1 for other Iran news.
+
+THE TEST below: publish it (k=1) when it is about the economy, finance, business, trade, markets, energy or prices anywhere in the world, OR can plausibly affect the economy or markets (war and security, sanctions, big political or policy changes of major economies, disasters hitting supply, shipping, technology that moves markets), OR is about Iran in any way (its government, politics, society, nuclear file, relations with other countries) even when no market effect is visible. Reject it only when it is an advertisement, or lifestyle, sport, entertainment, crime or local news with no economic link and nothing to do with Iran, or a recap of older news. Words, statements and analysis are fine for these when they carry information. Importance: 3 when it directly moves the dollar, gold, oil or Iran's economy; 2 for other economic news or major Iran news; 1 for minor or indirect items.
 
 THE TEST — apply it to every other post, whatever its subject or source:
 1. Is it a FACT — something that happened, was decided or was officially announced and measured — rather than WORDS about something? Words are opinions, claims, denials, accusations, blame, justifications, warnings, threats, recollections of the past, hypotheticals and "could / may / was ready to" reports, interviews and commentary. Words fail this test whoever says them, a president or a minister included, unless the words are themselves an official decision or announcement (a central bank setting a rate, a government imposing a rule, a country announcing sanctions or a ceasefire).

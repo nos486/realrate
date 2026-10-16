@@ -554,7 +554,8 @@ describe('international articles', () => {
   it('reach the model with an economic word or a word of Iran, and not as an ad', () => {
     expect(isWorldCandidate('Iran and the IAEA agree on new inspections')).toBe(true);
     expect(isWorldCandidate('Tehran hosts a football final')).toBe(true);
-    expect(isWorldCandidate('Retail sales fall as shoppers cut back')).toBe(true);
+    expect(isWorldCandidate('Retail sales fall as shoppers cut back')).toBe(false);
+    expect(isWorldCandidate('Fed holds interest rates, gold jumps')).toBe(true);
     expect(isWorldCandidate('Real Madrid win the league')).toBe(false);
     expect(isWorldCandidate('Sponsored: the best oil for your engine')).toBe(false);
   });
