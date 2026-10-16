@@ -13,6 +13,7 @@
  */
 
 import { validateCreditTerms } from './creditAccount.js';
+import { validateBalance } from './accountBalance.js';
 import { tehranToday } from './isoDate.js';
 import { CURRENCY_CODES } from './currencies.js';
 import { t } from './i18n.js';
@@ -104,6 +105,13 @@ export function validateAccount(body = {}) {
     if (terms.error) return { error: terms.error };
     credit = terms.value;
   }
+  // A stated balance (kept up to date by the records, accountBalance.js); a credit keeps debt figures instead
+  let balance = null;
+  if (type !== 'credit') {
+    const stated = validateBalance(body.balance, currencies, { today: tehranToday(), now: new Date().toISOString() });
+    if (stated.error) return { error: stated.error };
+    balance = stated.value;
+  }
   const notes = text(body.notes);
   if (notes.length > ACCOUNT_LIMITS.notesLength) return { error: t('توضیحات نباید بیشتر از {notesLength} کاراکتر باشد.', { notesLength: ACCOUNT_LIMITS.notesLength }) };
 
@@ -118,6 +126,7 @@ export function validateAccount(body = {}) {
       currency: currencies[0],
       currencies,
       ...(credit ? { credit } : {}),
+      ...(balance ? { balance } : {}),
       notes,
       archived: Boolean(body.archived),
     },

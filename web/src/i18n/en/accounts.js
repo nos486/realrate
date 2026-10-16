@@ -223,4 +223,12 @@ export default {
   'جابه‌جایی پول بین حساب‌های خودتان (کارت به کارت به حساب دیگرتان، برداشت نقدی، شارژ کیف پول) هزینه یا درآمد نیست و در جمع آن‌ها حساب نمی‌شود.': 'Moving money between your own accounts (card to card to your other account, cash withdrawal, wallet top-up) is not an expense or income and is not counted in their totals.',
   'انتقالی در این ماه ثبت نشده است.': 'No transfers were recorded this month.',
   'کارمزد {fee}': 'fee {fee}',
+  'موجودی': 'Balance',
+  'موجودی حساب': 'Account balance',
+  'نگه‌داشتن موجودی': 'Keep the balance',
+  'موجودی فعلی ({currency})': 'Current balance ({currency})',
+  'جمع موجودی حساب‌ها': 'Total of all accounts',
+  'قیمت {currencies} در دسترس نیست و در جمع نیامده است.': 'No price is available for {currencies}, so it is left out of the total.',
+  'همین مقدار را که الان در حساب است بنویسید؛ از این به بعد هزینه‌ها، درآمدها و انتقال‌های این حساب آن را کم و زیاد می‌کنند. برای هماهنگ شدن با بانک، مقدار را دوباره بنویسید.': 'Enter what the account holds right now; from then on its expenses, incomes and transfers raise and lower it. To match the bank again, enter the amount anew.',
+  'با ثبت موجودی فعلی، موجودی این حساب خودکار با هر هزینه، درآمد و انتقال به‌روز می‌شود.': "Enter the current balance and this account's balance updates by itself with every expense, income and transfer.",
 };

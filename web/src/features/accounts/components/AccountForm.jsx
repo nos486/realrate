@@ -29,6 +29,7 @@ import { t } from '../../../utils/i18n.js';
 /** The types as icon tiles (CategoryGrid) */
 const TYPE_OPTIONS = ACCOUNT_TYPES.map(({ value, label }) => ({ value, label: t(label), Icon: getAccountTypeIcon(value) }));
 const CURRENCY_OPTIONS = CURRENCIES.map(({ code, label }) => ({ value: code, label: t(label) }));
+const digitsDecimal = (v) => String(v ?? '').replace(/,/g, ''); // i18n-ignore
 const digits = (v) => String(v ?? '').replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[^\d]/g, ''); // i18n-ignore
 
 /** The Shamsi day of month of a Gregorian YYYY-MM-DD */
@@ -46,7 +47,16 @@ function creditFields(credit) {
   };
 }
 
-export default function AccountForm({ account = null, onSubmit, onClose, submitting = false }) {
+/** The amounts the form edits (strings) for the currencies held: the balance now, else empty */
+const balanceFields = (current) => Object.fromEntries(Object.entries(current || {}).map(([code, v]) => [code, String(Math.round(Number(v) * 100) / 100)]));
+
+/**
+ * @param {object} props
+ * @param {object|null} [props.account] - the account edited (null: a new one)
+ * @param {Record<string, number>} [props.currentBalance] - what the account holds now, per currency
+ *   (its stated balance moved by the records): what the balance fields start from
+ */
+export default function AccountForm({ account = null, currentBalance = null, onSubmit, onClose, submitting = false }) {
   const [type, setType] = useState(account?.type || 'bank');
   const [name, setName] = useState(account?.name || '');
   const [bank, setBank] = useState({ bankId: account?.bankId || '', lenderName: account?.bankName || '' });
@@ -59,6 +69,9 @@ export default function AccountForm({ account = null, onSubmit, onClose, submitt
     : CURRENCY_OPTIONS.map((o) => o.value).filter((c) => c === value || list.includes(c))));
   const [notes, setNotes] = useState(account?.notes || '');
   const [credit, setCredit] = useState(() => creditFields(account?.credit));
+  // «موجودی»: the money the account holds now, kept up to date by the records (utils/accountBalance.js)
+  const [track, setTrack] = useState(Boolean(account?.balance));
+  const [amounts, setAmounts] = useState(() => balanceFields(currentBalance || account?.balance?.amounts));
   const [submitError, setSubmitError] = useState('');
   const setTerm = (key) => (value) => setCredit((c) => ({ ...c, [key]: value }));
 
@@ -78,6 +91,14 @@ export default function AccountForm({ account = null, onSubmit, onClose, submitt
     ...(isBank && accountNumber ? [t('شماره حساب')] : []),
     ...(notes.trim() ? [t('توضیحات')] : []),
   ];
+
+  // The stated balance: kept as it is while the amounts shown are untouched, else stated anew from now
+  const balanceToSave = () => {
+    const stated = Object.fromEntries(currencies.map((c) => [c, Number(digitsDecimal(amounts[c])) || 0]));
+    const before = currentBalance || account?.balance?.amounts || {};
+    const unchanged = account?.balance && currencies.every((c) => Math.round((stated[c] || 0) * 100) === Math.round((Number(before[c]) || 0) * 100));
+    return unchanged ? account.balance : { amounts: stated };
+  };
 
   const handleSubmit = async (e) => {
     e?.preventDefault?.();
@@ -106,6 +127,7 @@ export default function AccountForm({ account = null, onSubmit, onClose, submitt
             conversions: account?.credit?.conversions || [],
           },
         } : {}),
+        ...(!isCredit && track ? { balance: balanceToSave() } : {}),
         archived: account?.archived || false,
       });
       onClose();
@@ -162,6 +184,36 @@ export default function AccountForm({ account = null, onSubmit, onClose, submitt
               })}
             </div>
             <p className="expense-form-hint">{t('حسابی که چند ارز دارد (مثلاً تومان و دلار) را یک‌بار ثبت کنید؛ در هر فرم فقط حساب‌هایی می‌آیند که ارز همان ثبت را دارند.')}</p>
+          </div>
+        )}
+
+        {!isCredit && (
+          <div className="ui-input-group balance-form-fields">
+            <span className="ui-input-label" id="account-balance-label">{t('موجودی حساب')}</span>
+            <div className="ui-filter-pills variant-pills size-sm" role="group" aria-labelledby="account-balance-label">
+              <button type="button" className={`filter-pill-btn ${track ? 'active' : ''}`} aria-pressed={track} onClick={() => setTrack((v) => !v)}>
+                <span className="pill-label">{t('نگه‌داشتن موجودی')}</span>
+              </button>
+            </div>
+            {track && currencies.map((code) => (
+              <div className="ui-input-group" key={code}>
+                <label htmlFor={`account-balance-${code}`} className="ui-input-label">{t('موجودی فعلی ({currency})', { currency: CURRENCY_OPTIONS.find((o) => o.value === code)?.label || code })}</label>
+                <div className="ui-input-wrapper">
+                  <NumericInput
+                    id={`account-balance-${code}`}
+                    value={amounts[code] ?? ''}
+                    allowDecimals={code !== 'IRT'}
+                    onValueChange={(v) => setAmounts((a) => ({ ...a, [code]: v }))}
+                    className="ui-input-control"
+                  />
+                </div>
+              </div>
+            ))}
+            <p className="expense-form-hint">
+              {track
+                ? t('همین مقدار را که الان در حساب است بنویسید؛ از این به بعد هزینه‌ها، درآمدها و انتقال‌های این حساب آن را کم و زیاد می‌کنند. برای هماهنگ شدن با بانک، مقدار را دوباره بنویسید.')
+                : t('با ثبت موجودی فعلی، موجودی این حساب خودکار با هر هزینه، درآمد و انتقال به‌روز می‌شود.')}
+            </p>
           </div>
         )}
 
