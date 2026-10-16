@@ -174,19 +174,6 @@ export const NEWS_KEYWORDS_EN = {
     "iranian", "tehran", "trump", "white house", "nuclear", "iaea", "security council", "houthi", "houthis",
     "red sea", "gulf", "russia", "ukraine", "china", "hezbollah", "gaza",
   ],
-  // The wider words an international article may pass the gate with (read by isWorldCandidate only):
-  // business and economy beyond the market words above — the model then judges the article
-  world: [
-    "economy", "economic", "economist", "economists", "business", "businesses", "company", "companies", "corporate", "industry", "industrial",
-    "bank", "banks", "banking", "lender", "loan", "loans", "credit", "mortgage", "housing", "property", "real estate", "rent",
-    "sales", "retail", "consumer", "consumers", "spending", "demand", "supply", "shortage", "shortages", "factory", "manufacturing", "production",
-    "earnings", "profit", "profits", "revenue", "shares", "investor", "investors", "investment", "fund", "funds", "merger", "acquisition", "ipo", "bankruptcy",
-    "tax", "taxes", "fiscal", "monetary", "stimulus", "subsidy", "subsidies", "wage", "wages", "layoffs", "labor", "employment", "pension",
-    "energy", "gasoline", "fuel", "electricity", "power grid", "pipeline", "refinery", "mining", "steel", "aluminium", "aluminum", "grain", "wheat", "food prices",
-    "export", "exports", "import", "imports", "customs", "embargo", "blockade", "port", "ports", "freight", "supply chain", "chip", "chips", "semiconductor",
-    "default", "devaluation", "currency crisis", "capital", "capital flight", "remittance", "remittances", "g7", "g20", "brics", "opec+", "summit",
-    "election", "elections", "parliament", "government", "minister", "ministers", "policy", "ban", "deal", "talks", "negotiations", "agreement",
-  ],
   negative: [
     "sponsored", "advertisement", "podcast", "watch live", "newsletter", "quiz", "webinar", "subscribe",
     "earnings call", "shares of", "ipo", "price target", "buy rating", "stock pick", "stocks to buy",
