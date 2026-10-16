@@ -26,8 +26,11 @@ export function normalizeChannel(input) {
 
 /**
  * The saved settings with the token resolved
- * @returns {Promise<{ enabled: boolean, channel: string, feeds: string[]|null, token: string, tokenSource: "env"|"admin"|"" }>}
- *   feeds: the feed ids whose articles are posted; null means every feed
+ * @returns {Promise<{ enabled: boolean, channel: string, feeds: string[]|null, adminUsername: string,
+ *   adminChatId: string, adminUserId: string, token: string, tokenSource: "env"|"admin"|"" }>}
+ *   feeds: the feed ids whose articles are posted; null means every feed. adminUsername: the
+ *   admin's Telegram username; adminChatId / adminUserId: set when that user has sent /start to
+ *   the bot (the bot can only write to someone who started it)
  */
 export async function getBotConfig(env) {
   const saved = (await getStateStore(env)?.get(CONFIG_KEY, "json").catch(() => null)) || {};
@@ -37,27 +40,45 @@ export async function getBotConfig(env) {
     enabled: saved.enabled === true,
     channel: typeof saved.channel === "string" ? saved.channel : "",
     feeds: Array.isArray(saved.feeds) ? saved.feeds.filter((id) => typeof id === "string") : null,
+    adminUsername: typeof saved.adminUsername === "string" ? saved.adminUsername : "",
+    adminChatId: saved.adminChatId ? String(saved.adminChatId) : "",
+    adminUserId: saved.adminUserId ? String(saved.adminUserId) : "",
     token,
     tokenSource: envToken ? "env" : token ? "admin" : "",
   };
 }
 
 /** The settings as the admin may see them (no token) */
-export function publicBotConfig({ token, ...rest }) {
-  return { ...rest, tokenSet: Boolean(token) };
+export function publicBotConfig({ token, adminChatId, adminUserId, ...rest }) {
+  return { ...rest, tokenSet: Boolean(token), adminLinked: Boolean(adminChatId && adminUserId) };
+}
+
+/** A Telegram username as stored: no "@" or link, "" when it is not one */
+export function normalizeUsername(input) {
+  const name = String(input || "").trim().replace(/^(https?:\/\/)?(www\.)?t\.me\//i, "").replace(/^@/, "").split(/[/?#]/)[0];
+  return /^[A-Za-z][A-Za-z0-9_]{4,31}$/.test(name) ? name : "";
 }
 
 /**
  * Save the admin's changes; only the fields sent change
  * @param {object} env
- * @param {{ enabled?: boolean, channel?: string, feeds?: string[]|null, token?: string|null }} patch
- *   token: a new token, or null to remove the saved one
+ * @param {{ enabled?: boolean, channel?: string, feeds?: string[]|null, token?: string|null, adminUsername?: string }} patch
+ *   token: a new token, or null to remove the saved one. adminUsername: another username unlinks
+ *   the previous admin (the new one links by sending /start to the bot)
  */
 export async function saveBotConfig(env, patch = {}) {
   const store = getStateStore(env);
   if (!store) throw AppError.badRequest("پایگاه داده در دسترس نیست.");
   const saved = (await store.get(CONFIG_KEY, "json").catch(() => null)) || {};
-  const next = { enabled: saved.enabled === true, channel: saved.channel || "", feeds: saved.feeds ?? null, token: saved.token || "" };
+  const next = {
+    enabled: saved.enabled === true,
+    channel: saved.channel || "",
+    feeds: saved.feeds ?? null,
+    token: saved.token || "",
+    adminUsername: saved.adminUsername || "",
+    adminChatId: saved.adminChatId || "",
+    adminUserId: saved.adminUserId || "",
+  };
 
   if (patch.enabled !== undefined) next.enabled = patch.enabled === true;
   if (patch.channel !== undefined) {
@@ -67,6 +88,15 @@ export async function saveBotConfig(env, patch = {}) {
   }
   if (patch.feeds !== undefined) {
     next.feeds = Array.isArray(patch.feeds) ? [...new Set(patch.feeds.filter((id) => typeof id === "string"))] : null;
+  }
+  if (patch.adminUsername !== undefined) {
+    const username = String(patch.adminUsername || "").trim() ? normalizeUsername(patch.adminUsername) : "";
+    if (patch.adminUsername && !username) throw AppError.badRequest("یوزرنیم تلگرام معتبر نیست (مثل @myname).");
+    if (username.toLowerCase() !== next.adminUsername.toLowerCase()) {
+      next.adminChatId = "";
+      next.adminUserId = "";
+    }
+    next.adminUsername = username;
   }
   if (patch.token === null) next.token = "";
   else if (typeof patch.token === "string" && patch.token.trim()) {
@@ -78,6 +108,14 @@ export async function saveBotConfig(env, patch = {}) {
   }
   await store.put(CONFIG_KEY, JSON.stringify(next));
   return getBotConfig(env);
+}
+
+/** Remember the admin's chat once they have sent /start to the bot (their username matched) */
+export async function linkBotAdmin(env, { chatId, userId }) {
+  const store = getStateStore(env);
+  if (!store) return;
+  const saved = (await store.get(CONFIG_KEY, "json").catch(() => null)) || {};
+  await store.put(CONFIG_KEY, JSON.stringify({ ...saved, adminChatId: String(chatId), adminUserId: String(userId) }));
 }
 
 /** The last run's result (what was sent, the last error) */

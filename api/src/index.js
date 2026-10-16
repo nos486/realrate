@@ -162,7 +162,7 @@ import {
   handleGetNewsToday,
   handleAdminRunNewsAnalysis,
 } from "./handlers/newsRoutes.js";
-import { handleAdminGetBot, handleAdminSaveBot, handleAdminTestBot, handleAdminRunBot } from "./handlers/botRoutes.js";
+import { handleBotWebhook, handleAdminGetBot, handleAdminSaveBot, handleAdminTestBot, handleAdminRunBot } from "./handlers/botRoutes.js";
 import { fetchAllPrices } from "./services/market/priceAggregator.service.js";
 import {
   searchCatalogItems,
@@ -339,6 +339,8 @@ async function handleRequest(request, env, ctx) {
   if (normalizedPath === "/api/admin/price-sources/fetch-all" && request.method === "POST") {
     return wrap(handleAdminFetchAllSources)(request, env);
   }
+  // The Telegram bot: Telegram posts its updates here (checked by a secret header, not a session)
+  if (normalizedPath === "/api/bot/telegram/webhook" && request.method === "POST") return wrap(handleBotWebhook)(request, env);
   // Admin: the Telegram bot's settings
   if (normalizedPath === "/api/admin/bot") {
     if (request.method === "GET") return wrap(handleAdminGetBot)(request, env);
@@ -386,7 +388,7 @@ async function handleRequest(request, env, ctx) {
   const groupRequestMatch = normalizedPath.match(/^\/api\/groups\/([a-z0-9_-]+)\/request$/);
   if (groupRequestMatch) {
     const key = groupRequestMatch[1];
-    if (request.method === "POST")   return wrap((req, e) => handleRequestGroup(req, e, { key }))(request, env);
+    if (request.method === "POST")   return wrap((req, e, c) => handleRequestGroup(req, e, { key }, c))(request, env, ctx);
     if (request.method === "DELETE") return wrap((req, e) => handleCancelGroupRequest(req, e, { key }))(request, env);
   }
 

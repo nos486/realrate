@@ -44,6 +44,8 @@ import {
   dbGetUserRequestedGroupKeys,
 } from "../repositories/userGroups.repository.js";
 import { dbGetUserAuthByEmail, dbGetUserAuthById } from "../repositories/account.repository.js";
+import { answerGroupRequest } from "../services/groupRequest.service.js";
+import { notifyAdmin } from "../services/bot/adminChat.service.js";
 
 const MEMBERS_PAGE_SIZE = 20;
 const userIdOf = (user) => user?.userId || user?.id || "";
@@ -114,12 +116,20 @@ async function requestableGroup(env, user, key) {
 }
 
 /** POST /api/groups/:key/request { note? } */
-export async function handleRequestGroup(request, env, { key }) {
+export async function handleRequestGroup(request, env, { key }, ctx) {
   const user = await requireUser(request, env);
   if (String(user.kind || "").startsWith("demo")) throw AppError.forbidden("حساب دمو نمی‌تواند درخواست عضویت بدهد.");
   const group = await requestableGroup(env, user, key);
   const body = await readBody(request);
-  await dbCreateGroupRequest(env, group.id, userIdOf(user), cleanRequestNote(body.note));
+  const note = cleanRequestNote(body.note);
+  await dbCreateGroupRequest(env, group.id, userIdOf(user), note);
+  // The admin hears of it in Telegram, with buttons to answer (best effort, off the user's request)
+  const notified = notifyAdmin(env, {
+    text: `درخواست عضویت در «${group.name}»\nکاربر: ${user.email || userIdOf(user)}${user.name ? ` (${user.name})` : ""}${note ? `\nیادداشت: ${note}` : ""}`,
+    action: { type: "group-request", groupId: group.id, userId: userIdOf(user) },
+  }).catch(() => {});
+  if (ctx?.waitUntil) ctx.waitUntil(notified);
+  else await notified;
   return jsonResponse({ success: true, message: `درخواست عضویت در «${group.name}» ثبت شد؛ پس از تأیید مدیر فعال می‌شود.` }, 200, request);
 }
 
@@ -218,12 +228,10 @@ export async function handleAdminAnswerRequest(request, env, { groupId, userId }
   const group = await loadGroup(env, groupId);
   const body = await readBody(request);
   if (body.approve === true) {
-    const account = await dbGetUserAuthById(env, userId);
-    if (!account) throw AppError.notFound("کاربر مورد نظر یافت نشد.");
-    await dbAddGroupMember(env, group.id, account.id, admin.email || "");
-    return jsonResponse({ success: true, message: `${account.email} به «${group.name}» اضافه شد.` }, 200, request);
+    const { email } = await answerGroupRequest(env, { group, userId, approve: true, by: admin.email || "" });
+    return jsonResponse({ success: true, message: `${email} به «${group.name}» اضافه شد.` }, 200, request);
   }
-  await dbDeleteGroupRequest(env, group.id, userId);
+  await answerGroupRequest(env, { group, userId, approve: false });
   return jsonResponse({ success: true, message: "درخواست رد شد." }, 200, request);
 }
 

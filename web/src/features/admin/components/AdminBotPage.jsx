@@ -4,6 +4,8 @@
  *  - «تست اتصال»: checks the token and the channel step by step and posts a test message
  *  - which international feeds are posted to the channel (all by default)
  *  - the last run: what was sent, what waits, the last error; «ارسال الان» posts the waiting news
+ * - the admin's Telegram username: the bot tells the admin about users' requests (joining the pro
+ *   group) in a private chat with buttons to approve or reject; the admin sends /start to the bot once
  * The bot's features are listed here as they are added (today: the international news the site publishes, in Persian).
  */
 
@@ -25,6 +27,7 @@ export default function AdminBotPage() {
   const [enabled, setEnabled] = useState(false);
   const [channel, setChannel] = useState('');
   const [token, setToken] = useState('');
+  const [adminUsername, setAdminUsername] = useState('');
   const [allFeeds, setAllFeeds] = useState(true);
   const [feedIds, setFeedIds] = useState([]);
   const [busy, setBusy] = useState(null);
@@ -34,6 +37,7 @@ export default function AdminBotPage() {
     setData(res);
     setEnabled(res.config.enabled);
     setChannel(res.config.channel);
+    setAdminUsername(res.config.adminUsername || '');
     setAllFeeds(!res.config.feeds);
     setFeedIds(res.config.feeds || res.feeds.map((f) => f.id));
     setToken('');
@@ -59,6 +63,7 @@ export default function AdminBotPage() {
   const dirty = Boolean(data) && (
     enabled !== config.enabled
     || channel.trim() !== config.channel
+    || adminUsername.trim().replace(/^@/, '') !== (config.adminUsername || '')
     || token.trim() !== ''
     || allFeeds !== !savedFeeds
     || (!allFeeds && JSON.stringify([...feedIds].sort()) !== JSON.stringify([...(savedFeeds || [])].sort()))
@@ -68,12 +73,14 @@ export default function AdminBotPage() {
     const res = await saveBotSettings({
       enabled,
       channel: channel.trim(),
+      adminUsername: adminUsername.trim(),
       feeds: allFeeds ? null : feedIds,
       ...(token.trim() ? { token: token.trim() } : {}),
     });
     apply(res);
     setCheck(null);
-    toast.success('تنظیمات ربات ذخیره شد.');
+    if (res.webhook && !res.webhook.ok) toast.warning(`تنظیمات ذخیره شد، ولی اتصال تلگرام به سرور برقرار نشد: ${res.webhook.error}`);
+    else toast.success('تنظیمات ربات ذخیره شد.');
   });
 
   const test = guard('test', async () => {
@@ -143,6 +150,20 @@ export default function AdminBotPage() {
           onChange={(e) => setChannel(e.target.value)}
           dir="ltr"
         />
+
+        <Input
+          id="adminBotAdmin"
+          label="یوزرنیم تلگرام ادمین (برای دریافت درخواست‌ها)"
+          placeholder="@myname"
+          value={adminUsername}
+          onChange={(e) => setAdminUsername(e.target.value)}
+          dir="ltr"
+        />
+        <small className="admin-news-muted">
+          {!config.adminUsername ? 'اگر وارد شود، ربات درخواست کاربران (مثل درخواست پرو) را در تلگرام به همین حساب می‌فرستد و با دکمه‌های تأیید و رد پاسخ می‌دهید.'
+            : config.adminLinked ? <><CheckCircle2 size={12} className="is-ok" /> متصل است؛ درخواست‌ها به @{config.adminUsername} می‌رسد.</>
+              : <><AlertTriangle size={12} className="is-warn" /> هنوز متصل نیست: با حساب @{config.adminUsername} در تلگرام ربات را باز کنید و /start بزنید (ربات باید روشن و ذخیره‌شده باشد).</>}
+        </small>
 
         <div className="admin-news-save">
           <Button size="sm" icon={<Save size={14} />} loading={busy === 'save'} disabled={!dirty || Boolean(busy)} onClick={save}>
