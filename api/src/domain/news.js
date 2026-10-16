@@ -224,7 +224,7 @@ CATEGORY c: currency (the dollar and other currencies, remittances, the exchange
 
 WRITING, in fluent Persian only, whatever the post's language — an English article is translated (no words of another language; write names like the Fed or OPEC in Persian):
 t = a neutral, factual headline of at most 12 words: who did or said what. No emoji, no channel name, no hype or clickbait («فوری»، «مهم»، «ببینید»), no exclamation marks.${/* i18n-ignore */ ''}
-s = 1 or 2 sentences, at most 40 words: the essential facts of the post (who, what, numbers, when). Never add facts, numbers or opinions that are not in the post.
+s = 2 to 4 sentences, at most 80 words: the essential facts of the post (who, what, numbers, when). Never add facts, numbers or opinions that are not in the post.
 
 ANSWER: only a JSON array, one item per post, in order:
 {"i":<n>,"k":0}  or  {"i":<n>,"k":1,"c":"${CATEGORY_IDS.join("|")}","p":1|2|3,"t":"<headline>","s":"<summary>"}`;
@@ -246,7 +246,7 @@ export function buildNewsPrompt(posts) {
 }
 
 /** Output tokens for a batch: enough for every post to be kept with its summary */
-export const newsMaxTokens = (count) => 60 + count * 260;
+export const newsMaxTokens = (count) => 60 + count * 340;
 
 /**
  * Letters a Persian text never has — a model slipping into another language mid-sentence (e.g.
@@ -318,7 +318,7 @@ export function parseNewsVerdicts(answer, count) {
     if (!Number.isInteger(index) || index < 0 || index >= count || verdicts.has(index)) continue;
     const keep = Number(v.k) === 1 || v.k === true;
     const title = clip(v.t, 120);
-    const summary = clip(v.s, 400);
+    const summary = clip(v.s, 700);
     if (!keep || !title) {
       verdicts.set(index, { keep: false });
       continue;

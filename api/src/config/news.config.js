@@ -80,9 +80,9 @@ export const NEWS_LIMITS = {
   /** Model requests in one (UTC) day; past it the keywords alone decide */
   aiCallsPerDay: 600,
   /** A post's text sent to the model, in characters (the rest rarely changes the verdict) */
-  aiTextChars: 700,
+  aiTextChars: 1500,
   /** A post's text kept, in characters */
-  storedTextChars: 2000,
+  storedTextChars: 3000,
   /** News older than this is deleted (hourly) */
   retentionDays: 30,
   /** A post this close to one already published (shared words) is the same news */
