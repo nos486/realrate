@@ -45,15 +45,17 @@ export async function callBotApi(token, method, params = {}, { fetchFn = fetch }
 
 /**
  * Post a message (Telegram adds the link preview). HTML by default; `plain` sends the text as it
- * is; `replyMarkup` adds inline buttons.
- * @param {{ fetchFn?: Function, plain?: boolean, replyMarkup?: object }} [opts]
+ * is; `replyMarkup` adds inline buttons; `previewUrl` makes that link the one previewed, as a small
+ * picture above the text.
+ * @param {{ fetchFn?: Function, plain?: boolean, replyMarkup?: object, previewUrl?: string }} [opts]
  */
-export const sendMessage = (token, chatId, html, { plain, replyMarkup, ...opts } = {}) =>
+export const sendMessage = (token, chatId, html, { plain, replyMarkup, previewUrl, ...opts } = {}) =>
   callBotApi(token, "sendMessage", {
     chat_id: chatId,
     text: html,
     ...(plain ? {} : { parse_mode: "HTML" }),
     ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+    ...(previewUrl ? { link_preview_options: { url: previewUrl, prefer_small_media: true, show_above_text: true } } : {}),
   }, opts);
 
 /** Replace a message's text (plain) and drop its buttons */

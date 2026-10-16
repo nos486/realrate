@@ -101,7 +101,7 @@ export async function flushNewsQueue(env, { now = Date.now(), fetchFn } = {}) {
   let count = 0;
   let error = "";
   for (const item of ready) {
-    const res = await sendMessage(config.token, config.channel, formatNewsMessage(item), { fetchFn });
+    const res = await sendMessage(config.token, config.channel, formatNewsMessage(item), { fetchFn, previewUrl: item.url });
     if (res.ok) {
       count++;
       sent.push(item.key);

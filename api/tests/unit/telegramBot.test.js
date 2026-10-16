@@ -109,6 +109,8 @@ describe('queuing and posting', () => {
     expect(await flushNewsQueue(env, { now: NOW, fetchFn })).toMatchObject({ sent: 1, waiting: 0 });
     expect(calls).toHaveLength(1);
     expect(calls[0].params).toMatchObject({ chat_id: '@realrate_news', parse_mode: 'HTML' });
+    // The article's own preview, a small picture above the Persian text
+    expect(calls[0].params.link_preview_options).toEqual({ url: 'https://example.com/a/1?utm=1', prefer_small_media: true, show_above_text: true });
     expect(calls[0].params.text).toContain('تیتر 1');
     expect(calls[0].params.text).toContain('خلاصه 1');
     // The same article again, later
