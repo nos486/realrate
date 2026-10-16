@@ -28,6 +28,7 @@ export const PLAN_LIMITS = {
   subscriptions: { label: 'اشتراک', kinds: ['subscription'], total: 0 },
   transfers: { label: 'انتقال بین حساب‌ها', kinds: ['transfer'], total: 0 },
   recurring_incomes: { label: 'درآمد تکرارشونده', kinds: ['recurring_income'], total: 0 },
+  goals: { label: 'هدف پس‌انداز', kinds: ['goal'], total: 2 },
   holdings: { label: 'دارایی در پورتفو', kinds: ['holding'], total: 10 },
 };
 
@@ -62,6 +63,7 @@ export const PLAN_COMPARISON = [
   { label: 'وام‌ها', free: `${PLAN_LIMITS.loans.total} وام`, pro: 'نامحدود' },
   { label: 'چک‌ها', free: 'بسته', pro: 'نامحدود، با اسکن هوشمند' },
   { label: 'اشتراک‌ها', free: 'بسته', pro: 'نامحدود، با یادآوری' },
+  { label: 'اهداف', free: `${PLAN_LIMITS.goals.total} هدف`, pro: 'نامحدود' },
   { label: 'پورتفو', free: `${FREE_PORTFOLIOS} پورتفو با ${PLAN_LIMITS.holdings.total} دارایی`, pro: 'نامحدود' },
   { label: 'انتقال بین حساب‌ها', free: 'بسته', pro: 'باز' },
   { label: 'ورود گردش حساب از فایل بانک', free: 'بسته', pro: 'باز' },

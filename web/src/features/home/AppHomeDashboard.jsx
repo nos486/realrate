@@ -40,6 +40,7 @@ import { formatShamsiMonth, buildIncomeReport } from '../incomes/utils/incomeRep
 import { formatShamsiDisplay } from '../portfolio/components/ShamsiDatePicker.jsx';
 import NewsCard from '../news/NewsCard.jsx';
 import PlanHomeCard from '../../shared/plan/PlanHomeCard.jsx';
+import GoalsHomeCard from '../goals/components/GoalsHomeCard.jsx';
 
 const MASK = '••••••';
 const fa = (n) => Math.round(Number(n) || 0).toLocaleString(intlLocale());
@@ -246,6 +247,9 @@ export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }
 
       {/* Free plan (not shown on Pro) */}
       <PlanHomeCard />
+
+      {/* Savings goals (only with some) */}
+      {unlocked && <GoalsHomeCard onOpen={onOpen} />}
 
       {/* Latest news (Pro) */}
       <NewsCard count={3} />

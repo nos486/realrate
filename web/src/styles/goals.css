@@ -1,0 +1,75 @@
+/* ── Goals (features/goals) ─────────────────────────────────────────────────── */
+
+/* The edit form's deposit history */
+.goal-deposit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.goal-deposit-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.goal-deposit-row small {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.goal-deposit-date { color: var(--text-secondary); }
+.goal-deposit-row .is-negative { color: var(--color-negative-text); }
+
+.goal-deposit-remove {
+  margin-inline-start: auto;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.goal-deposit-remove:hover { color: var(--color-negative-text); }
+
+/* The home card: a goal's name and percent over its bar */
+.goals-home-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.goals-home-row { display: flex; flex-direction: column; gap: 6px; }
+
+.goals-home-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.goals-home-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

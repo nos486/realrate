@@ -40,10 +40,11 @@ export const REFRESH_SCOPES = {
   expenses: 'expenses',
   accounts: 'accounts',
   subscriptions: 'subscriptions',
+  goals: 'goals',
 };
 
 /** Scopes whose records live in the vault (synced as one with the Android app's offline copy) */
-const RECORD_SCOPES = new Set(['portfolio', 'loans', 'cheques', 'incomes', 'expenses', 'accounts', 'subscriptions']);
+const RECORD_SCOPES = new Set(['portfolio', 'loans', 'cheques', 'incomes', 'expenses', 'accounts', 'subscriptions', 'goals']);
 
 /** Scopes whose data outlives a tab (PricingContext's book, useNews' answers): a tab opened
  *  again would show them as they were, so opening it reads them again */

@@ -28,6 +28,7 @@ const PRIMARY_DATE = {
   bank_account: (a) => a?.createdAt,
   transfer: (t) => t?.date,
   subscription: (s) => s?.startDate,
+  goal: (g) => g?.createdAt,
 };
 
 /**

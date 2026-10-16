@@ -2,7 +2,7 @@ import { hasNews as localeHasNews, t } from '../utils/i18n.js';
 import React, { useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import ErrorBoundary from '../shared/ui/ErrorBoundary.jsx';
-import { TrendingUp, Briefcase, ShieldCheck, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards, Smartphone, MessageSquareText, FolderKanban, Newspaper, ChartColumn, CalendarSync, Crown, Compass } from 'lucide-react';
+import { TrendingUp, Briefcase, ShieldCheck, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards, Smartphone, MessageSquareText, FolderKanban, Newspaper, ChartColumn, CalendarSync, Crown, Compass, Target } from 'lucide-react';
 import { AppLayout, FilterPills, AlertBanner, Button } from '../shared/ui/index.js';
 import { PriceRefreshStatus } from '../features/market/components/index.js';
 import HomeDashboard from '../features/home/HomeDashboard.jsx';
@@ -42,6 +42,7 @@ const LoansPage = lazy(() => import('../features/loans/components/LoansPage.jsx'
 const IncomesPage = lazy(() => import('../features/incomes/components/IncomesPage.jsx'));
 const ChequesPage = lazy(() => import('../features/cheques/components/ChequesPage.jsx'));
 const SubscriptionsPage = lazy(() => import('../features/subscriptions/components/SubscriptionsPage.jsx'));
+const GoalsPage = lazy(() => import('../features/goals/components/GoalsPage.jsx'));
 const ExpensesPage = lazy(() => import('../features/expenses/components/ExpensesPage.jsx'));
 const ProjectsPage = lazy(() => import('../features/expenses/components/ProjectsPage.jsx'));
 const AccountsPage = lazy(() => import('../features/accounts/components/AccountsPage.jsx'));
@@ -173,6 +174,13 @@ export default function MainPage() {
       searchParams.get('tab') === 'subscriptions'
     );
 
+  // Goals: what the user saves for and how far each is
+  const isGoals =
+    Boolean(user) && !isSettings && (
+      subPath.startsWith('/goals') ||
+      searchParams.get('tab') === 'goals'
+    );
+
   // Projects have their own part (/projects); old /expenses/projects and /expenses/:id links are
   // sent there below
   const oldProjectSegment = subPath.match(/^\/expenses\/([^/]+)/)?.[1] || null;
@@ -241,6 +249,7 @@ export default function MainPage() {
     ['incomes', isIncomes],
     ['cheques', isCheques],
     ['subscriptions', isSubscriptions],
+    ['goals', isGoals],
     ['projects', isProjects],
     ['expenses', isExpenses],
     ['accounts', isAccounts],
@@ -270,6 +279,8 @@ export default function MainPage() {
         return t('مدیریت چک‌ها | RealRate');
       case 'subscriptions':
         return t('اشتراک‌ها | RealRate');
+      case 'goals':
+        return t('اهداف | RealRate');
       case 'expenses':
         return t('هزینه‌ها | RealRate');
       case 'projects':
@@ -331,6 +342,7 @@ export default function MainPage() {
     incomes: '/incomes',
     cheques: '/cheques',
     subscriptions: '/subscriptions',
+    goals: '/goals',
     expenses: '/expenses',
     projects: '/projects',
     accounts: '/accounts',
@@ -385,6 +397,7 @@ export default function MainPage() {
       { value: 'loans', label: t('وام و اقساط'), icon: <Landmark size={16} strokeWidth={2} /> },
       { value: 'cheques', label: t('چک‌ها'), icon: <ReceiptText size={16} strokeWidth={2} /> },
       ...(user ? [{ value: 'subscriptions', label: t('اشتراک‌ها'), icon: <CalendarSync size={16} strokeWidth={2} /> }] : []),
+      ...(user ? [{ value: 'goals', label: t('اهداف'), icon: <Target size={16} strokeWidth={2} /> }] : []),
       ...(user ? [{ value: 'reports', label: t('گزارش‌ها'), icon: <ChartColumn size={16} strokeWidth={2} /> }] : []),
       // Free users: the page comparing the plans, with the button to ask for Pro
       ...(user && !isDemo && !isPro ? [{ value: 'pro', label: 'Pro', icon: <Crown size={16} strokeWidth={2} /> }] : []),
@@ -553,6 +566,7 @@ export default function MainPage() {
         )}
 
         {activeTab === 'subscriptions' && <SubscriptionsPage />}
+        {activeTab === 'goals' && <GoalsPage />}
 
         {activeTab === 'accounts' && <AccountsPage />}
 
