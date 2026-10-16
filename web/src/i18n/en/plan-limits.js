@@ -8,5 +8,6 @@ export default {
   '{n} حساب': '{n} accounts',
   '{n} پروژه': '{n} projects',
   '{n} وام': '{n} loans',
+  '{n} هدف': '{n} goals',
   '{n} پورتفو با {holdings} دارایی': '{n} portfolios with {holdings} assets each',
 };

@@ -51,6 +51,12 @@ export default {
     'Add a cheque with its amount, due date and counterparty; due dates are reminded.',
   'وقتی چک پاس شد وضعیتش را عوض کنید؛ پولش به‌عنوان هزینه یا درآمد ثبت می‌شود.':
     'When a cheque clears, change its status; the money is recorded as an expense or income.',
+  اهداف: 'Goals',
+  'چیزهایی که برایشان پس‌انداز می‌کنید، با پیشرفت هرکدام و تخمین رسیدن به مبلغ هدف.':
+    'What you save for, with how far each goal is and an estimate of when you reach its target.',
+  'هدف را با مبلغ و (اگر دارید) تاریخ اضافه کنید.': 'Add a goal with its amount and, if you have one, a date.',
+  'واریزهایتان را ثبت کنید یا ارزش یک پورتفو را به هدف وصل کنید تا پیشرفت خودکار حساب شود.':
+    'Record what you set aside, or link a portfolio to the goal so progress is worked out automatically.',
   'اشتراک‌ها': 'Subscriptions',
   'اشتراک‌هایی که هر دوره تمدید می‌شوند، با جمع ماهانه و یادآوری قبل از تمدید.':
     'Subscriptions that renew every period, with a monthly total and a reminder before renewal.',

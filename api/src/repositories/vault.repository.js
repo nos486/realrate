@@ -30,6 +30,8 @@ export const VAULT_RECORD_KINDS = [
   "category_settings",
   // The user's subscriptions (domain/subscriptionDocument.js), with a renewal reminder
   "subscription",
+  // The user's savings goals (domain/goalDocument.js), deposits inside the record
+  "goal",
 ];
 
 /** Kinds that exist only for users of a feature (config/features.js); others get 404 */

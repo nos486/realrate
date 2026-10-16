@@ -25,6 +25,7 @@
  *   explore.css         — Market explorer page (one full-height candle chart, the asset search inside it)
  *   cheques.css         — Cheques page, status badges, tracking timeline
  *   subscriptions.css   — Subscriptions page, cards, state badges
+ *   goals.css           — Goals page, deposit form, home card
  *   expenses.css        — Expenses page, section chips
  *   statement-import.css — Import from a bank's statement, the «ورود خودکار» tag on records
  *   app-settings.css    — Settings of the Android app
@@ -64,6 +65,7 @@
 @import './incomes.css';
 @import './cheques.css';
 @import './subscriptions.css';
+@import './goals.css';
 @import './expenses.css';
 @import './statement-import.css';
 @import './app-settings.css';

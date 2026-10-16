@@ -18,6 +18,7 @@ export const SECTION_LIMITS = {
   loans: ['loans'],
   cheques: ['cheques'],
   subscriptions: ['subscriptions'],
+  goals: ['goals'],
   portfolio: ['portfolios', 'holdings'],
   sms: ['sms'],
 };

@@ -20,6 +20,8 @@ export const TAB_REFRESH_SCOPES = {
   cheques: ['cheques'],
   // Their dollar costs are shown in tomans at the live rate
   subscriptions: ['subscriptions', 'prices'],
+  // Their linked portfolio's value is worked out at today's prices
+  goals: ['goals', 'portfolio', 'prices'],
   incomes: ['incomes'],
   expenses: ['expenses', 'accounts'],
   projects: ['expenses'],
