@@ -82,7 +82,7 @@ function itemImage(block, summaryRaw) {
  * @returns {{ title: string, posts: Array<{ channel: string, postId: number, url: string, title: string,
  *   text: string, image: string, publishedAt: number }> }}
  */
-export function parseNewsFeed(xml, feedId, { summaryChars = 1200 } = {}) {
+export function parseNewsFeed(xml, feedId, { summaryChars = 2500 } = {}) {
   const source = String(xml || "");
   const firstItem = source.search(/<(item|entry)[\s>]/i);
   const head = firstItem >= 0 ? source.slice(0, firstItem) : source;
@@ -95,7 +95,8 @@ export function parseNewsFeed(xml, feedId, { summaryChars = 1200 } = {}) {
     const headline = feedText(tagText(block, "title"));
     const url = itemLink(block);
     if (!headline || !url) continue;
-    const summaryRaw = tagText(block, "description") || tagText(block, "summary") || tagText(block, "content");
+    // The fullest text the item carries: many feeds give a teaser in description and the article in content:encoded
+    const summaryRaw = ["description", "content:encoded", "summary", "content"].map((tag) => tagText(block, tag)).reduce((a, b) => (b.length > a.length ? b : a), "");
     let summary = feedText(summaryRaw);
     // A summary that only repeats the headline adds nothing
     if (summary === headline || summary.startsWith(headline)) summary = summary.slice(headline.length).trim();
