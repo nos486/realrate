@@ -157,15 +157,23 @@ export function smsDateToIso(raw, today = new Date()) {
 
   const { jy: thisYear } = gregorianToJalali(today.getFullYear(), today.getMonth() + 1, today.getDate());
   if (jy === undefined) {
-    jy = thisYear;
     const todayIso = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
-    const g = jalaliToGregorian(jy, jm, jd);
-    // A day after today (a day of slack for time zones) is last year's
-    if (`${g.year}-${pad(g.month)}-${pad(g.day)}` > addDays(todayIso, 1)) jy -= 1;
-  } else if (jy < 100) {
-    jy += 1400;
+    // The latest such day not after today (a day of slack for time zones); 12/30 exists only in leap years
+    for (const year of [thisYear, thisYear - 1, thisYear - 2]) {
+      const iso = shamsiToIso(year, jm, jd);
+      if (iso && iso <= addDays(todayIso, 1)) return iso;
+    }
+    return '';
   }
+  if (jy < 100) jy += 1400;
+  return shamsiToIso(jy, jm, jd);
+}
+
+/** The Gregorian day of a Shamsi date, or '' when that day does not exist (e.g. 31 Mehr, 30 Esfand of a common year) */
+function shamsiToIso(jy, jm, jd) {
   const g = jalaliToGregorian(jy, jm, jd);
+  const back = gregorianToJalali(g.year, g.month, g.day);
+  if (back.jy !== jy || back.jm !== jm || back.jd !== jd) return '';
   return `${g.year}-${pad(g.month)}-${pad(g.day)}`;
 }
 

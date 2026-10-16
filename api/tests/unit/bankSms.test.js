@@ -265,6 +265,10 @@ describe('dates', () => {
 
   it('without separators (MMDD, YYMMDD, YYYYMMDD)', () => {
     expect(smsDateToIso('0706', TODAY)).toBe('2026-09-28');
+    // days that do not exist are rejected, not rolled into the next month
+    expect(smsDateToIso('1405/07/31')).toBe('');
+    expect(smsDateToIso('1404/12/30')).toBe('');
+    expect(smsDateToIso('1403/12/30')).toBe('2025-03-20');
     expect(smsDateToIso('050706', TODAY)).toBe('2026-09-28');
     expect(smsDateToIso('14050706', TODAY)).toBe('2026-09-28');
     expect(smsDateToIso('070', TODAY)).toBe('');
