@@ -152,7 +152,7 @@ export const ADMIN_COMMANDS = {
   user: async (env, args) => {
     const q = args.trim();
     if (!q) return { text: "ایمیل یا شناسه‌ی کاربر را بعد از دستور بنویسید: /user name@example.com" };
-    const { users } = await dbGetUsersPage(env, { q, limit: 2 });
+    const { users } = await dbGetUsersPage(env, { q, limit: 10 });
     if (!users.length) return { text: "کاربری پیدا نشد." };
     // One match (or an exact email) opens the card; several show the list to choose from
     const exact = users.find((u) => u.email.toLowerCase() === q.toLowerCase() || u.id === q);
