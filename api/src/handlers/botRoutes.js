@@ -5,14 +5,19 @@
  *   PUT  /api/admin/bot       save { enabled?, channel?, feeds?, token? }
  *   POST /api/admin/bot/test  check the token and the channel, and post a test message
  *   POST /api/admin/bot/run   post the waiting news now
+ *   POST /api/bot/telegram/webhook  Telegram's updates (admin's /start and button presses); not a
+ *                                   session route: the request carries a secret header
  */
 
 import { getAuthenticatedUser } from "../lib/auth.js";
 import { jsonResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
+import { logger } from "../lib/logger.js";
 import { getNewsFeeds } from "../services/news/news.service.js";
 import { getBotConfig, publicBotConfig, saveBotConfig, getBotStatus } from "../services/bot/botConfig.service.js";
 import { runBot } from "../services/bot/bot.service.js";
+import { handleBotUpdate } from "../services/bot/adminChat.service.js";
+import { syncWebhook, webhookSecret, safeEqual } from "../services/bot/webhook.js";
 import { getMe, getChat, sendMessage } from "../services/bot/telegramApi.js";
 
 async function requireAdmin(request, env) {
@@ -34,17 +39,20 @@ export async function handleAdminGetBot(request, env) {
   return jsonResponse({ success: true, ...(await overview(env)) }, 200, request);
 }
 
-export async function handleAdminSaveBot(request, env) {
+export async function handleAdminSaveBot(request, env, { fetchFn } = {}) {
   await requireAdmin(request, env);
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object") throw AppError.badRequest("درخواست نامعتبر است.");
-  await saveBotConfig(env, {
+  const config = await saveBotConfig(env, {
     enabled: body.enabled,
     channel: body.channel,
     feeds: body.feeds,
     token: body.token,
+    adminUsername: body.adminUsername,
   });
-  return jsonResponse({ success: true, ...(await overview(env)) }, 200, request);
+  // Telegram posts the admin's /start and button presses to the webhook while the bot is on
+  const webhook = await syncWebhook(config, { fetchFn });
+  return jsonResponse({ success: true, webhook: webhook && { ok: webhook.ok, error: webhook.error || "" }, ...(await overview(env)) }, 200, request);
 }
 
 /**
@@ -82,4 +90,14 @@ export async function handleAdminRunBot(request, env, { fetchFn } = {}) {
   await requireAdmin(request, env);
   const result = await runBot(env, { fetchFn });
   return jsonResponse({ success: true, result, ...(await overview(env)) }, 200, request);
+}
+
+/** Telegram's updates. Always answers 200 for a genuine request, so Telegram never retries a bad update */
+export async function handleBotWebhook(request, env, { fetchFn } = {}) {
+  const { token } = await getBotConfig(env);
+  const sent = request.headers.get("X-Telegram-Bot-Api-Secret-Token") || "";
+  if (!token || !safeEqual(sent, await webhookSecret(token))) throw AppError.forbidden("دسترسی غیرمجاز.");
+  const update = await request.json().catch(() => null);
+  if (update) await handleBotUpdate(env, update, { fetchFn }).catch((err) => logger.error("[Bot] update failed", { error: err?.message }));
+  return jsonResponse({ ok: true }, 200, request);
 }

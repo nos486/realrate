@@ -283,6 +283,7 @@ A feature can be open to every user or only to the members of some groups (rules
 | `PUT` | `/api/v1/admin/bot` | `{ enabled?, channel?, feeds?, token? }` — only the fields sent change (`token: null` removes the saved one; a `TELEGRAM_BOT_TOKEN` secret wins over it). Switching on needs a token and a channel |
 | `POST` | `/api/v1/admin/bot/test` | Check the token (`getMe`), the channel (`getChat`: must be a channel or group, not a bot or user) and post a test message; `{ ok, step, bot, chat, error }` |
 | `POST` | `/api/v1/admin/bot/run` | Post the waiting news now; `{ result: { sent, waiting, error? } }` |
+| `POST` | `/api/v1/bot/telegram/webhook` | Telegram's updates for the bot (the admin's `/start` and button presses). Not a session route: the request must carry `X-Telegram-Bot-Api-Secret-Token`, an HMAC of the bot token; anything else is `403`. Saving the bot's settings (`PUT /api/v1/admin/bot`, which also takes `adminUsername`) registers it with Telegram and answers `webhook: { ok, error }` |
 | `GET` | `/api/v1/admin/demo` | Inspect demo account state (existence, non-confidential record counts, last updated) |
 | `POST` | `/api/v1/admin/demo` | Idempotently create / ensure the single demo user account exists |
 | `POST` | `/api/v1/admin/demo/edit-session` | Issue a short-lived `demo_edit` session token for the admin to populate/edit demo data |

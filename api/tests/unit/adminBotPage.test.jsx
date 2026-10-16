@@ -56,4 +56,17 @@ describe('AdminBotPage', () => {
     expect(await screen.findByText(/این نام کانال نیست/)).toBeTruthy();
     expect(toast.error).toHaveBeenCalled();
   });
+
+  it("saves the admin's Telegram username and says the link is not made until they send /start", async () => {
+    api.getBotSettings.mockResolvedValue({ ...DATA, config: { ...DATA.config, adminUsername: 'sina_admin', adminLinked: false } });
+    api.saveBotSettings.mockResolvedValue({ ...DATA, config: { ...DATA.config, adminUsername: 'sina2', adminLinked: false }, webhook: { ok: false, error: 'bad url' } });
+    render(<AdminBotPage />);
+    expect(await screen.findByText(/هنوز متصل نیست/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText(/یوزرنیم تلگرام ادمین/), { target: { value: '@sina2' } });
+    fireEvent.click(screen.getByRole('button', { name: /ذخیره/ }));
+    await waitFor(() => expect(api.saveBotSettings).toHaveBeenCalled());
+    expect(api.saveBotSettings.mock.calls[0][0]).toMatchObject({ adminUsername: '@sina2' });
+    // The webhook failing is said, though the settings are saved
+    await waitFor(() => expect(toast.warning).toHaveBeenCalled());
+  });
 });
