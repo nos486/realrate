@@ -567,6 +567,13 @@ describe('international articles', () => {
 });
 
 describe('parseNewsFeed', () => {
+  it('reads the fullest text of an item: content:encoded beats a short description', () => {
+    const body = 'Oil rose after the decision. '.repeat(30).trim();
+    const xml = `<rss><channel><title>F</title><item><title>Oil up</title><link>https://x.test/a</link><description>Teaser.</description><content:encoded><![CDATA[<p>${body}</p>]]></content:encoded></item></channel></rss>`;
+    const { posts } = parseNewsFeed(xml, 'f');
+    expect(posts[0].text).toBe(`Oil up\n${body}`);
+  });
+
   it('reads an RSS feed: headline, summary (HTML escaped or not), link, time, picture, oldest first', () => {
     const xml = rss([
       rssItem(2, 'Fed holds rates', '&lt;p&gt;The Federal Reserve kept rates &amp;amp; signalled cuts.&lt;/p&gt;', '2026-10-05T09:00:00Z',
