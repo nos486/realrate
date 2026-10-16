@@ -9,6 +9,8 @@ import {
   postHtmlToText,
   keywordScore,
   isNewsCandidate,
+  isWorldCandidate,
+  buildNewsPrompt as buildNewsPromptForWorld,
   guessCategory,
   hasProfanity,
   similarity,
@@ -172,7 +174,7 @@ describe('the model', () => {
     // Politics: a new event only, not statements about what happened before; vulgar posts out
     expect(messages[0].content).toMatch(/POLITICS AND SECURITY/);
     // One test for every post: a fact, not words, that changes a market driver
-    expect(messages[0].content).toMatch(/THE TEST — apply it to every post/);
+    expect(messages[0].content).toMatch(/THE TEST — apply it to every other post/);
     expect(messages[0].content).toMatch(/Words fail this test whoever says them/);
     expect(messages[0].content).toMatch(/Publish only when both answers are yes/);
     expect(messages[0].content).toMatch(/vulgar or insulting language/);
@@ -547,6 +549,22 @@ const rssItem = (id, title, description, time, extra = '') => `
   </item>`;
 const rss = (items, title = 'World Markets') =>
   `<?xml version="1.0"?><rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/"><channel><title>${title}</title><link>https://example.com</link>${items.join('')}</channel></rss>`;
+
+describe('international articles', () => {
+  it('reach the model with an economic word or a word of Iran, and not as an ad', () => {
+    expect(isWorldCandidate('Iran and the IAEA agree on new inspections')).toBe(true);
+    expect(isWorldCandidate('Tehran hosts a football final')).toBe(true);
+    expect(isWorldCandidate('Retail sales fall as shoppers cut back')).toBe(true);
+    expect(isWorldCandidate('Real Madrid win the league')).toBe(false);
+    expect(isWorldCandidate('Sponsored: the best oil for your engine')).toBe(false);
+  });
+
+  it('are marked in the prompt so the model applies the wider rule', () => {
+    const [, user] = buildNewsPromptForWorld([{ text: 'Iran news', source: 'world' }, { text: 'پست تلگرام' }]);
+    expect(user.content).toContain('#1\n[international] Iran news');
+    expect(user.content).toContain('#2\nپست تلگرام');
+  });
+});
 
 describe('parseNewsFeed', () => {
   it('reads the fullest text of an item: content:encoded beats a short description', () => {

@@ -33,6 +33,7 @@ import {
 import {
   parseTelegramPosts,
   isNewsCandidate,
+  isWorldCandidate,
   hasProfanity,
   wordSet,
   isDuplicateNews,
@@ -352,7 +353,7 @@ async function pollChannels(env, store, now, fetchPage, fetchFeed) {
   let notMarket = 0;
   for (const post of fresh) {
     if (pendingIds.has(postKey(post))) continue;
-    if (hasProfanity(post.text) || !isNewsCandidate(post.text)) notMarket++;
+    if (hasProfanity(post.text) || !(post.source === "world" ? isWorldCandidate(post.text) : isNewsCandidate(post.text))) notMarket++;
     else screened.push(post);
   }
 
