@@ -9,7 +9,7 @@
  *  - fallbackNewsItem: a post published on its keywords alone, when the model can't be asked
  */
 
-import { NEWS_KEYWORDS, NEWS_KEYWORDS_EN, NEWS_CATEGORIES, NEWS_KEYWORD_MIN_SCORE, NEWS_LIMITS, NEWS_PROFANITY } from "../config/news.config.js";
+import { NEWS_KEYWORDS, NEWS_KEYWORDS_EN, NEWS_CATEGORIES, NEWS_KEYWORD_MIN_SCORE, NEWS_IRAN_WORDS, NEWS_LIMITS, NEWS_PROFANITY } from "../config/news.config.js";
 
 const ENTITIES = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", zwnj: "‌" };
 
@@ -117,6 +117,9 @@ const NORMALIZED_KEYWORDS = Object.fromEntries(
   Object.entries(NEWS_KEYWORDS).map(([kind, words]) => [kind, [...words, ...(NEWS_KEYWORDS_EN[kind] || [])].map(normalizeNewsText)]),
 );
 
+// Iran's words and the wider business words: what lets an international article reach the model
+const NORMALIZED_IRAN_WORDS = [...NEWS_IRAN_WORDS, ...(NEWS_KEYWORDS_EN.world || [])].map(normalizeNewsText);
+
 const countWords = (t, words) => words.filter((w) => hasWord(t, w)).length;
 
 /**
@@ -129,6 +132,16 @@ export function keywordScore(text) {
     + countWords(t, NORMALIZED_KEYWORDS.weak)
     + countWords(t, NORMALIZED_KEYWORDS.context)
     - countWords(t, NORMALIZED_KEYWORDS.negative) * 2;
+}
+
+/**
+ * Worth the model, for an international article: any economic or business word, or a word of Iran's,
+ * unless it is marked an ad (the model judges the rest: its wider rule takes any economy or Iran news)
+ */
+export function isWorldCandidate(text) {
+  const t = normalizeNewsText(text);
+  const interesting = countWords(t, NORMALIZED_KEYWORDS.strong) + countWords(t, NORMALIZED_KEYWORDS.weak) + countWords(t, NORMALIZED_IRAN_WORDS);
+  return interesting > 0 && countWords(t, NORMALIZED_KEYWORDS.negative) === 0;
 }
 
 /** Worth the model: enough score, and an economic word (political words alone are not enough) */
@@ -207,7 +220,9 @@ PUBLISH (k=1) only real, new news — an event, a decision, an official announce
 
 REJECT (k=0): news of a single stock, symbol, fund or company, Iranian or foreign (earnings, deals, a company's shares); another country's local news or politics with no effect on these markets; ads, promotions, channel invitations, signals or buy/sell calls; opinion, analysis or predictions without a new event; bare price lists or market reports with nothing but prices; greetings, quotes, jokes; anything not about markets or the economy; a recap of older news; a post with vulgar or insulting language.
 
-THE TEST — apply it to every post, whatever its subject or source:
+INTERNATIONAL ARTICLES — a post whose text starts with «[international]» follows this wider rule INSTEAD of REJECT and THE TEST below: publish it (k=1) when it is about the economy, finance, business, trade, markets, energy or prices anywhere in the world, OR can plausibly affect the economy or markets (war and security, sanctions, big political or policy changes of major economies, disasters hitting supply, shipping, technology that moves markets), OR is about Iran in any way (its government, politics, society, nuclear file, relations with other countries) even when no market effect is visible. Reject it only when it is an advertisement, or lifestyle, sport, entertainment, crime or local news with no economic link and nothing to do with Iran, or a recap of older news. Words, statements and analysis are fine for these when they carry information. Importance: 3 when it directly moves the dollar, gold, oil or Iran's economy; 2 for other economic news or major Iran news; 1 for minor or indirect items.
+
+THE TEST — apply it to every other post, whatever its subject or source:
 1. Is it a FACT — something that happened, was decided or was officially announced and measured — rather than WORDS about something? Words are opinions, claims, denials, accusations, blame, justifications, warnings, threats, recollections of the past, hypotheticals and "could / may / was ready to" reports, interviews and commentary. Words fail this test whoever says them, a president or a minister included, unless the words are themselves an official decision or announcement (a central bank setting a rate, a government imposing a rule, a country announcing sanctions or a ceasefire).
 2. Does that fact directly and concretely change one of the market's drivers: the supply and demand of foreign currency, oil exports or prices, sanctions and access to trade and money, monetary or fiscal policy, the risk of war involving Iran or the region's energy, or world gold?
 Publish only when both answers are yes. When in doubt, reject.
@@ -237,7 +252,7 @@ ANSWER: only a JSON array, one item per post, in order:
 export function buildNewsPrompt(posts) {
   const user = posts
     // Cut by characters, never inside one (half an emoji makes the request invalid)
-    .map((p, i) => `#${i + 1}\n${Array.from(String(p.text || "")).slice(0, NEWS_LIMITS.aiTextChars).join("")}`)
+    .map((p, i) => `#${i + 1}\n${p.source === "world" ? "[international] " : ""}${Array.from(String(p.text || "")).slice(0, NEWS_LIMITS.aiTextChars).join("")}`)
     .join("\n\n");
   return [
     { role: "system", content: NEWS_DESK_SYSTEM },
