@@ -1398,3 +1398,42 @@ tr.is-excluded td,
   width: 90px;
   text-align: center;
 }
+
+/* Account balances: the line on a card and the total above the cards */
+.account-card-balance strong {
+  color: var(--text-primary);
+}
+
+.account-card-balance strong.is-negative,
+.balance-summary strong.is-negative {
+  color: var(--color-negative-text);
+}
+
+.balance-summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+}
+
+.balance-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+}
+
+.balance-summary strong {
+  font-size: 20px;
+  color: var(--text-primary);
+}
+
+.balance-form-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}

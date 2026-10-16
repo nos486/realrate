@@ -11,7 +11,10 @@
  * (TransferForm, utils/transferDocument.js). A bank credit's card shows its limit and debt, with
  * «تسویه بدهی», «تبدیل به قسط» and each installment's «پرداخت» — all by hand, the fees worked out
  * from the amounts entered (CreditSummary, CreditPaymentForm, CreditConversionForm,
- * utils/creditAccount.js). Everything is end-to-end encrypted.
+ * utils/creditAccount.js). An account can keep its balance («موجودی»): the user states what it
+ * holds and the expenses, incomes and transfers move it from then on; the total of all of them
+ * is shown above the cards (AccountBalance, utils/accountBalance.js). Everything is end-to-end
+ * encrypted.
  */
 
 import React, { lazy, Suspense, useMemo, useState } from 'react';
@@ -41,10 +44,13 @@ import { useQuickAddParam } from '../../../shared/hooks/useQuickAddParam.js';
 import { useAccounts } from '../hooks/useAccounts.js';
 import { useTransfers } from '../hooks/useTransfers.js';
 import { useCreditStatus } from '../hooks/useCreditStatus.js';
+import { useAccountBalances } from '../hooks/useAccountBalances.js';
+import { tracksBalance } from '../../../utils/accountBalance.js';
 import { CREDIT_COST_CATEGORY } from '../../../utils/creditAccount.js';
 import { getExpenseGroups, ensureDailyGroup, saveExpense, deleteExpense } from '../../../shared/vault/vaultExpenses.js';
 import { getAccountTypeIcon, accountLabel } from '../constants/accountDisplay.js';
 import AccountForm from './AccountForm.jsx';
+import { AccountBalanceStat, BalanceSummary } from './AccountBalance.jsx';
 import TransferForm from './TransferForm.jsx';
 import CreditSummary from './CreditSummary.jsx';
 import CreditPaymentForm from './CreditPaymentForm.jsx';
@@ -105,6 +111,8 @@ export default function AccountsPage() {
   const [importAccountId, setImportAccountId] = useState(null); // null | the account a bank statement is imported into
   // Each bank credit's debt, next payment and installments
   const credit = useCreditStatus(accounts);
+  // What each account that keeps a balance holds, and their total
+  const { balances, reload: reloadBalances } = useAccountBalances(accounts);
 
   // This month's spending per account, everyday and projects' (only with the expenses feature):
   // in each currency as paid, and in tomans at each expense's day rate (utils/currencies.js)
@@ -161,7 +169,7 @@ export default function AccountsPage() {
       confirmLabel: t('حذف'),
       danger: true,
     });
-    if (ok) deleteTransfer(transfer.id).then(credit.reload).catch(() => {});
+    if (ok) deleteTransfer(transfer.id).then(() => { credit.reload(); reloadBalances(); }).catch(() => {});
   };
 
   // A credit's installment plans are kept on its account, as the user entered them (always the
@@ -265,6 +273,8 @@ export default function AccountsPage() {
           )}
         />
       ) : (
+        <>
+        <BalanceSummary balances={balances} hideValues={hideValues} />
         <div className="account-grid">
           {accounts.map((account) => {
             const Icon = getAccountTypeIcon(account.type);
@@ -303,6 +313,7 @@ export default function AccountsPage() {
                     onUndoConversion={(plan) => handleUndoConversion(account, plan)}
                   />
                 )}
+                {tracksBalance(account) && <AccountBalanceStat balance={balances.byId.get(account.id)} hideValues={hideValues} />}
                 {hasExpenses && !isCredit && <AccountSpending spent={spent} hideValues={hideValues} />}
                 {!isCredit && movedBy.has(account.id) && (
                   <div className="account-card-stat">
@@ -348,6 +359,7 @@ export default function AccountsPage() {
             );
           })}
         </div>
+        </>
       )}
 
       {accounts.length >= 2 && (
@@ -407,6 +419,7 @@ export default function AccountsPage() {
             await saveTransfer(input, transferForm.transfer);
             // A transfer into or out of a credit changes what is owed on it
             credit.reload();
+            reloadBalances();
           }}
           onClose={() => setTransferForm(null)}
         />
@@ -431,6 +444,7 @@ export default function AccountsPage() {
           onPaid={async (transfer, date) => {
             if (payCredit.installment) await markInstallmentPaid(payCredit.accountId, payCredit.installment, transfer, date);
             credit.reload();
+            reloadBalances();
           }}
           onClose={() => setPayCredit(null)}
         />
@@ -454,7 +468,8 @@ export default function AccountsPage() {
         <AccountForm
           key={form.account?.id || 'new'}
           account={form.account}
-          onSubmit={(input) => saveAccount(input, form.account)}
+          currentBalance={form.account ? balances.byId.get(form.account.id)?.byCurrency : null}
+          onSubmit={async (input) => { await saveAccount(input, form.account); reloadBalances(); }}
           onClose={() => setForm(null)}
           submitting={submitting}
         />

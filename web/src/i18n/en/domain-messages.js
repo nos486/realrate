@@ -213,4 +213,5 @@ export default {
   'توضیح گروه حداکثر {description} نویسه است.': 'The group description can be at most {description} characters.',
   'مبلغ دارایی نامعتبر است.': 'The asset amount is not valid.',
   'پاسخ‌های آزمون کامل نیست.': 'The quiz answers are incomplete.',
+  'موجودی حساب نامعتبر است.': 'The account balance is not valid.',
 };
