@@ -2,18 +2,22 @@
  * bot.service.js — The Telegram bot: what it does each minute
  *
  * The bot is a list of features. A feature has an `id` and a `run(env, opts)` that does its
- * part of the minute's work and answers `{ sent, waiting?, error? }`. Today it has one, posting
- * the international news to the channel (newsChannel.service.js); another (notifying users, say)
- * is one more entry in BOT_FEATURES. Features feed each other nothing: one failing never stops the
+ * part of the minute's work and answers `{ sent, waiting?, error? }`. Today it has two: posting
+ * the international news to the channel (newsChannel.service.js) and the admin's daily report
+ * (dailyReport.service.js); another is one more entry in BOT_FEATURES. Features feed each other nothing: one failing never stops the
  * others. The result and the last error are kept for the admin panel.
  */
 
 import { flushNewsQueue } from "./newsChannel.service.js";
+import { sendDailyReport } from "./dailyReport.service.js";
 import { getBotConfig, getBotStatus, saveBotStatus } from "./botConfig.service.js";
 import { logger } from "../../lib/logger.js";
 
 /** The bot's features, run in this order */
-export const BOT_FEATURES = [{ id: "news-channel", run: flushNewsQueue }];
+export const BOT_FEATURES = [
+  { id: "news-channel", run: flushNewsQueue },
+  { id: "daily-report", run: sendDailyReport },
+];
 
 /**
  * One run of every feature (the cron's minute, or the admin's «اجرا»)

@@ -25,3 +25,18 @@ export const BOT_LIMITS = {
   /** Time allowed for one Bot API request */
   timeoutMs: 10000,
 };
+
+/** The admin's commands in the bot's menu (adminCommands.service.js); the text is what Telegram shows */
+export const BOT_COMMANDS = [
+  { command: "report", description: "گزارش کاربران و رشد" },
+  { command: "users", description: "فهرست یا جست‌وجوی کاربران" },
+  { command: "user", description: "کارت یک کاربر (ایمیل یا شناسه)" },
+  { command: "requests", description: "درخواست‌های در انتظار" },
+  { command: "help", description: "راهنمای دستورها" },
+];
+
+/** The daily report goes out at the first run after this Tehran hour */
+export const REPORT_HOUR_TEHRAN = 21;
+
+/** Users shown by one /users command */
+export const USERS_LIST_SIZE = 8;

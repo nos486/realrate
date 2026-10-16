@@ -62,7 +62,7 @@ describe('the admin link', () => {
     expect(await getBotConfig(env)).toMatchObject({ adminChatId: '555', adminUserId: '777' });
     expect(publicBotConfig(await getBotConfig(env))).toMatchObject({ adminLinked: true });
     expect(JSON.stringify(publicBotConfig(await getBotConfig(env)))).not.toContain('555');
-    expect(calls[0]).toMatchObject({ method: 'sendMessage', params: { chat_id: 555 } });
+    expect(calls.find((c) => c.method === 'sendMessage')).toMatchObject({ params: { chat_id: 555 } });
   });
 
   it('ignores /start from anyone else, and from a group', async () => {
