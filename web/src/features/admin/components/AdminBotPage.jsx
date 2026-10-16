@@ -5,7 +5,8 @@
  *  - which international feeds are posted to the channel (all by default)
  *  - the last run: what was sent, what waits, the last error; «ارسال الان» posts the waiting news
  * - the admin's Telegram username: the bot tells the admin about users' requests (joining the pro
- *   group) in a private chat with buttons to approve or reject; the admin sends /start to the bot once
+ *   group) in a private chat with buttons to approve or reject; the admin sends /start to the bot once,
+ *   then manages users there with commands (report, users, user, requests) and gets an optional daily report
  * The bot's features are listed here as they are added (today: the international news the site publishes, in Persian).
  */
 
@@ -28,6 +29,7 @@ export default function AdminBotPage() {
   const [channel, setChannel] = useState('');
   const [token, setToken] = useState('');
   const [adminUsername, setAdminUsername] = useState('');
+  const [dailyReport, setDailyReport] = useState(false);
   const [allFeeds, setAllFeeds] = useState(true);
   const [feedIds, setFeedIds] = useState([]);
   const [busy, setBusy] = useState(null);
@@ -38,6 +40,7 @@ export default function AdminBotPage() {
     setEnabled(res.config.enabled);
     setChannel(res.config.channel);
     setAdminUsername(res.config.adminUsername || '');
+    setDailyReport(res.config.dailyReport === true);
     setAllFeeds(!res.config.feeds);
     setFeedIds(res.config.feeds || res.feeds.map((f) => f.id));
     setToken('');
@@ -64,6 +67,7 @@ export default function AdminBotPage() {
     enabled !== config.enabled
     || channel.trim() !== config.channel
     || adminUsername.trim().replace(/^@/, '') !== (config.adminUsername || '')
+    || dailyReport !== (config.dailyReport === true)
     || token.trim() !== ''
     || allFeeds !== !savedFeeds
     || (!allFeeds && JSON.stringify([...feedIds].sort()) !== JSON.stringify([...(savedFeeds || [])].sort()))
@@ -74,6 +78,7 @@ export default function AdminBotPage() {
       enabled,
       channel: channel.trim(),
       adminUsername: adminUsername.trim(),
+      dailyReport,
       feeds: allFeeds ? null : feedIds,
       ...(token.trim() ? { token: token.trim() } : {}),
     });
@@ -164,6 +169,14 @@ export default function AdminBotPage() {
             : config.adminLinked ? <><CheckCircle2 size={12} className="is-ok" /> متصل است؛ درخواست‌ها به @{config.adminUsername} می‌رسد.</>
               : <><AlertTriangle size={12} className="is-warn" /> هنوز متصل نیست: با حساب @{config.adminUsername} در تلگرام ربات را باز کنید و /start بزنید (ربات باید روشن و ذخیره‌شده باشد).</>}
         </small>
+        <label className="admin-bot-row">
+          <input type="checkbox" checked={dailyReport} onChange={(e) => setDailyReport(e.target.checked)} />
+          <span>گزارش روزانه‌ی کاربران هر شب ساعت ۲۱ در تلگرام ادمین</span>
+        </label>
+        <p className="admin-card-hint">
+          مدیر با حساب متصل می‌تواند در ربات دستور بدهد: <bdi dir="ltr">/report</bdi> گزارش کاربران و رشد، <bdi dir="ltr">/users</bdi> جست‌وجو و فهرست کاربران،
+          <bdi dir="ltr"> /user</bdi> کارت کاربر با دکمه‌های مسدود کردن، خروج از دستگاه‌ها و گروه‌ها، <bdi dir="ltr">/requests</bdi> درخواست‌های در انتظار.
+        </p>
 
         <div className="admin-news-save">
           <Button size="sm" icon={<Save size={14} />} loading={busy === 'save'} disabled={!dirty || Boolean(busy)} onClick={save}>

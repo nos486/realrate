@@ -58,9 +58,13 @@ export const sendMessage = (token, chatId, html, { plain, replyMarkup, previewUr
     ...(previewUrl ? { link_preview_options: { url: previewUrl, prefer_small_media: true, show_above_text: true } } : {}),
   }, opts);
 
-/** Replace a message's text (plain) and drop its buttons */
-export const editMessageText = (token, chatId, messageId, text, opts) =>
-  callBotApi(token, "editMessageText", { chat_id: chatId, message_id: messageId, text, reply_markup: { inline_keyboard: [] } }, opts);
+/** Replace a message's text (plain); its buttons are dropped unless `replyMarkup` gives new ones */
+export const editMessageText = (token, chatId, messageId, text, { replyMarkup, ...opts } = {}) =>
+  callBotApi(token, "editMessageText", { chat_id: chatId, message_id: messageId, text, reply_markup: replyMarkup || { inline_keyboard: [] } }, opts);
+
+/** The command menu shown in one chat (`chatId`) */
+export const setMyCommands = (token, chatId, commands, opts) =>
+  callBotApi(token, "setMyCommands", { commands, scope: { type: "chat", chat_id: chatId } }, opts);
 
 /** Answer a button press (stops the button's spinner; `text` shows as a small notice) */
 export const answerCallbackQuery = (token, id, text, opts) =>

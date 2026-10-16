@@ -6,12 +6,16 @@
  *   user — checked by their Telegram id, not the changeable username — can press the buttons.
  * - `notifyAdmin` sends the admin a message with ✅ / ❌ buttons for an action (botActions.js).
  *   The button carries only a short token; the action is kept in `app_state` for a week.
+ * - The linked admin can also write commands (adminCommands.service.js): a report, users to find and
+ *   manage. Their buttons (`u…:` data) are handled there; the ✅ / ❌ ones of an action here.
  * - `handleBotUpdate` is called by the webhook (botRoutes.js) with each update Telegram posts.
  */
 
 import { getStateStore } from "../../repositories/stateStore.repository.js";
 import { getBotConfig, linkBotAdmin } from "./botConfig.service.js";
-import { sendMessage, editMessageText, answerCallbackQuery } from "./telegramApi.js";
+import { sendMessage, editMessageText, answerCallbackQuery, setMyCommands } from "./telegramApi.js";
+import { BOT_COMMANDS } from "../../config/telegramBot.config.js";
+import { runAdminCommand, isUserButton, runUserButton } from "./adminCommands.service.js";
 import { BOT_ACTIONS } from "./botActions.js";
 import { logger } from "../../lib/logger.js";
 
@@ -46,16 +50,41 @@ export async function notifyAdmin(env, { text, action }, opts = {}) {
 const sameUsername = (a, b) => Boolean(a) && Boolean(b) && String(a).toLowerCase() === String(b).toLowerCase();
 
 async function handleMessage(env, config, message, opts) {
-  if (message?.chat?.type !== "private" || !/^\/start(\s|@|$)/.test(String(message.text || ""))) return;
-  if (!sameUsername(message.from?.username, config.adminUsername)) return;
-  await linkBotAdmin(env, { chatId: message.chat.id, userId: message.from.id });
-  await sendMessage(config.token, message.chat.id, "✅ به‌عنوان ادمین RealRate متصل شدید؛ درخواست‌های کاربران را از همین‌جا می‌بینید و با دکمه‌ها پاسخ می‌دهید.", { ...opts, plain: true });
+  if (message?.chat?.type !== "private") return;
+  const text = String(message.text || "");
+  if (/^\/start(\s|@|$)/.test(text)) {
+    if (!sameUsername(message.from?.username, config.adminUsername)) return;
+    await linkBotAdmin(env, { chatId: message.chat.id, userId: message.from.id });
+    await setMyCommands(config.token, message.chat.id, BOT_COMMANDS, opts);
+    await sendMessage(config.token, message.chat.id, "✅ به‌عنوان ادمین RealRate متصل شدید؛ درخواست‌های کاربران را از همین‌جا می‌بینید و با دکمه‌ها پاسخ می‌دهید.\nگزارش و مدیریت کاربران: /report ، /users ، /requests ، /help", { ...opts, plain: true });
+    return;
+  }
+  // Commands: only from the linked admin (their Telegram id, not the changeable username)
+  if (text.startsWith("/") && config.adminUserId && String(message.from?.id) === config.adminUserId) {
+    await runAdminCommand(env, config, message, opts);
+  }
 }
 
 async function handleCallback(env, config, query, opts) {
   // Only the linked admin may press (their Telegram id, set when they started the bot)
   if (!config.adminUserId || String(query.from?.id) !== config.adminUserId) {
     await answerCallbackQuery(config.token, query.id, "دسترسی ندارید.", opts);
+    return;
+  }
+  if (isUserButton(query.data)) {
+    let outcome;
+    try {
+      outcome = await runUserButton(env, query.data, `telegram:${config.adminUsername}`);
+    } catch (err) {
+      logger.error("[Bot] the admin's user action failed", { error: err?.message });
+      outcome = { answer: `⚠️ انجام نشد: ${String(err?.message || "خطا").slice(0, 120)}` };
+    }
+    await answerCallbackQuery(config.token, query.id, outcome.answer, opts);
+    if (outcome.text && outcome.fresh && query.message) {
+      await sendMessage(config.token, query.message.chat.id, outcome.text, { ...opts, plain: true, replyMarkup: outcome.replyMarkup });
+    } else if (outcome.text && query.message) {
+      await editMessageText(config.token, query.message.chat.id, query.message.message_id, outcome.text, { ...opts, replyMarkup: outcome.replyMarkup });
+    }
     return;
   }
   const [verb, id] = String(query.data || "").split(":");

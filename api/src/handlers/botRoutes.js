@@ -2,7 +2,7 @@
  * botRoutes.js — Admin API of the Telegram bot (admin panel → ربات تلگرام)
  *
  *   GET  /api/admin/bot       settings (never the token), last status, the feeds to choose from
- *   PUT  /api/admin/bot       save { enabled?, channel?, feeds?, token? }
+ *   PUT  /api/admin/bot       save { enabled?, channel?, feeds?, token?, adminUsername?, dailyReport? }
  *   POST /api/admin/bot/test  check the token and the channel, and post a test message
  *   POST /api/admin/bot/run   post the waiting news now
  *   POST /api/bot/telegram/webhook  Telegram's updates (admin's /start and button presses); not a
@@ -49,6 +49,7 @@ export async function handleAdminSaveBot(request, env, { fetchFn } = {}) {
     feeds: body.feeds,
     token: body.token,
     adminUsername: body.adminUsername,
+    dailyReport: body.dailyReport,
   });
   // Telegram posts the admin's /start and button presses to the webhook while the bot is on
   const webhook = await syncWebhook(config, { fetchFn });
