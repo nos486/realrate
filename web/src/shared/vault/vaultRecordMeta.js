@@ -29,6 +29,7 @@ const PRIMARY_DATE = {
   transfer: (t) => t?.date,
   subscription: (s) => s?.startDate,
   goal: (g) => g?.createdAt,
+  salary_month: (r) => r?.updatedAt,
 };
 
 /**

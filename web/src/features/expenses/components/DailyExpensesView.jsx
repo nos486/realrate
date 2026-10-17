@@ -41,8 +41,10 @@ import {
   summarizeDollarValue,
 } from '../../../utils/expenseDocument.js';
 import PeriodSwitcher from '../../../shared/flow/PeriodSwitcher.jsx';
+import SalaryMonthBar from '../../../shared/flow/SalaryMonthBar.jsx';
+import { useSalaryMonths } from '../../../shared/salary/useSalaryMonths.js';
 import { FlowMonthCards, CategoryPills, ExcludedBox } from '../../../shared/flow/FlowCards.jsx';
-import { formatShamsiMonth, monthIndex, monthProgress, shamsiMonthOf } from '../../../shared/flow/flowYear.js';
+import { formatShamsiMonth, monthIndex, monthProgress, currentSalaryMonth } from '../../../shared/flow/flowYear.js';
 import { useDemo } from '../../demo/index.js';
 import { useDailyExpenses } from '../hooks/useDailyExpenses.js';
 import { useAccounts } from '../../accounts/hooks/useAccounts.js';
@@ -80,8 +82,11 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
   const [managingCategories, setManagingCategories] = useState(false);
   const { confirm, toast } = useFeedback();
   const today = todayIso();
-  const thisMonth = useMemo(() => shamsiMonthOf(today), [today]);
-  const [month, setMonth] = useState(thisMonth);
+  const salary = useSalaryMonths();
+  const thisMonth = useMemo(() => currentSalaryMonth(today, salary.activeStarts), [today, salary.activeStarts]);
+  // The month browsed to; none picked follows the current one (the salary days load after the page)
+  const [browsed, setMonth] = useState({ for: null, month: null });
+  const month = browsed.for === salary.activeStarts ? browsed.month : thisMonth;
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [accountFilter, setAccountFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -99,7 +104,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
   const {
     expenses, previousExpenses, projectExpenses = [], budgets, projects = [], loading, submitting, deletingId, error, clearError, fetchMonth,
     saveExpense, saveBudgets, deleteExpense, moveToProject,
-  } = useDailyExpenses(month);
+  } = useDailyExpenses(month, { salaryStarts: salary.activeStarts });
   // The dollar's rate on each expense's day, from the price history (each one in dollars)
   const usdAt = useUsdAt(expenses.length > 0);
   // Every currency the loaded expenses are in: the dollar's rates, and the others'
@@ -111,7 +116,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
   const loans = useOptionalLoans();
   const loanById = useMemo(() => new Map(loans.map((l) => [l.id, l])), [loans]);
 
-  const progress = useMemo(() => monthProgress(month, today), [month, today]);
+  const progress = useMemo(() => monthProgress(month, today, salary.activeStarts), [month, today, salary.activeStarts]);
   const isThisMonth = progress.current;
   const daysElapsed = progress.days;
   // Spending only: the categories left out of the totals are summed on their own
@@ -191,7 +196,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
     setAccountFilter('all');
     setSearchQuery('');
     setSelected(new Set());
-    setMonth(next);
+    setMonth({ for: salary.activeStarts, month: next });
   };
 
   // Picking: one, the page's rows, or every expense listed; only the month's own count
@@ -329,6 +334,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
   return (
     <>
       <PeriodSwitcher month={month} thisMonth={thisMonth} onMonthChange={changeMonth} />
+      <SalaryMonthBar salary={salary} disabled={readOnly} />
 
       {error && (
         <AlertBanner

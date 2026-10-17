@@ -19,7 +19,7 @@ import { useRefreshHandler } from '../../../shared/refresh/pageRefresh.js';
 import { useAuth } from '../../auth/index.js';
 import { useVault } from '../../../shared/vault/useVault.js';
 import { compareExpensesByDate, shamsiMonthRange, shiftShamsiMonth } from '../../../utils/expenseDocument.js';
-import { flowWindow } from '../../../shared/flow/flowYear.js';
+import { flowWindow, salaryMonthRange } from '../../../shared/flow/flowYear.js';
 import * as api from '../../../shared/vault/vaultExpenses.js';
 
 const inRange = (e, { from, to }) => e.date >= from && e.date <= to;
@@ -31,7 +31,7 @@ const inRange = (e, { from, to }) => e.date >= from && e.date <= to;
  *   otherwise only the month and the one before; years: with `year`, that many years back (the
  *   multi-year report)
  */
-export function useDailyExpenses(month, { enabled = true, year = false, years = 1 } = {}) {
+export function useDailyExpenses(month, { enabled = true, year = false, years = 1, salaryStarts = [] } = {}) {
   const { user } = useAuth();
   const { status: vaultStatus, epoch: vaultEpoch } = useVault();
   const vaultLocked = vaultStatus === 'locked';
@@ -51,11 +51,11 @@ export function useDailyExpenses(month, { enabled = true, year = false, years = 
   const projectItemsRef = useRef([]);
   projectItemsRef.current = projectItems;
 
-  const range = useMemo(() => shamsiMonthRange(month.jy, month.jm), [month.jy, month.jm]);
+  const range = useMemo(() => salaryMonthRange(month.jy, month.jm, salaryStarts), [month.jy, month.jm, salaryStarts]);
   const prevRange = useMemo(() => {
     const prev = shiftShamsiMonth(month, -1);
-    return shamsiMonthRange(prev.jy, prev.jm);
-  }, [month]);
+    return salaryMonthRange(prev.jy, prev.jm, salaryStarts);
+  }, [month, salaryStarts]);
   const loadWindow = useMemo(
     () => (year ? flowWindow(month.jy, years) : { from: prevRange.from, to: range.to }),
     [year, years, month.jy, prevRange.from, range.to],

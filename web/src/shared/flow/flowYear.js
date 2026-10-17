@@ -8,9 +8,10 @@
 
 import { intlLocale } from '../../utils/i18n.js';
 import { shamsiMonthOf, shamsiMonthRange, shiftShamsiMonth } from '../../utils/expenseDocument.js';
+import { salaryMonthRange, currentSalaryMonth } from '../../utils/salaryMonth.js';
 import { PERSIAN_MONTHS } from '../../features/portfolio/components/ShamsiDatePicker.jsx';
 
-export { shamsiMonthOf, shamsiMonthRange, shiftShamsiMonth };
+export { shamsiMonthOf, shamsiMonthRange, shiftShamsiMonth, salaryMonthRange, currentSalaryMonth };
 
 export const monthIndex = ({ jy, jm }) => jy * 12 + jm;
 
@@ -116,13 +117,14 @@ export function summarizeYear(series) {
  * at so a month still running is compared with the same number of days
  * @param {{ jy: number, jm: number }} month
  * @param {string} today ISO day
+ * @param {string[]} [starts] the days salary was received, when months start there
  */
-export function monthProgress(month, today) {
-  const range = shamsiMonthRange(month.jy, month.jm);
-  const current = monthIndex(shamsiMonthOf(today)) === monthIndex(month);
+export function monthProgress(month, today, starts = []) {
+  const range = salaryMonthRange(month.jy, month.jm, starts);
+  const current = today >= range.from && today <= range.to;
   const days = current ? Math.max(1, Math.round((Date.parse(today) - Date.parse(range.from)) / 86_400_000) + 1) : range.days;
   const prev = shiftShamsiMonth(month, -1);
-  const prevRange = shamsiMonthRange(prev.jy, prev.jm);
+  const prevRange = salaryMonthRange(prev.jy, prev.jm, starts);
   const cutoff = current
     ? new Date(Date.parse(prevRange.from) + (days - 1) * 86_400_000).toISOString().slice(0, 10)
     : prevRange.to;

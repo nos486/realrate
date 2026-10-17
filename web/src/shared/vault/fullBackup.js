@@ -42,6 +42,7 @@ export const BACKUP_VERSION = 1;
 export const ACCOUNT_KINDS = [
   'category_settings', 'bank_account', 'loan', 'income', 'cheque',
   'expense_group', 'expense', 'transfer', 'subscription', 'goal', 'recurring_income',
+  'salary_month',
 ];
 /** Kinds of a portfolio, encrypted with its own key */
 export const PORTFOLIO_KINDS = ['holding', 'transaction', 'portfolio_layout', 'risk_profile'];
