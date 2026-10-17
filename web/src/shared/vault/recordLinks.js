@@ -177,7 +177,7 @@ export async function releaseRecordLinks(side, record) {
  */
 export async function settleCheque(cheque, { date, expenses = true }) {
   if (!cheque || cheque.status !== CHEQUE_CLEARED || cheque.settlement) return null;
-  const title = `${t('چک {name}', { name: cheque.counterparty })}${cheque.chequeNumber ? ` (${cheque.chequeNumber})` : ''}`.slice(0, 120);
+  const title = chequeRecordTitle(cheque);
   // Already recorded by hand that day (same amount)? That one is linked instead (spendingRecords.js)
   const spending = await import('./spendingRecords.js');
   if (cheque.direction === 'received') {
@@ -189,6 +189,38 @@ export async function settleCheque(cheque, { date, expenses = true }) {
     title, amount: cheque.amount, currency: 'IRT', date, category: cheque.category || 'other', chequeId: cheque.id, accountId: cheque.accountId || '',
   }, { owner: 'cheque', syncLinks: true });
   return 'expense';
+}
+
+/** The title of the record that holds a cheque's money */
+const chequeRecordTitle = (cheque) => `${t('چک {name}', { name: cheque.counterparty })}${cheque.chequeNumber ? ` (${cheque.chequeNumber})` : ''}`.slice(0, 120);
+
+/**
+ * A cheque edited on the cheques page (already saved): the income or expense that holds its money
+ * follows its title, amount, category («بابت») and account. Nothing when it has no record.
+ * @param {object} cheque the cheque as saved, pointing at its record
+ */
+export async function resyncChequeRecord(cheque) {
+  const link = cheque?.settlement;
+  if (!link) return;
+  const cleared = [...(cheque.history || [])].reverse().find((h) => h.status === CHEQUE_CLEARED)?.date;
+  const range = cleared ? { from: cleared, to: cleared } : {};
+  const category = cheque.category || 'other';
+  if (link.side === 'income') {
+    const { getIncomes, updateIncome } = await import('../../features/incomes/api/incomeApi.js');
+    const record = ((await getIncomes(range)).incomes || []).find((i) => i.id === link.id);
+    if (!record) return;
+    const { id: _id, createdAt: _c, updatedAt: _u, ...fields } = record;
+    await updateIncome(record.id, { ...fields, title: chequeRecordTitle(cheque), amount: cheque.amount, category }, { asOwner: true });
+    return;
+  }
+  const store = await import('./vaultExpenses.js');
+  const record = ((await store.getExpenses(range)).expenses || []).find((e) => e.id === link.id);
+  if (!record) return;
+  await store.saveExpense(
+    { title: chequeRecordTitle(cheque), amount: cheque.amount, category, accountId: cheque.accountId || '' },
+    record,
+    { syncLinks: false, asOwner: true },
+  );
 }
 
 /**

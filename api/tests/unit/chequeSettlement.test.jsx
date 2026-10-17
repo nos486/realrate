@@ -11,6 +11,7 @@ const m = vi.hoisted(() => ({
   stored: new Map(),
   settleCheque: vi.fn(async () => 'income'),
   unsettleCheque: vi.fn(async () => {}),
+  resync: vi.fn(async () => {}),
   auth: { user: { id: 'u1', features: ['expenses'] } },
   vault: { status: 'unlocked', epoch: 1 },
 }));
@@ -19,7 +20,7 @@ const m = vi.hoisted(() => ({
 vi.mock('../../../web/src/features/auth/index.js', () => ({ useAuth: () => m.auth }));
 vi.mock('../../../web/src/shared/vault/useVault.js', () => ({ useVault: () => m.vault }));
 vi.mock('../../../web/src/shared/refresh/pageRefresh.js', () => ({ useRefreshHandler: () => {} }));
-vi.mock('../../../web/src/shared/vault/recordLinks.js', () => ({ settleCheque: m.settleCheque, unsettleCheque: m.unsettleCheque }));
+vi.mock('../../../web/src/shared/vault/recordLinks.js', () => ({ settleCheque: m.settleCheque, unsettleCheque: m.unsettleCheque, resyncChequeRecord: m.resync }));
 vi.mock('../../../web/src/features/cheques/api/chequeApi.js', () => ({
   getCheques: async () => ({ success: true, cheques: [...m.stored.values()] }),
   createCheque: vi.fn(),
@@ -64,5 +65,15 @@ describe('a cheque\'s money follows its status', () => {
     await act(() => result.current.changeStatus(pending, 'deposited', '2026-02-02'));
     expect(m.settleCheque).not.toHaveBeenCalled();
     expect(m.unsettleCheque).not.toHaveBeenCalled();
+  });
+});
+
+describe('editing a cheque with a record', () => {
+  it('saving it again updates the record of its money', async () => {
+    m.stored.set('chq_1', { ...pending, status: 'cleared', settlement: { side: 'income', id: 'inc_1' } });
+    const { result } = renderHook(() => useCheques());
+    await waitFor(() => expect(result.current.cheques).toHaveLength(1));
+    await act(() => result.current.saveCheque({ category: 'salary' }, 'chq_1'));
+    expect(m.resync).toHaveBeenCalledWith(expect.objectContaining({ id: 'chq_1', category: 'salary', settlement: { side: 'income', id: 'inc_1' } }));
   });
 });
