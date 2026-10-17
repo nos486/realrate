@@ -60,4 +60,11 @@ describe('accounts page: balances', () => {
     await waitFor(() => expect(store.saveAccount).toHaveBeenCalled());
     expect(store.saveAccount.mock.calls[0][0]).toMatchObject({ name: 'سامان', balance: { amounts: { IRT: 1500000 } } });
   });
+
+  it('offers a balance date, so earlier records can be brought in', () => {
+    render(<MemoryRouter><AccountsPage /></MemoryRouter>);
+    fireEvent.click(screen.getByText('حساب جدید').closest('button'));
+    fireEvent.click(screen.getByText('نگه‌داشتن موجودی').closest('button'));
+    expect(screen.getByText('تاریخ موجودی')).toBeTruthy();
+  });
 });

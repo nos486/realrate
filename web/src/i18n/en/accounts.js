@@ -226,9 +226,10 @@ export default {
   'موجودی': 'Balance',
   'موجودی حساب': 'Account balance',
   'نگه‌داشتن موجودی': 'Keep the balance',
-  'موجودی فعلی ({currency})': 'Current balance ({currency})',
+  'تاریخ موجودی': 'Balance date',
+  'موجودی فعلی ({currency})': 'Balance ({currency})',
   'جمع موجودی حساب‌ها': 'Total of all accounts',
   'قیمت {currencies} در دسترس نیست و در جمع نیامده است.': 'No price is available for {currencies}, so it is left out of the total.',
-  'همین مقدار را که الان در حساب است بنویسید؛ از این به بعد هزینه‌ها، درآمدها و انتقال‌های این حساب آن را کم و زیاد می‌کنند. برای هماهنگ شدن با بانک، مقدار را دوباره بنویسید.': 'Enter what the account holds right now; from then on its expenses, incomes and transfers raise and lower it. To match the bank again, enter the amount anew.',
+  'موجودی حساب را در «تاریخ موجودی» بنویسید؛ هزینه‌ها، درآمدها و انتقال‌های این حساب از همان روز به بعد آن را کم و زیاد می‌کنند. اگر پیش‌تر چیزی ثبت کرده‌اید، تاریخ را به قبل از آن‌ها ببرید. برای هماهنگ شدن با بانک، مقدار را دوباره بنویسید.': 'Enter what the account held on the balance date; from that day on its expenses, incomes and transfers raise and lower it. If you already recorded some, move the date before them. To match the bank again, enter the amount anew.',
   'با ثبت موجودی فعلی، موجودی این حساب خودکار با هر هزینه، درآمد و انتقال به‌روز می‌شود.': "Enter the current balance and this account's balance updates by itself with every expense, income and transfer.",
 };

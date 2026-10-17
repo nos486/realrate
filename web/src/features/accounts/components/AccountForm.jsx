@@ -16,11 +16,12 @@
 import React, { useState } from 'react';
 import { WalletCards } from 'lucide-react';
 import { AlertBanner, Input, Modal, NumericInput } from '../../../shared/ui/index.js';
-import { CategoryGrid, EntryFormActions, MoreDetails } from '../../../shared/form/index.js';
+import { CategoryGrid, DateField, EntryFormActions, MoreDetails } from '../../../shared/form/index.js';
 import { BankPicker } from '../../../shared/banks/index.js';
 import { ACCOUNT_TYPES, ACCOUNT_LIMITS, accountCurrencies } from '../../../utils/accountDocument.js';
 import { CURRENCIES } from '../../../utils/currencies.js';
 import { todayIso } from '../../../shared/utils/dates.js';
+import { getTodayShamsi, gregorianToShamsi, shamsiToGregorian } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { cycleStartOf } from '../../../utils/creditAccount.js';
 import { gregorianToJalali } from '../../../utils/loanCalculator.js';
 import { getAccountTypeIcon } from '../constants/accountDisplay.js';
@@ -72,6 +73,9 @@ export default function AccountForm({ account = null, currentBalance = null, onS
   // «موجودی»: the money the account holds now, kept up to date by the records (utils/accountBalance.js)
   const [track, setTrack] = useState(Boolean(account?.balance));
   const [amounts, setAmounts] = useState(() => balanceFields(currentBalance || account?.balance?.amounts));
+  // The day the amount is stated for: records from that day on move it, so an earlier day brings
+  // in what was already recorded (a stated balance of today leaves out yesterday's records)
+  const [balanceDay, setBalanceDay] = useState(() => (currentBalance || !account?.balance?.startDate ? getTodayShamsi() : gregorianToShamsi(`${account.balance.startDate}T00:00:00`)));
   const [submitError, setSubmitError] = useState('');
   const setTerm = (key) => (value) => setCredit((c) => ({ ...c, [key]: value }));
 
@@ -96,8 +100,13 @@ export default function AccountForm({ account = null, currentBalance = null, onS
   const balanceToSave = () => {
     const stated = Object.fromEntries(currencies.map((c) => [c, Number(digitsDecimal(amounts[c])) || 0]));
     const before = currentBalance || account?.balance?.amounts || {};
-    const unchanged = account?.balance && currencies.every((c) => Math.round((stated[c] || 0) * 100) === Math.round((Number(before[c]) || 0) * 100));
-    return unchanged ? account.balance : { amounts: stated };
+    const startDate = shamsiToGregorian(balanceDay) || todayIso();
+    // While the amounts and the day are untouched, the balance stays as it was stated
+    const unchanged = account?.balance && startDate === (account.balance.startDate || startDate)
+      && currencies.every((c) => Math.round((stated[c] || 0) * 100) === Math.round((Number(before[c]) || 0) * 100));
+    if (unchanged) return account.balance;
+    // A past day counts from its start, today from this moment (what was recorded earlier today is in the amount)
+    return startDate < todayIso() ? { amounts: stated, startDate, startAt: `${startDate}T00:00:00.000Z` } : { amounts: stated };
   };
 
   const handleSubmit = async (e) => {
@@ -209,9 +218,10 @@ export default function AccountForm({ account = null, currentBalance = null, onS
                 </div>
               </div>
             ))}
+            {track && <DateField label={t('تاریخ موجودی')} value={balanceDay} onChange={setBalanceDay} />}
             <p className="expense-form-hint">
               {track
-                ? t('همین مقدار را که الان در حساب است بنویسید؛ از این به بعد هزینه‌ها، درآمدها و انتقال‌های این حساب آن را کم و زیاد می‌کنند. برای هماهنگ شدن با بانک، مقدار را دوباره بنویسید.')
+                ? t('موجودی حساب را در «تاریخ موجودی» بنویسید؛ هزینه‌ها، درآمدها و انتقال‌های این حساب از همان روز به بعد آن را کم و زیاد می‌کنند. اگر پیش‌تر چیزی ثبت کرده‌اید، تاریخ را به قبل از آن‌ها ببرید. برای هماهنگ شدن با بانک، مقدار را دوباره بنویسید.')
                 : t('با ثبت موجودی فعلی، موجودی این حساب خودکار با هر هزینه، درآمد و انتقال به‌روز می‌شود.')}
             </p>
           </div>
