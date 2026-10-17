@@ -119,4 +119,13 @@ export default {
   'برای انتقال به «رد شده»، اطلاعات رمزنگاری‌شده را باز کنید.': 'Unlock your encrypted data to move SMS to "Dismissed".',
   '{n} پیامک در «رد شده» ثبت شد.': '{n} SMS recorded in "Dismissed".',
   'ثبت در «رد شده» ممکن نشد.': 'Could not record in "Dismissed".',
+  'مبلغ پیامک با اقساط انتخاب‌شده نمی‌خواند.': "The SMS amount doesn't match the selected installments.",
+  '{n} قسط پرداخت‌شده ثبت شد.': '{n} paid installments recorded.',
+  'ثبت قسط ممکن نشد.': 'Could not record the installments.',
+  'این برداشت قسط وام است': 'This withdrawal paid loan installments',
+  '{amount} تومان — وام‌هایی را که این مبلغ قسطشان بوده انتخاب کنید': '{amount} toman — pick the loans this amount paid',
+  'قسط {number}: {amount} تومان': 'Installment {number}: {amount} toman',
+  '{amount} تومان بیشتر از اقساط (کارمزد) به آخرین قسط اضافه می‌شود.': '{amount} toman more than the installments (a fee) is added to the last one.',
+  '{amount} تومان کمتر از اقساط است و از آخرین قسط کم می‌شود.': '{amount} toman less than the installments is taken off the last one.',
+  'هر قسط یک هزینه‌ی «پرداخت قسط» می‌شود و مجموعشان همین برداشت است؛ برای این اقساط هزینه‌ی دیگری ساخته نمی‌شود.': 'Each installment becomes an "Installment payment" expense and together they are exactly this withdrawal; no other expense is created for them.',
 };

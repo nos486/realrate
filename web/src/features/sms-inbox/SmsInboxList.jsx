@@ -9,7 +9,7 @@
  * turned on in the app's settings (`quickRecord`, off by default), a withdrawal up to
  * QUICK_RECORD_MAX shows «ثبت سریع» instead (`onQuickRecord`: recorded as it is, no form), with
  * «ثبت با فرم» in the menu; a withdrawal can also go to a project («ثبت در یک پروژه»,
- * `onRecordToProject`); a deposit's menu has «وام» (`onLoanDeposit`: a received loan, not
+ * `onRecordToProject`) or as the installments of one or several loans («قسط وام», `onLoanInstallment`); a deposit's menu has «وام» (`onLoanDeposit`: a received loan, not
  * income) and «دنگ» (`onShareDeposit`: someone's share of an expense the user paid, not income);
  * either kind can be «انتقال بین حساب‌های خودم» (`onTransfer`: money moved between the user's own
  * accounts — neither expense nor income). «رد همه» above the list drops every message on show (after a
@@ -89,7 +89,7 @@ function EnableCard({ onChange }) {
  *   onReject?: (items: object[]) => Promise<void>|void }} props `onReject`: what «رد» / «رد همه» do
  *   in place of dropping the messages (kept in «رد شده»)
  */
-export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, quickRecordingId = null, onLoanDeposit, onShareDeposit, onRecordToProject, onTransfer, onReject, canRecord = true }) {
+export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, quickRecordingId = null, onLoanDeposit, onLoanInstallment, onShareDeposit, onRecordToProject, onTransfer, onReject, canRecord = true }) {
   const { pending, settings } = useSmsInbox();
   const { confirm, toast } = useFeedback();
   const [permission, setPermission] = useState(null);
@@ -233,6 +233,9 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
                   quick && { key: 'record', label: t('ثبت با فرم'), icon: <Check size={16} />, onClick: () => onRecord(item), disabled: !canRecord },
                   onRecordToProject && isDebit && {
                     key: 'project', label: t('ثبت در یک پروژه'), icon: <FolderOpen size={16} />, onClick: () => onRecordToProject(item), disabled: !canRecord,
+                  },
+                  onLoanInstallment && isDebit && {
+                    key: 'installment', label: t('قسط وام'), icon: <Landmark size={16} />, onClick: () => onLoanInstallment(item), disabled: !canRecord,
                   },
                   onLoanDeposit && !isDebit && {
                     key: 'loan', label: t('دریافت وام (درآمد نیست)'), icon: <Landmark size={16} />, onClick: () => onLoanDeposit(item), disabled: !canRecord,
