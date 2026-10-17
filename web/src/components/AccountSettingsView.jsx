@@ -106,6 +106,8 @@ export default function AccountSettingsView() {
     {/* Same page header as every other page */}
     <FeaturePageHeader icon={<Settings size={24} />} title={t('تنظیمات')} subtitle={t('حساب کاربری، ورود و رمزنگاری')} />
     <Card className="admin-container account-settings-fullscreen-card" padding="lg" style={{ width: '100%', maxWidth: '100%', margin: '0 0 32px 0' }}>
+      <div className="account-settings-grid">
+      <div className="account-settings-col">
       <div className="section-title" style={{ marginTop: 0 }}>
         <span>
           <User size={18} style={{ verticalAlign: 'middle', marginInlineEnd: '6px', display: 'inline', color: 'var(--accent-blue)' }} />
@@ -193,7 +195,9 @@ export default function AccountSettingsView() {
       <PasswordSettingsSection />
 
       <VaultSettingsSection />
+      </div>
 
+      <div className="account-settings-col">
       {hasEmailReminders ? <EmailRemindersSection /> : (
         <ProLockedCard title={t('یادآوری ایمیلی')} text={t('ایمیل روزانه‌ی سررسید اقساط، چک‌ها و اشتراک‌ها در پلن رایگان بسته است.')} />
       )}
@@ -203,6 +207,8 @@ export default function AccountSettingsView() {
       <BackupSection />
 
       <DeleteAccountSection />
+      </div>
+      </div>
     </Card>
     </div>
   );

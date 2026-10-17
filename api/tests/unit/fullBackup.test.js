@@ -142,4 +142,23 @@ describe('full backup', () => {
     expect(remapRecord('income', { soldFrom: link }, { portfolioIds }).soldFrom.portfolioId).toBe('pf_new9');
     expect(remapRecord('income', { soldFrom: { ...link, portfolioId: 'pf_kept' } }, { portfolioIds }).soldFrom.portfolioId).toBe('pf_kept');
   });
+
+  it('goals follow a new portfolio, and merged-card aliases a new custom bank', async () => {
+    const { remapRecord } = await import('../../../web/src/shared/vault/fullBackup.js');
+    const goal = remapRecord('goal', { allocations: [{ portfolioId: 'pf_old', assetId: 'usd' }, { portfolioId: 'pf_kept', assetId: 'eur' }] }, { portfolioIds: new Map([['pf_old', 'pf_new9']]) });
+    expect(goal.allocations.map((a) => a.portfolioId)).toEqual(['pf_new9', 'pf_kept']);
+    const account = remapRecord('bank_account', { bankId: 'custom_1', aliases: [{ bankId: 'custom_1', cardLast4: '1234' }, { bankId: 'mellat', cardLast4: '5678' }] }, { bankIds: new Map([['custom_1', 'custom_new1']]) });
+    expect(account.bankId).toBe('custom_new1');
+    expect(account.aliases.map((a) => a.bankId)).toEqual(['custom_new1', 'mellat']);
+  });
+
+  it('backs up and restores goals, subscriptions and recurring incomes too', async () => {
+    vault.records.push(acct('goal', 'goal_1', { title: 'سفر' }), acct('subscription', 'sub_1', { title: 'نت' }), acct('recurring_income', 'ri_1', { title: 'حقوق' }));
+    const backup = await buildFullBackup();
+    expect(summarizeBackup(backup).counts).toMatchObject({ goal: 1, subscription: 1, recurring_income: 1 });
+    vault.records = [];
+    const result = await restoreFullBackup(backup);
+    expect(result.skipped).toBe(0);
+    expect(vault.records.map((r) => r.kind)).toEqual(expect.arrayContaining(['goal', 'subscription', 'recurring_income']));
+  });
 });
