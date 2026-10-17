@@ -7,7 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   validateSubscription, renewalAt, renewalsBetween, renewalOnOrAfter, renewedAfter,
-  subscriptionView, subscriptionTotals, compareSubscriptions, subscriptionPeriod, duePayments,
+  subscriptionView, renewalPaidBy, subscriptionTotals, compareSubscriptions, subscriptionPeriod, duePayments,
 } from '../../src/domain/subscriptionDocument.js';
 import { reminderOf, reminderCanBeOverdue, occurrencesBetween, REMINDER_KINDS } from '../../src/domain/reminders.js';
 
@@ -56,7 +56,8 @@ describe('renewals', () => {
   it('a payment moves one renewed by hand a cycle on', () => {
     const s = sub({ autoRenew: false, renewOn: '2026-02-11' });
     expect(renewedAfter(s, '2026-02-10')).toEqual({ renewOn: '2026-03-13', lastPaidOn: '2026-02-10' });
-    expect(renewedAfter(sub(), '2026-02-10')).toEqual({ renewOn: '', lastPaidOn: '2026-02-10' });
+    // Renewing by itself: the renewal nearest the payment is the one paid
+    expect(renewedAfter(sub(), '2026-02-10')).toEqual({ renewOn: '', lastPaidOn: '2026-02-11' });
   });
 
   it('paid after it ran out, the new period starts on the payment day', () => {
@@ -193,5 +194,22 @@ describe('duePayments', () => {
     expect(duePayments(sub({ endDate: '2026-02-11' }), '2026-04-01')).toEqual(['2026-01-12']);
     expect(duePayments(sub({ status: 'paused' }), '2026-04-01')).toEqual([]);
     expect(duePayments(sub({ status: 'cancelled' }), '2026-04-01')).toEqual([]);
+  });
+});
+
+describe('an auto-renewing subscription paid ahead', () => {
+  const sub = { status: 'active', autoRenew: true, cycleMonths: 1, startDate: '2026-06-27', amount: 1 };
+  const renewal = (k) => renewalAt(sub.startDate, 1, k);
+  const dayBefore = (day, n) => new Date(Date.parse(`${day}T00:00:00Z`) - n * 86_400_000).toISOString().slice(0, 10);
+
+  it('names the nearest renewal as paid, and its next one is the one after', () => {
+    const [coming, after, earlier] = [renewal(4), renewal(5), renewal(3)];
+    const today = dayBefore(coming, 2);
+    expect(renewalPaidBy(sub, today)).toBe(coming);
+    expect(renewalPaidBy(sub, dayBefore(coming, 25))).toBe(earlier);
+    expect(subscriptionView(sub, today).nextRenewal).toBe(coming);
+    const paid = { ...sub, lastPaidOn: renewalPaidBy(sub, today) };
+    expect(subscriptionView(paid, today).nextRenewal).toBe(after);
+    expect(duePayments(paid, coming)).toEqual([]);
   });
 });

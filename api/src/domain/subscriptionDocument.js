@@ -30,6 +30,8 @@ import { isValidIsoDate } from './isoDate.js';
 import { CURRENCY_CODES, normalizeCurrency, currencyRateToday } from './currencies.js';
 import { t } from './i18n.js';
 
+const daysBetween = (from, to) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
+
 /** How often a subscription renews (months between payments) */
 export const SUBSCRIPTION_CYCLES = [
   { months: 1, label: t('ماهانه'), short: t('ماه') },
@@ -168,13 +170,42 @@ export function renewalOnOrAfter(sub, date) {
 }
 
 /**
+ * The renewal a payment of an auto-renewing subscription pays: the one nearest to its day (the
+ * earlier on a tie), so paying a couple of days before the next renewal pays that one — and a
+ * payment recorded late pays the one it follows
+ * @returns {string} that renewal's day, or `paidOn` when it has no renewal around it
+ */
+export function renewalPaidBy(sub, paidOn) {
+  let before = '';
+  for (let k = 0; k < 2400; k++) {
+    const day = renewalAt(sub.startDate, sub.cycleMonths, k);
+    if (day > paidOn) {
+      if (sub.endDate && day >= sub.endDate) break;
+      return !before || daysBetween(paidOn, day) < daysBetween(before, paidOn) ? day : before;
+    }
+    before = day;
+  }
+  return before > paidOn || !before ? paidOn : before;
+}
+
+/** The first renewal on or after `today` that isn't paid yet (`lastPaidOn` may already cover the coming one) */
+function nextUnpaidRenewal(sub, today) {
+  for (let k = 0; k < 2400; k++) {
+    const day = renewalAt(sub.startDate, sub.cycleMonths, k);
+    if (sub.endDate && day >= sub.endDate) return '';
+    if (day >= today && !(sub.lastPaidOn && day <= sub.lastPaidOn)) return day;
+  }
+  return '';
+}
+
+/**
  * After a renewal's payment: a subscription renewed by hand runs one more cycle — from the day it
  * ran out when paid by then, or from the payment day when paid after it had run out (a new period
  * starts then)
  * @returns {{ renewOn: string, lastPaidOn: string }} the fields to save
  */
 export function renewedAfter(sub, paidOn) {
-  if (sub.autoRenew) return { renewOn: '', lastPaidOn: paidOn };
+  if (sub.autoRenew) return { renewOn: '', lastPaidOn: renewalPaidBy(sub, paidOn) };
   const runsOut = sub.renewOn || renewalAt(sub.startDate, sub.cycleMonths, 1);
   const from = paidOn > runsOut ? paidOn : runsOut;
   return { renewOn: renewalAt(from, sub.cycleMonths, 1), lastPaidOn: paidOn };
@@ -219,7 +250,6 @@ export function duePayments(sub, today) {
   return out;
 }
 
-const daysBetween = (from, to) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 
 /**
  * Where a subscription stands on `today`
@@ -234,7 +264,7 @@ export function subscriptionView(sub, today) {
   if (sub.endDate && sub.endDate <= today) return { ...base, state: 'ended', nextRenewal: '', daysLeft: null, running: false };
   if (sub.status === 'paused') return { ...base, state: 'paused', nextRenewal: '', daysLeft: null, running: false };
 
-  const nextRenewal = sub.autoRenew ? renewalOnOrAfter(sub, today) : (sub.renewOn || '');
+  const nextRenewal = sub.autoRenew ? nextUnpaidRenewal(sub, today) : (sub.renewOn || '');
   const endsSoon = Boolean(sub.endDate) && daysBetween(today, sub.endDate) <= SUBSCRIPTION_REMINDER_DAYS;
   if (!nextRenewal) return { ...base, state: 'active', nextRenewal: '', daysLeft: null, running: true, endsSoon };
   const daysLeft = daysBetween(today, nextRenewal);

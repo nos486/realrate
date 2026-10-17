@@ -11,8 +11,10 @@
  *  - loan_installment: linked → that installment is paid on the record's day, at its amount (an
  *    expense the loans page had recorded for it is dropped: this one is the payment);
  *    unlinked or deleted → unpaid again
- *  - subscription: linked → it moves on a cycle (renewedAfter) — unless it was already paid
- *    through that day (its first payment, or an older one recorded late); unlinking leaves it
+ *  - subscription: linked → it moves on a cycle (renewedAfter; an auto-renewing one marks the
+ *    renewal nearest the payment paid, so the next one shown is the one after) — unless it was
+ *    already paid through that day (its first payment, or an older one recorded late); unlinking
+ *    leaves it
  * Portfolio links are written by vaultExpenses / vaultIncomes themselves (portfolioFunds.js), and
  * a credit settlement changes nothing on the credit (its figures are read from the incomes).
  *
@@ -104,9 +106,12 @@ const EFFECTS = {
       const store = await subscriptions();
       const sub = (await store.getSubscriptions()).subscriptions.find((s) => s.id === subscriptionId);
       const day = dayOf(side, record);
-      // Already paid through this day: its first payment, or an older one recorded late
-      if (!sub || (sub.lastPaidOn && day <= sub.lastPaidOn)) return;
-      await store.saveSubscription(renewedAfter(sub, day), sub);
+      if (!sub) return;
+      const next = renewedAfter(sub, day);
+      // Already paid through this day: its first payment, or an older one recorded late (an
+      // auto-renewing one can still be paid ahead: the coming renewal it names is paid then)
+      if (sub.lastPaidOn && (sub.autoRenew ? next.lastPaidOn <= sub.lastPaidOn : day <= sub.lastPaidOn)) return;
+      await store.saveSubscription(next, sub);
     },
     async detach() {
       // A payment taken away doesn't move a subscription back: its renewal is edited by hand
