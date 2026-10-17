@@ -3,6 +3,21 @@
  */
 
 export default {
+  'یک سال': 'One year',
+  '۳ سال': '3 years',
+  '۵ سال': '5 years',
+  'سال': 'Year',
+  'درآمد {span}': 'Income {span}',
+  'هزینه‌ی این سال‌ها': 'Expenses over these years',
+  'میانگین سالانه {value}': 'Yearly average {value}',
+  'نرخ پس‌انداز {value}': 'Savings rate {value}',
+  'درآمد و هزینه سال‌به‌سال': 'Income and expenses, year by year',
+  '{n} ماه اول سال': 'First {n} months of the year',
+  'سال‌به‌سال': 'Year by year',
+  'درآمد، هزینه، مانده و سرمایه‌گذاری سال‌به‌سال': 'Income, expenses, net and investments year by year',
+  'تغییر درآمد': 'Income change',
+  'تغییر هزینه': 'Expense change',
+  'نرخ‌های ارز هر رکورد، نرخ همان روز است. سال جاری فقط تا همین ماه حساب شده است.': 'Each record is converted at its own day’s rate. The current year counts only up to this month.',
   'بیشترین پس‌انداز در <b>{month}</b>: <b>{amount}</b> تومان ({pct} درآمد).': 'Best savings in <b>{month}</b>: <b>{amount}</b> toman ({pct} of income).',
   'بیشترین پس‌انداز در <b>{month}</b>: <b>{amount}</b> تومان.': 'Best savings in <b>{month}</b>: <b>{amount}</b> toman.',
   'در <b>{count}</b> ماه از {months} ماه، هزینه از درآمد بیشتر بود.': 'In <b>{count}</b> of {months} months, expenses exceeded income.',

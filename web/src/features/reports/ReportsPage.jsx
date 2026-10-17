@@ -14,7 +14,7 @@ import { t } from '../../utils/i18n.js';
 import { calendarLocale } from '../../shared/utils/dates.js';
 import React, { useMemo, useRef, useState } from 'react';
 import { ChartColumn, FileDown } from 'lucide-react';
-import { AlertBanner, Button, FeaturePageHeader } from '../../shared/ui/index.js';
+import { AlertBanner, Button, FeaturePageHeader, FilterPills } from '../../shared/ui/index.js';
 import Skeleton from '../../shared/ui/Skeleton.jsx';
 import VaultUnlockCard from '../../shared/vault/VaultUnlockCard.jsx';
 import { useVault } from '../../shared/vault/useVault.js';
@@ -24,10 +24,19 @@ import PeriodSwitcher from '../../shared/flow/PeriodSwitcher.jsx';
 import { formatShamsiYear, shamsiMonthOf } from '../../shared/flow/flowYear.js';
 import { useReportData } from './useReportData.js';
 import { useNetWorth } from './useNetWorth.js';
+import { useMultiYearReport } from './useMultiYearReport.js';
+import MultiYearDashboard from './MultiYearDashboard.jsx';
 import { reportFormatters } from './reportFormat.js';
 import ReportDashboard from './ReportDashboard.jsx';
 import { printReport } from './printReport.js';
 import { isNativeApp } from '../../shared/native/nativeApp.js';
+
+/** How many years the page covers: the year shown, or that many years ending with it */
+const SPANS = [
+  { value: 1, label: t('یک سال') },
+  { value: 3, label: t('۳ سال') },
+  { value: 5, label: t('۵ سال') },
+];
 
 const HEADER = {
   icon: <ChartColumn size={24} />,
@@ -57,12 +66,33 @@ function ReportBody({ jy, throughMonth, hideValues }) {
   );
 }
 
+/** The years side by side (several years: the totals only, the detail stays in the one-year view) */
+function MultiYearBody({ jy, years, throughMonth, hideValues }) {
+  const data = useMultiYearReport(jy, years, throughMonth);
+  const f = useMemo(() => reportFormatters(hideValues), [hideValues]);
+  if (data.loading) {
+    return (
+      <div className="reports-loading" role="status" aria-label={t('در حال ساختن گزارش')}>
+        <Skeleton height={96} radius={16} />
+        <Skeleton height={260} radius={16} />
+      </div>
+    );
+  }
+  return (
+    <>
+      {data.errors.map((e) => <AlertBanner key={e} type="error" message={e} />)}
+      <MultiYearDashboard rows={data.rows} hasExpenses={data.hasExpenses} f={f} />
+    </>
+  );
+}
+
 export default function ReportsPage() {
   const { status: vaultStatus } = useVault();
   const hideValues = usePrivacyMode();
   const today = todayIso();
   const thisMonth = useMemo(() => shamsiMonthOf(today), [today]);
   const [month, setMonth] = useState(thisMonth);
+  const [years, setYears] = useState(1);
   const throughMonth = month.jy === thisMonth.jy ? thisMonth.jm : 12;
   const pageRef = useRef(null);
   const yearLabel = formatShamsiYear(month.jy);
@@ -88,8 +118,11 @@ export default function ReportsPage() {
         )}
       />
       <p className="report-print-meta">{t('گزارش سال {year} · ساخته‌شده در {date} · RealRate', { year: yearLabel, date: new Date().toLocaleDateString(calendarLocale()) })}</p>
+      <FilterPills options={SPANS} activeValue={years} onChange={setYears} size="sm" />
       <PeriodSwitcher mode="year" month={month} thisMonth={thisMonth} onMonthChange={setMonth} />
-      <ReportBody jy={month.jy} throughMonth={throughMonth} hideValues={hideValues} />
+      {years > 1
+        ? <MultiYearBody jy={month.jy} years={years} throughMonth={throughMonth} hideValues={hideValues} />
+        : <ReportBody jy={month.jy} throughMonth={throughMonth} hideValues={hideValues} />}
     </div>
   );
 }

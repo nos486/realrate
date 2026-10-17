@@ -446,3 +446,10 @@ tr.is-selected td,
     overflow: visible;
   }
 }
+
+/* A note under a table */
+.report-table-note {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}

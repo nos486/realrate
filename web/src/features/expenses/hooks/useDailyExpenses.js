@@ -28,9 +28,10 @@ const inRange = (e, { from, to }) => e.date >= from && e.date <= to;
  * @param {{ jy: number, jm: number }} month the Shamsi month shown
  * @param {{ enabled?: boolean, year?: boolean }} [options] enabled: nothing loads when false (a
  *   page without the feature); year: load the month's whole Shamsi year (the expenses page) —
- *   otherwise only the month and the one before
+ *   otherwise only the month and the one before; years: with `year`, that many years back (the
+ *   multi-year report)
  */
-export function useDailyExpenses(month, { enabled = true, year = false } = {}) {
+export function useDailyExpenses(month, { enabled = true, year = false, years = 1 } = {}) {
   const { user } = useAuth();
   const { status: vaultStatus, epoch: vaultEpoch } = useVault();
   const vaultLocked = vaultStatus === 'locked';
@@ -56,8 +57,8 @@ export function useDailyExpenses(month, { enabled = true, year = false } = {}) {
     return shamsiMonthRange(prev.jy, prev.jm);
   }, [month]);
   const loadWindow = useMemo(
-    () => (year ? flowWindow(month.jy) : { from: prevRange.from, to: range.to }),
-    [year, month.jy, prevRange.from, range.to],
+    () => (year ? flowWindow(month.jy, years) : { from: prevRange.from, to: range.to }),
+    [year, years, month.jy, prevRange.from, range.to],
   );
 
   const fetchMonth = useCallback(async () => {
