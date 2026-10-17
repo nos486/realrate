@@ -40,6 +40,7 @@ import { useCategories } from '../../shared/categories/useCategories.js';
 import { splitCounted } from '../../shared/categories/categoryStore.js';
 import { formatShamsiMonth, buildIncomeReport } from '../incomes/utils/incomeReport.js';
 import { formatShamsiDisplay } from '../portfolio/components/ShamsiDatePicker.jsx';
+import { recordOwnerOf } from '../../utils/recordOwners.js';
 import NewsCard from '../news/NewsCard.jsx';
 import PlanHomeCard from '../../shared/plan/PlanHomeCard.jsx';
 import GoalsHomeCard from '../goals/components/GoalsHomeCard.jsx';
@@ -121,6 +122,12 @@ export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }
   );
 
   const spent = useMemo(() => summarizeExpenses(counted.expenses, dollarRates).totalToman, [counted, dollarRates]);
+  // What the loans' installments cost this month (their own expense records), shown apart from
+  // the rest of the spending
+  const loanSpent = useMemo(
+    () => summarizeExpenses(counted.expenses.filter((e) => recordOwnerOf(e) === 'loan'), dollarRates).totalToman,
+    [counted, dollarRates],
+  );
   // The current month against the same number of days of last month; a past month against the
   // whole month before it
   const change = useMemo(() => {
@@ -221,6 +228,12 @@ export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }
         <div className="app-home-hero-value">
           {loading ? <Skeleton width="60%" height={36} radius={10} /> : <>{money(spent)} <small>{t('تومان')}</small></>}
         </div>
+        {!loading && loanSpent > 0 && (
+          <div className="app-home-hero-breakdown">
+            <span><small>{t('بدون اقساط وام')}</small> <strong>{money(spent - loanSpent)}</strong></span>
+            <span><small>{t('اقساط وام')}</small> <strong>{money(loanSpent)}</strong></span>
+          </div>
+        )}
         <div className="app-home-hero-split">
           <button type="button" className="app-home-stat" onClick={() => onOpen?.('incomes')}>
             <span className="app-home-stat-icon is-in"><ArrowDownLeft size={16} /></span>
