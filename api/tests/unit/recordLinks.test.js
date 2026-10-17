@@ -148,6 +148,13 @@ describe('subscription links', () => {
     expect(mocks.saveSubscription).not.toHaveBeenCalled();
   });
 
+  it('an auto-renewing one paid ahead marks its coming renewal paid, even after a payment that day', async () => {
+    const auto = { id: 'sub_a', autoRenew: true, cycleMonths: 1, startDate: '2026-06-18', lastPaidOn: '2026-10-17' };
+    mocks.subscriptions = [auto];
+    await syncRecordLinks('expense', { id: 'exp_5', category: 'subscriptions', subscriptionId: 'sub_a', date: '2026-10-17' }, null);
+    expect(mocks.saveSubscription).toHaveBeenCalledWith({ renewOn: '', lastPaidOn: '2026-10-20' }, auto);
+  });
+
   it('a failing effect never throws: the record stays saved', async () => {
     mocks.markInstallmentPaid.mockRejectedValueOnce(new Error('offline'));
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
