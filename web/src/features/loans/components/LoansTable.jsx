@@ -41,7 +41,7 @@ export default function LoansTable({
             key={loan.id}
             tone={dueTone}
             icon={<Landmark size={18} />}
-            iconTone={dueTone}
+            iconTone={dueTone === 'positive' ? 'positive' : 'warning'}
             title={loan.title}
             subtitle={loan.lenderName || '—'}
             badge={<RowCardBadge tone={displayRatePct === 0 ? 'positive' : 'warning'}>{displayRatePct}{t('٪')}</RowCardBadge>}
@@ -81,7 +81,7 @@ export default function LoansTable({
               <RowCardBlock
                 label={<><Clock size={12} /> {t('قسط بعدی: #{n}', { n: next.installmentNumber })}</>}
                 value={t('{amount} تومان', { amount: money(next.totalAmount) })}
-                valueTone={dueTone}
+                valueTone={dueTone === 'positive' ? 'positive' : 'primary'}
                 sub={formatShamsiDisplay(next.dueDate)}
               />
             ) : (
