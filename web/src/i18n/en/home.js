@@ -16,6 +16,8 @@ export default {
   '{n}٪ کمتر از ماه قبل': '{n}% less than last month',
   'خرج این ماه': 'Spent this month',
   'خرج ماه': 'Spent in the month',
+  'بدون اقساط وام': 'Excluding loan installments',
+  'اقساط وام': 'Loan installments',
   'درآمد': 'Income',
   'باقی‌مانده': 'Left',
   'کسری': 'Shortfall',
