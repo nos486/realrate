@@ -28,10 +28,11 @@ export function shamsiYearRange(jy) {
 
 /**
  * What a page loads for a year: the year itself and the month before it (last year's Esfand), so
- * Farvardin can be compared with the month before as every other month is
+ * Farvardin can be compared with the month before as every other month is; `years` > 1 reaches
+ * back that many years (the multi-year report)
  */
-export function flowWindow(jy) {
-  return { from: shamsiMonthRange(jy - 1, 12).from, to: shamsiMonthRange(jy, 12).to };
+export function flowWindow(jy, years = 1) {
+  return { from: shamsiMonthRange(jy - Math.max(1, years), 12).from, to: shamsiMonthRange(jy, 12).to };
 }
 
 /**

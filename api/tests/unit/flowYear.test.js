@@ -21,6 +21,8 @@ describe('flow year', () => {
   it('loads the year and the month before it', () => {
     expect(shamsiYearRange(1405)).toEqual({ from: '2026-03-21', to: '2027-03-20' });
     expect(flowWindow(1405)).toEqual({ from: shamsiMonthRange(1404, 12).from, to: '2027-03-20' });
+    // Several years reach back that many years (and the month before the first)
+    expect(flowWindow(1405, 3)).toEqual({ from: shamsiMonthRange(1402, 12).from, to: '2027-03-20' });
   });
 
   it('builds the year month by month, Farvardin against last Esfand', () => {

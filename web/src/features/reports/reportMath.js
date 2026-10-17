@@ -271,3 +271,39 @@ export function sumApart(records = [], { dateOf, keyOf, amountOf, range }) {
   }
   return [...byKey.values()].sort((a, b) => b.total - a.total);
 }
+
+/**
+ * Several Shamsi years side by side, oldest first: each year's income, expenses, what was left,
+ * the savings rate, what was invested and the change of income / expenses from the year before.
+ * The last year counts only its months so far (`throughMonth`), which `months` tells.
+ * @param {{ incomes: Array<{ date: string, amount: number }>, expenses: Array<{ date: string, amount: number }>,
+ *   invested?: Array<{ date: string, amount: number }> }} points tomans, counted ones only
+ * @param {number} endJy the last year
+ * @param {number} years how many years (the last one included)
+ * @param {{ throughMonth?: number }} [options]
+ * @returns {Array<{ jy: number, months: number, income: number, expense: number, net: number,
+ *   savingsRate: number|null, invested: number, incomeChange: number|null, expenseChange: number|null }>}
+ */
+export function summarizeYears({ incomes = [], expenses = [], invested = [] }, endJy, years, { throughMonth = 12 } = {}) {
+  const rows = [];
+  for (let jy = endJy - Math.max(1, years) + 1; jy <= endJy; jy++) {
+    const through = jy === endJy ? throughMonth : 12;
+    const total = (points) => buildYearSeries(points, jy, { throughMonth: through }).reduce((s, m) => s + m.total, 0);
+    const income = total(incomes);
+    const expense = total(expenses);
+    const prev = rows[rows.length - 1];
+    const change = (now, before) => (before > 0 ? ((now - before) / before) * 100 : null);
+    rows.push({
+      jy,
+      months: through,
+      income,
+      expense,
+      net: income - expense,
+      savingsRate: income > 0 ? ((income - expense) / income) * 100 : null,
+      invested: total(invested),
+      incomeChange: prev ? change(income, prev.income) : null,
+      expenseChange: prev ? change(expense, prev.expense) : null,
+    });
+  }
+  return rows;
+}

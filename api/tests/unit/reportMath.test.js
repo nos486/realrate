@@ -5,7 +5,7 @@
  * was paid in the year
  */
 import { describe, it, expect } from 'vitest';
-import { buildYearSeries } from '../../../web/src/shared/flow/flowYear.js';
+import { buildYearSeries, shamsiMonthRange } from '../../../web/src/shared/flow/flowYear.js';
 import {
   investmentPoints,
   investmentShareByMonth,
@@ -18,6 +18,7 @@ import {
   cashFlowByMonth,
   summarizeCashFlow,
   reportInsights,
+  summarizeYears,
 } from '../../../web/src/features/reports/reportMath.js';
 
 // 1405/07/xx is October 2026; 1405/06/xx is September 2026
@@ -159,5 +160,35 @@ describe('sumApart', () => {
       { key: 'cash_management', total: 12, count: 2 },
       { key: 'investment', total: 9, count: 1 },
     ]);
+  });
+});
+
+describe('several years side by side', () => {
+  const day = (jy, jm) => shamsiMonthRange(jy, jm).from;
+  const points = {
+    incomes: [{ date: day(1403, 2), amount: 100 }, { date: day(1404, 2), amount: 150 }, { date: day(1405, 1), amount: 300 }, { date: day(1405, 5), amount: 999 }],
+    expenses: [{ date: day(1403, 3), amount: 40 }, { date: day(1404, 3), amount: 60 }],
+    invested: [{ date: day(1404, 4), amount: 10 }],
+  };
+  const rows = summarizeYears(points, 1405, 3, { throughMonth: 2 });
+
+  it('one row per year, oldest first', () => {
+    expect(rows.map((r) => r.jy)).toEqual([1403, 1404, 1405]);
+  });
+
+  it('totals, what was left and the savings rate of each year', () => {
+    expect(rows[0]).toMatchObject({ income: 100, expense: 40, net: 60, savingsRate: 60, invested: 0, months: 12 });
+    expect(rows[1]).toMatchObject({ income: 150, expense: 60, net: 90, invested: 10 });
+  });
+
+  it('the change from the year before, none for the first or after a year of nothing', () => {
+    expect(rows[0].incomeChange).toBeNull();
+    expect(rows[1].incomeChange).toBeCloseTo(50);
+    expect(rows[1].expenseChange).toBeCloseTo(50);
+    expect(rows[2].expenseChange).toBeCloseTo(-100);
+  });
+
+  it('the last year counts only its months so far', () => {
+    expect(rows[2]).toMatchObject({ months: 2, income: 300, expense: 0, savingsRate: 100 });
   });
 });
