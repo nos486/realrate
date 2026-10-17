@@ -629,10 +629,6 @@
   border-color: var(--color-warning);
 }
 
-.loan-deposit-option.is-selected {
-  border-color: var(--color-warning);
-}
-
 .loan-deposit-option > svg:first-child {
   color: var(--color-warning);
 }

@@ -34,7 +34,6 @@ import ExpenseForm from '../expenses/components/ExpenseForm.jsx';
 import IncomeForm from '../incomes/components/IncomeForm.jsx';
 import SmsInboxList from './SmsInboxList.jsx';
 import LoanDepositSheet from './LoanDepositSheet.jsx';
-import LoanInstallmentSheet from './LoanInstallmentSheet.jsx';
 import ShareDepositSheet from './ShareDepositSheet.jsx';
 import ProjectPickSheet from './ProjectPickSheet.jsx';
 import TransferForm from '../accounts/components/TransferForm.jsx';
@@ -105,7 +104,6 @@ export default function SmsInboxPage() {
   const [readHistory, setReadHistory] = useState([]);
   const [quickId, setQuickId] = useState(null);
   const [loanItem, setLoanItem] = useState(null);
-  const [installmentItem, setInstallmentItem] = useState(null);
   const [shareItem, setShareItem] = useState(null);
   // «ثبت در یک پروژه»: the message, then the project picked for it
   const [projectItem, setProjectItem] = useState(null);
@@ -287,7 +285,6 @@ export default function SmsInboxPage() {
           onQuickRecord={handleQuickRecord}
           quickRecordingId={quickId}
           onLoanDeposit={setLoanItem}
-          onLoanInstallment={setInstallmentItem}
           onShareDeposit={setShareItem}
           onRecordToProject={setProjectItem}
           onTransfer={accounts.filter((a) => !a.archived).length >= 2 ? handleTransfer : undefined}
@@ -376,7 +373,6 @@ export default function SmsInboxPage() {
         />
       )}
       {loanItem && <LoanDepositSheet item={loanItem} onClose={() => setLoanItem(null)} />}
-      {installmentItem && <LoanInstallmentSheet item={installmentItem} onClose={() => setInstallmentItem(null)} />}
       {projectItem && (
         <ProjectPickSheet
           item={projectItem}
