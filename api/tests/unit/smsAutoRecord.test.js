@@ -148,16 +148,7 @@ describe('automatic recording of small withdrawals', () => {
 });
 
 describe('a withdrawal that paid several loan installments', () => {
-  it('splits the amount: each installment as it is, the difference on the last', async () => {
-    const { splitSmsAmount } = await import('../../../web/src/features/sms-inbox/smsRecord.js');
-    expect(splitSmsAmount(1000, [600, 400])).toEqual([600, 400]);
-    expect(splitSmsAmount(1010, [600, 400])).toEqual([600, 410]);
-    expect(splitSmsAmount(900, [600, 400])).toEqual([600, 300]);
-    expect(splitSmsAmount(500, [600, 400])).toBeNull();
-    expect(splitSmsAmount(500, [])).toBeNull();
-  });
-
-  it('records one linked expense per installment and leaves the inbox', async () => {
+  it('records one expense for the whole withdrawal naming every installment, and leaves the inbox', async () => {
     const { recordSmsLoanInstallments } = await import('../../../web/src/features/sms-inbox/smsRecord.js');
     const item = getPendingSms().find((p) => p.tx.amount === 900000);
     const picks = [
@@ -165,12 +156,21 @@ describe('a withdrawal that paid several loan installments', () => {
       { loan: { id: 'loan_b', title: 'وام ب' }, installment: { id: 'i2', installmentNumber: 1, totalAmount: 390000 } },
     ];
     const saved = await recordSmsLoanInstallments(item, picks);
-    expect(saved.map((e) => e.amount)).toEqual([500000, 400000]);
-    expect(saved.every((e) => e.category === 'installments' && e.smsKey === item.tx.key)).toBe(true);
-    expect(saved.map((e) => e.loanInstallment)).toEqual([
+    expect(expenses.saveExpense).toHaveBeenCalledTimes(1);
+    expect(saved.amount).toBe(900000);
+    expect(saved.category).toBe('installments');
+    expect(saved.smsKey).toBe(item.tx.key);
+    expect(saved.loanInstallment).toEqual([
       { loanId: 'loan_a', installmentId: 'i1' },
       { loanId: 'loan_b', installmentId: 'i2' },
     ]);
     expect(getPendingSms().some((p) => p.fingerprint === item.fingerprint)).toBe(false);
+  });
+
+  it('a single loan keeps the plain link', async () => {
+    const { recordSmsLoanInstallments } = await import('../../../web/src/features/sms-inbox/smsRecord.js');
+    const item = getPendingSms().find((p) => p.tx.amount === 480000);
+    const saved = await recordSmsLoanInstallments(item, [{ loan: { id: 'loan_a', title: 'وام الف' }, installment: { id: 'i1', installmentNumber: 3 } }]);
+    expect(saved.loanInstallment).toEqual({ loanId: 'loan_a', installmentId: 'i1' });
   });
 });

@@ -26,6 +26,7 @@ import { REJECTED_SMS_CATEGORY } from '../../utils/categoryDocument.js';
 import { smsExpenseDraft, smsIncomeDraft, smsProjectExpenseDraft } from './smsDrafts.js';
 import { ensureSmsAccount } from './smsAccounts.js';
 import { findRecorded, sameDayKey } from './recordedCheck.js';
+import { INSTALLMENT_EXPENSE_CATEGORY } from '../../shared/vault/spendingRecords.js';
 
 /** Messages recorded per stored chunk */
 const RECORD_CHUNK = 100;
@@ -74,52 +75,31 @@ export async function recordSmsLoanDeposit(item, loan) {
 }
 
 /**
- * How a withdrawal is split among the loan installments it paid: each installment's own amount,
- * and the difference to the message (a fee, a rounding) on the last one
- * @param {number} total the withdrawal, in tomans
- * @param {number[]} amounts the installments' amounts
- * @returns {number[]|null} what each expense holds; null when the difference leaves the last one nothing
- */
-export function splitSmsAmount(total, amounts) {
-  const parts = amounts.map((a) => Math.round(Number(a) || 0));
-  if (!parts.length) return null;
-  parts[parts.length - 1] += Math.round(total) - parts.reduce((sum, a) => sum + a, 0);
-  return parts.every((a) => a > 0) ? parts : null;
-}
-
-/**
  * Record a waiting withdrawal that paid the next installment of one or several loans (one bank
- * deduction can cover more than one): an expense in «پرداخت قسط» for each, naming its installment
- * (so the loan marks it paid), which together are exactly the withdrawal — the loans page does
- * not record its own expense for them (recordLinks.js drops it). The message leaves the inbox once all are saved.
+ * deduction can cover more than one): ONE expense in «پرداخت قسط» for the withdrawal, naming every
+ * installment it paid — each loan marks its installment paid at its own amount (recordLinks.js),
+ * and no other expense is recorded for them. The message leaves the inbox once it is saved.
  * @param {{ fingerprint: string, tx: object }} item a waiting message
- * @param {Array<{ loan: { id: string, title: string }, installment: { id?: string|number, installmentNumber?: number, totalAmount: number } }>} picks
- * @returns {Promise<object[]>} the expenses
+ * @param {Array<{ loan: { id: string, title: string }, installment: { id?: string|number, installmentNumber?: number } }>} picks
+ * @returns {Promise<object>} the expense
  */
 export async function recordSmsLoanInstallments(item, picks) {
-  const parts = splitSmsAmount(item.tx.amount, picks.map((p) => p.installment.totalAmount));
-  if (!parts) throw new Error(t('مبلغ پیامک با اقساط انتخاب‌شده نمی‌خواند.'));
+  if (!picks.length) throw new Error(t('وامی انتخاب نشده است.'));
   const accounts = await accountsOrNone();
   const accountId = accounts ? await ensureSmsAccount(item.tx, accounts) : '';
-  const expenses = [];
-  for (const [i, { loan, installment }] of picks.entries()) {
-    const number = Number(installment.installmentNumber) || 0;
-    const title = number
-      ? t('قسط {n} {title}', { n: number.toLocaleString(intlLocale()), title: loan.title })
-      : t('قسط {title}', { title: loan.title });
-    const { expense } = await saveSmsExpense({
-      ...smsExpenseDraft(item.tx, accounts || []),
-      accountId,
-      category: 'installments',
-      title: title.slice(0, 120),
-      amount: parts[i],
-      currency: 'IRT',
-      loanInstallment: { loanId: loan.id, installmentId: String(installment.id || installment.installmentNumber) },
-    });
-    expenses.push(expense);
-  }
+  const links = picks.map(({ loan, installment }) => ({ loanId: loan.id, installmentId: String(installment.id || installment.installmentNumber) }));
+  const number = picks.length === 1 ? Number(picks[0].installment.installmentNumber) || 0 : 0;
+  const names = picks.map((p) => p.loan.title).join('، ');
+  const { expense } = await saveSmsExpense({
+    ...smsExpenseDraft(item.tx, accounts || []),
+    accountId,
+    category: INSTALLMENT_EXPENSE_CATEGORY,
+    title: (number ? t('قسط {n} {title}', { n: number.toLocaleString(intlLocale()), title: names }) : t('قسط {title}', { title: names })).slice(0, 120),
+    currency: 'IRT',
+    loanInstallment: links.length === 1 ? links[0] : links,
+  });
   markSmsHandled(item.fingerprint);
-  return expenses;
+  return expense;
 }
 
 /**

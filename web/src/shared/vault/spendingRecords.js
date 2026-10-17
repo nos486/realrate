@@ -6,8 +6,9 @@
  * - A subscription: each payment it is due (subscriptionDocument.js duePayments) — a new one's
  *   first payment as soon as it is saved, one that renews by itself every renewal as its day
  *   comes («اینترنت و اشتراک‌ها», in its currency, from its account, naming it)
- * - A loan installment marked paid on the loans page (and the earlier ones paid with it), and an
- *   extra payment («پرداخت قسط», naming the installment); marking it unpaid removes its expense
+ * - A loan's payments are NOT recorded here: the loans page marks installments paid without an
+ *   expense, and the spending is the user's own expense (a bank SMS, the form) naming the
+ *   installment(s) it paid (recordLinks.js). What older versions recorded is only cleaned up here.
  * - A cleared cheque: its expense (issued) or income (received) — recordLinks.js settleCheque
  *
  * Already in the expenses? An expense of that day with the same amount and currency that names
@@ -23,9 +24,9 @@
  * the expenses and incomes don't edit or delete it — only its own page does, through here.
  */
 
-import { intlLocale, t } from '../../utils/i18n.js';
+import { t } from '../../utils/i18n.js';
 import { SUBSCRIPTION_EXPENSE_CATEGORY, duePayments } from '../../utils/subscriptionDocument.js';
-import { categoryLinkOf, linkFieldsOf, sameLinkValue } from '../../utils/categoryLinks.js';
+import { categoryLinkOf, installmentLinksOf, linkFieldsOf } from '../../utils/categoryLinks.js';
 import { BASE_CURRENCY, normalizeCurrency } from '../../utils/currencies.js';
 import { SPENDING_ID_PREFIX, recordOwnerOf } from '../../utils/recordOwners.js';
 
@@ -40,9 +41,6 @@ const LINK_FIELDS = {
   income: linkFieldsOf('income'),
 };
 const sameAmount = (a, b) => Math.abs((Number(a) || 0) - (Number(b) || 0)) < 0.005;
-
-/** How far (as a share of the payment) a hand-recorded amount may be from an installment's: bank fees */
-export const INSTALLMENT_AMOUNT_TOLERANCE = 0.05;
 
 /**
  * Of a day's records, the one this payment was already recorded as by hand: the same amount and
@@ -72,10 +70,13 @@ export function matchingRecord(side, records, { amount, currency = BASE_CURRENCY
  * @param {number} [number] b's place in the schedule when its id doesn't tell
  */
 export function sameInstallment(a, b, number = 0) {
-  if (!a || !b || a.loanId !== b.loanId) return false;
-  if (String(a.installmentId) === String(b.installmentId)) return true;
-  const n = number || installmentNumberOf({ id: b.installmentId });
-  return n > 0 && n === installmentNumberOf({ id: a.installmentId });
+  // `a` may name several installments (one payment covering more than one loan)
+  return installmentLinksOf(a).some((one) => {
+    if (!b || one.loanId !== b.loanId) return false;
+    if (String(one.installmentId) === String(b.installmentId)) return true;
+    const n = number || installmentNumberOf({ id: b.installmentId });
+    return n > 0 && n === installmentNumberOf({ id: one.installmentId });
+  });
 }
 
 /** Two 32-bit FNV-1a hashes of a key, as 16 hex characters */
@@ -203,26 +204,6 @@ export const installmentSpendingKey = (loanId, inst) => {
 };
 
 /**
- * A loan's installments just marked paid on the loans page: each one's expense
- * @param {object} loan the loan (its title)
- * @param {Array<{ id: string, paidDate: string, paidAmount: number }>} installments
- */
-export async function recordInstallmentPayments(loan, installments) {
-  for (const inst of installments) {
-    const amount = Number(inst.paidAmount) || 0;
-    if (!inst?.id || !inst.paidDate || !(amount > 0)) continue;
-    await recordSpending(installmentSpendingKey(loan.id, inst), {
-      title: installmentNumberOf(inst) ? t('قسط {n} {title}', { n: installmentNumberOf(inst).toLocaleString(intlLocale()), title: loan.title || t('وام') }) : t('قسط {title}', { title: loan.title || t('وام') }),
-      amount,
-      currency: BASE_CURRENCY,
-      date: inst.paidDate,
-      category: INSTALLMENT_EXPENSE_CATEGORY,
-      loanInstallment: { loanId: loan.id, installmentId: String(inst.id) },
-    }, { owner: 'loan', tolerance: INSTALLMENT_AMOUNT_TOLERANCE, installmentNumber: installmentNumberOf(inst) });
-  }
-}
-
-/**
  * An installment was just paid by an expense the user recorded (a bank SMS, the form) naming it:
  * the expense the loans page had recorded for it earlier is a duplicate and goes — the user's
  * own, with the real amount and account, is the one kept
@@ -258,6 +239,8 @@ export async function dropDuplicateInstallmentPayments(link, keepId, days = [], 
 export async function removeInstallmentPayment(loanId, installmentId, paidDate, installmentNumber = 0) {
   const { getExpenses, deleteExpense } = await store();
   const link = { loanId, installmentId: String(installmentId) };
+  // Only what the loan itself recorded (an older loans page): an expense the user recorded for
+  // the installment is their spending and stays
   const ids = new Set([
     spendingExpenseId(installmentSpendingKey(loanId, { id: installmentId, installmentNumber })),
     // Recorded under the id it had then, before expenses were keyed by number
@@ -265,7 +248,7 @@ export async function removeInstallmentPayment(loanId, installmentId, paidDate, 
   ]);
   if (paidDate) {
     const { expenses = [] } = await getExpenses({ from: paidDate, to: paidDate });
-    for (const e of expenses) if (e.loanInstallment && sameLinkValue(e.loanInstallment, link)) ids.add(e.id);
+    for (const e of expenses) if (e.loanInstallment && recordOwnerOf(e) === 'loan' && sameInstallment(e.loanInstallment, link, installmentNumber)) ids.add(e.id);
   }
   for (const id of ids) await deleteExpense(id, null, { syncLinks: false, asOwner: true }).catch(() => {});
 }
@@ -281,7 +264,7 @@ export async function removeLoanPayments(loanId, extraPaymentIds = []) {
   const { expenses = [] } = await getExpenses();
   const extraIds = new Set(extraPaymentIds.map((id) => spendingExpenseId(`loanx:${loanId}:${id}`)));
   for (const e of expenses) {
-    const installment = e.loanInstallment?.loanId === loanId && recordOwnerOf(e) === 'loan' && e.id.startsWith(SPENDING_ID_PREFIX);
+    const installment = installmentLinksOf(e.loanInstallment).some((l) => l.loanId === loanId) && recordOwnerOf(e) === 'loan' && e.id.startsWith(SPENDING_ID_PREFIX);
     if (installment || extraIds.has(e.id)) await deleteExpense(e.id, e, { syncLinks: false, asOwner: true });
   }
 }
@@ -303,26 +286,8 @@ export async function renameLoanPayments(loanId, oldTitle, newTitle, extraPaymen
   const extraIds = new Set(extraPaymentIds.map((id) => spendingExpenseId(`loanx:${loanId}:${id}`)));
   for (const e of expenses) {
     const ours = recordOwnerOf(e) === 'loan' && e.id.startsWith(SPENDING_ID_PREFIX)
-      && (e.loanInstallment?.loanId === loanId || extraIds.has(e.id));
+      && (installmentLinksOf(e.loanInstallment).some((l) => l.loanId === loanId) || extraIds.has(e.id));
     if (!ours || !String(e.title).endsWith(` ${from}`)) continue;
     await saveExpense({ title: `${e.title.slice(0, -from.length)}${to}`.slice(0, 120) }, e, { syncLinks: false, asOwner: true });
   }
-}
-
-/**
- * An extra payment on a loan («پرداخت اضافه»): its expense
- * @param {object} loan
- * @param {{ id?: string, amount: number, paymentDate?: string, date?: string }} payment
- */
-export async function recordExtraPayment(loan, payment) {
-  const amount = Number(payment?.amount) || 0;
-  const date = payment?.paymentDate || payment?.date || '';
-  if (!(amount > 0) || !date) return;
-  await recordSpending(`loanx:${loan.id}:${payment.id || date}`, {
-    title: t('پرداخت اضافه {title}', { title: loan.title || t('وام') }),
-    amount,
-    currency: BASE_CURRENCY,
-    date,
-    category: INSTALLMENT_EXPENSE_CATEGORY,
-  }, { owner: 'loan' });
 }

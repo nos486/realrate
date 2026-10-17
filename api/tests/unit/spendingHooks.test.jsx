@@ -13,9 +13,7 @@ const m = vi.hoisted(() => ({
   vault: { status: 'unlocked', epoch: 1 },
   subs: [],
   recordSubscriptionPayments: vi.fn(async () => null),
-  recordInstallmentPayments: vi.fn(async () => {}),
   removeInstallmentPayment: vi.fn(async () => {}),
-  recordExtraPayment: vi.fn(async () => {}),
   loan: null,
 }));
 
@@ -26,9 +24,7 @@ vi.mock('../../../web/src/features/demo/index.js', () => ({ isDemoReadOnly: () =
 vi.mock('../../../web/src/shared/utils/dates.js', () => ({ todayIso: () => '2026-04-01' }));
 vi.mock('../../../web/src/shared/vault/spendingRecords.js', () => ({
   recordSubscriptionPayments: m.recordSubscriptionPayments,
-  recordInstallmentPayments: m.recordInstallmentPayments,
   removeInstallmentPayment: m.removeInstallmentPayment,
-  recordExtraPayment: m.recordExtraPayment,
 }));
 vi.mock('../../../web/src/shared/vault/vaultSubscriptions.js', () => ({
   getSubscriptions: async () => ({ success: true, subscriptions: m.subs }),
@@ -81,22 +77,18 @@ describe('subscriptions', () => {
 });
 
 describe('the loans page', () => {
-  it('an installment paid records it and the earlier ones paid with it; unpaid removes it', async () => {
+  it('an installment paid records no expense; unpaid cleans up what an older version recorded', async () => {
     const { result } = renderHook(() => useLoanDetail('loan_1'));
     await waitFor(() => expect(result.current.loan?.id).toBe('loan_1'));
     await act(() => result.current.markPaid('inst_3', { paidDate: '2026-04-01', cascade: true }));
-    expect(m.recordInstallmentPayments).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'loan_1', title: 'وام مسکن' }),
-      [expect.objectContaining({ id: 'inst_3' }), expect.objectContaining({ id: 'inst_1' })],
-    );
     await act(() => result.current.unmarkPaid('inst_2'));
     expect(m.removeInstallmentPayment).toHaveBeenCalledWith('loan_1', 'inst_2', '2026-03-05', undefined);
   });
 
-  it('an extra payment is recorded too', async () => {
+  it('an extra payment records no expense either', async () => {
     const { result } = renderHook(() => useLoanDetail('loan_1'));
     await waitFor(() => expect(result.current.loan?.id).toBe('loan_1'));
     await act(() => result.current.addExtraPayment({ amount: 10_000_000, paymentDate: '2026-04-01' }));
-    expect(m.recordExtraPayment).toHaveBeenCalledWith(expect.objectContaining({ id: 'loan_1' }), expect.objectContaining({ id: 'xp_1', amount: 10_000_000 }));
+    expect(result.current.loan?.id).toBe('loan_1');
   });
 });

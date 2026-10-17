@@ -8,16 +8,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const m = vi.hoisted(() => ({
-  recordInstallmentPayments: vi.fn(async () => {}),
-  recordExtraPayment: vi.fn(async () => {}),
   recordSubscriptionPayments: vi.fn(async () => null),
   settleCheque: vi.fn(async () => 'income'),
 }));
 
 vi.mock('../../../web/src/shared/vault/spendingRecords.js', async (importOriginal) => ({
   ...(await importOriginal()),
-  recordInstallmentPayments: m.recordInstallmentPayments,
-  recordExtraPayment: m.recordExtraPayment,
   recordSubscriptionPayments: m.recordSubscriptionPayments,
 }));
 vi.mock('../../../web/src/shared/vault/recordLinks.js', () => ({ settleCheque: m.settleCheque }));
@@ -79,12 +75,7 @@ describe('the one-time backfill', () => {
     // A cleared cheque without its record, on the day it cleared
     expect(m.settleCheque).toHaveBeenCalledTimes(1);
     expect(m.settleCheque).toHaveBeenCalledWith(expect.objectContaining({ id: 'c1' }), { date: '2026-01-03', expenses: true });
-    // Every paid installment (at what was paid, else its amount), every extra payment
-    expect(m.recordInstallmentPayments).toHaveBeenCalledWith(expect.objectContaining({ id: 'loan_1' }), [
-      { id: 'i1', paidDate: '2026-01-05', paidAmount: 100 },
-      { id: 'i2', paidDate: '2026-02-05', paidAmount: 120 },
-    ]);
-    expect(m.recordExtraPayment).toHaveBeenCalledWith(expect.objectContaining({ id: 'loan_1' }), expect.objectContaining({ id: 'x1' }));
+    // The loans record nothing: a loan's payments are the user's own expenses
     // A subscription that renews by itself: from its start
     expect(m.recordSubscriptionPayments).toHaveBeenCalledTimes(1);
     expect(m.recordSubscriptionPayments.mock.calls[0][0]).toMatchObject({ id: 's1', lastPaidOn: '2025-10-11' });
@@ -97,7 +88,6 @@ describe('the one-time backfill', () => {
   it('without the expenses feature only cheques are settled (their income)', async () => {
     await runSpendingBackfill({ userId: 'u2', expenses: false });
     expect(m.settleCheque).toHaveBeenCalledWith(expect.objectContaining({ id: 'c1' }), { date: '2026-01-03', expenses: false });
-    expect(m.recordInstallmentPayments).not.toHaveBeenCalled();
     expect(m.recordSubscriptionPayments).not.toHaveBeenCalled();
   });
 
@@ -105,7 +95,7 @@ describe('the one-time backfill', () => {
     m.settleCheque.mockRejectedValueOnce(new Error('offline'));
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     expect(await runSpendingBackfill({ userId: 'u3', expenses: true })).toBe(false);
-    expect(m.recordInstallmentPayments).toHaveBeenCalled();
+    expect(m.recordSubscriptionPayments).toHaveBeenCalled();
     expect(await runSpendingBackfill({ userId: 'u3', expenses: true })).toBe(true);
     warn.mockRestore();
   });
