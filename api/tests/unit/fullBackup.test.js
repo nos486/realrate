@@ -153,12 +153,12 @@ describe('full backup', () => {
   });
 
   it('backs up and restores goals, subscriptions and recurring incomes too', async () => {
-    vault.records.push(acct('goal', 'goal_1', { title: 'سفر' }), acct('subscription', 'sub_1', { title: 'نت' }), acct('recurring_income', 'ri_1', { title: 'حقوق' }));
+    vault.records.push(acct('goal', 'goal_1', { title: 'سفر' }), acct('subscription', 'sub_1', { title: 'نت' }), acct('recurring_income', 'ri_1', { title: 'حقوق' }), acct('salary_month', 'main', { starts: ['2026-09-16'] }));
     const backup = await buildFullBackup();
-    expect(summarizeBackup(backup).counts).toMatchObject({ goal: 1, subscription: 1, recurring_income: 1 });
+    expect(summarizeBackup(backup).counts).toMatchObject({ goal: 1, subscription: 1, recurring_income: 1, salary_month: 1 });
     vault.records = [];
     const result = await restoreFullBackup(backup);
     expect(result.skipped).toBe(0);
-    expect(vault.records.map((r) => r.kind)).toEqual(expect.arrayContaining(['goal', 'subscription', 'recurring_income']));
+    expect(vault.records.map((r) => r.kind)).toEqual(expect.arrayContaining(['goal', 'subscription', 'recurring_income', 'salary_month']));
   });
 });

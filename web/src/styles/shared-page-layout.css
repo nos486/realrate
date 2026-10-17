@@ -110,7 +110,7 @@
 }
 
 .ui-pagination-page {
-  color: var(--text-secondary);
+  color: var(--text-muted);
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
@@ -277,7 +277,32 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  color: var(--text-secondary);
+  color: var(--text-muted);
   line-height: 1.9;
   font-size: 0.9rem;
+}
+
+/* ── «ماه حقوقی» (shared/flow/SalaryMonthBar.jsx) ── */
+.salary-month-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.salary-month-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border: var(--card-inner-border);
+  border-radius: 8px;
+}
+
+.salary-month-list .salary-month-empty {
+  justify-content: center;
+  color: var(--text-muted);
 }

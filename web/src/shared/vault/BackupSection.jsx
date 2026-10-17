@@ -39,6 +39,7 @@ const KIND_LABELS = {
   subscription: t('اشتراک'),
   goal: t('هدف پس‌انداز'),
   recurring_income: t('درآمد تکرارشونده'),
+  salary_month: t('روزهای دریافت حقوق'),
 };
 
 export default function BackupSection() {

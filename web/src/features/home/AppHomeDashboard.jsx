@@ -30,7 +30,9 @@ import { todayIso } from '../../shared/utils/dates.js';
 import Skeleton from '../../shared/ui/Skeleton.jsx';
 import { getPendingSms, SMS_INBOX_EVENT } from '../../shared/native/smsInbox.js';
 import { getIncomes } from '../../shared/vault/vaultIncomes.js';
-import { summarizeExpenses, shamsiMonthOf, shamsiMonthRange, shiftShamsiMonth, expenseInToman } from '../../utils/expenseDocument.js';
+import { summarizeExpenses, shiftShamsiMonth, expenseInToman } from '../../utils/expenseDocument.js';
+import { salaryMonthRange, currentSalaryMonth } from '../../utils/salaryMonth.js';
+import { useSalaryMonths } from '../../shared/salary/useSalaryMonths.js';
 import { useFxRates } from '../market/useFxRates.js';
 import { useDailyExpenses } from '../expenses/hooks/useDailyExpenses.js';
 import { getExpenseCategory } from '../expenses/constants/expenseCategories.js';
@@ -86,14 +88,18 @@ export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }
   const hasMarket = useFeature('market');
   const unlocked = vault.status === 'unlocked';
   const today = todayIso();
-  const currentMonth = useMemo(() => shamsiMonthOf(today), [today]);
+  const salary = useSalaryMonths();
+  const starts = salary.activeStarts;
+  const currentMonth = useMemo(() => currentSalaryMonth(today, starts), [today, starts]);
   // ‹ › browse other months; the home opens on the current one again (this state starts over)
-  const [month, setMonth] = useState(currentMonth);
+  const [picked, setPicked] = useState({ for: null, month: null });
+  const pickMonth = (next) => setPicked({ for: starts, month: next });
+  const month = picked.for === starts ? picked.month : currentMonth;
   const isCurrentMonth = month.jy === currentMonth.jy && month.jm === currentMonth.jm;
   const canGoNext = month.jy < currentMonth.jy || (month.jy === currentMonth.jy && month.jm < currentMonth.jm);
-  const range = useMemo(() => shamsiMonthRange(month.jy, month.jm), [month]);
+  const range = useMemo(() => salaryMonthRange(month.jy, month.jm, starts), [month, starts]);
 
-  const { expenses, previousExpenses, loading: expensesLoading } = useDailyExpenses(month, { enabled: hasExpenses && unlocked });
+  const { expenses, previousExpenses, loading: expensesLoading } = useDailyExpenses(month, { enabled: hasExpenses && unlocked, salaryStarts: starts });
   const monthIncomes = useMonthIncomes(range, unlocked);
   const counted = useMemo(
     () => ({ expenses: splitCounted('expense', expenses).counted, previous: splitCounted('expense', previousExpenses).counted }),
@@ -122,12 +128,12 @@ export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }
     if (isCurrentMonth) {
       const days = Math.round((Date.parse(today) - Date.parse(range.from)) / DAY_MS);
       const prev = shiftShamsiMonth(month, -1);
-      const cutoff = new Date(Date.parse(shamsiMonthRange(prev.jy, prev.jm).from) + days * DAY_MS).toISOString().slice(0, 10);
+      const cutoff = new Date(Date.parse(salaryMonthRange(prev.jy, prev.jm, starts).from) + days * DAY_MS).toISOString().slice(0, 10);
       previous = previous.filter((e) => e.date <= cutoff);
     }
     const before = summarizeExpenses(previous, dollarRates).totalToman;
     return before > 0 ? ((spent - before) / before) * 100 : null;
-  }, [counted, spent, dollarRates, today, range.from, month, isCurrentMonth]);
+  }, [counted, spent, dollarRates, today, range.from, month, isCurrentMonth, starts]);
   const latest = useMemo(
     () => [...expenses].sort((a, b) => b.date.localeCompare(a.date) || String(b.createdAt || '').localeCompare(String(a.createdAt || ''))).slice(0, 5),
     [expenses],
@@ -196,11 +202,11 @@ export default function AppHomeDashboard({ usdToman = 0, analysis = [], onOpen }
       <section className="app-home-hero" aria-label={t('خلاصه‌ی {month}', { month: formatShamsiMonth(month.jy, month.jm) })}>
         <div className="app-home-hero-top">
           <span className="app-home-month-nav">
-            <button type="button" className="app-home-month-btn" onClick={() => setMonth(shiftShamsiMonth(month, -1))} aria-label={t('ماه قبل')}>
+            <button type="button" className="app-home-month-btn" onClick={() => pickMonth(shiftShamsiMonth(month, -1))} aria-label={t('ماه قبل')}>
               <ChevronRight size={16} />
             </button>
             <span className="app-home-month">{formatShamsiMonth(month.jy, month.jm)}</span>
-            <button type="button" className="app-home-month-btn" onClick={() => setMonth(shiftShamsiMonth(month, 1))} disabled={!canGoNext} aria-label={t('ماه بعد')}>
+            <button type="button" className="app-home-month-btn" onClick={() => pickMonth(shiftShamsiMonth(month, 1))} disabled={!canGoNext} aria-label={t('ماه بعد')}>
               <ChevronLeft size={16} />
             </button>
           </span>

@@ -40,6 +40,8 @@ import { useDemo } from '../../demo/index.js';
 import { useQuickAddParam } from '../../../shared/hooks/useQuickAddParam.js';
 import { todayIso } from '../../../shared/utils/dates.js';
 import PeriodSwitcher from '../../../shared/flow/PeriodSwitcher.jsx';
+import SalaryMonthBar from '../../../shared/flow/SalaryMonthBar.jsx';
+import { useSalaryMonths } from '../../../shared/salary/useSalaryMonths.js';
 import YearFlowChart from '../../../shared/flow/YearFlowChart.jsx';
 import { FlowMonthCards, CategoryPills, ExcludedBox } from '../../../shared/flow/FlowCards.jsx';
 import { formatAmountMasked } from '../../../shared/flow/flowFormat.js';
@@ -49,7 +51,7 @@ import {
   formatShamsiMonth,
   monthIndex,
   monthProgress,
-  shamsiMonthOf,
+  currentSalaryMonth,
 } from '../../../shared/flow/flowYear.js';
 
 const HEADER = {
@@ -90,8 +92,11 @@ export default function IncomesPage() {
   const [managingCategories, setManagingCategories] = useState(false);
   const hideValues = usePrivacyMode();
   const today = todayIso();
-  const thisMonth = useMemo(() => shamsiMonthOf(today), [today]);
-  const [month, setMonth] = useState(thisMonth);
+  const salary = useSalaryMonths();
+  const thisMonth = useMemo(() => currentSalaryMonth(today, salary.activeStarts), [today, salary.activeStarts]);
+  // The month browsed to; none picked follows the current one (the salary days load after the page)
+  const [picked, setMonth] = useState({ for: null, month: null });
+  const month = picked.for === salary.activeStarts ? picked.month : thisMonth;
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [order, setOrder] = useState('desc');
@@ -123,7 +128,7 @@ export default function IncomesPage() {
   const fx = useFxRates(loaded);
   const rates = useMemo(() => ({ usdToman, usdAt, ...fx }), [usdToman, usdAt, fx]);
 
-  const progress = useMemo(() => monthProgress(month, today), [month, today]);
+  const progress = useMemo(() => monthProgress(month, today, salary.activeStarts), [month, today, salary.activeStarts]);
   const monthLabel = formatShamsiMonth(month.jy, month.jm);
 
   // What the page shows: the month; the totals count only what is income
@@ -186,7 +191,7 @@ export default function IncomesPage() {
   const changeMonth = (next) => {
     setCategoryFilter('all');
     setSearchQuery('');
-    setMonth(next);
+    setMonth({ for: salary.activeStarts, month: next });
   };
   const openMonth = (jm) => changeMonth({ jy: month.jy, jm });
 
@@ -335,6 +340,7 @@ export default function IncomesPage() {
       <FeaturePageHeader {...HEADER} />
 
       <PeriodSwitcher month={month} thisMonth={thisMonth} onMonthChange={changeMonth} />
+      <SalaryMonthBar salary={salary} disabled={readOnly} />
 
       {error && (
         <AlertBanner

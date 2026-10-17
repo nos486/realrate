@@ -32,6 +32,8 @@ export const VAULT_RECORD_KINDS = [
   "subscription",
   // The user's savings goals (domain/goalDocument.js), deposits inside the record
   "goal",
+  // The days the user received salary, which start their months (domain/salaryMonth.js), one record
+  "salary_month",
 ];
 
 /** Kinds that exist only for users of a feature (config/features.js); others get 404 */
