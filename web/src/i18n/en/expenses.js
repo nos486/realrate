@@ -7,6 +7,9 @@ export default {
   // shared/flow/SalaryMonthBar (salary months)
   'ماه حقوقی': 'Salary month',
   'ماه تقویمی': 'Calendar month',
+  حقوقی: 'Salary',
+  تقویمی: 'Calendar',
+  'شروع: {date}': 'Starts {date}',
   'روزهای حقوق': 'Salary days',
   'روزهای دریافت حقوق': 'Salary days',
   'روی روزی که حقوق گرفتی بزن تا ماه از آن روز شروع شود؛ دوباره بزنی برداشته می‌شود. ماهی که روزی ندارد از اول تقویمی‌اش شروع می‌شود.': 'Tap the day you got your salary to start the month from it; tap again to remove it. A month without a day starts on its 1st.',

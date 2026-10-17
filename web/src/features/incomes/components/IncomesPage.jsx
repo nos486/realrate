@@ -235,6 +235,7 @@ export default function IncomesPage() {
     <>
       <FlowMonthCards
         kind="income"
+        periodStart={salary.activeStarts.length ? progress.range.from : null}
         monthLabel={monthLabel}
         total={total}
         count={counted.length}

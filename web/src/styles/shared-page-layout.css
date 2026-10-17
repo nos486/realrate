@@ -282,8 +282,19 @@
   font-size: 0.9rem;
 }
 
-/* ── «ماه حقوقی» (shared/flow/SalaryMonthBar.jsx) ── */
+/* ── «ماه حقوقی» (shared/flow/SalaryMonthBar.jsx): month, switch and days on one line ── */
+.flow-period-bar.has-extra {
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.flow-period-bar.has-extra .flow-period-nav { gap: 4px; min-width: 0; }
+.flow-period-bar.has-extra .flow-period-label { min-width: 0; font-size: 15px; white-space: nowrap; }
+.flow-period-bar.has-extra .salary-month-controls .filter-pill-btn { padding-inline: 10px; font-size: 12.5px; }
+
 .salary-month-controls {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 8px;
