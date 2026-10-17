@@ -12,6 +12,7 @@ export { default as GenericCsvImportButton } from './GenericCsvImportButton.jsx'
 export { default as Input } from './Input.jsx';
 export { default as MiniCard } from './MiniCard.jsx';
 export { default as Modal } from './Modal.jsx';
+export { default as MonthCalendar } from './MonthCalendar.jsx';
 export { default as NumericInput } from './NumericInput.jsx';
 export { default as Pagination } from './Pagination.jsx';
 export { default as ResponsiveDataTable } from './ResponsiveDataTable.jsx';
