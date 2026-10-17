@@ -145,6 +145,9 @@ export default function TransactionForm({
 
   // Sell warning: check available balance for asset
   const availableBalance = currentHoldingsMap[assetId]?.amount || 0;
+  // The part of it the goals have reserved: selling into it leaves a goal short
+  const reservedQty = currentHoldingsMap[assetId]?.reserved || 0;
+  const isSellingReserved = transactionType === 'sell' && isQuantityValid && !(quantityNum > availableBalance) && quantityNum > availableBalance - reservedQty + 1e-9 && reservedQty > 0;
   const isSellingOverBalance = transactionType === 'sell' && isQuantityValid && quantityNum > availableBalance;
 
   // «ثبت و بعدی»: the next one keeps the asset, side, price and day
@@ -271,6 +274,13 @@ export default function TransactionForm({
           <div className="tx-summary-preview-box">
             <span className="tx-summary-label">{t('ارزش کل معامله:')}</span>
             <strong className="tx-summary-value">{t('{count} تومان', { count: Math.round(totalValue).toLocaleString(intlLocale()) })}</strong>
+          </div>
+        )}
+
+        {isSellingReserved && (
+          <div className="tx-warning-banner">
+            <AlertTriangle size={15} style={{ verticalAlign: 'middle', marginInlineEnd: '6px', flexShrink: 0 }} />
+            <span>{t('توجه: {reserved} {unit} از این دارایی برای هدف‌ها کنار گذاشته شده و فقط {free} {unit} آزاد است؛ با این فروش، اختصاص هدف‌ها کم می‌شود. (غیرمسدودکننده)', { reserved: Number(reservedQty).toLocaleString(intlLocale()), unit, free: Number(Math.max(0, availableBalance - reservedQty)).toLocaleString(intlLocale()) })}</span>
           </div>
         )}
 

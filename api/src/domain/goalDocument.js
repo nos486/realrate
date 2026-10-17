@@ -15,9 +15,11 @@
  * - allocations: a share of a portfolio's asset reserved for the goal — a quantity (`mode:
  *   'amount'`: 2 grams of gold) or a percent of what the portfolio holds of it (`mode: 'percent'`).
  *   The asset stays in the portfolio, nothing is sold or spent; it counts at today's price, so the
- *   goal moves with the market. An asset's quantity goes to one goal at a time: goals are served in
- *   the order they were created and one that asks for more than is left gets what is left
- *   (resolveAllocations).
+ *   goal moves with the market. An asset's quantity goes to one goal at a time: a new allocation
+ *   can't ask for more than is free (the form refuses it), and if the asset is sold down later,
+ *   goals are served in the order they were created and one that asks for more than is left gets
+ *   what is left (resolveAllocations). What is reserved is not available for other use: the
+ *   portfolio shows the available quantity and value beside the total.
  * Progress (goalProgress) is saved = deposits + allocations, all in tomans at today's rates and then
  * in the goal's currency, against the target; with a target date it says what to set aside each
  * month, and from the deposits of the last months it estimates when the goal is reached at that
@@ -171,10 +173,14 @@ export const assetKey = (portfolioId, assetId) => `${portfolioId}|${assetId}`;
  * @param {Map<string, { amount: number, unitPrice: number }>} assets - by assetKey: the quantity
  *   held and the price of one unit in tomans (an asset the portfolio no longer holds is missing)
  * @returns {{ byGoal: Map<string, Array<{ id: string, date: string, quantity: number, toman: number, missing: boolean }>>,
- *   leftOf: (portfolioId: string, assetId: string) => number }} leftOf: the quantity no goal has taken
+ *   leftOf: (portfolioId: string, assetId: string) => number,
+ *   askedOf: (portfolioId: string, assetId: string) => number }} leftOf: the quantity no goal has taken;
+ *   askedOf: the quantity all goals asked for — more than the portfolio holds once some of the asset
+ *   was sold after it was reserved (the goals then got less than they asked)
  */
 export function resolveAllocations(goals, assets) {
   const left = new Map([...assets].map(([key, a]) => [key, Math.max(0, num(a.amount))]));
+  const asked = new Map();
   const byGoal = new Map();
   const ordered = [...goals].sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')) || String(a.id).localeCompare(String(b.id)));
   for (const goal of ordered) {
@@ -187,13 +193,18 @@ export function resolveAllocations(goals, assets) {
         continue;
       }
       const wanted = alloc.mode === 'percent' ? (Math.max(0, num(held.amount)) * num(alloc.value)) / 100 : num(alloc.value);
+      asked.set(key, (asked.get(key) ?? 0) + Math.max(0, wanted));
       const quantity = Math.max(0, Math.min(wanted, left.get(key) ?? 0));
       left.set(key, (left.get(key) ?? 0) - quantity);
       list.push({ id: alloc.id, date: alloc.date, quantity, toman: quantity * num(held.unitPrice), missing: false });
     }
     byGoal.set(goal.id, list);
   }
-  return { byGoal, leftOf: (portfolioId, assetId) => Math.max(0, left.get(assetKey(portfolioId, assetId)) ?? 0) };
+  return {
+    byGoal,
+    leftOf: (portfolioId, assetId) => Math.max(0, left.get(assetKey(portfolioId, assetId)) ?? 0),
+    askedOf: (portfolioId, assetId) => asked.get(assetKey(portfolioId, assetId)) ?? 0,
+  };
 }
 
 /** What a deposit is worth now in tomans at today's rates (0 when its currency has no rate) */

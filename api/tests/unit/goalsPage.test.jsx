@@ -96,6 +96,20 @@ describe('the goals page', () => {
     expect(input.allocations[0]).toMatchObject({ portfolioId: 'pf_1', assetId: 'gold18', mode: 'percent', value: 20 });
   });
 
+  it('refuses to reserve more of an asset than is free', async () => {
+    render(<GoalsPage />);
+    const card = screen.getByText('سفر').closest('li');
+    fireEvent.click(within(card).getByLabelText('واریز'));
+    fireEvent.click(await screen.findByRole('tab', { name: 'از پورتفو' }));
+    pickRow('دارایی', 'طلا · اصلی');
+    // 10 grams held, 6 already reserved by the other goal: 4 are free
+    fireEvent.change(screen.getByPlaceholderText('۰'), { target: { value: '5' } });
+    expect(screen.getByRole('alert').textContent).toMatch(/آزاد/);
+    expect(screen.getByRole('button', { name: 'اختصاص به هدف' }).disabled).toBe(true);
+    fireEvent.change(screen.getByPlaceholderText('۰'), { target: { value: '4' } });
+    expect(screen.getByRole('button', { name: 'اختصاص به هدف' }).disabled).toBe(false);
+  });
+
   it('creates a goal from the form', async () => {
     store.goals = [];
     render(<GoalsPage />);

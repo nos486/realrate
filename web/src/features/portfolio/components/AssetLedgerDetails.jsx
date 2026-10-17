@@ -58,6 +58,8 @@ export default function AssetLedgerDetails({
   dollarPnl = null,
   // What goals have reserved of this asset: [{ goalName, quantity }]
   goalShares = [],
+  // The total the goals hold of this asset, `over` when they asked for more than is held now
+  goalReserved = null,
 }) {
   const money = (v) => (hideValues ? MASK : formatNum(v));
   const entryById = new Map(asset.entries.map((e) => [e.id, e]));
@@ -81,6 +83,14 @@ export default function AssetLedgerDetails({
           {goalShares.map((share) => (
             <span key={share.goalId} className="asset-ledger-muted">{t('{qty} {unit} برای هدف «{goal}»', { qty: qtyText(share.quantity), unit: asset.unit, goal: share.goalName })}</span>
           ))}
+          {goalReserved && (
+            <span className="asset-ledger-muted">
+              {t('در دسترس: {qty} {unit}', { qty: hideValues ? MASK : qtyText(Math.max(0, asset.amount - goalReserved.quantity)), unit: asset.unit })}
+            </span>
+          )}
+          {goalReserved?.over && (
+            <span className="asset-ledger-muted">{t('اختصاص‌ها از موجودی فعلی بیشتر است ({asked} {unit}) و برای هدف‌ها کم شده؛ اختصاص را در صفحه‌ی اهداف اصلاح کنید.', { asked: qtyText(goalReserved.asked), unit: asset.unit })}</span>
+          )}
           {asset.unpricedQty > EPS && (
             <span className="asset-ledger-muted">{t('{qty} {unit} بدون قیمت خرید (در سود/زیان حساب نمی‌شود)', { qty: qtyText(asset.unpricedQty), unit: asset.unit })}</span>
           )}

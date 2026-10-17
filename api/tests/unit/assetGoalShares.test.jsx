@@ -20,13 +20,17 @@ describe('useAssetGoalShares', () => {
       { id: 'early', name: 'خانه', createdAt: '1', allocations: [alloc('a', 'pf_1', 'percent', 70)] },
     ];
     const { result } = renderHook(() => useAssetGoalShares('pf_1', assets));
-    const shares = result.current.get('gold18');
+    const shares = result.current.shares.get('gold18');
     expect(shares.map((s) => [s.goalName, s.quantity])).toEqual([['سفر', 3], ['خانه', 7]]);
+    // Together they hold all 10 grams; the later goal asked for 6 and got 3, so they asked for 13
+    expect(result.current.reserved.get('gold18')).toMatchObject({ quantity: 10, asked: 13, over: true });
+    expect(result.current.reservedToman).toBe(50_000_000);
   });
 
   it('leaves out another portfolio\'s allocations', () => {
     store.goals = [{ id: 'g', name: 'خانه', createdAt: '1', allocations: [alloc('a', 'pf_2', 'amount', 2)] }];
     const { result } = renderHook(() => useAssetGoalShares('pf_1', assets));
-    expect(result.current.size).toBe(0);
+    expect(result.current.shares.size).toBe(0);
+    expect(result.current.reservedToman).toBe(0);
   });
 });
