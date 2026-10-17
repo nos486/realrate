@@ -29,6 +29,6 @@ describe('paying an installment on its due day', () => {
     // Only installment 2 (desktop table + mobile card)
     expect(buttons).toHaveLength(2);
     fireEvent.click(buttons[0]);
-    await waitFor(() => expect(onMarkPaid).toHaveBeenCalledWith('inst_l_2', { paidDate: '2026-02-05', paidAmount: 100, cascade: false }));
+    await waitFor(() => expect(onMarkPaid).toHaveBeenCalledWith('inst_l_2', { paidDate: '2026-02-05', paidAmount: 100, cascade: false, accountId: '' }));
   });
 });

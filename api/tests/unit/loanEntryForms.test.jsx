@@ -176,7 +176,7 @@ describe('the extra payment', () => {
     submit('extra-payment-amount');
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     expect(onSubmit.mock.calls[0][0]).toEqual({
-      amount: 30_000_000, paymentDate: yesterdayIso(), reductionMode: 'reduce_term', notes: 'پاداش',
+      amount: 30_000_000, paymentDate: yesterdayIso(), reductionMode: 'reduce_term', notes: 'پاداش', accountId: '',
     });
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
