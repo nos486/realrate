@@ -96,6 +96,19 @@ export const BANK_SMS_TEMPLATES = [
         direction: { debit: ['برداشت', 'خرید', 'پرداخت', 'انتقال'], credit: ['واریز'] }, // i18n-ignore
         pattern: re(String.raw`^بلو\n(?<kind>[^\n]+)\n[^\n]*?(?<amount>${P.amount})\s?ریال[^\n]*\nموجودی\s?:\s?(?<balance>${P.balance})\s?ریال\n(?<time>${P.time})\n(?<date>${P.date})$`), // i18n-ignore
       },
+      {
+        // بلو
+        // سینا عزیز 27,272,727 ریال بابت بازپرداخت بدهی وام قرض الحسنه ازدواج، از حساب شما پرید.
+        // موجودی: 13,781,170 ریال
+        // ۱۴:۲۰
+        // ۱۴۰۵.۰۷.۲۵
+        // (a payment with a purpose and no title line: the purpose after «بابت» is the description;
+        // «پرید» / «نشست» at the end gives the direction)
+        id: 'blu-purpose',
+        unit: 'rial',
+        direction: { debit: ['پرید'], credit: ['نشست'] }, // i18n-ignore
+        pattern: re(String.raw`^بلو\n[^\n\d]*?(?<amount>${P.amount})\s?ریال\s?بابت\s?(?<desc>[^\n]+?)[،,]?\s?(?:از|به)\s?حساب شما\s?(?<kind>پرید|نشست)\.?\nموجودی\s?:\s?(?<balance>${P.balance})\s?ریال\n(?<time>${P.time})\n(?<date>${P.date})$`), // i18n-ignore
+      },
     ],
   },
   {
