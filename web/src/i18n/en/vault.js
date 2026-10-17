@@ -123,7 +123,7 @@ export default {
   'ساخت پشتیبان ممکن نشد.': 'Could not create the backup.',
   'بازگردانی ممکن نشد.': 'Could not restore.',
   'پشتیبان کامل': 'Full backup',
-  'همه‌ی اطلاعات حساب در یک فایل: پورتفوها با همه‌ی خرید و فروش‌ها، دسته‌بندی و هدف‌ها؛ وام‌ها با اقساط پرداخت‌شده؛ درآمدها، چک‌ها، هزینه‌ها و دنگ‌ها، حساب‌ها و انتقال‌ها، دسته‌ها و صفحه‌ی اصلی. با «بازگردانی» همه‌چیز همان‌طور برمی‌گردد (همین حساب یا حساب دیگر).': 'All your account data in one file: portfolios with every buy and sell, categories and targets; loans with paid installments; incomes, cheques, expenses and split bills, accounts and transfers, categories and the home page. “Restore” brings everything back as it was (into this account or another).',
+  'همه‌ی اطلاعات حساب در یک فایل: پورتفوها با همه‌ی خرید و فروش‌ها، دسته‌بندی و هدف‌ها؛ وام‌ها با اقساط پرداخت‌شده؛ درآمدها، چک‌ها، هزینه‌ها و دنگ‌ها، اشتراک‌ها، هدف‌های پس‌انداز، حساب‌ها (با کارت‌های ادغام‌شده و تاریخ مانده) و انتقال‌ها، دسته‌ها و صفحه‌ی اصلی. با «بازگردانی» همه‌چیز همان‌طور برمی‌گردد (همین حساب یا حساب دیگر).': 'All your account data in one file: portfolios with every buy and sell, categories and targets; loans with paid installments; incomes, cheques, expenses and split bills, subscriptions, savings goals, accounts (with merged cards and balance dates) and transfers, categories and the home page. “Restore” brings everything back as it was (into this account or another).',
   'رمز فایل (اختیاری)': 'File password (optional)',
   'بدون رمز، اطلاعات در فایل خوانا است؛ آن را امن نگه دارید.': 'Without a password the data in the file is readable; keep it safe.',
   'دریافت پشتیبان': 'Download backup',

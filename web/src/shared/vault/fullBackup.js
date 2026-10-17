@@ -5,7 +5,8 @@
  * every encrypted record of every kind (loans with their paid installments and extra payments,
  * incomes, cheques, expense sections and expenses with their shares and
  * payments, accounts, transfers between them, categories) and every portfolio with all of its
- * entries (purchases, sales, payments of expenses, its custom categories and targets), plus the
+ * entries (purchases, sales, payments of expenses, its custom categories and targets), goals (with the
+ * portfolio assets set aside for them), subscriptions, accounts with their merge aliases, plus the
  * user's custom banks and home page.
  *
  *   { format: 'realrate-backup', version: 1, exportedAt,
@@ -40,7 +41,7 @@ export const BACKUP_VERSION = 1;
 /** Kinds encrypted with the account key (in the order they are restored) */
 export const ACCOUNT_KINDS = [
   'category_settings', 'bank_account', 'loan', 'income', 'cheque',
-  'expense_group', 'expense', 'transfer', 'subscription', 'goal',
+  'expense_group', 'expense', 'transfer', 'subscription', 'goal', 'recurring_income',
 ];
 /** Kinds of a portfolio, encrypted with its own key */
 export const PORTFOLIO_KINDS = ['holding', 'transaction', 'portfolio_layout', 'risk_profile'];
@@ -163,13 +164,21 @@ export function remapRecord(kind, data, { portfolioIds = new Map(), bankIds = ne
   let next = data;
   const swapBank = (obj) => (obj && bankIds.has(obj.bankId) ? { ...obj, bankId: bankIds.get(obj.bankId) } : obj);
   if (kind === 'loan' && next?.loan) next = { ...next, loan: swapBank(next.loan) };
-  else if (kind === 'bank_account' || kind === 'cheque') next = swapBank(next);
+  else if (kind === 'bank_account') {
+    next = swapBank(next);
+    // Cards of merged accounts (aliases) name their bank too
+    if (Array.isArray(next?.aliases)) next = { ...next, aliases: next.aliases.map(swapBank) };
+  } else if (kind === 'cheque' || kind === 'income') next = swapBank(next);
   // Portfolio entries of expenses and incomes follow a portfolio restored under a new id
   const links = { expense: ['paidFrom', 'investedIn'], income: ['soldFrom'] }[kind] || [];
   for (const field of links) {
     if (next?.[field]?.portfolioId && portfolioIds.has(next[field].portfolioId)) {
       next = { ...next, [field]: { ...next[field], portfolioId: portfolioIds.get(next[field].portfolioId) } };
     }
+  }
+  // Assets a goal holds back point at their portfolio
+  if (kind === 'goal' && Array.isArray(next?.allocations)) {
+    next = { ...next, allocations: next.allocations.map((a) => (portfolioIds.has(a?.portfolioId) ? { ...a, portfolioId: portfolioIds.get(a.portfolioId) } : a)) };
   }
   return next;
 }
