@@ -333,8 +333,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
 
   return (
     <>
-      <PeriodSwitcher month={month} thisMonth={thisMonth} onMonthChange={changeMonth} />
-      <SalaryMonthBar salary={salary} disabled={readOnly} />
+      <PeriodSwitcher month={month} thisMonth={thisMonth} onMonthChange={changeMonth} extra={<SalaryMonthBar salary={salary} disabled={readOnly} />} />
 
       {error && (
         <AlertBanner

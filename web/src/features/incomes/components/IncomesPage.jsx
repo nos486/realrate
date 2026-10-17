@@ -339,8 +339,7 @@ export default function IncomesPage() {
     <div className="incomes-page-container">
       <FeaturePageHeader {...HEADER} />
 
-      <PeriodSwitcher month={month} thisMonth={thisMonth} onMonthChange={changeMonth} />
-      <SalaryMonthBar salary={salary} disabled={readOnly} />
+      <PeriodSwitcher month={month} thisMonth={thisMonth} onMonthChange={changeMonth} extra={<SalaryMonthBar salary={salary} disabled={readOnly} />} />
 
       {error && (
         <AlertBanner

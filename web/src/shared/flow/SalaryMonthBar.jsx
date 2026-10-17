@@ -1,12 +1,12 @@
 /**
- * SalaryMonthBar.jsx — «ماه حقوقی» under the period switcher of the expenses and incomes pages:
+ * SalaryMonthBar.jsx — «ماه حقوقی» beside the month switcher (PeriodSwitcher's `extra`) of the expenses and incomes pages:
  * a switch between the salary's months and the calendar's, and «روزهای حقوق»: the list of the
  * marked days, where a day is added by picking «امروز» (the month starts now) or any past day
  */
 
 import React, { useState } from 'react';
 import { Wallet, Trash2 } from 'lucide-react';
-import { Button, FilterPills, Modal } from '../ui/index.js';
+import { Button, FilterPills, IconButton, Modal } from '../ui/index.js';
 import { useFeedback } from '../ui/FeedbackProvider.jsx';
 import DateField from '../form/DateField.jsx';
 import { getTodayShamsi, formatShamsiDisplay, shamsiToGregorian } from '../../features/portfolio/components/ShamsiDatePicker.jsx';
@@ -49,11 +49,9 @@ export default function SalaryMonthBar({ salary, disabled = false }) {
   };
 
   return (
-    <div className="flow-period-bar salary-month-bar">
+    <div className="salary-month-controls">
       <FilterPills variant="segmented" size="sm" options={VIEWS} activeValue={salary.view} onChange={salary.setView} />
-      <div className="flow-period-nav">
-        <Button size="sm" icon={<Wallet size={14} />} onClick={() => setOpen(true)}>{t('روزهای حقوق')}</Button>
-      </div>
+      <IconButton icon={<Wallet size={16} />} label={t('روزهای حقوق')} onClick={() => setOpen(true)} />
       <Modal isOpen={open} onClose={() => setOpen(false)} title={t('روزهای دریافت حقوق')} subtitle={t('هر ماه از روز دریافت حقوق شروع می‌شود؛ ماهی که روزی ندارد از اول تقویمی‌اش.')}>
         <DateField label={t('روز دریافت حقوق')} value={day} onChange={setDay} />
         <Button size="sm" onClick={addPicked} disabled={disabled || busy}>{t('افزودن')}</Button>

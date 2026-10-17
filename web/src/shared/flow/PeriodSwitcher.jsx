@@ -17,10 +17,11 @@ const MODES = [
 
 /**
  * @param {{ mode?: 'month'|'year', month: { jy: number, jm: number }, thisMonth: { jy: number, jm: number },
- *   onModeChange?: (mode: string) => void, onMonthChange: (month: object) => void }} props
+ *   onModeChange?: (mode: string) => void, onMonthChange: (month: object) => void,
+ *   extra?: React.ReactNode }} props extra: more controls at the bar's other end
  *   the year shown is `month.jy`; moving a year keeps the month (capped at this month)
  */
-export default function PeriodSwitcher({ mode = 'month', month, thisMonth, onModeChange = null, onMonthChange }) {
+export default function PeriodSwitcher({ mode = 'month', month, thisMonth, onModeChange = null, onMonthChange, extra = null }) {
   const yearly = mode === 'year';
   const atNow = yearly ? month.jy >= thisMonth.jy : monthIndex(month) >= monthIndex(thisMonth);
   const step = (delta) => {
@@ -41,6 +42,7 @@ export default function PeriodSwitcher({ mode = 'month', month, thisMonth, onMod
           </Button>
         )}
       </div>
+      {extra}
     </div>
   );
 }
