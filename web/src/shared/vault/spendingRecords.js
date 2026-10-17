@@ -287,6 +287,29 @@ export async function removeLoanPayments(loanId, extraPaymentIds = []) {
 }
 
 /**
+ * A loan renamed: the title of every expense it recorded (installments and extra payments) ends
+ * with the new name; the ones the user made by hand keep their own
+ * @param {string} loanId
+ * @param {string} oldTitle the loan's title before
+ * @param {string} newTitle
+ * @param {string[]} [extraPaymentIds] the ids of the loan's extra payments
+ */
+export async function renameLoanPayments(loanId, oldTitle, newTitle, extraPaymentIds = []) {
+  const from = oldTitle || t('وام');
+  const to = newTitle || t('وام');
+  if (from === to) return;
+  const { getExpenses, saveExpense } = await store();
+  const { expenses = [] } = await getExpenses();
+  const extraIds = new Set(extraPaymentIds.map((id) => spendingExpenseId(`loanx:${loanId}:${id}`)));
+  for (const e of expenses) {
+    const ours = recordOwnerOf(e) === 'loan' && e.id.startsWith(SPENDING_ID_PREFIX)
+      && (e.loanInstallment?.loanId === loanId || extraIds.has(e.id));
+    if (!ours || !String(e.title).endsWith(` ${from}`)) continue;
+    await saveExpense({ title: `${e.title.slice(0, -from.length)}${to}`.slice(0, 120) }, e, { syncLinks: false, asOwner: true });
+  }
+}
+
+/**
  * An extra payment on a loan («پرداخت اضافه»): its expense
  * @param {object} loan
  * @param {{ id?: string, amount: number, paymentDate?: string, date?: string }} payment
