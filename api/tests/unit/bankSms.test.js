@@ -74,6 +74,13 @@ const SAMPLES = [
     expect: { templateId: 'blu-balance', direction: 'debit', amount: 300000, balance: 6347572.6, date: '2026-10-04', time: '16:00' },
   },
   {
+    bank: 'blu',
+    // A loan repayment: no title line, the purpose follows «بابت»
+    options: { sender: '+989999987641', today: new Date(2026, 9, 17) },
+    text: 'بلو\nسینا عزیز 27,272,727 ریال بابت بازپرداخت بدهی وام قرض الحسنه ازدواج، از حساب شما پرید.\nموجودی: 13,781,170 ریال\n۱۴:۲۰\n۱۴۰۵.۰۷.۲۵',
+    expect: { templateId: 'blu-purpose', direction: 'debit', amount: 2727272.7, balance: 1378117, date: '2026-10-17', time: '14:20', description: 'بازپرداخت بدهی وام قرض الحسنه ازدواج' },
+  },
+  {
     bank: 'pasargad',
     text: '232.800.1442198.1\n-80,000\n06/16_19:45\nمانده: 31,516,369',
     expect: { templateId: 'pasargad-balance', direction: 'debit', amount: 8000, balance: 3151636.9, accountLast4: '1981', date: '2026-09-07', time: '19:45' },
