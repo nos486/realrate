@@ -40,6 +40,9 @@
 }
 .row-card.tone-warning { border-color: var(--color-warning-border); }
 .row-card.tone-negative { border-color: var(--color-negative-border); }
+/* `is-tinted`: every tone also fills the background (loans, by distance to the next installment) */
+.row-card.is-tinted.tone-warning { background: var(--color-warning-soft); }
+.row-card.is-tinted.tone-negative { background: var(--color-negative-soft); }
 .row-card.tone-muted { opacity: 0.72; }
 
 .row-card-identity {
