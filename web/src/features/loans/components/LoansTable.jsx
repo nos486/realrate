@@ -10,7 +10,8 @@ import { Landmark, Edit2, Trash2, CheckCircle2, Clock } from 'lucide-react';
 import { RowCard, RowCardAction, RowCardBadge, RowCardBlock, RowCardProgress } from '../../../shared/ui/index.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { getDisplayRatePct } from '../../../utils/loanCalculator.js';
-import { isLoanCompleted } from '../utils/loanStatus.js';
+import { isLoanCompleted, loanDueTone } from '../utils/loanStatus.js';
+import { todayIso } from '../../../shared/utils/dates.js';
 
 const formatNum = (v) => Number(v || 0).toLocaleString(intlLocale());
 
@@ -22,6 +23,7 @@ export default function LoansTable({
   hideValues = false,
   readOnly = false,
 }) {
+  const today = todayIso();
   const money = (v) => (hideValues ? '****' : formatNum(v));
   return (
     <div className="row-card-list">
@@ -32,13 +34,14 @@ export default function LoansTable({
         const isCompleted = isLoanCompleted(loan);
         const displayRatePct = getDisplayRatePct(loan);
         const next = loan.nextDueInstallment;
+        const dueTone = loanDueTone(loan, today);
 
         return (
           <RowCard
             key={loan.id}
-            tone={isCompleted ? 'positive' : ''}
+            tone={dueTone}
             icon={<Landmark size={18} />}
-            iconTone={isCompleted ? 'positive' : 'warning'}
+            iconTone={dueTone}
             title={loan.title}
             subtitle={loan.lenderName || '—'}
             badge={<RowCardBadge tone={displayRatePct === 0 ? 'positive' : 'warning'}>{displayRatePct}{t('٪')}</RowCardBadge>}
@@ -78,7 +81,7 @@ export default function LoansTable({
               <RowCardBlock
                 label={<><Clock size={12} /> {t('قسط بعدی: #{n}', { n: next.installmentNumber })}</>}
                 value={t('{amount} تومان', { amount: money(next.totalAmount) })}
-                valueTone="primary"
+                valueTone={dueTone}
                 sub={formatShamsiDisplay(next.dueDate)}
               />
             ) : (
