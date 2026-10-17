@@ -20,7 +20,7 @@
 
 import { CHEQUE_CLEARED } from '../../utils/chequeDocument.js';
 import { todayIso } from '../utils/dates.js';
-import { recordSubscriptionPayments, spendingExpenseId, installmentSpendingKey } from './spendingRecords.js';
+import { recordInstallmentPayments, recordExtraPayment, recordSubscriptionPayments, spendingExpenseId, installmentSpendingKey } from './spendingRecords.js';
 import { recordOwnerOf, SPENDING_ID_PREFIX } from '../../utils/recordOwners.js';
 import { settleCheque } from './recordLinks.js';
 
@@ -93,6 +93,21 @@ export function runSpendingBackfill({ userId, expenses }) {
     }) && ok;
 
     if (expenses) {
+      // Loans: every installment paid, every extra payment
+      ok = await step('loans', async () => {
+        const api = await import('../../features/loans/api/loanApi.js');
+        const { loans = [] } = await api.getLoans();
+        for (const summary of loans) {
+          const { loan } = await api.getLoanDetail(summary.id);
+          const paid = (loan?.installments || [])
+            .filter((i) => i.isPaid && i.paidDate)
+            .map((i) => ({ id: i.id, paidDate: i.paidDate, paidAmount: i.paidAmount ?? i.totalAmount }));
+          await recordInstallmentPayments(loan, paid);
+          const { extraPayments = [] } = await api.getLoanExtraPayments(summary.id);
+          for (const payment of extraPayments) await recordExtraPayment(loan, payment);
+        }
+      }) && ok;
+
       // Subscriptions that renew by themselves: every renewal since they started
       ok = await step('subscriptions', async () => {
         const store = await import('./vaultSubscriptions.js');

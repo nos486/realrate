@@ -79,24 +79,9 @@ export function linkFieldsOf(side) {
   return recordLinksOf(side).map((l) => l.field);
 }
 
-/** Most installments one expense may name (one bank deduction covering several loans) */
-export const MAX_INSTALLMENT_LINKS = 12;
-
-/**
- * The installments a `loanInstallment` value names, as a list: the value is one
- * `{ loanId, installmentId }`, or several when one payment covered more than one loan
- * @param {object|object[]|null|undefined} value
- * @returns {Array<{ loanId: string, installmentId: string }>}
- */
-export function installmentLinksOf(value) {
-  if (!value) return [];
-  return (Array.isArray(value) ? value : [value]).filter((l) => l?.loanId && l.installmentId);
-}
-
 /**
  * A link's value checked: an id for an id target, `{ loanId, installmentId }` for a loan
- * installment (a list of them when one payment covered several); '' / null when missing or
- * malformed. (Portfolio links: portfolioLink.js.)
+ * installment; '' / null when missing or malformed. (Portfolio links: portfolioLink.js.)
  * @param {string} target
  * @param {unknown} raw
  */
@@ -106,15 +91,6 @@ export function validateLinkValue(target, raw) {
     return ID_RE.test(id) ? id : '';
   }
   if (target === 'loan_installment') {
-    if (Array.isArray(raw)) {
-      const seen = new Set();
-      const links = raw
-        .map((one) => validateLinkValue(target, one))
-        .filter((one) => one && !seen.has(`${one.loanId}|${one.installmentId}`) && seen.add(`${one.loanId}|${one.installmentId}`))
-        .slice(0, MAX_INSTALLMENT_LINKS);
-      // One installment stays the plain value older versions read
-      return links.length > 1 ? links : links[0] || null;
-    }
     const loanId = String(raw?.loanId ?? '').trim();
     const installmentId = String(raw?.installmentId ?? '').trim();
     return ID_RE.test(loanId) && ID_RE.test(installmentId) ? { loanId, installmentId } : null;
@@ -140,10 +116,5 @@ export function categoryLinkFields(side, category, body = {}) {
 export function sameLinkValue(a, b) {
   if (!a || !b) return !a && !b;
   if (typeof a === 'string' || typeof b === 'string') return a === b;
-  if (Array.isArray(a) || Array.isArray(b)) {
-    const x = installmentLinksOf(a);
-    const y = installmentLinksOf(b);
-    return x.length === y.length && x.every((l) => y.some((m) => sameLinkValue(l, m)));
-  }
   return a.loanId === b.loanId && a.installmentId === b.installmentId;
 }

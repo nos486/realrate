@@ -2,9 +2,9 @@
  * LoanInstallmentSheet.jsx — «قسط وام»: a bank withdrawal that paid the installments of one or several loans
  *
  * One deduction can cover more than one loan, so the loans are ticked, each with the installment
- * it pays (its next one). The withdrawal is recorded as ONE expense naming every ticked
- * installment, and each loan marks its installment paid at its own amount; nothing else is
- * recorded for them.
+ * it pays (its next one). The withdrawal is recorded as one expense per ticked installment —
+ * together exactly the message's amount (the difference to the installments, a fee, lands on the
+ * last) — and each loan marks its installment paid; nothing else is recorded for them.
  */
 
 import { t, intlLocale } from '../../utils/i18n.js';
@@ -13,7 +13,7 @@ import { Landmark, Check } from 'lucide-react';
 import { Button, Modal } from '../../shared/ui/index.js';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { useOptionalLoans } from '../loans/context/LoansContext.jsx';
-import { recordSmsLoanInstallments } from './smsRecord.js';
+import { recordSmsLoanInstallments, splitSmsAmount } from './smsRecord.js';
 import { formatAmount } from '../expenses/utils/format.js';
 
 export default function LoanInstallmentSheet({ item, onClose }) {
@@ -27,7 +27,9 @@ export default function LoanInstallmentSheet({ item, onClose }) {
     () => loans.filter((l) => picked.includes(l.id)).map((loan) => ({ loan, installment: loan.nextDueInstallment })),
     [loans, picked],
   );
-  const valid = picks.length > 0;
+  const sum = picks.reduce((total, p) => total + (Number(p.installment.totalAmount) || 0), 0);
+  const difference = Math.round(tx.amount) - sum;
+  const valid = picks.length > 0 && Boolean(splitSmsAmount(tx.amount, picks.map((p) => p.installment.totalAmount)));
 
   const toggle = (id) => setPicked((list) => (list.includes(id) ? list.filter((x) => x !== id) : [...list, id]));
 
@@ -35,7 +37,7 @@ export default function LoanInstallmentSheet({ item, onClose }) {
     setSaving(true);
     try {
       await recordSmsLoanInstallments(item, picks);
-      toast.success(t('هزینه ثبت شد و {n} قسط پرداخت‌شده علامت خورد.', { n: picks.length.toLocaleString(intlLocale()) }));
+      toast.success(t('{n} قسط پرداخت‌شده ثبت شد.', { n: picks.length.toLocaleString(intlLocale()) }));
       onClose();
     } catch (err) {
       toast.error(err?.message || t('ثبت قسط ممکن نشد.'));
@@ -74,7 +76,14 @@ export default function LoanInstallmentSheet({ item, onClose }) {
             })}
           </ul>
         )}
-        <p className="loan-deposit-hint">{t('یک هزینه‌ی «پرداخت قسط» به مبلغ همین برداشت ثبت می‌شود و هر قسط انتخابی با مبلغ خودش پرداخت‌شده علامت می‌خورد؛ وام برای قسط‌ها هزینه‌ای نمی‌سازد.')}</p>
+        {picks.length > 0 && difference !== 0 && (
+          <p className="loan-deposit-hint">
+            {difference > 0
+              ? t('{amount} تومان بیشتر از اقساط (کارمزد) به آخرین قسط اضافه می‌شود.', { amount: formatAmount(difference) })
+              : t('{amount} تومان کمتر از اقساط است و از آخرین قسط کم می‌شود.', { amount: formatAmount(-difference) })}
+          </p>
+        )}
+        <p className="loan-deposit-hint">{t('هر قسط یک هزینه‌ی «پرداخت قسط» می‌شود و مجموعشان همین برداشت است؛ برای این اقساط هزینه‌ی دیگری ساخته نمی‌شود.')}</p>
         <Button block icon={<Check size={16} />} onClick={handleSave} loading={saving} disabled={!valid}>
           {t('ثبت')}
         </Button>

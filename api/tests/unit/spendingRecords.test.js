@@ -30,7 +30,7 @@ vi.mock('../../../web/src/shared/vault/vaultExpenses.js', () => ({
 }));
 
 const {
-  spendingExpenseId, matchingRecord, recordSpending, recordSubscriptionPayments, removeInstallmentPayment, installmentNumberOf, removeLoanPayments, renameLoanPayments, dropDuplicateInstallmentPayments, sameInstallment,
+  spendingExpenseId, matchingRecord, recordSpending, recordSubscriptionPayments, recordInstallmentPayments, removeInstallmentPayment, recordExtraPayment, installmentNumberOf, removeLoanPayments, renameLoanPayments, dropDuplicateInstallmentPayments, sameInstallment,
 } = await import('../../../web/src/shared/vault/spendingRecords.js');
 
 beforeEach(() => {
@@ -76,16 +76,32 @@ describe('subscriptions', () => {
 describe('loans', () => {
   const loan = { id: 'loan_1', title: 'وام مسکن' };
 
-  it('an installment unpaid removes the expense the loan recorded for it, never one the user recorded', async () => {
+  it('an installment paid (and the earlier ones paid with it) becomes an expense each', async () => {
+    await recordInstallmentPayments(loan, [
+      { id: 'inst_3', paidDate: '2026-02-05', paidAmount: 4_000_000 },
+      { id: 'inst_2', paidDate: '2026-02-05', paidAmount: 4_000_000 },
+      { id: 'inst_x', paidDate: '', paidAmount: 0 },
+    ]);
+    expect(m.saved.size).toBe(2);
+    expect(m.saved.get(spendingExpenseId('loan:loan_1:n3'))).toMatchObject({
+      title: 'قسط ۳ وام مسکن', amount: 4_000_000, currency: 'IRT', date: '2026-02-05', category: 'installments',
+      loanInstallment: { loanId: 'loan_1', installmentId: 'inst_3' },
+    });
+  });
+
+  it('an installment unpaid removes its expense — recorded here or by the user, naming it', async () => {
     m.dayExpenses = [
-      { id: 'exp_old', recordedBy: 'loan', loanInstallment: { loanId: 'loan_1', installmentId: 'inst_3' } },
       { id: 'exp_user', loanInstallment: { loanId: 'loan_1', installmentId: 'inst_3' } },
       { id: 'exp_other', loanInstallment: { loanId: 'loan_1', installmentId: 'inst_4' } },
     ];
     await removeInstallmentPayment('loan_1', 'inst_3', '2026-02-05');
-    expect(m.deleted.sort()).toEqual([spendingExpenseId('loan:loan_1:n3'), spendingExpenseId('loan:loan_1:inst_3'), 'exp_old'].sort());
+    expect(m.deleted.sort()).toEqual([spendingExpenseId('loan:loan_1:n3'), spendingExpenseId('loan:loan_1:inst_3'), 'exp_user'].sort());
   });
 
+  it('an extra payment is an expense too', async () => {
+    await recordExtraPayment(loan, { id: 'xp_1', amount: 10_000_000, paymentDate: '2026-02-06' });
+    expect(m.saved.get(spendingExpenseId('loanx:loan_1:xp_1'))).toMatchObject({ title: 'پرداخت اضافه وام مسکن', amount: 10_000_000, date: '2026-02-06', category: 'installments' });
+  });
 });
 
 describe('a payment already recorded by hand', () => {
@@ -112,6 +128,13 @@ describe('a payment already recorded by hand', () => {
     expect(matchingRecord('expense', [...day, { id: 'd', amount: 20, currency: 'USD' }], { amount: 20, currency: 'USD' }).id).toBe('d');
   });
 
+  it('the same outflow recorded again rewrites its own expense', async () => {
+    const id = spendingExpenseId('loan:loan_1:n3');
+    m.dayExpenses = [{ id, date: '2026-02-05', amount: 4_000_000, currency: 'IRT', groupId: 'grp_daily', loanInstallment: { loanId: 'loan_1', installmentId: 'inst_3' } }];
+    await recordInstallmentPayments({ id: 'loan_1', title: 'وام' }, [{ id: 'inst_3', paidDate: '2026-02-05', paidAmount: 4_000_000 }]);
+    expect(m.saveExpense.mock.calls[0][1].id).toBe(id);
+    expect(m.saveExpense.mock.calls[0][2]).toMatchObject({ id });
+  });
 });
 
 describe('a cheque payment matched to one recorded by hand', () => {
@@ -124,6 +147,15 @@ describe('a cheque payment matched to one recorded by hand', () => {
 });
 
 describe('an installment whose id changes', () => {
+  it('is recorded under the same expense whatever id it has', async () => {
+    const loan = { id: 'loan_1', title: 'وام' };
+    const pay = (id) => recordInstallmentPayments(loan, [{ id, installmentNumber: 3, paidDate: '2026-02-05', paidAmount: 4_000_000 }]);
+    await pay('inst_loan_1_3');
+    await pay('inst_abc123');
+    await pay('3');
+    expect(new Set([...m.saved.keys()]).size).toBe(1);
+  });
+
   it('reads the number from an id when the installment has none', () => {
     expect(installmentNumberOf({ id: 'inst_loan_1_7' })).toBe(7);
     expect(installmentNumberOf({ id: '7' })).toBe(7);
@@ -155,6 +187,21 @@ describe('a loan deleted', () => {
 describe('an installment paid by the user\'s own expense (a bank SMS)', () => {
   const loan = { id: 'loan_1', title: 'وام' };
   const link = { loanId: 'loan_1', installmentId: 'inst_loan_1_3' };
+
+  it('is not recorded again by the loans page, whatever the amount', async () => {
+    m.dayExpenses = [{ id: 'exp_sms', date: '2026-02-05', amount: 4_005_000, currency: 'IRT', loanInstallment: link }];
+    await recordInstallmentPayments(loan, [{ id: 'inst_abc', installmentNumber: 3, paidDate: '2026-02-05', paidAmount: 4_000_000 }]);
+    expect(m.saveExpense).not.toHaveBeenCalled();
+  });
+
+  it('an unlinked hand expense a little above the installment is taken as it', async () => {
+    m.dayExpenses = [
+      { id: 'far', date: '2026-02-05', amount: 6_000_000, currency: 'IRT' },
+      { id: 'near', date: '2026-02-05', amount: 4_005_000, currency: 'IRT' },
+    ];
+    await recordInstallmentPayments(loan, [{ id: 'inst_loan_1_3', paidDate: '2026-02-05', paidAmount: 4_000_000 }]);
+    expect(m.saveExpense.mock.calls[0][1].id).toBe('near');
+  });
 
   it('the expense the loans page recorded earlier is dropped, the user\'s kept', async () => {
     m.dayExpenses = [
