@@ -36,6 +36,16 @@ export default function LoanInstallmentPicker({ value, onChange, onFill }) {
     onFill?.({ title: t('قسط {name}', { name: loan.title }), amount: Number(inst.totalAmount) || 0, currency: 'IRT' });
   };
 
+  // One payment that covered several loans' installments (from a bank SMS): shown, edited from the SMS flow
+  if (Array.isArray(value)) {
+    return (
+      <div className="ui-input-group">
+        <span className="ui-input-label">{t('قسط کدام وام')}</span>
+        <p className="expense-form-hint">{t('این هزینه قسط {n} وام را با هم پرداخت کرده است.', { n: value.length.toLocaleString(intlLocale()) })}</p>
+      </div>
+    );
+  }
+
   const chosen = choices.find((l) => l.id === value?.loanId);
   const next = chosen?.nextDueInstallment;
   return (

@@ -252,4 +252,5 @@ export default {
   'قسط بعدی: #{n}': 'Next installment: #{n}',
   'قسط بعدی': 'Next installment',
   'سررسید معوقی نیست': 'Nothing due',
+  'این هزینه قسط {n} وام را با هم پرداخت کرده است.': 'This expense paid the installments of {n} loans together.',
 };

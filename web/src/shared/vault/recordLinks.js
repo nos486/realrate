@@ -9,8 +9,9 @@
  *    (`settlement`); unlinked or deleted → the pointer goes, and a cheque cleared through that
  *    record goes back to the status it had before
  *  - loan_installment: linked → that installment is paid on the record's day, at its amount (an
- *    expense the loans page had recorded for it is dropped: this one is the payment);
- *    unlinked or deleted → unpaid again
+ *    expense an older loans page had recorded for it is dropped: this one is the payment); one
+ *    record may name several installments (a deduction covering more than one loan), each paid at
+ *    its own amount; unlinked or deleted → unpaid again
  *  - subscription: linked → it moves on a cycle (renewedAfter) — unless it was already paid
  *    through that day (its first payment, or an older one recorded late); unlinking leaves it
  * Portfolio links are written by vaultExpenses / vaultIncomes themselves (portfolioFunds.js), and
@@ -23,7 +24,7 @@
  * An effect that fails never undoes the saved record: it is logged, and the screens read again.
  */
 
-import { CHEQUE_DIRECTION_OF, recordLinksOf, sameLinkValue } from '../../utils/categoryLinks.js';
+import { CHEQUE_DIRECTION_OF, installmentLinksOf, recordLinksOf, sameLinkValue } from '../../utils/categoryLinks.js';
 import { CHEQUE_CLEARED, applyChequeStatus } from '../../utils/chequeDocument.js';
 import { renewedAfter } from '../../utils/subscriptionDocument.js';
 import { todayIso } from '../utils/dates.js';
@@ -54,6 +55,26 @@ function statusBeforeClearing(cheque) {
   return before?.status || 'pending';
 }
 
+/**
+ * Pay one installment with a record: on the record's day, at the record's amount when it paid
+ * that installment alone (otherwise the installment's own amount), dropping the expense an older
+ * version of the loans page had recorded for it
+ */
+async function attachInstallment({ loanId, installmentId }, record, side, alone) {
+  const api = await loans();
+  const before = (await Promise.resolve().then(() => api.getLoanDetail(loanId)).catch(() => null))?.loan?.installments
+    ?.find((i) => String(i.id) === String(installmentId));
+  await api.markInstallmentPaid(loanId, installmentId, { paidDate: dayOf(side, record), paidAmount: alone ? Number(record.amount) || undefined : undefined });
+  const spending = await import('./spendingRecords.js');
+  // Best effort: the installment is paid either way
+  await spending.dropDuplicateInstallmentPayments(
+    { loanId, installmentId },
+    record.id,
+    [before?.isPaid && before.paidDate, dayOf(side, record)],
+    spending.installmentNumberOf(before || { id: installmentId }),
+  ).catch((err) => console.warn('[recordLinks] duplicate installment expense not dropped:', err?.message || err));
+}
+
 /** Each target: what linking (`attach`) and unlinking (`detach`) a record does, and the screen it changes */
 const EFFECTS = {
   cheque: {
@@ -79,23 +100,15 @@ const EFFECTS = {
   },
   loan_installment: {
     scope: 'loans',
-    async attach({ loanId, installmentId }, record, side) {
-      const api = await loans();
-      // The loans page may have paid it already (and recorded its own expense): that one is dropped
-      const before = (await Promise.resolve().then(() => api.getLoanDetail(loanId)).catch(() => null))?.loan?.installments
-        ?.find((i) => String(i.id) === String(installmentId));
-      await api.markInstallmentPaid(loanId, installmentId, { paidDate: dayOf(side, record), paidAmount: Number(record.amount) || undefined });
-      const spending = await import('./spendingRecords.js');
-      // Best effort: the installment is paid either way
-      await spending.dropDuplicateInstallmentPayments(
-        { loanId, installmentId },
-        record.id,
-        [before?.isPaid && before.paidDate, dayOf(side, record)],
-        spending.installmentNumberOf(before || { id: installmentId }),
-      ).catch((err) => console.warn('[recordLinks] duplicate installment expense not dropped:', err?.message || err));
+    async attach(value, record, side) {
+      const links = installmentLinksOf(value);
+      // One payment covering several installments: each is paid at its own amount, not the payment's
+      for (const link of links) await attachInstallment(link, record, side, links.length === 1);
     },
-    async detach({ loanId, installmentId }) {
-      await (await loans()).unmarkInstallmentPaid(loanId, installmentId);
+    async detach(value) {
+      for (const { loanId, installmentId } of installmentLinksOf(value)) {
+        await (await loans()).unmarkInstallmentPaid(loanId, installmentId);
+      }
     },
   },
   subscription: {
