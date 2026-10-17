@@ -13,7 +13,9 @@
  * Already in the expenses? An expense of that day with the same amount and currency that names
  * nothing yet is taken as this payment recorded by hand: it is linked instead of a second one
  * being made (its category becomes the payment's only when the link is a category's — a
- * subscription, an installment; paid with a cheque, it keeps its own). Otherwise the expense gets an id made from what
+ * subscription; paid with a cheque, it keeps its own). A loan's payments never do this: each
+ * always gets its own expense, and only an expense that names the installment itself (a bank SMS
+ * the user linked to it) counts as it. Otherwise the expense gets an id made from what
  * it records (spendingExpenseId), so recording it again — another device, a second look at the
  * same subscription — writes the same expense, never a second one. The record it names was
  * already changed by its own page, so saving the expense doesn't change it again
@@ -41,26 +43,19 @@ const LINK_FIELDS = {
 };
 const sameAmount = (a, b) => Math.abs((Number(a) || 0) - (Number(b) || 0)) < 0.005;
 
-/** How far (as a share of the payment) a hand-recorded amount may be from an installment's: bank fees */
-export const INSTALLMENT_AMOUNT_TOLERANCE = 0.05;
-
 /**
  * Of a day's records, the one this payment was already recorded as by hand: the same amount and
  * currency, naming nothing yet (not one recorded here)
  * @param {'expense'|'income'} side
  * @param {object[]} records that day's
  * @param {{ amount: number, currency?: string }} payment
- * @param {number} [tolerance] a share of the amount the record may differ by (a bank fee on top
- *   of an installment); the closest amount wins. 0: exactly the same.
  */
-export function matchingRecord(side, records, { amount, currency = BASE_CURRENCY }, tolerance = 0) {
+export function matchingRecord(side, records, { amount, currency = BASE_CURRENCY }) {
   const target = Number(amount) || 0;
-  const limit = Math.max(0.005, Math.abs(target) * tolerance);
   const candidates = records.filter((r) => !String(r.id).startsWith(SPENDING_ID_PREFIX)
     && normalizeCurrency(r.currency) === normalizeCurrency(currency)
-    && Math.abs((Number(r.amount) || 0) - target) <= limit
+    && sameAmount(r.amount, target)
     && !LINK_FIELDS[side].some((f) => r[f]));
-  candidates.sort((a, b) => Math.abs(a.amount - target) - Math.abs(b.amount - target));
   return candidates[0] || null;
 }
 
@@ -105,10 +100,12 @@ export function spendingExpenseId(key) {
  * @param {object} expense its fields: title, amount, currency, date, category, the link, account
  * @param {{ owner: string, syncLinks?: boolean }} options the feature recording it
  *   (recordOwners.js: it is that feature's from now on); whether saving it updates the record it
- *   names; `tolerance`: see matchingRecord; `installmentNumber`: of the installment it pays. An expense of that day already naming the same
+ *   names; `matchByAmount`: false for a payment that always gets its own expense (a loan's: it
+ *   never takes a same-amount expense of the user's for itself); `installmentNumber`: of the
+ *   installment it pays. An expense of that day already naming the same
  *   installment (the user's own, e.g. from a bank SMS) is this payment: nothing is recorded again.
  */
-export async function recordSpending(key, expense, { owner, syncLinks = false, tolerance = 0, installmentNumber = 0 } = {}) {
+export async function recordSpending(key, expense, { owner, syncLinks = false, matchByAmount = true, installmentNumber = 0 } = {}) {
   const { ensureDailyGroup, getExpenseGroups, getExpenses, saveExpense } = await store();
   const id = spendingExpenseId(key);
   const currency = normalizeCurrency(expense.currency);
@@ -117,7 +114,7 @@ export async function recordSpending(key, expense, { owner, syncLinks = false, t
   const namesIt = own || !expense.loanInstallment ? null
     : sameDay.find((e) => e.id !== id && sameInstallment(e.loanInstallment, expense.loanInstallment, installmentNumber));
   if (namesIt) return namesIt;
-  const match = own ? null : matchingRecord('expense', sameDay, { amount: expense.amount, currency }, tolerance);
+  const match = own || !matchByAmount ? null : matchingRecord('expense', sameDay, { amount: expense.amount, currency });
   if (match) {
     // Recorded by hand already: linked, keeping what the user wrote (a category link needs its category)
     const { expense: saved } = await saveExpense({
@@ -220,7 +217,7 @@ export async function recordInstallmentPayments(loan, installments, { accountId 
       category: INSTALLMENT_EXPENSE_CATEGORY,
       ...(accountId ? { accountId } : {}),
       loanInstallment: { loanId: loan.id, installmentId: String(inst.id) },
-    }, { owner: 'loan', tolerance: INSTALLMENT_AMOUNT_TOLERANCE, installmentNumber: installmentNumberOf(inst) });
+    }, { owner: 'loan', matchByAmount: false, installmentNumber: installmentNumberOf(inst) });
   }
 }
 
@@ -328,5 +325,5 @@ export async function recordExtraPayment(loan, payment, { accountId = '' } = {})
     date,
     category: INSTALLMENT_EXPENSE_CATEGORY,
     ...(accountId ? { accountId } : {}),
-  }, { owner: 'loan' });
+  }, { owner: 'loan', matchByAmount: false });
 }

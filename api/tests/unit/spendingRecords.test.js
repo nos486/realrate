@@ -201,13 +201,21 @@ describe('an installment paid by the user\'s own expense (a bank SMS)', () => {
     expect(m.saveExpense).not.toHaveBeenCalled();
   });
 
-  it('an unlinked hand expense a little above the installment is taken as it', async () => {
+  it('an unlinked expense of the same amount is not taken as it: the payment gets its own', async () => {
     m.dayExpenses = [
-      { id: 'far', date: '2026-02-05', amount: 6_000_000, currency: 'IRT' },
+      { id: 'same', date: '2026-02-05', amount: 4_000_000, currency: 'IRT' },
       { id: 'near', date: '2026-02-05', amount: 4_005_000, currency: 'IRT' },
     ];
     await recordInstallmentPayments(loan, [{ id: 'inst_loan_1_3', paidDate: '2026-02-05', paidAmount: 4_000_000 }]);
-    expect(m.saveExpense.mock.calls[0][1].id).toBe('near');
+    expect(m.saveExpense).toHaveBeenCalledTimes(1);
+    expect(m.saveExpense.mock.calls[0][1]).toBeNull();
+    expect(m.saveExpense.mock.calls[0][2].id).toBe(spendingExpenseId('loan:loan_1:n3'));
+  });
+
+  it('an extra payment gets its own expense too', async () => {
+    m.dayExpenses = [{ id: 'same', date: '2026-02-05', amount: 1_000_000, currency: 'IRT' }];
+    await recordExtraPayment(loan, { id: 'epay_1', amount: 1_000_000, paymentDate: '2026-02-05' });
+    expect(m.saveExpense.mock.calls[0][1]).toBeNull();
   });
 
   it('the expense the loans page recorded earlier is dropped, the user\'s kept', async () => {
