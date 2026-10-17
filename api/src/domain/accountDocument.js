@@ -73,6 +73,21 @@ export function accountTypeLabel(type) {
   return ACCOUNT_TYPES.find((t) => t.value === type)?.label || t('سایر');
 }
 
+/** The other cards / account numbers an account answers to: well-formed entries only, at most 10 */
+function normalizeAliases(list) {
+  if (!Array.isArray(list)) return [];
+  const out = [];
+  for (const raw of list.slice(0, 10)) {
+    const bankId = BANK_ID_RE.test(text(raw?.bankId)) ? text(raw.bankId) : '';
+    const cardLast4 = asciiDigits(raw?.cardLast4);
+    const accountNumber = asciiDigits(raw?.accountNumber).replace(/[\s.-]/g, '');
+    if (/^\d{4}$/.test(cardLast4) || /^\d{4,26}$/.test(accountNumber)) {
+      out.push({ bankId, cardLast4: /^\d{4}$/.test(cardLast4) ? cardLast4 : '', accountNumber: /^\d{4,26}$/.test(accountNumber) ? accountNumber : '' });
+    }
+  }
+  return out;
+}
+
 /**
  * Validate & normalize an account
  * @returns {{ value?: object, error?: string }}
@@ -112,6 +127,8 @@ export function validateAccount(body = {}) {
     if (stated.error) return { error: stated.error };
     balance = stated.value;
   }
+  // Other cards / account numbers of the same account (what merged accounts had, accountMerge.js)
+  const aliases = hasBank ? normalizeAliases(body.aliases) : [];
   const notes = text(body.notes);
   if (notes.length > ACCOUNT_LIMITS.notesLength) return { error: t('توضیحات نباید بیشتر از {notesLength} کاراکتر باشد.', { notesLength: ACCOUNT_LIMITS.notesLength }) };
 
@@ -125,6 +142,7 @@ export function validateAccount(body = {}) {
       accountNumber: hasBank ? accountNumber : '',
       currency: currencies[0],
       currencies,
+      ...(aliases.length > 0 ? { aliases } : {}),
       ...(credit ? { credit } : {}),
       ...(balance ? { balance } : {}),
       notes,
