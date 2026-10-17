@@ -73,3 +73,14 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Over-allocation message in the contribution form; reserved/available lines under the portfolio total */
+.expense-form-hint.is-error {
+  color: var(--color-negative-text);
+}
+
+.portfolio-reserved {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}

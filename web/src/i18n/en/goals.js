@@ -89,7 +89,6 @@ export default {
   'اختصاص به هدف': 'Assign to goal',
   '{amount} {unit} آزاد': '{amount} {unit} free',
   '{amount} {unit} ≈ {value}': '{amount} {unit} ≈ {value}',
-  'فقط {amount} {unit} آزاد است؛ بقیه را هدف دیگری گرفته.': 'Only {amount} {unit} is free; another goal has the rest.',
   'هنوز دارایی‌ای در پورتفوهایتان نیست. دارایی را در پورتفو اضافه کنید، بعد اینجا بخشی از آن را به هدف اختصاص دهید.':
     'Your portfolios hold no assets yet. Add an asset to a portfolio, then assign part of it to the goal here.',
   'دارایی در پورتفو می‌ماند و فروخته یا خرج نمی‌شود؛ با قیمت روز در هدف حساب می‌شود، پس ارزشش با بازار بالا و پایین می‌رود. هر مقدار دارایی فقط به یک هدف می‌رسد.':
@@ -101,4 +100,12 @@ export default {
   'دارایی اختصاص‌یافته نامعتبر است.': 'The assigned asset is not valid.',
   'مقدار یا درصد اختصاص نامعتبر است.': 'The assigned quantity or percent is not valid.',
   'تعداد دارایی‌های اختصاص‌یافته به یک هدف از حد مجاز بیشتر است.': 'This goal has more assigned assets than allowed.',
+  'در دسترس: {qty} {unit}': 'Available: {qty} {unit}',
+  'اختصاص‌ها از موجودی فعلی بیشتر است ({asked} {unit}) و برای هدف‌ها کم شده؛ اختصاص را در صفحه‌ی اهداف اصلاح کنید.': 'The goals ask for more than is held now ({asked} {unit}), so their share was reduced; fix the allocation on the goals page.',
+  'توجه: {reserved} {unit} از این دارایی برای هدف‌ها کنار گذاشته شده و فقط {free} {unit} آزاد است؛ با این فروش، اختصاص هدف‌ها کم می‌شود. (غیرمسدودکننده)': 'Note: {reserved} {unit} of this asset is set aside for goals and only {free} {unit} is free; this sale will reduce the goals\' share. (not blocking)',
+  'اختصاص‌یافته به اهداف: {amount} تومان': 'Set aside for goals: {amount} toman',
+  'در دسترس: {amount} تومان': 'Available: {amount} toman',
+  'بیشتر از موجودی آزاد است: از {total} {unit} این دارایی، {reserved} {unit} برای هدف‌ها کنار گذاشته شده و فقط {amount} {unit} آزاد است.': 'More than is free: of {total} {unit} of this asset, {reserved} {unit} is set aside for goals and only {amount} {unit} is free.',
+  'آزاد برای اختصاص: {amount} {unit}': 'Free to allocate: {amount} {unit}',
+  'مقدار اختصاص از موجودی آزاد دارایی بیشتر است.': 'The amount is more than the free quantity of the asset.',
 };

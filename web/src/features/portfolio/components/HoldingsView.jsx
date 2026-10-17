@@ -157,7 +157,7 @@ const HoldingsView = forwardRef(function HoldingsView(
   );
   const transactionWarnings = ledger.warnings;
   // What the goals have reserved of each asset (shown under it)
-  const goalShares = useAssetGoalShares(activePortfolio?.id, ledger.assets, !isVaultLocked);
+  const { shares: goalShares, reserved: goalReserved, reservedToman } = useAssetGoalShares(activePortfolio?.id, ledger.assets, !isVaultLocked);
 
   // Each asset in dollars: bought at the dollar's rate of each purchase day, valued today
   const usdAt = useUsdAt(ledger.assets.length > 0);
@@ -243,8 +243,8 @@ const HoldingsView = forwardRef(function HoldingsView(
 
   // The sell form's balance: what each asset holds, manual records included
   const currentHoldingsMap = useMemo(
-    () => Object.fromEntries(ledger.assets.map((a) => [a.assetId, { amount: a.amount, unit: a.unit }])),
-    [ledger]
+    () => Object.fromEntries(ledger.assets.map((a) => [a.assetId, { amount: a.amount, unit: a.unit, reserved: goalReserved.get(a.assetId)?.quantity || 0 }])),
+    [ledger, goalReserved]
   );
 
   // Actions & Handlers
@@ -410,6 +410,7 @@ const HoldingsView = forwardRef(function HoldingsView(
             onOpenRisk={readOnly && !riskResult ? null : () => setRiskOpen(true)}
             hidePlanCards={stacked}
             dollarPnl={dollarTotal}
+            reservedToman={reservedToman}
             historyAssets={portfolioMetrics.items.length > 0 ? ledger.assets : []}
           />
         }
@@ -476,6 +477,7 @@ const HoldingsView = forwardRef(function HoldingsView(
                       onDeleteEntry={handleDeleteEntry}
                       dollarPnl={dollarByAsset.get(asset.id) || null}
                       goalShares={goalShares.get(asset.assetId) || []}
+                      goalReserved={goalReserved.get(asset.assetId) || null}
                     />
                   )}
                 />

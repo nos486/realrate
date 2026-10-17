@@ -28,6 +28,8 @@ export default function PortfolioOverviewCards({
   hidePlanCards = false,
   // The open positions in dollars (utils/assetLedger.js sumDollarPnl), or null
   dollarPnl = null,
+  // What goals have reserved of the portfolio's assets, in tomans (features/goals): shown under the total
+  reservedToman = 0,
   // The portfolio's asset ledgers (utils/assetLedger.js): the value history under the total value
   historyAssets = [],
 }) {
@@ -89,6 +91,12 @@ export default function PortfolioOverviewCards({
                 : t('ثبت‌نشده'),
             })}
         </div>
+        {!isVaultLocked && reservedToman > 0 && (
+          <div className="stat-sub portfolio-reserved">
+            <span>{t('اختصاص‌یافته به اهداف: {amount} تومان', { amount: hideValues ? '****' : formatNum(reservedToman) })}</span>
+            <span>{t('در دسترس: {amount} تومان', { amount: hideValues ? '****' : formatNum(Math.max(0, portfolioMetrics.totalRealValue - reservedToman)) })}</span>
+          </div>
+        )}
         {!isVaultLocked && historyAssets.length > 0 && (
           <PortfolioHistoryChart assets={historyAssets} hideValues={hideValues} />
         )}

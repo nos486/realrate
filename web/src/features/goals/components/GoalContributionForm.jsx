@@ -50,13 +50,16 @@ export default function GoalContributionForm({ goal, assets = [], leftOf = () =>
   const iso = shamsiToGregorian(dateShamsi);
   const quantity = asset ? (mode === 'percent' ? (asset.amount * shareNum) / 100 : shareNum) : 0;
   const shareValid = shareNum > 0 && (mode === 'amount' || shareNum <= 100);
-  const isValid = !submitting && (kind === 'cash' ? amountNum > 0 && Boolean(iso) : Boolean(asset) && shareValid);
+  // An asset's quantity can't go to goals beyond what the portfolio holds: only the free part can be reserved
+  const overAllocated = kind === 'asset' && Boolean(asset) && quantity > left + 1e-9;
+  const isValid = !submitting && (kind === 'cash' ? amountNum > 0 && Boolean(iso) : Boolean(asset) && shareValid && !overAllocated);
 
   const handleSubmit = async (e) => {
     e?.preventDefault?.();
     if (!isValid) return;
     setError('');
     try {
+      if (overAllocated) throw new Error(t('مقدار اختصاص از موجودی آزاد دارایی بیشتر است.'));
       if (kind === 'cash') {
         await onSubmit({ deposit: { id: newDepositId(), date: iso, amount: type === 'out' ? -amountNum : amountNum, currency, note: note.trim() } });
       } else {
@@ -127,7 +130,13 @@ export default function GoalContributionForm({ goal, assets = [], leftOf = () =>
             {asset && (
               <p className="expense-form-hint">
                 {t('{amount} {unit} ≈ {value}', { amount: fa(quantity), unit: asset.unit, value: formatGoalAmount(quantity * asset.unitPrice, 'IRT') })}
-                {quantity > left + 1e-9 ? ` — ${t('فقط {amount} {unit} آزاد است؛ بقیه را هدف دیگری گرفته.', { amount: fa(left), unit: asset.unit })}` : ''}
+              </p>
+            )}
+            {asset && (
+              <p className={`expense-form-hint ${overAllocated ? 'is-error' : ''}`} role={overAllocated ? 'alert' : undefined}>
+                {overAllocated
+                  ? t('بیشتر از موجودی آزاد است: از {total} {unit} این دارایی، {reserved} {unit} برای هدف‌ها کنار گذاشته شده و فقط {amount} {unit} آزاد است.', { total: fa(asset.amount), reserved: fa(asset.amount - left), amount: fa(left), unit: asset.unit })
+                  : t('آزاد برای اختصاص: {amount} {unit}', { amount: fa(left), unit: asset.unit })}
               </p>
             )}
             <p className="expense-form-hint">{t('دارایی در پورتفو می‌ماند و فروخته یا خرج نمی‌شود؛ با قیمت روز در هدف حساب می‌شود، پس ارزشش با بازار بالا و پایین می‌رود. هر مقدار دارایی فقط به یک هدف می‌رسد.')}</p>
