@@ -30,7 +30,7 @@ vi.mock('../../../web/src/shared/vault/vaultExpenses.js', () => ({
 }));
 
 const {
-  spendingExpenseId, matchingRecord, recordSpending, recordSubscriptionPayments, recordInstallmentPayments, removeInstallmentPayment, recordExtraPayment, installmentNumberOf, removeLoanPayments, dropDuplicateInstallmentPayments, sameInstallment,
+  spendingExpenseId, matchingRecord, recordSpending, recordSubscriptionPayments, recordInstallmentPayments, removeInstallmentPayment, recordExtraPayment, installmentNumberOf, removeLoanPayments, renameLoanPayments, dropDuplicateInstallmentPayments, sameInstallment,
 } = await import('../../../web/src/shared/vault/spendingRecords.js');
 
 beforeEach(() => {
@@ -218,5 +218,20 @@ describe('an installment paid by the user\'s own expense (a bank SMS)', () => {
     expect(sameInstallment(link, { loanId: 'loan_1', installmentId: '3' })).toBe(true);
     expect(sameInstallment(link, { loanId: 'loan_1', installmentId: '4' })).toBe(false);
     expect(sameInstallment(link, { loanId: 'loan_2', installmentId: 'inst_loan_1_3' })).toBe(false);
+  });
+});
+
+describe('a loan renamed', () => {
+  it('renames its installment and extra-payment expenses, and nothing else', async () => {
+    const extra = spendingExpenseId('loanx:loan_1:epay_1');
+    m.dayExpenses = [
+      { id: 'exp_sa', title: 'قسط ۱ خودرو', recordedBy: 'loan', loanInstallment: { loanId: 'loan_1', installmentId: 'i1' } },
+      { id: 'exp_sb', title: 'قسط ۱ خودرو', recordedBy: 'loan', loanInstallment: { loanId: 'loan_2', installmentId: 'i1' } },
+      { id: 'exp_user', title: 'قسط ۲ خودرو', loanInstallment: { loanId: 'loan_1', installmentId: 'i2' } },
+      { id: extra, title: 'پرداخت اضافه خودرو' },
+    ];
+    await renameLoanPayments('loan_1', 'خودرو', 'ماشین', ['epay_1']);
+    const titles = m.saveExpense.mock.calls.map(([input, existing]) => [existing.id, input.title]);
+    expect(titles).toEqual([['exp_sa', 'قسط ۱ ماشین'], [extra, 'پرداخت اضافه ماشین']]);
   });
 });

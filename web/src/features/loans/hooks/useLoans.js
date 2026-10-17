@@ -2,7 +2,7 @@
  * useLoans.js — Hook for managing user loans list and CRUD operations
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { t } from '../../../utils/i18n.js';
 import { useRefreshHandler } from '../../../shared/refresh/pageRefresh.js';
 import { useAuth } from '../../auth/index.js';
@@ -16,7 +16,7 @@ import {
 } from '../api/loanApi.js';
 import { useFeature } from '../../../shared/features/useFeature.js';
 import { isDemoReadOnly } from '../../demo/index.js';
-import { removeLoanPayments } from '../../../shared/vault/spendingRecords.js';
+import { removeLoanPayments, renameLoanPayments } from '../../../shared/vault/spendingRecords.js';
 
 export function useLoans() {
   const { user } = useAuth();
@@ -29,6 +29,9 @@ export function useLoans() {
   const [error, setError] = useState(null);
   // Its payments are in the expenses (not without the expenses, nor in the read-only demo)
   const recordsSpending = useFeature('expenses') && !isDemoReadOnly();
+  // The list as last read: a rename needs the title before the edit
+  const loansRef = useRef([]);
+  loansRef.current = loans;
 
   /**
    * Fetch all user loans with aggregate metadata
@@ -103,8 +106,14 @@ export function useLoans() {
       setSubmitting(true);
       setError(null);
       try {
+        const before = recordsSpending ? loansRef.current.find((l) => l.id === loanId) : null;
         const res = await apiUpdateLoan(loanId, loanData);
         if (res?.success && res.loan) {
+          // The expenses it recorded carry its name
+          if (before && before.title !== res.loan.title) {
+            const extraPaymentIds = await apiGetLoanExtraPayments(loanId).then((r) => (r?.extraPayments || []).map((p) => p.id)).catch(() => []);
+            await renameLoanPayments(loanId, before.title, res.loan.title, extraPaymentIds).catch((err) => console.warn('[loans] renaming its expenses failed:', err?.message || err));
+          }
           await fetchLoans();
           return res.loan;
         }
@@ -116,7 +125,7 @@ export function useLoans() {
         setSubmitting(false);
       }
     },
-    [fetchLoans]
+    [fetchLoans, recordsSpending]
   );
 
   /**
