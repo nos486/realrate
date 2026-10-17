@@ -17,8 +17,8 @@
  * a credit settlement changes nothing on the credit (its figures are read from the incomes).
  *
  * The other way round, a cheque cleared on the cheques page records its money here
- * (settleCheque: an income for a received cheque, an expense for an issued one — or links the one
- * already recorded by hand that day, spendingRecords.js), and taking the clearing back removes
+ * (settleCheque: an income for a received cheque, an expense for an issued one — always a new
+ * record, never another one taken by its amount), and taking the clearing back removes
  * that record (unsettleCheque).
  * An effect that fails never undoes the saved record: it is logged, and the screens read again.
  */
@@ -178,7 +178,6 @@ export async function releaseRecordLinks(side, record) {
 export async function settleCheque(cheque, { date, expenses = true }) {
   if (!cheque || cheque.status !== CHEQUE_CLEARED || cheque.settlement) return null;
   const title = chequeRecordTitle(cheque);
-  // Already recorded by hand that day (same amount)? That one is linked instead (spendingRecords.js)
   const spending = await import('./spendingRecords.js');
   if (cheque.direction === 'received') {
     await spending.recordIncome({ title, amount: cheque.amount, incomeDate: date, category: cheque.category || 'other', chequeId: cheque.id }, { owner: 'cheque' });

@@ -30,7 +30,7 @@ vi.mock('../../../web/src/shared/vault/vaultExpenses.js', () => ({
 }));
 
 const {
-  spendingExpenseId, matchingRecord, recordSpending, recordSubscriptionPayments, recordInstallmentPayments, removeInstallmentPayment, recordExtraPayment, installmentNumberOf, removeLoanPayments, renameLoanPayments, dropDuplicateInstallmentPayments, sameInstallment,
+  spendingExpenseId, recordSpending, recordSubscriptionPayments, recordInstallmentPayments, removeInstallmentPayment, recordExtraPayment, installmentNumberOf, removeLoanPayments, renameLoanPayments, dropDuplicateInstallmentPayments, sameInstallment,
 } = await import('../../../web/src/shared/vault/spendingRecords.js');
 
 beforeEach(() => {
@@ -112,27 +112,16 @@ describe('loans', () => {
 });
 
 describe('a payment already recorded by hand', () => {
-  it('is linked instead of recorded twice: same day, amount and currency, naming nothing', async () => {
+  it('is never taken by its amount: the payment gets its own expense', async () => {
     m.dayExpenses = [
       { id: 'exp_hand', date: '2026-02-11', amount: 20, currency: 'USD', category: 'software', title: 'ChatGPT Plus', accountId: '' },
     ];
     await recordSpending('sub:sub_1:2026-02-11', { title: 'ChatGPT', amount: 20, currency: 'USD', date: '2026-02-11', category: 'subscriptions', subscriptionId: 'sub_1', accountId: 'acc_1' });
     expect(m.saveExpense).toHaveBeenCalledTimes(1);
-    const [input, existing] = m.saveExpense.mock.calls[0];
-    expect(existing.id).toBe('exp_hand');
-    // Its own title stays; the category and the link are the payment's
-    expect(input).toEqual({ category: 'subscriptions', subscriptionId: 'sub_1', accountId: 'acc_1' });
-  });
-
-  it('a record of another amount or currency, already linked, or recorded here is not taken', () => {
-    const day = [
-      { id: 'a', amount: 21, currency: 'USD' },
-      { id: 'b', amount: 20, currency: 'IRT' },
-      { id: 'c', amount: 20, currency: 'USD', chequeId: 'chq_1' },
-      { id: spendingExpenseId('x'), amount: 20, currency: 'USD' },
-    ];
-    expect(matchingRecord('expense', day, { amount: 20, currency: 'USD' })).toBeNull();
-    expect(matchingRecord('expense', [...day, { id: 'd', amount: 20, currency: 'USD' }], { amount: 20, currency: 'USD' }).id).toBe('d');
+    const [input, existing, options] = m.saveExpense.mock.calls[0];
+    expect(existing).toBeNull();
+    expect(options.id).toBe(spendingExpenseId('sub:sub_1:2026-02-11'));
+    expect(input).toMatchObject({ title: 'ChatGPT', subscriptionId: 'sub_1' });
   });
 
   it('the same outflow recorded again rewrites its own expense', async () => {
@@ -144,12 +133,12 @@ describe('a payment already recorded by hand', () => {
   });
 });
 
-describe('a cheque payment matched to one recorded by hand', () => {
-  it('keeps the record\'s own category: a cheque is a way of paying', async () => {
+describe('a cheque payment', () => {
+  it('gets its own expense, not a same-amount one of the user\'s', async () => {
     m.dayExpenses = [{ id: 'exp_rent', date: '2026-02-01', amount: 5_000_000, currency: 'IRT', category: 'housing', title: 'اجاره' }];
     await recordSpending('cheque:chq_1', { title: 'چک علی', amount: 5_000_000, currency: 'IRT', date: '2026-02-01', category: 'other', chequeId: 'chq_1' });
-    expect(m.saveExpense.mock.calls[0][0]).toEqual({ chequeId: 'chq_1' });
-    expect(m.saveExpense.mock.calls[0][1].id).toBe('exp_rent');
+    expect(m.saveExpense.mock.calls[0][1]).toBeNull();
+    expect(m.saveExpense.mock.calls[0][0]).toMatchObject({ chequeId: 'chq_1', category: 'other' });
   });
 });
 

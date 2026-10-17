@@ -10,8 +10,7 @@
  * - (v3) the rates older expenses stored are dropped (every rate is the price history's)
  * - (v4) an installment recorded more than once (its id changed between payments) keeps one expense
  * - (v5) the installment expenses of a loan that was deleted are removed
- * Each goes through spendingRecords.js: a payment already recorded by hand that day (same amount)
- * is linked instead of recorded twice, and its own id makes a second run (another device, a run
+ * Each goes through spendingRecords.js: its own id makes a second run (another device, a run
  * cut short) rewrite the same records — so it is safe to run more than once.
  *
  * Temporary: once the release with it has been out long enough for every device to have run it,
