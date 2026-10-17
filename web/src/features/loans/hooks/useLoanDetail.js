@@ -20,7 +20,7 @@ import {
 import { todayIso } from '../../../shared/utils/dates.js';
 import { useFeature } from '../../../shared/features/useFeature.js';
 import { isDemoReadOnly } from '../../demo/index.js';
-import { removeInstallmentPayment } from '../../../shared/vault/spendingRecords.js';
+import { recordInstallmentPayments, removeInstallmentPayment, recordExtraPayment } from '../../../shared/vault/spendingRecords.js';
 
 export function useLoanDetail(loanId) {
   const [loan, setLoan] = useState(null);
@@ -132,6 +132,7 @@ export function useLoanDetail(loanId) {
 
       try {
         const res = await apiMarkPaid(loanId, installmentId, details);
+        await spend(() => recordInstallmentPayments(prevLoan || { id: loanId }, [res?.installment, ...(res?.cascadedInstallments || [])].filter(Boolean)));
         // Refresh to guarantee full server synchronization
         await fetchLoan();
         return res;
@@ -238,6 +239,7 @@ export function useLoanDetail(loanId) {
 
       try {
         const res = await apiAddLoanExtraPayment(loanId, paymentData);
+        await spend(() => recordExtraPayment(loan || { id: loanId }, res?.extraPayment || paymentData));
         await fetchLoan();
         return res;
       } catch (err) {

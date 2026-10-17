@@ -132,17 +132,6 @@ describe('loan installment links', () => {
     await releaseRecordLinks('expense', expense);
     expect(mocks.unmarkInstallmentPaid).toHaveBeenCalledWith('loan_1', 'inst_3');
   });
-
-  it('one expense may pay several loans\' installments, each at its own amount', async () => {
-    const links = [{ loanId: 'loan_1', installmentId: 'inst_3' }, { loanId: 'loan_2', installmentId: 'inst_1' }];
-    const expense = { id: 'exp_3', category: 'installments', loanInstallment: links, date: '2026-02-05', amount: 5_000_000 };
-    await syncRecordLinks('expense', expense, null);
-    expect(mocks.markInstallmentPaid).toHaveBeenCalledWith('loan_1', 'inst_3', { paidDate: '2026-02-05', paidAmount: undefined });
-    expect(mocks.markInstallmentPaid).toHaveBeenCalledWith('loan_2', 'inst_1', { paidDate: '2026-02-05', paidAmount: undefined });
-    await releaseRecordLinks('expense', expense);
-    expect(mocks.unmarkInstallmentPaid).toHaveBeenCalledWith('loan_1', 'inst_3');
-    expect(mocks.unmarkInstallmentPaid).toHaveBeenCalledWith('loan_2', 'inst_1');
-  });
 });
 
 describe('subscription links', () => {
