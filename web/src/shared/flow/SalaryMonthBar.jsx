@@ -1,15 +1,17 @@
 /**
  * SalaryMonthBar.jsx — «ماه حقوقی» beside the month switcher (PeriodSwitcher's `extra`) of the expenses and incomes pages:
  * a switch between the salary's months and the calendar's, and «روزهای حقوق»: the list of the
- * marked days, where a day is added by picking «امروز» (the month starts now) or any past day
+ * marked days on a calendar (shared/ui/MonthCalendar): a tap on a day marks it, a tap on a marked
+ * day removes it
  */
 
 import React, { useState } from 'react';
-import { Wallet, Trash2 } from 'lucide-react';
-import { Button, FilterPills, IconButton, Modal } from '../ui/index.js';
+import { Wallet } from 'lucide-react';
+import { FilterPills, IconButton, Modal, MonthCalendar } from '../ui/index.js';
 import { useFeedback } from '../ui/FeedbackProvider.jsx';
-import DateField from '../form/DateField.jsx';
-import { getTodayShamsi, formatShamsiDisplay, shamsiToGregorian } from '../../features/portfolio/components/ShamsiDatePicker.jsx';
+import { shamsiMonthOf } from '../../utils/expenseDocument.js';
+import { formatShamsiDisplay } from '../../features/portfolio/components/ShamsiDatePicker.jsx';
+import { todayIso } from '../utils/dates.js';
 import { t } from '../../utils/i18n.js';
 
 const VIEWS = [
@@ -23,15 +25,20 @@ const VIEWS = [
  */
 export default function SalaryMonthBar({ salary, disabled = false }) {
   const { toast } = useFeedback();
+  const today = todayIso();
   const [open, setOpen] = useState(false);
-  const [day, setDay] = useState(getTodayShamsi());
+  const [calendarMonth, setCalendarMonth] = useState(() => shamsiMonthOf(today));
   const [busy, setBusy] = useState(false);
 
-  const run = async (action, message) => {
+  const toggleDay = async (iso) => {
     setBusy(true);
     try {
-      await action();
-      if (message) toast.success(message);
+      if (salary.starts.includes(iso)) {
+        await salary.remove(iso);
+      } else {
+        await salary.add(iso);
+        salary.setView('salary');
+      }
     } catch (err) {
       toast.error(err?.message || t('ذخیره نشد.'));
     } finally {
@@ -39,31 +46,20 @@ export default function SalaryMonthBar({ salary, disabled = false }) {
     }
   };
 
-  const addPicked = () => {
-    const iso = shamsiToGregorian(day);
-    if (!iso) return;
-    run(async () => {
-      await salary.add(iso);
-      salary.setView('salary');
-    }, t('روز حقوق ثبت شد.'));
-  };
-
   return (
     <div className="salary-month-controls">
       <FilterPills variant="segmented" size="sm" options={VIEWS} activeValue={salary.view} onChange={salary.setView} />
       <IconButton icon={<Wallet size={16} />} label={t('روزهای حقوق')} onClick={() => setOpen(true)} />
-      <Modal isOpen={open} onClose={() => setOpen(false)} title={t('روزهای دریافت حقوق')} subtitle={t('هر ماه از روز دریافت حقوق شروع می‌شود؛ ماهی که روزی ندارد از اول تقویمی‌اش.')}>
-        <DateField label={t('روز دریافت حقوق')} value={day} onChange={setDay} />
-        <Button size="sm" onClick={addPicked} disabled={disabled || busy}>{t('افزودن')}</Button>
-        <ul className="salary-month-list">
-          {salary.starts.map((iso) => (
-            <li key={iso}>
-              <span>{formatShamsiDisplay(`${iso}T00:00:00`)}</span>
-              <Button size="sm" variant="secondary" icon={<Trash2 size={14} />} aria-label={t('حذف')} disabled={disabled || busy} onClick={() => run(() => salary.remove(iso))} />
-            </li>
-          ))}
-          {!salary.starts.length && <li className="salary-month-empty">{t('هنوز روزی ثبت نشده.')}</li>}
-        </ul>
+      <Modal isOpen={open} onClose={() => setOpen(false)} title={t('روزهای دریافت حقوق')} subtitle={t('روی روزی که حقوق گرفتی بزن تا ماه از آن روز شروع شود؛ دوباره بزنی برداشته می‌شود. ماهی که روزی ندارد از اول تقویمی‌اش شروع می‌شود.')}>
+        <MonthCalendar
+          month={calendarMonth}
+          onMonthChange={setCalendarMonth}
+          marked={salary.starts}
+          today={today}
+          onDayClick={toggleDay}
+          disabled={disabled || busy}
+          label={(iso) => formatShamsiDisplay(`${iso}T00:00:00`)}
+        />
       </Modal>
     </div>
   );
