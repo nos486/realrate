@@ -13,12 +13,13 @@
  * from the amounts entered (CreditSummary, CreditPaymentForm, CreditConversionForm,
  * utils/creditAccount.js). An account can keep its balance («موجودی»): the user states what it
  * holds and the expenses, incomes and transfers move it from then on; the total of all of them
- * is shown above the cards (AccountBalance, utils/accountBalance.js). Everything is end-to-end
+ * is shown above the cards (AccountBalance, utils/accountBalance.js). A duplicate account can be
+ * merged into another («ادغام با حساب دیگر», MergeAccountsModal, utils/accountMerge.js). Everything is end-to-end
  * encrypted.
  */
 
 import React, { lazy, Suspense, useMemo, useState } from 'react';
-import { WalletCards, Plus, Pencil, Trash2, Archive, ArchiveRestore, ArrowLeftRight, ChevronRight, ChevronLeft, ArrowLeft, FileSpreadsheet } from 'lucide-react';
+import { WalletCards, Plus, Pencil, Trash2, Archive, ArchiveRestore, ArrowLeftRight, ChevronRight, ChevronLeft, ArrowLeft, FileSpreadsheet, Merge } from 'lucide-react';
 import { AlertBanner, Button, EmptyState, FeaturePageHeader } from '../../../shared/ui/index.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonCards } from '../../../shared/ui/Skeleton.jsx';
@@ -52,6 +53,9 @@ import { getAccountTypeIcon, accountLabel } from '../constants/accountDisplay.js
 import AccountForm from './AccountForm.jsx';
 import { AccountBalanceStat, BalanceSummary } from './AccountBalance.jsx';
 import TransferForm from './TransferForm.jsx';
+import MergeAccountsModal from './MergeAccountsModal.jsx';
+import { mergeAccounts } from '../../../shared/vault/mergeAccounts.js';
+import { canMergeAccounts } from '../../../utils/accountMerge.js';
 import CreditSummary from './CreditSummary.jsx';
 import CreditPaymentForm from './CreditPaymentForm.jsx';
 import CreditConversionForm from './CreditConversionForm.jsx';
@@ -108,6 +112,7 @@ export default function AccountsPage() {
   // null | { accountId, installment?: { planId, n, count, dueDate, amount } }: settling a credit, or paying an installment
   const [payCredit, setPayCredit] = useState(null);
   const [convertId, setConvertId] = useState(null); // null | the credit account whose debt is turned into installments
+  const [mergeFrom, setMergeFrom] = useState(null); // null | the account being merged into another
   const [importAccountId, setImportAccountId] = useState(null); // null | the account a bank statement is imported into
   // Each bank credit's debt, next payment and installments
   const credit = useCreditStatus(accounts);
@@ -344,6 +349,11 @@ export default function AccountsPage() {
                     >
                       {account.archived ? <ArchiveRestore size={13} strokeWidth={2} /> : <Archive size={13} strokeWidth={2} />}
                     </button>
+                    {accounts.some((a) => canMergeAccounts(a, account)) && (
+                      <button type="button" className="btn-table-action" title={t('ادغام با حساب دیگر')} onClick={() => setMergeFrom(account)}>
+                        <Merge size={13} strokeWidth={2} />
+                      </button>
+                    )}
                     <button
                       type="button"
                       className={`btn-table-action delete ${deletingId === account.id ? 'loading' : ''}`}
@@ -462,6 +472,20 @@ export default function AccountsPage() {
             }}
           />
         </Suspense>
+      )}
+
+      {mergeFrom && (
+        <MergeAccountsModal
+          account={mergeFrom}
+          accounts={accounts}
+          onMerge={async (keep, merged) => {
+            await mergeAccounts(keep, merged);
+            await fetchAccounts();
+            reloadBalances();
+            credit.reload();
+          }}
+          onClose={() => setMergeFrom(null)}
+        />
       )}
 
       {form && (

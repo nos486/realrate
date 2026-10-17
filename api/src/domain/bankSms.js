@@ -313,5 +313,8 @@ export function matchSmsAccount(tx, accounts = []) {
   const wanted = [tx.accountLast4, tx.cardLast4].filter(Boolean);
   const exact = ofBank.find((a) => digitsOf(a).some((d) => wanted.includes(d)));
   if (exact) return exact.id;
+  // Cards of accounts merged into another (accountMerge.js) still reach the account kept
+  const merged = accounts.find((a) => !a.archived && accountHolds(a, 'IRT') && (a.aliases || []).some((al) => al.bankId === tx.bankId && digitsOf(al).some((d) => wanted.includes(d))));
+  if (merged) return merged.id;
   return ofBank.length === 1 ? ofBank[0].id : '';
 }
