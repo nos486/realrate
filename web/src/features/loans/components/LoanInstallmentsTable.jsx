@@ -9,10 +9,12 @@ import {
   History,
   ListChecks,
 } from 'lucide-react';
-import { formatShamsiDisplay, getTodayShamsi, shamsiToGregorian } from '../../portfolio/components/ShamsiDatePicker.jsx';
+import { formatShamsiDisplay, getTodayShamsi, gregorianToShamsi, shamsiToGregorian } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import ShamsiDatePicker from '../../portfolio/components/ShamsiDatePicker.jsx';
 import NumericInput from '../../../shared/ui/NumericInput.jsx';
 import ExtraPaymentModal from './ExtraPaymentModal.jsx';
+import LoanPayAccountField from './LoanPayAccountField.jsx';
+import { rememberPayAccount, useLoanPayAccounts } from '../hooks/useLoanPayAccounts.js';
 import BulkEditInstallmentsModal from './BulkEditInstallmentsModal.jsx';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { todayIso } from '../../../shared/utils/dates.js';
@@ -44,6 +46,9 @@ export default function LoanInstallmentsTable({
   const [payDate, setPayDate] = useState('');
   const [payAmount, setPayAmount] = useState('');
   const [payError, setPayError] = useState('');
+  // The account the payment is paid from (asked with the day and amount)
+  const { accounts: payAccounts, defaultId: defaultPayAccountId } = useLoanPayAccounts();
+  const [payAccountId, setPayAccountId] = useState('');
   const [actionLoadingId, setActionLoadingId] = useState(null);
 
   // Filter tabs (all, pending, paid)
@@ -66,9 +71,10 @@ export default function LoanInstallmentsTable({
     return () => clearTimeout(timer);
   }, [successMessage]);
 
-  const handleOpenPayModal = (inst) => {
+  const handleOpenPayModal = (inst, { day = '' } = {}) => {
     setPayingInstId(inst.id);
-    setPayDate(getTodayShamsi());
+    setPayDate(day ? gregorianToShamsi(`${day}T00:00:00`) : getTodayShamsi());
+    setPayAccountId(defaultPayAccountId);
     setPayAmount(String(inst.totalAmount || ''));
     setPayError('');
     setSuccessMessage('');
@@ -100,7 +106,9 @@ export default function LoanInstallmentsTable({
         paidDate: isoDate,
         paidAmount: cleanAmt,
         cascade: shouldCascade,
+        accountId: payAccountId,
       });
+      rememberPayAccount(payAccountId);
       setPayingInstId(null);
       if (res?.cascadedCount > 0) {
         setSuccessMessage(t('{n} قسط قبلی نیز پرداخت‌شده ثبت شد.', { n: res.cascadedCount }));
@@ -119,6 +127,11 @@ export default function LoanInstallmentsTable({
 
   const handlePayOnDueDate = async (inst) => {
     setSuccessMessage('');
+    // With accounts to pay from and none chosen yet, the payment is asked (on its due day) instead
+    if (payAccounts.length > 0 && !defaultPayAccountId) {
+      handleOpenPayModal(inst, { day: inst.dueDate });
+      return;
+    }
     const shouldCascade = installments.some((i) => i.installmentNumber < inst.installmentNumber && !i.isPaid);
     try {
       setActionLoadingId(inst.id);
@@ -126,6 +139,7 @@ export default function LoanInstallmentsTable({
         paidDate: inst.dueDate,
         paidAmount: inst.totalAmount,
         cascade: shouldCascade,
+        accountId: defaultPayAccountId,
       });
       if (res?.cascadedCount > 0) {
         setSuccessMessage(t('{n} قسط قبلی نیز پرداخت‌شده ثبت شد.', { n: res.cascadedCount }));
@@ -467,6 +481,8 @@ export default function LoanInstallmentsTable({
                                 value={payDate}
                                 onChange={(val) => setPayDate(val)}
                               />
+
+                              <LoanPayAccountField value={payAccountId} onChange={setPayAccountId} />
                             </div>
 
                             <div className="inline-pay-buttons">
@@ -653,6 +669,8 @@ export default function LoanInstallmentsTable({
                       value={payDate}
                       onChange={(val) => setPayDate(val)}
                     />
+
+                    <LoanPayAccountField value={payAccountId} onChange={setPayAccountId} />
 
                     <div className="inline-pay-buttons">
                       <button

@@ -89,6 +89,13 @@ describe('loans', () => {
     });
   });
 
+  it('the account a payment was paid from goes on its expense (installment and extra payment)', async () => {
+    await recordInstallmentPayments(loan, [{ id: 'inst_3', paidDate: '2026-02-05', paidAmount: 4_000_000 }], { accountId: 'acc_9' });
+    expect(m.saved.get(spendingExpenseId('loan:loan_1:n3'))).toMatchObject({ accountId: 'acc_9' });
+    await recordExtraPayment(loan, { id: 'xp_1', amount: 10_000_000, paymentDate: '2026-02-06' }, { accountId: 'acc_9' });
+    expect(m.saved.get(spendingExpenseId('loanx:loan_1:xp_1'))).toMatchObject({ accountId: 'acc_9' });
+  });
+
   it('an installment unpaid removes its expense — recorded here or by the user, naming it', async () => {
     m.dayExpenses = [
       { id: 'exp_user', loanInstallment: { loanId: 'loan_1', installmentId: 'inst_3' } },
