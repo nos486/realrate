@@ -283,6 +283,12 @@
 }
 
 /* ── «ماه حقوقی» (shared/flow/SalaryMonthBar.jsx) ── */
+.salary-month-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .salary-month-list {
   display: flex;
   flex-direction: column;
