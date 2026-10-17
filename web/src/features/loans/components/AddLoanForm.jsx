@@ -88,13 +88,6 @@ export default function AddLoanForm({
   // per-installment customization) happens after creation via "ویرایش گروهی اقساط" instead.
   const [installmentMode, setInstallmentMode] = useState('standard');
 
-  // When editing a loan whose scheduleMode is 'distributed' (built via "کل بازپرداخت" or
-  // "سفارشی‌سازی تک‌تک اقساط" at creation, or via later بولک-edit), the edit form shows the
-  // loan's ACTUAL current total instead of a rate field — a rate is meaningless for such a loan
-  // (computeEffectiveSchedule never uses it for distributed loans). This total is fetched fresh
-  // (the lightweight loan list objects don't carry installments) and shown read-only: changing
-  // installment amounts belongs to "ویرایش گروهی اقساط", not this form.
-  const [loadingDistributedTotal, setLoadingDistributedTotal] = useState(false);
   // Bumped each time the form is filled for an opening: the body remounts with those values
   const [round, setRound] = useState(0);
 
@@ -106,25 +99,12 @@ export default function AddLoanForm({
     setFormError('');
     setInstallmentMode('standard');
     setTotalRepaymentAmount('');
-    setLoadingDistributedTotal(false);
 
-    let cancelled = false;
-    if (editingLoan && editingLoan.scheduleMode === 'distributed') {
-      setInstallmentMode('totalRepaymentBased');
-      setLoadingDistributedTotal(true);
-      getLoanDetail(editingLoan.id)
-        .then((res) => {
-          if (cancelled) return;
-          const installments = res?.loan?.installments || [];
-          const total = installments.reduce((sum, i) => sum + Number(i.totalAmount || 0), 0);
-          setTotalRepaymentAmount(total > 0 ? String(total) : '');
-        })
-        .catch(() => {
-          if (!cancelled) setTotalRepaymentAmount('');
-        })
-        .finally(() => {
-          if (!cancelled) setLoadingDistributedTotal(false);
-        });
+    if (editingLoan) {
+      // The loan list carries the loan's current total, so no extra fetch is needed
+      const currentTotal = Number(editingLoan.totalRepaymentAmount || 0);
+      setTotalRepaymentAmount(currentTotal > 0 ? String(Math.round(currentTotal)) : '');
+      if (editingLoan.scheduleMode === 'distributed') setInstallmentMode('totalRepaymentBased');
     }
 
     if (editingLoan) {
@@ -172,9 +152,6 @@ export default function AddLoanForm({
       setRemindersEnabled(true);
     }
 
-    return () => {
-      cancelled = true;
-    };
   }, [isOpen, editingLoan, draft]);
 
   // Clean numeric values for calculations
@@ -294,9 +271,8 @@ export default function AddLoanForm({
     return startDateIso !== origStart;
   }, [editingLoan, editingPaidCount, startDateIso]);
 
-  // In edit mode the total-repayment field is read-only/informational (see the populate effect),
-  // never user-submitted, so it must never block the save button — including while it's still
-  // being fetched (briefly 0 before the async loan-detail fetch resolves).
+  // Creation-only: in edit mode the total starts at the loan's current value and is validated
+  // on submit (it is only sent when the user changed it).
   const isTotalRepaymentInvalid = installmentMode === 'totalRepaymentBased' && !editingLoan &&
     (cleanTotalRepaymentInput <= 0 || Boolean(totalBasedResult.error));
 
@@ -325,10 +301,17 @@ export default function AddLoanForm({
       return;
     }
 
-    // In edit mode the total-repayment field is read-only/informational — it's never sent, and
-    // editing amounts on a distributed loan happens exclusively via "ویرایش گروهی اقساط".
     let totalRepaymentAmountToSubmit = null;
-    if (installmentMode === 'totalRepaymentBased' && !editingLoan) {
+    if (editingLoan) {
+      // Sent only when the user changed it: the pending installments are then re-planned to it
+      if (cleanTotalRepaymentInput <= 0) {
+        setFormError(t('لطفاً مبلغ کل بازپرداخت را وارد نمایید.'));
+        return;
+      }
+      if (cleanTotalRepaymentInput !== Math.round(Number(editingLoan.totalRepaymentAmount || 0))) {
+        totalRepaymentAmountToSubmit = cleanTotalRepaymentInput;
+      }
+    } else if (installmentMode === 'totalRepaymentBased') {
       if (cleanTotalRepaymentInput <= 0) {
         setFormError(t('لطفاً مبلغ کل بازپرداخت را وارد نمایید.'));
         return;
@@ -500,24 +483,23 @@ export default function AddLoanForm({
             </div>
           </div>
 
-          {installmentMode === 'totalRepaymentBased' && (
+          {(installmentMode === 'totalRepaymentBased' || editingLoan) && (
             <div className="ui-input-group">
               <label className="ui-input-label" htmlFor="loan-total-repayment">
-                {t('کل بازپرداخت (اصل + سود)')} {editingLoan ? '' : '*'}
+                {t('کل بازپرداخت (اصل + سود)')} *
               </label>
               <NumericInput
                 id="loan-total-repayment"
-                value={loadingDistributedTotal ? '' : totalRepaymentAmount}
+                value={totalRepaymentAmount}
                 onValueChange={setTotalRepaymentAmount}
-                placeholder={loadingDistributedTotal ? t('در حال دریافت مبلغ فعلی...') : t('مبلغ دقیقی که طبق بانک باید در مجموع پس بدهید')}
+                placeholder={t('مبلغ دقیقی که طبق بانک باید در مجموع پس بدهید')}
                 affix={t('تومان')}
                 className="form-input"
-                required={!editingLoan}
-                disabled={Boolean(editingLoan)}
+                required
               />
               {editingLoan ? (
                 <p className="expense-form-hint">
-                  {t('این وام با «ویرایش گروهی اقساط» تنظیم شده — برای تغییر مبلغ اقساط از همان بخش (داخل جدول اقساط وام) استفاده کنید.')}
+                  {t('با تغییر این مبلغ، اقساط پرداخت‌نشده طوری بازچینی می‌شوند که جمع کل بازپرداخت برابر آن شود (اقساط پرداخت‌شده تغییر نمی‌کنند).')}
                 </p>
               ) : (
                 <>

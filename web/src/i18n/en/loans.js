@@ -72,7 +72,7 @@ export default {
   'کل بازپرداخت (اصل + سود)': 'Total repayment (principal + interest)',
   'در حال دریافت مبلغ فعلی...': 'Loading the current amount...',
   'مبلغ دقیقی که طبق بانک باید در مجموع پس بدهید': 'The exact total the bank says you must repay',
-  'این وام با «ویرایش گروهی اقساط» تنظیم شده — برای تغییر مبلغ اقساط از همان بخش (داخل جدول اقساط وام) استفاده کنید.': 'This loan was set up with “Bulk edit installments”. To change installment amounts, use that option (inside the loan’s installments table).',
+  'با تغییر این مبلغ، اقساط پرداخت‌نشده طوری بازچینی می‌شوند که جمع کل بازپرداخت برابر آن شود (اقساط پرداخت‌شده تغییر نمی‌کنند).': 'Changing this amount re-plans the unpaid installments so the total repayment matches it (paid installments are not changed).',
   'نرخ سود معادل تقریبی: {rate}٪ (فقط اطلاعاتی — در محاسبه اقساط استفاده نمی‌شود)': 'Approximate equivalent interest rate: {rate}% (informational only, not used to calculate installments)',
   'دوره پرداخت اقساط': 'Installment interval',
   'پیش‌نمایش زنده اقساط (فرمول بانکی)': 'Live installment preview (bank formula)',

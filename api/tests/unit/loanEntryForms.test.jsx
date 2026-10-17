@@ -119,7 +119,7 @@ describe('the new-loan form', () => {
   it('has «انصراف», never «ثبت و بعدی», and an edit opens what is filled under «جزئیات بیشتر»', async () => {
     const editingLoan = {
       id: 'loan_1', title: 'وام قدیمی', principalAmount: 80_000_000, annualInterestRate: 18, installmentCount: 12,
-      intervalMonths: 6, startDate: '2025-01-10', annualFeeAmount: 200_000, notes: 'ضامن: علی', remindersMuted: false, paidCount: 0,
+      intervalMonths: 6, startDate: '2025-01-10', annualFeeAmount: 200_000, notes: 'ضامن: علی', remindersMuted: false, paidCount: 0, totalRepaymentAmount: 96_000_000,
     };
     const { onSubmit } = renderLoanForm({ editingLoan });
     await waitFor(() => expect(document.getElementById('loan-notes')?.value).toBe('ضامن: علی'));
@@ -132,7 +132,21 @@ describe('the new-loan form', () => {
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     expect(onSubmit.mock.calls[0][0]).toMatchObject({
       principalAmount: 80_000_000, annualInterestRate: 18, intervalMonths: 6, startDate: '2025-01-10', annualFeeAmount: 200_000,
+      totalRepaymentAmount: null,
     });
+  });
+
+  it('edits the total repayment of a loan and sends it only when it changed', async () => {
+    const editingLoan = {
+      id: 'loan_1', title: 'وام', principalAmount: 80_000_000, annualInterestRate: 18, installmentCount: 12,
+      intervalMonths: 1, startDate: '2025-01-10', paidCount: 0, totalRepaymentAmount: 96_000_000,
+    };
+    const { onSubmit } = renderLoanForm({ editingLoan });
+    await waitFor(() => expect(document.getElementById('loan-total-repayment').value).toBe('96,000,000'));
+    type('loan-total-repayment', '99000000');
+    submit('loan-principal');
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ totalRepaymentAmount: 99_000_000 });
   });
 });
 
