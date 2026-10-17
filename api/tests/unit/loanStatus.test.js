@@ -18,15 +18,20 @@ describe('isLoanCompleted', () => {
 
 describe('loanDueTone', () => {
   const loan = (dueDate) => ({ remainingBalance: 100, totalCount: 12, paidCount: 5, nextDueInstallment: { dueDate } });
-  it('is red when the next installment is near or overdue', () => {
-    expect(loanDueTone(loan('2026-10-17'), '2026-10-17')).toBe('negative');
-    expect(loanDueTone(loan('2026-10-24'), '2026-10-17')).toBe('negative');
-    expect(loanDueTone(loan('2026-10-01'), '2026-10-17')).toBe('negative');
+  const tone = (dueDate) => loanDueTone(loan(dueDate), '2026-10-17');
+  it('is red when the next installment is 7 days away or less, overdue included', () => {
+    expect(tone('2026-10-01')).toBe('negative');
+    expect(tone('2026-10-17')).toBe('negative');
+    expect(tone('2026-10-24')).toBe('negative');
   });
-  it('is amber in between and green when far', () => {
-    expect(loanDueTone(loan('2026-10-25'), '2026-10-17')).toBe('warning');
-    expect(loanDueTone(loan('2026-11-06'), '2026-10-17')).toBe('warning');
-    expect(loanDueTone(loan('2026-11-07'), '2026-10-17')).toBe('positive');
+  it('is amber from 8 to 14 days', () => {
+    expect(tone('2026-10-25')).toBe('warning');
+    expect(tone('2026-10-31')).toBe('warning');
+  });
+  it('has no tone from 15 to 25 days and is green beyond', () => {
+    expect(tone('2026-11-01')).toBe('');
+    expect(tone('2026-11-11')).toBe('');
+    expect(tone('2026-11-12')).toBe('positive');
   });
   it('is green for a settled loan or one with no due installment', () => {
     expect(loanDueTone({ remainingBalance: 0, totalCount: 3, paidCount: 3 }, '2026-10-17')).toBe('positive');

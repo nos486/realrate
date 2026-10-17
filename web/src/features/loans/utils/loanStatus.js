@@ -5,8 +5,10 @@
 
 /** Days left to the next installment at or below which a loan card turns red (overdue included) */
 export const DUE_NEAR_DAYS = 7;
-/** Days left above which a loan card is green (just paid or far from its next installment); between is amber */
-export const DUE_FAR_DAYS = 20;
+/** Days left below which (down to DUE_NEAR_DAYS) a loan card is amber */
+export const DUE_SOON_DAYS = 15;
+/** Days left above which a loan card is green (just paid or far from its next installment); between is neutral */
+export const DUE_FAR_DAYS = 25;
 
 const DAY_MS = 86400000;
 
@@ -32,15 +34,16 @@ export function isLoanCompleted(loan) {
 
 /**
  * The tone of a loan card by how close its next installment is: green when far (or settled),
- * amber in between, red when near or overdue.
+ * none (the card's own color) from DUE_SOON_DAYS to DUE_FAR_DAYS, amber below that, red when near or overdue.
  * @param {{ nextDueInstallment?: { dueDate?: string } | null }} loan
  * @param {string} today ISO date (YYYY-MM-DD)
- * @returns {'positive' | 'warning' | 'negative'}
+ * @returns {'positive' | '' | 'warning' | 'negative'}
  */
 export function loanDueTone(loan, today) {
   const dueDate = loan.nextDueInstallment?.dueDate;
   if (isLoanCompleted(loan) || !dueDate) return 'positive';
   const days = daysBetween(today, dueDate);
   if (days <= DUE_NEAR_DAYS) return 'negative';
-  return days > DUE_FAR_DAYS ? 'positive' : 'warning';
+  if (days < DUE_SOON_DAYS) return 'warning';
+  return days > DUE_FAR_DAYS ? 'positive' : '';
 }
