@@ -301,7 +301,8 @@ function defaultResolveBank({ bankId, lenderName }) {
 
 /**
  * Update a loan's parameters (PUT /api/loans/:id). Changing financial terms drops every
- * pending state row, exactly like the repository.
+ * pending state row, exactly like the repository. An optional `totalRepaymentAmount` then
+ * re-plans the pending installments to that total.
  */
 export function updateLoanDoc(doc, data = {}, options = {}) {
   const { now } = resolveOptions(options);
@@ -379,6 +380,17 @@ export function updateLoanDoc(doc, data = {}, options = {}) {
 
   if (financialParamsChanged) {
     next.states = next.states.filter((s) => s.isPaid);
+  }
+
+  // An edited total repayment re-plans the pending installments to sum to it (paid ones stay),
+  // exactly like "ویرایش گروهی اقساط"; an unchanged total leaves the schedule alone.
+  const totalInput = data.totalRepaymentAmount ?? data.total_repayment_amount;
+  if (totalInput !== undefined && totalInput !== null) {
+    const total = Number(totalInput);
+    if (isNaN(total) || total <= 0) throw badRequest(t("مبلغ کل بازپرداخت باید عددی بزرگتر از صفر باشد."));
+    if (total !== buildLoanView(next).totalRepaymentAmount) {
+      return bulkDistributeInstallmentsDoc(next, {}, total, options);
+    }
   }
   return next;
 }

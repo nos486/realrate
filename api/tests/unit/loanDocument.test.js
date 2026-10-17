@@ -36,4 +36,24 @@ describe('loan document', () => {
     updateLoanDoc(doc, { principalAmount: 2_000_000 });
     expect(JSON.stringify(doc)).toBe(snapshot);
   });
+
+  it('an edited total repayment re-plans the pending installments and keeps paid ones', () => {
+    let doc = createLoanDoc({ id: 'loan_t', title: 'x', principalAmount: 12_000_000, annualInterestRate: 12, installmentCount: 6, startDate: '1404-01-01' });
+    doc = markInstallmentPaidDoc(doc, '1').doc;
+    const before = buildLoanView(doc);
+    const paidAmount = before.installments[0].totalAmount;
+    const total = Math.round(before.totalRepaymentAmount) + 600_000;
+    const view = buildLoanView(updateLoanDoc(doc, { totalRepaymentAmount: total }));
+    expect(view.scheduleMode).toBe('distributed');
+    expect(view.totalRepaymentAmount).toBe(total);
+    expect(view.installments[0].isPaid).toBe(true);
+    expect(view.installments[0].totalAmount).toBe(paidAmount);
+  });
+
+  it('an unchanged total leaves the schedule untouched; a bad total is refused', () => {
+    const doc = createLoanDoc({ id: 'loan_u', title: 'x', principalAmount: 6_000_000, annualInterestRate: 0, installmentCount: 3, startDate: '1404-01-01' });
+    const total = buildLoanView(doc).totalRepaymentAmount;
+    expect(buildLoanView(updateLoanDoc(doc, { totalRepaymentAmount: total })).scheduleMode).toBe('formula');
+    expect(() => updateLoanDoc(doc, { totalRepaymentAmount: 0 })).toThrow('مبلغ کل بازپرداخت');
+  });
 });
