@@ -84,10 +84,11 @@ describe('the loans page', () => {
   it('an installment paid records it and the earlier ones paid with it; unpaid removes it', async () => {
     const { result } = renderHook(() => useLoanDetail('loan_1'));
     await waitFor(() => expect(result.current.loan?.id).toBe('loan_1'));
-    await act(() => result.current.markPaid('inst_3', { paidDate: '2026-04-01', cascade: true }));
+    await act(() => result.current.markPaid('inst_3', { paidDate: '2026-04-01', cascade: true, accountId: 'acc_1' }));
     expect(m.recordInstallmentPayments).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'loan_1', title: 'وام مسکن' }),
       [expect.objectContaining({ id: 'inst_3' }), expect.objectContaining({ id: 'inst_1' })],
+      { accountId: 'acc_1' },
     );
     await act(() => result.current.unmarkPaid('inst_2'));
     expect(m.removeInstallmentPayment).toHaveBeenCalledWith('loan_1', 'inst_2', '2026-03-05', undefined);
@@ -96,7 +97,7 @@ describe('the loans page', () => {
   it('an extra payment is recorded too', async () => {
     const { result } = renderHook(() => useLoanDetail('loan_1'));
     await waitFor(() => expect(result.current.loan?.id).toBe('loan_1'));
-    await act(() => result.current.addExtraPayment({ amount: 10_000_000, paymentDate: '2026-04-01' }));
-    expect(m.recordExtraPayment).toHaveBeenCalledWith(expect.objectContaining({ id: 'loan_1' }), expect.objectContaining({ id: 'xp_1', amount: 10_000_000 }));
+    await act(() => result.current.addExtraPayment({ amount: 10_000_000, paymentDate: '2026-04-01', accountId: 'acc_1' }));
+    expect(m.recordExtraPayment).toHaveBeenCalledWith(expect.objectContaining({ id: 'loan_1' }), expect.objectContaining({ id: 'xp_1', amount: 10_000_000 }), { accountId: 'acc_1' });
   });
 });

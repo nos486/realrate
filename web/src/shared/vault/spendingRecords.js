@@ -206,8 +206,9 @@ export const installmentSpendingKey = (loanId, inst) => {
  * A loan's installments just marked paid on the loans page: each one's expense
  * @param {object} loan the loan (its title)
  * @param {Array<{ id: string, paidDate: string, paidAmount: number }>} installments
+ * @param {{ accountId?: string }} [options] `accountId`: the account they were paid from
  */
-export async function recordInstallmentPayments(loan, installments) {
+export async function recordInstallmentPayments(loan, installments, { accountId = '' } = {}) {
   for (const inst of installments) {
     const amount = Number(inst.paidAmount) || 0;
     if (!inst?.id || !inst.paidDate || !(amount > 0)) continue;
@@ -217,6 +218,7 @@ export async function recordInstallmentPayments(loan, installments) {
       currency: BASE_CURRENCY,
       date: inst.paidDate,
       category: INSTALLMENT_EXPENSE_CATEGORY,
+      ...(accountId ? { accountId } : {}),
       loanInstallment: { loanId: loan.id, installmentId: String(inst.id) },
     }, { owner: 'loan', tolerance: INSTALLMENT_AMOUNT_TOLERANCE, installmentNumber: installmentNumberOf(inst) });
   }
@@ -313,8 +315,9 @@ export async function renameLoanPayments(loanId, oldTitle, newTitle, extraPaymen
  * An extra payment on a loan («پرداخت اضافه»): its expense
  * @param {object} loan
  * @param {{ id?: string, amount: number, paymentDate?: string, date?: string }} payment
+ * @param {{ accountId?: string }} [options] `accountId`: the account it was paid from
  */
-export async function recordExtraPayment(loan, payment) {
+export async function recordExtraPayment(loan, payment, { accountId = '' } = {}) {
   const amount = Number(payment?.amount) || 0;
   const date = payment?.paymentDate || payment?.date || '';
   if (!(amount > 0) || !date) return;
@@ -324,5 +327,6 @@ export async function recordExtraPayment(loan, payment) {
     currency: BASE_CURRENCY,
     date,
     category: INSTALLMENT_EXPENSE_CATEGORY,
+    ...(accountId ? { accountId } : {}),
   }, { owner: 'loan' });
 }

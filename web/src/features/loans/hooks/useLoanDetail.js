@@ -131,8 +131,10 @@ export function useLoanDetail(loanId) {
       });
 
       try {
-        const res = await apiMarkPaid(loanId, installmentId, details);
-        await spend(() => recordInstallmentPayments(prevLoan || { id: loanId }, [res?.installment, ...(res?.cascadedInstallments || [])].filter(Boolean)));
+        // `accountId`: the account it was paid from, for the payment's expense only
+        const { accountId = '', ...paid } = details;
+        const res = await apiMarkPaid(loanId, installmentId, paid);
+        await spend(() => recordInstallmentPayments(prevLoan || { id: loanId }, [res?.installment, ...(res?.cascadedInstallments || [])].filter(Boolean), { accountId }));
         // Refresh to guarantee full server synchronization
         await fetchLoan();
         return res;
@@ -238,8 +240,9 @@ export function useLoanDetail(loanId) {
       setError(null);
 
       try {
-        const res = await apiAddLoanExtraPayment(loanId, paymentData);
-        await spend(() => recordExtraPayment(loan || { id: loanId }, res?.extraPayment || paymentData));
+        const { accountId = '', ...payment } = paymentData;
+        const res = await apiAddLoanExtraPayment(loanId, payment);
+        await spend(() => recordExtraPayment(loan || { id: loanId }, res?.extraPayment || payment, { accountId }));
         await fetchLoan();
         return res;
       } catch (err) {

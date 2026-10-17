@@ -21,6 +21,8 @@ import {
 } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { todayIso } from '../../../shared/utils/dates.js';
 import { BASE_CURRENCY } from '../../../utils/currencies.js';
+import LoanPayAccountField from './LoanPayAccountField.jsx';
+import { rememberPayAccount, useLoanPayAccounts } from '../hooks/useLoanPayAccounts.js';
 
 const formatNum = (v) => Number(v || 0).toLocaleString(intlLocale());
 
@@ -57,6 +59,10 @@ export default function ExtraPaymentModal({
   const [notes, setNotes] = useState('');
   const [formError, setFormError] = useState('');
   const [payoffSuccessInfo, setPayoffSuccessInfo] = useState(null);
+  // The account it is paid from (the expense it records is tied to it)
+  const { defaultId: defaultAccountId } = useLoanPayAccounts();
+  const [pickedAccountId, setPickedAccountId] = useState(null);
+  const accountId = pickedAccountId ?? defaultAccountId;
 
   const remainingBalance = Number(loan?.remainingBalance ?? loan?.principalAmount ?? 0);
 
@@ -78,7 +84,9 @@ export default function ExtraPaymentModal({
         paymentDate: paymentDateIso || todayIso(),
         reductionMode,
         notes: notes.trim(),
+        accountId,
       });
+      rememberPayAccount(accountId);
 
       if (res?.fullyPaidOff) {
         setPayoffSuccessInfo(res);
@@ -176,6 +184,8 @@ export default function ExtraPaymentModal({
             if (iso) setPaymentDateIso(iso);
           }}
         />
+
+        <LoanPayAccountField value={accountId} onChange={setPickedAccountId} />
 
         <div className="ui-input-group">
           <span className="ui-input-label">{t('نحوه اعمال بر اقساط باقیمانده')}</span>
