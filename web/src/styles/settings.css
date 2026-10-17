@@ -42,15 +42,13 @@
 }
 
 .account-settings-fullscreen-card {
-  max-width: 1080px !important;
-  margin: 0 auto 32px auto !important;
+  max-width: 100% !important;
+  margin: 0 0 32px 0 !important;
   width: 100%;
 }
 
-/* The header lines up with the settings card below it */
+/* Full width like the other pages (the header lines up with the card below it) */
 .account-settings-page {
-  max-width: 1080px;
-  margin: 0 auto;
   width: 100%;
 }
 
