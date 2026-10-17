@@ -7,12 +7,10 @@ export default {
   // shared/flow/SalaryMonthBar (salary months)
   'ماه حقوقی': 'Salary month',
   'ماه تقویمی': 'Calendar month',
-  'حقوق گرفتم': 'Salary received',
   'روزهای حقوق': 'Salary days',
   'روزهای دریافت حقوق': 'Salary days',
   'روز دریافت حقوق': 'Day salary was received',
   'هر ماه از روز دریافت حقوق شروع می‌شود؛ ماهی که روزی ندارد از اول تقویمی‌اش.': 'Each month starts on the day salary was received; a month without a day starts on its 1st.',
-  'ماه حقوقی از امروز شروع شد.': 'Your salary month starts today.',
   'روز حقوق ثبت شد.': 'Salary day saved.',
   'هنوز روزی ثبت نشده.': 'No day saved yet.',
   'ذخیره نشد.': "Couldn't save.",
