@@ -30,7 +30,7 @@ export default function PeriodSwitcher({ mode = 'month', month, thisMonth, onMod
     onMonthChange(monthIndex(next) > monthIndex(thisMonth) ? thisMonth : next);
   };
   return (
-    <div className="flow-period-bar">
+    <div className={`flow-period-bar${extra ? ' has-extra' : ''}`}>
       {onModeChange && <FilterPills options={MODES} activeValue={mode} onChange={onModeChange} size="sm" />}
       <div className="flow-period-nav">
         <Button size="sm" variant="secondary" icon={<ChevronRight size={16} />} onClick={() => step(-1)} aria-label={yearly ? t('سال قبل') : t('ماه قبل')} />

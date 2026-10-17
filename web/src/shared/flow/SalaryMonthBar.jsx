@@ -15,8 +15,8 @@ import { todayIso } from '../utils/dates.js';
 import { t } from '../../utils/i18n.js';
 
 const VIEWS = [
-  { value: 'salary', label: t('ماه حقوقی') },
-  { value: 'calendar', label: t('ماه تقویمی') },
+  { value: 'salary', label: t('حقوقی') },
+  { value: 'calendar', label: t('تقویمی') },
 ];
 
 /**

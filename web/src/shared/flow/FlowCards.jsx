@@ -18,6 +18,7 @@ import { Coins, Wallet, TrendingUp, TrendingDown, CalendarClock, CalendarDays, C
 import { MiniCard } from '../ui/index.js';
 import { DollarValueFoot, formatUsd } from '../ui/DollarValue.jsx';
 import { formatAmountMasked } from './flowFormat.js';
+import { formatShamsiDisplay } from '../../features/portfolio/components/ShamsiDatePicker.jsx';
 
 const KIND = {
   income: { color: 'green', Icon: Wallet, noun: t('درآمد'), nouns: plural(2, t('درآمد'), t('درآمدها')) },
@@ -50,9 +51,10 @@ const pct = (v) => t('{sign}{count}٪', { sign: v > 0 ? '+' : '', count: v.toLoc
  * @param {{ kind: 'income'|'expense', monthLabel: string, total: number, count: number,
  *   previousTotal: number, previousCount: number, current: boolean, days: number,
  *   top: { label: string, total: number }|null, hideValues?: boolean, totalFooter?: React.ReactNode,
- *   dollar?: object|null }} props - dollar: the month in dollars (FlowDollarCard)
+ *   dollar?: object|null, periodStart?: string|null }} props - dollar: the month in dollars
+ *   (FlowDollarCard); periodStart: the day a salary month began (Gregorian), written in the total's card
  */
-export function FlowMonthCards({ kind, monthLabel, total, count, previousTotal, previousCount, current, days, top, hideValues = false, totalFooter = null, dollar = null, today = null }) {
+export function FlowMonthCards({ kind, monthLabel, total, count, previousTotal, previousCount, current, days, top, hideValues = false, totalFooter = null, dollar = null, today = null, periodStart = null }) {
   const k = KIND[kind];
   const money = (v) => formatAmountMasked(v, hideValues);
   const change = previousTotal > 0 ? ((total - previousTotal) / previousTotal) * 100 : null;
@@ -67,7 +69,7 @@ export function FlowMonthCards({ kind, monthLabel, total, count, previousTotal, 
         unit={t('تومان')}
         color={k.color}
         className="incomes-summary-card is-primary"
-        footer={totalFooter}
+        footer={periodStart || totalFooter ? <>{periodStart && <span>{t('شروع: {date}', { date: formatShamsiDisplay(`${periodStart}T00:00:00`) })}</span>}{totalFooter}</> : null}
       />
       {/* Next to «نسبت به…» on a phone (two per row) */}
       {today && (

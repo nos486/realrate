@@ -251,6 +251,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
     <>
       <FlowMonthCards
         kind="expense"
+        periodStart={salary.activeStarts.length ? progress.range.from : null}
         monthLabel={formatShamsiMonth(month.jy, month.jm)}
         total={summary.totalToman}
         count={summary.count}
