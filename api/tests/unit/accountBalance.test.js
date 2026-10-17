@@ -45,6 +45,18 @@ describe('accountBalanceOf', () => {
     expect(accountBalanceOf(wise, records)).toEqual({ IRT: 0, USD: 80 });
   });
 
+  it('counts yesterday\'s income and transfers when the balance is stated from that day', () => {
+    const cash = { id: 'c', type: 'cash', name: 'Cash', currencies: ['IRT'], balance: { amounts: { IRT: 0 }, startDate: '2026-10-16', startAt: '2026-10-16T00:00:00.000Z' } };
+    const records = {
+      incomes: [{ accountId: 'c', amount: 2500000, currency: 'IRT', incomeDate: '2026-10-16', createdAt: '2026-10-16T10:00:00Z' }],
+      transfers: [
+        { fromAccountId: 'b', toAccountId: 'c', amount: 2500000, date: '2026-10-16', createdAt: '2026-10-16T10:05:00Z' },
+        { fromAccountId: 'c', toAccountId: 'b', amount: 1000000, date: '2026-10-17', createdAt: '2026-10-17T07:00:00Z' },
+      ],
+    };
+    expect(accountBalanceOf(cash, records, '2026-10-17')).toEqual({ IRT: 4000000 });
+  });
+
   it('does not count records after today', () => {
     const records = { expenses: [{ accountId: 'a1', amount: 5, date: '2026-10-20', createdAt: '2026-10-20T00:00:00Z' }] };
     expect(accountBalanceOf(mellat, records, '2026-10-16')).toEqual({ IRT: 3250000 });
