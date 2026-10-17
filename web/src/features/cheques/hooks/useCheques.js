@@ -12,7 +12,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { t } from '../../../utils/i18n.js';
 import { useFeature } from '../../../shared/features/useFeature.js';
-import { settleCheque, unsettleCheque } from '../../../shared/vault/recordLinks.js';
+import { settleCheque, unsettleCheque, resyncChequeRecord } from '../../../shared/vault/recordLinks.js';
 import { useRefreshHandler } from '../../../shared/refresh/pageRefresh.js';
 import { useAuth } from '../../auth/index.js';
 import { useVault } from '../../../shared/vault/useVault.js';
@@ -89,6 +89,12 @@ export function useCheques() {
     try {
       const res = chequeId ? await apiUpdateCheque(chequeId, chequeData) : await apiCreateCheque(chequeData);
       if (!res?.success || !res.cheque) throw new Error(res?.message || t('خطا در ذخیره چک'));
+      // Editing a cheque that has a record of its money carries the change over to it
+      if (chequeId && res.cheque.settlement) {
+        await resyncChequeRecord(res.cheque).catch((err) => {
+          setError((t('چک ذخیره شد، ولی به‌روزرسانی درآمد یا هزینه‌اش ممکن نشد: {reason}', { reason: err.message || '' })).trim());
+        });
+      }
       return store(res.cheque);
     } finally {
       setSubmitting(false);

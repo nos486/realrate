@@ -22,6 +22,7 @@ export default {
   'پردازش تصویر ناموفق بود.': 'Image processing failed.',
   'وضعیت چک ذخیره شد، ولی ثبت درآمد یا هزینه‌اش ممکن نشد: {reason}': 'The cheque status was saved, but recording its income or expense failed: {reason}',
   'وضعیت چک ذخیره شد، ولی حذف درآمد یا هزینه‌اش ممکن نشد: {reason}': 'The cheque status was saved, but removing its income or expense failed: {reason}',
+  'چک ذخیره شد، ولی به‌روزرسانی درآمد یا هزینه‌اش ممکن نشد: {reason}': 'The cheque was saved, but updating its income or expense failed: {reason}',
   'بازگردانی ناموفق بود.': 'Undo failed.',
   'ثبت پاس شدن چک ناموفق بود.': 'Could not mark the cheque as cleared.',
 

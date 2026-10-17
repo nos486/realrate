@@ -18,6 +18,9 @@ const mocks = vi.hoisted(() => ({
   saveExpense: vi.fn(async (input) => ({ success: true, expense: { id: 'exp_new', ...input } })),
   deleteExpense: vi.fn(async () => ({ success: true })),
   refreshScopes: vi.fn(async () => {}),
+  incomes: [],
+  expenses: [],
+  updateIncome: vi.fn(async (id, input) => ({ success: true, income: { id, ...input } })),
 }));
 
 vi.mock('../../../web/src/features/cheques/api/chequeApi.js', () => ({
@@ -33,22 +36,22 @@ vi.mock('../../../web/src/shared/vault/vaultSubscriptions.js', () => ({
   saveSubscription: mocks.saveSubscription,
 }));
 vi.mock('../../../web/src/features/incomes/api/incomeApi.js', () => ({
-  getIncomes: async () => ({ success: true, incomes: [] }),
+  getIncomes: async () => ({ success: true, incomes: mocks.incomes }),
   createIncome: mocks.createIncome,
-  updateIncome: vi.fn(),
+  updateIncome: mocks.updateIncome,
   deleteIncome: mocks.deleteIncome,
 }));
 vi.mock('../../../web/src/shared/vault/vaultExpenses.js', () => ({
   ensureDailyGroup: async () => ({ id: 'grp_daily' }),
   getExpenseGroups: async () => ({ groups: [] }),
-  getExpenses: async () => ({ success: true, expenses: [] }),
+  getExpenses: async () => ({ success: true, expenses: mocks.expenses }),
   saveExpense: mocks.saveExpense,
   deleteExpense: mocks.deleteExpense,
 }));
 vi.mock('../../../web/src/shared/refresh/pageRefresh.js', () => ({ refreshScopes: mocks.refreshScopes }));
 vi.mock('../../../web/src/shared/utils/dates.js', () => ({ todayIso: () => '2026-02-10' }));
 
-const { syncRecordLinks, releaseRecordLinks, settleCheque, unsettleCheque } = await import('../../../web/src/shared/vault/recordLinks.js');
+const { syncRecordLinks, releaseRecordLinks, settleCheque, unsettleCheque, resyncChequeRecord } = await import('../../../web/src/shared/vault/recordLinks.js');
 
 const issued = {
   id: 'chq_out', direction: 'issued', status: 'pending', amount: 5_000_000, dueDate: '2026-02-01', counterparty: 'علی',
@@ -61,6 +64,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.cheques = [issued, received];
   mocks.subscriptions = [];
+  mocks.incomes = [];
+  mocks.expenses = [];
 });
 
 describe('cheque links', () => {
@@ -149,5 +154,29 @@ describe('subscription links', () => {
     await expect(syncRecordLinks('expense', { id: 'e', category: 'installments', loanInstallment: { loanId: 'l', installmentId: 'i' }, date: '2026-02-01' }, null)).resolves.toBeUndefined();
     expect(warn).toHaveBeenCalled();
     warn.mockRestore();
+  });
+});
+
+describe('editing a cheque carries over to its record', () => {
+  it('an edited «بابت» (category) and amount reach the expense of an issued cheque', async () => {
+    mocks.expenses = [{ id: 'exp_9', title: 'old', category: 'other', amount: 1, accountId: '' }];
+    await resyncChequeRecord({ ...issued, status: 'cleared', category: 'housing', amount: 7_000_000, settlement: { side: 'expense', id: 'exp_9' } });
+    expect(mocks.saveExpense).toHaveBeenCalledTimes(1);
+    const [input, existing, options] = mocks.saveExpense.mock.calls[0];
+    expect(input).toMatchObject({ category: 'housing', amount: 7_000_000 });
+    expect(existing.id).toBe('exp_9');
+    expect(options).toMatchObject({ syncLinks: false, asOwner: true });
+  });
+
+  it('an edited «بابت» reaches the income of a received cheque', async () => {
+    mocks.incomes = [{ id: 'inc_9', title: 'old', category: 'other', amount: 1, incomeDate: '2026-02-04' }];
+    await resyncChequeRecord({ ...received, status: 'cleared', category: 'salary', settlement: { side: 'income', id: 'inc_9' } });
+    expect(mocks.updateIncome).toHaveBeenCalledWith('inc_9', expect.objectContaining({ category: 'salary', amount: 5_000_000 }), { asOwner: true });
+  });
+
+  it('does nothing for a cheque without a record', async () => {
+    await resyncChequeRecord(issued);
+    expect(mocks.saveExpense).not.toHaveBeenCalled();
+    expect(mocks.updateIncome).not.toHaveBeenCalled();
   });
 });
