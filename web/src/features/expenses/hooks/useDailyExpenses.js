@@ -18,7 +18,7 @@ import { t } from '../../../utils/i18n.js';
 import { useRefreshHandler } from '../../../shared/refresh/pageRefresh.js';
 import { useAuth } from '../../auth/index.js';
 import { useVault } from '../../../shared/vault/useVault.js';
-import { compareExpensesByDate, shamsiMonthRange, shiftShamsiMonth } from '../../../utils/expenseDocument.js';
+import { compareExpensesByDate, shiftShamsiMonth } from '../../../utils/expenseDocument.js';
 import { flowWindow, salaryMonthRange } from '../../../shared/flow/flowYear.js';
 import * as api from '../../../shared/vault/vaultExpenses.js';
 
