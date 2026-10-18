@@ -209,7 +209,7 @@ export const WIDGET_CATALOG = {
     group: "tools",
     defaultHeight: 2, unique: true, requires: null,
     options: {
-      toggles: { list: { label: msg("فهرست رویدادها زیر تقویم"), default: true } },
+      toggles: { list: { label: msg("فهرست رویدادها زیر تقویم"), default: true }, total: { label: msg("جمع پرداختی و دریافتی ماه"), default: true } },
       style: { values: ["month", "agenda"], labels: { month: msg("ماه"), agenda: msg("برنامه") }, default: "month" },
       multi: {
         kinds: {

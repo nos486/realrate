@@ -104,4 +104,9 @@ export default {
   'هر {unit}': 'per {unit}',
   'بازه‌ی امروز': 'Today\'s range',
   'نمایش بازه‌ی امروز': 'Show today\'s range',
+  'چک پرداختی': 'Issued cheque',
+  'نشانه‌ها': 'Legend',
+  'پرداختی این ماه': 'To pay this month',
+  'دریافتی این ماه': 'Coming in this month',
+  'جمع پرداختی و دریافتی ماه': 'Show what the month pays and brings in',
 };

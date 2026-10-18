@@ -28,6 +28,25 @@ describe('calendarEvents', () => {
     expect(CALENDAR_EVENT_KINDS).toEqual(['loan', 'cheque', 'subscription', 'goal']);
   });
 
+  it('carries what each event costs and which way a cheque goes', () => {
+    const subscriptions = [{ id: 's1', name: 'Music', amount: 9, currency: 'USD', cycleMonths: 1, startDate: '2026-01-10', autoRenew: true }];
+    const events = calendarEvents({ ...window, subscriptions, cheques: [cheque({ amount: 500, direction: 'received' })] });
+    expect(events.get('2026-03-10').find((e) => e.kind === 'cheque')).toMatchObject({ amount: 500, currency: 'IRT', direction: 'received' });
+    expect(events.get('2026-03-11').find((e) => e.kind === 'subscription')).toMatchObject({ amount: 9, currency: 'USD', direction: '' });
+  });
+
+  it('gives a loan installment the amount of its own schedule', () => {
+    const installments = [
+      { isPaid: true, dueDate: '2026-02-10', totalAmount: 100 },
+      { isPaid: false, dueDate: '2026-03-10', totalAmount: 120 },
+      { isPaid: false, dueDate: '2026-04-08', totalAmount: 130 },
+    ];
+    const loans = [{ id: 'l1', title: 'Car loan', intervalMonths: 1, installments, nextDueInstallment: installments[1], totalCount: 3, paidCount: 1 }];
+    const events = calendarEvents({ ...window, to: '2026-04-30', loans });
+    expect(events.get('2026-03-10')[0]).toMatchObject({ kind: 'loan', amount: 120 });
+    expect(events.get('2026-04-08')[0]).toMatchObject({ kind: 'loan', amount: 130 });
+  });
+
   it('is empty without records', () => {
     expect(calendarEvents(window).size).toBe(0);
   });
