@@ -12,22 +12,48 @@
 import { t } from '../../utils/i18n.js';
 import React, { useMemo, useState } from 'react';
 import {
-  DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors,
+  DndContext, closestCenter, pointerWithin, KeyboardSensor, PointerSensor, TouchSensor, useDroppable, useSensor, useSensors,
 } from '@dnd-kit/core';
-import { SortableContext, rectSortingStrategy, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import { SortableContext, verticalListSortingStrategy, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { Check, Plus, RotateCcw, SlidersHorizontal } from 'lucide-react';
+import { useMediaQuery } from '../../hooks/useMediaQuery.js';
 import { useAppLayout } from '../../shared/app/appLayout.js';
 import { useVault } from '../../shared/vault/useVault.js';
 import VaultUnlockCard from '../../shared/vault/VaultUnlockCard.jsx';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { useDemo } from '../demo/index.js';
-import { addWidget, configureWidget, moveWidget, removeWidget, setWidgetHeight, shiftWidget, WIDGET_CATALOG } from '../../utils/dashboardLayout.js';
+import {
+  addWidget, configureWidget, layoutColumns, placeWidget, removeWidget, setWidgetHeight, DASHBOARD_LIMITS, WIDGET_CATALOG,
+} from '../../utils/dashboardLayout.js';
 import { DashboardContext } from './DashboardContext.js';
 import { useDashboardLayout } from './useDashboardLayout.js';
 import { useWidgetAccess } from './widgetRegistry.jsx';
 import WidgetFrame from './WidgetFrame.jsx';
 import WidgetPicker from './WidgetPicker.jsx';
 import WidgetSettings from './WidgetSettings.jsx';
+
+const COLUMN_PREFIX = 'col-';
+
+/**
+ * Where a drag ends up: a widget under the pointer wins (the dragged one goes there), else the
+ * column the pointer is in (the empty space below its last widget), else the nearest widget
+ */
+function collide(args) {
+  const hits = pointerWithin(args);
+  const widgets = hits.filter((hit) => !String(hit.id).startsWith(COLUMN_PREFIX));
+  if (widgets.length) return widgets;
+  return hits.length ? hits : closestCenter(args);
+}
+
+/** One column of the grid; its whole height, empty space included, is a place to drop a widget */
+function DashColumn({ index, ids, children }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `${COLUMN_PREFIX}${index}` });
+  return (
+    <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+      <div ref={setNodeRef} className={`dash-col ${isOver ? 'is-over' : ''}`}>{children}</div>
+    </SortableContext>
+  );
+}
 
 /**
  * @param {{ usdToman?: number, analysis?: object[], currencies?: object[], recommendation?: object|null,
@@ -45,6 +71,9 @@ export default function Dashboard({ usdToman = 0, analysis = [], currencies = []
   const [pickerOpen, setPickerOpen] = useState(false);
   const [settingsId, setSettingsId] = useState(null);
 
+  // The wide grid has 3 columns, 2 on a mid-size window; the app frame is one column
+  const midSize = useMediaQuery('(max-width: 1100px)');
+  const columnCount = appLayout ? 1 : midSize ? 2 : DASHBOARD_LIMITS.columns;
   const unlocked = vault.status === 'unlocked';
   // The arrangement is an encrypted record: it can be changed once the vault is open
   const canEdit = unlocked && !readOnly;
@@ -63,6 +92,18 @@ export default function Dashboard({ usdToman = 0, analysis = [], currencies = []
   );
   const settingsWidget = widgets.find((w) => w.id === settingsId) || null;
   const shown = isEditing ? widgets : widgets.filter((w) => canSee(w.type));
+  const columns = useMemo(() => layoutColumns(shown, columnCount), [shown, columnCount]);
+
+  const handleDragEnd = ({ active, over }) => {
+    if (!over || active.id === over.id) return;
+    const overId = String(over.id);
+    if (overId.startsWith(COLUMN_PREFIX)) {
+      setWidgets(placeWidget(widgets, columnCount, active.id, Number(overId.slice(COLUMN_PREFIX.length))));
+      return;
+    }
+    const column = columns.findIndex((list) => list.some((w) => w.id === over.id));
+    if (column >= 0) setWidgets(placeWidget(widgets, columnCount, active.id, column, over.id));
+  };
 
   const handleAdd = (type) => {
     const next = addWidget(widgets, type);
@@ -139,30 +180,28 @@ export default function Dashboard({ usdToman = 0, analysis = [], currencies = []
             )}
           </div>
         ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={({ active, over }) => over && active.id !== over.id && setWidgets(moveWidget(widgets, active.id, over.id))}
-          >
-            <SortableContext items={shown.map((w) => w.id)} strategy={rectSortingStrategy}>
-              <div className="dash-grid">
-                {shown.map((widget, i) => (
-                  <WidgetFrame
-                    key={widget.id}
-                    widget={widget}
-                    editing={isEditing}
-                    available={canSee(widget.type)}
-                    sizable={!appLayout}
-                    first={i === 0}
-                    last={i === shown.length - 1}
-                    onHeight={(height) => setWidgets(setWidgetHeight(widgets, widget.id, height))}
-                    onMove={(step) => setWidgets(shiftWidget(widgets, widget.id, step))}
-                    onSettings={() => setSettingsId(widget.id)}
-                    onRemove={() => handleRemove(widget)}
-                  />
-                ))}
-              </div>
-            </SortableContext>
+          <DndContext sensors={sensors} collisionDetection={collide} onDragEnd={handleDragEnd}>
+            <div className="dash-grid">
+              {columns.map((list, c) => (
+                <DashColumn key={c} index={c} ids={list.map((w) => w.id)}>
+                  {list.map((widget, i) => (
+                    <WidgetFrame
+                      key={widget.id}
+                      widget={widget}
+                      editing={isEditing}
+                      available={canSee(widget.type)}
+                      sizable={!appLayout}
+                      first={i === 0}
+                      last={i === list.length - 1}
+                      onHeight={(height) => setWidgets(setWidgetHeight(widgets, widget.id, height))}
+                      onMove={(step) => list[i + step] && setWidgets(placeWidget(widgets, columnCount, widget.id, c, list[i + step].id))}
+                      onSettings={() => setSettingsId(widget.id)}
+                      onRemove={() => handleRemove(widget)}
+                    />
+                  ))}
+                </DashColumn>
+              ))}
+            </div>
           </DndContext>
         )}
 

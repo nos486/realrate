@@ -8,7 +8,7 @@ import { describe, it, expect } from 'vitest';
 import {
   WIDGET_CATALOG, WIDGET_GROUPS, WIDGET_TYPES, DASHBOARD_LIMITS, DEFAULT_DASHBOARD,
   sanitizeWidgets, sanitizeDashboard, defaultWidgets, widgetsOf, withScreen, canAddWidget,
-  addWidget, removeWidget, moveWidget, shiftWidget, setWidgetHeight, configureWidget,
+  addWidget, removeWidget, moveWidget, shiftWidget, setWidgetHeight, configureWidget, layoutColumns, placeWidget,
 } from '../../src/domain/dashboardLayout.js';
 import { ACCOUNT_KINDS } from '../../../web/src/shared/vault/fullBackup.js';
 import { VAULT_RECORD_KINDS } from '../../src/repositories/vault.repository.js';
@@ -200,5 +200,46 @@ describe('widget settings', () => {
     expect(config({ type: 'loans', config: { sort: 'x' } }).sort).toBe('due');
     expect(config({ type: 'expenses_latest', config: { range: 'week' } }).range).toBe('week');
     expect(config({ type: 'expenses_latest' }).range).toBe('month');
+  });
+});
+
+describe('columns', () => {
+  const list = (specs) => sanitizeWidgets(specs.map(([type, height, col]) => ({ id: `w_${type}`, type, height, col })));
+  const ids = (columns) => columns.map((c) => c.map((w) => w.type));
+
+  it('keeps a valid column and drops another', () => {
+    expect(sanitizeWidgets([{ type: 'goals', col: 2 }])[0].col).toBe(2);
+    expect(sanitizeWidgets([{ type: 'goals', col: 3 }])[0].col).toBeUndefined();
+    expect(sanitizeWidgets([{ type: 'goals', col: 'x' }])[0].col).toBeUndefined();
+  });
+
+  it('puts widgets without a column under the shortest one, in order', () => {
+    const widgets = list([['ai_analysis', 3], ['month', 1], ['goals', 1], ['plan', 1], ['news', 2]]);
+    expect(ids(layoutColumns(widgets, 3))).toEqual([['ai_analysis'], ['month', 'plan'], ['goals', 'news']]);
+  });
+
+  it('keeps the user\'s column, wrapped when there are fewer columns', () => {
+    const widgets = list([['month', 1, 2], ['goals', 1, 0]]);
+    expect(ids(layoutColumns(widgets, 3))).toEqual([['goals'], [], ['month']]);
+    expect(ids(layoutColumns(widgets, 2))).toEqual([['month', 'goals'], []].map((c) => c));
+  });
+
+  it('drops a widget into the empty space under a tall one (the end of a column)', () => {
+    const widgets = list([['ai_analysis', 3], ['month', 1], ['goals', 1], ['plan', 1]]);
+    const moved = placeWidget(widgets, 3, 'w_plan', 0);
+    expect(ids(layoutColumns(moved, 3))[0]).toEqual(['ai_analysis', 'plan']);
+    // the others stay where they were shown
+    expect(ids(layoutColumns(moved, 3)).slice(1)).toEqual([['month'], ['goals']]);
+  });
+
+  it('drops a widget before another, in its column or another', () => {
+    const widgets = list([['month', 1, 0], ['goals', 1, 0], ['plan', 1, 1]]);
+    expect(ids(layoutColumns(placeWidget(widgets, 3, 'w_plan', 0, 'w_goals'), 3))[0]).toEqual(['month', 'plan', 'goals']);
+    expect(ids(layoutColumns(placeWidget(widgets, 3, 'w_goals', 0, 'w_month'), 3))[0]).toEqual(['goals', 'month']);
+  });
+
+  it('ignores a column that does not exist', () => {
+    const widgets = list([['month', 1]]);
+    expect(placeWidget(widgets, 3, 'w_month', 5)).toBe(widgets);
   });
 });

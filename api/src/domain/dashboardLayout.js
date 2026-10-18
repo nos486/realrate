@@ -29,7 +29,7 @@ export const DASHBOARD_LAYOUT_VERSION = 1;
 /** Screens a list is arranged for */
 export const DASHBOARD_SCREENS = ["desktop", "mobile"];
 
-export const DASHBOARD_LIMITS = { widgets: 40, idLength: 40, assetIdLength: 120, rateListAssets: 4 };
+export const DASHBOARD_LIMITS = { widgets: 40, idLength: 40, assetIdLength: 120, rateListAssets: 4, columns: 3 };
 
 /** Height classes of the wide grid: short, medium, tall */
 export const WIDGET_HEIGHTS = [1, 2, 3];
@@ -313,19 +313,22 @@ function cleanWidget(raw, usedIds) {
   let id = typeof raw.id === "string" && ID_RE.test(raw.id) ? raw.id : newWidgetId();
   while (usedIds.has(id)) id = newWidgetId();
   usedIds.add(id);
-  return {
+  const widget = {
     id,
     type,
     height: fitHeight(type, raw.height),
     config: cleanConfig(type, raw.config),
   };
+  // The column the user put it in (the wide grid); absent, it goes where there is the most room
+  if (Number.isInteger(raw.col) && raw.col >= 0 && raw.col < DASHBOARD_LIMITS.columns) widget.col = raw.col;
+  return widget;
 }
 
 /**
  * A list of widgets from stored or restored data: unknown types dropped, a second copy of a
  * unique widget dropped, heights and options made valid, the length limited
  * @param {unknown} raw
- * @returns {Array<{ id: string, type: string, height: number, config: object }>}
+ * @returns {Array<{ id: string, type: string, height: number, config: object, col?: number }>}
  */
 export function sanitizeWidgets(raw) {
   if (!Array.isArray(raw)) return [];
@@ -425,6 +428,47 @@ export function moveWidget(widgets, activeId, overId) {
   const [item] = next.splice(from, 1);
   next.splice(to, 0, item);
   return next;
+}
+
+/** How tall a widget is in the columns, in the grid's row units (its height class) */
+const HEIGHT_UNITS = { 1: 3, 2: 5, 3: 8 };
+
+/**
+ * The widgets in `count` columns (the wide grid). A widget keeps the column the user put it in
+ * (`col`, wrapped when there are fewer columns); one without goes under the shortest column at
+ * its turn, so a layout never arranged still tiles evenly. Each column keeps the list's order.
+ * @param {Array<object>} widgets
+ * @param {number} count - 1 to DASHBOARD_LIMITS.columns
+ * @returns {Array<Array<object>>}
+ */
+export function layoutColumns(widgets, count) {
+  const columns = Array.from({ length: count }, () => []);
+  const heights = Array(count).fill(0);
+  for (const widget of widgets) {
+    const column = Number.isInteger(widget.col) ? widget.col % count : heights.indexOf(Math.min(...heights));
+    columns[column].push(widget);
+    heights[column] += HEIGHT_UNITS[widget.height] || HEIGHT_UNITS[2];
+  }
+  return columns;
+}
+
+/**
+ * Put a widget in column `column`, before the widget `beforeId` (the end of the column without
+ * one). Every widget's column is saved with it, so the others stay where they are shown. Within
+ * its own column it moves to where `beforeId` is, like moveWidget.
+ */
+export function placeWidget(widgets, count, id, column, beforeId = null) {
+  const shown = layoutColumns(widgets, count);
+  const columnOf = new Map(shown.flatMap((list, c) => list.map((w) => [w.id, c])));
+  const fixed = widgets.map((w) => ({ ...w, col: columnOf.get(w.id) }));
+  const active = fixed.find((w) => w.id === id);
+  if (!active || !(column >= 0 && column < count)) return widgets;
+  if (active.col === column && beforeId) return moveWidget(fixed, id, beforeId);
+  const rest = fixed.filter((w) => w.id !== id);
+  const at = beforeId ? rest.findIndex((w) => w.id === beforeId) : -1;
+  const placed = { ...active, col: column };
+  if (at < 0) return [...rest, placed];
+  return [...rest.slice(0, at), placed, ...rest.slice(at)];
 }
 
 /** Move a widget one place up (-1) or down (+1): the keyboard and the arrows of the editor */

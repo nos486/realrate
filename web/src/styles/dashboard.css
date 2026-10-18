@@ -1,8 +1,9 @@
 /*
  * dashboard.css — The home page: a grid of widgets the user arranges (features/dashboard/)
  *
- * Three columns on the website (a widget spans 1–3, so a small one sits beside a medium one),
- * one in the app frame. Widgets also have a height class (short, medium, tall) on the website.
+ * Columns of stacked widgets: three on the website (two on a mid-size window), one in the app
+ * frame. A widget keeps the column the user dropped it in and has a height class (short, medium,
+ * tall) on the website.
  * The widgets' own looks are the home cards of app-shell.css.
  */
 
@@ -68,43 +69,50 @@
 }
 
 .dash-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  align-items: stretch;
   gap: 16px;
-  /* Rows are a fixed unit and a widget spans a few of them (its height class), so widgets of
-     different heights tile; one with more to show scrolls inside */
-  grid-auto-rows: var(--dash-row);
-  /* A small widget fills the gap beside a medium one instead of leaving it empty */
-  grid-auto-flow: row dense;
 }
 
-/* Three columns at most; two on a mid-size window (a medium widget then fills a row) */
-@media (max-width: 1100px) {
-  .dash:not(.is-app) .dash-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+/* One column of the wide grid: its widgets stack at their own heights, and the space below the
+   last one is part of the column, so a widget can be dropped there while arranging */
+.dash-col {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  border-radius: 22px;
+}
+
+.dash.is-editing .dash-col {
+  min-height: 120px;
+}
+
+.dash-col.is-over {
+  background: var(--color-primary-soft);
 }
 
 .dash-widget {
   position: relative;
   display: flex;
   flex-direction: column;
+  flex: none;
   min-width: 0;
   min-height: 0;
-  grid-column: span 1;
 }
 
-/* Height classes: 3, 5 and 8 rows (200, 344 and 560px) */
+/* Height classes: 3, 5 and 8 rows of --dash-row (200, 344 and 560px) */
 .dash-widget.is-height-1 {
-  grid-row: span 3;
+  height: calc(var(--dash-row) * 3 + 32px);
 }
 
 .dash-widget.is-height-2 {
-  grid-row: span 5;
+  height: calc(var(--dash-row) * 5 + 64px);
 }
 
 .dash-widget.is-height-3 {
-  grid-row: span 8;
+  height: calc(var(--dash-row) * 8 + 112px);
 }
 
 /* A widget with nothing to show (no loans, no goals, ...) takes no room */
@@ -1031,9 +1039,8 @@ button.dash-rate-tile:focus-visible {
 
 /* The app frame (the Android app and phones, whatever the screen's width): one column, every
    widget as tall as its content and nothing scrolls inside */
-.dash.is-app .dash-grid {
-  grid-template-columns: minmax(0, 1fr);
-  grid-auto-rows: auto;
+.dash.is-app .dash-grid,
+.dash.is-app .dash-col {
   gap: 12px;
 }
 
@@ -1041,7 +1048,7 @@ button.dash-rate-tile:focus-visible {
 .dash.is-app .dash-widget.is-height-1,
 .dash.is-app .dash-widget.is-height-2,
 .dash.is-app .dash-widget.is-height-3 {
-  grid-row: auto;
+  height: auto;
 }
 
 .dash.is-app .dash-widget-body > * {
