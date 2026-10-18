@@ -6,7 +6,7 @@
 
 import { intlLocale, t } from '../../../utils/i18n.js';
 import React, { useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { CalendarRange, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { todayIso } from '../../../shared/utils/dates.js';
 import { appPath } from '../../../shared/routes.js';
@@ -19,6 +19,7 @@ import { useOptionalSubscriptions } from '../../subscriptions/context/Subscripti
 import { useGoals } from '../../goals/hooks/useGoals.js';
 import { useGoalProgress } from '../../goals/hooks/useGoalProgress.js';
 import { calendarEvents } from '../calendarEvents.js';
+import WidgetCard from '../WidgetCard.jsx';
 
 /** Column titles, Saturday first */
 const WEEKDAYS = [t('ش'), t('ی'), t('د'), t('س'), t('چ'), t('پ'), t('ج')];
@@ -61,7 +62,8 @@ export default function CalendarWidget({ widget }) {
   };
 
   return (
-    <section className={`app-home-card dash-cal is-size-${widget.size}`}>
+    <WidgetCard title={t('تقویم')} Icon={CalendarRange}>
+    <div className={`dash-cal is-size-${widget.size}`}>
       <div className="dash-cal-grid-side">
         <header className="dash-cal-head">
           <button type="button" className="dash-cal-nav" onClick={() => go(-1)} aria-label={t('ماه قبل')}><ChevronRight size={16} /></button>
@@ -114,7 +116,8 @@ export default function CalendarWidget({ widget }) {
           </ul>
         )}
       </div>
-    </section>
+    </div>
+    </WidgetCard>
   );
 }
 

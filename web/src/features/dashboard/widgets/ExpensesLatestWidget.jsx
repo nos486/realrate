@@ -5,11 +5,10 @@
 
 import { t } from '../../../utils/i18n.js';
 import React, { useMemo } from 'react';
-import { ChevronLeft, Plus } from 'lucide-react';
+import { Receipt } from 'lucide-react';
 import { useVault } from '../../../shared/vault/useVault.js';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import { todayIso } from '../../../shared/utils/dates.js';
-import Skeleton from '../../../shared/ui/Skeleton.jsx';
 import { expenseInToman } from '../../../utils/expenseDocument.js';
 import { currentSalaryMonth } from '../../../utils/salaryMonth.js';
 import { useSalaryMonths } from '../../../shared/salary/useSalaryMonths.js';
@@ -20,6 +19,8 @@ import { useFxRates } from '../../market/useFxRates.js';
 import { useUsdAt } from '../../market/dailyHistory.js';
 import { useDashboardData } from '../DashboardContext.js';
 import { moneyText } from '../dashboardFormat.js';
+import WidgetCard from '../WidgetCard.jsx';
+import WidgetState from '../WidgetState.jsx';
 
 export default function ExpensesLatestWidget({ widget }) {
   const { usdToman, open } = useDashboardData();
@@ -39,17 +40,9 @@ export default function ExpensesLatestWidget({ widget }) {
 
   if (!unlocked) return null;
   return (
-    <section className="app-home-card">
-      <header className="app-home-card-head">
-        <h2>{t('آخرین هزینه‌ها')}</h2>
-        <button type="button" className="app-home-link" onClick={() => open('expenses')}>
-          {t('همه')} <ChevronLeft size={16} />
-        </button>
-      </header>
+    <WidgetCard title={t('آخرین هزینه‌ها')} Icon={Receipt} action={{ onClick: () => open('expenses') }}>
       {loading ? (
-        <div className="app-home-list">
-          {[0, 1, 2].map((i) => <Skeleton key={i} height={44} radius={12} />)}
-        </div>
+        <WidgetState state="loading" />
       ) : latest.length ? (
         <ul className="app-home-list">
           {latest.map((e) => {
@@ -68,11 +61,8 @@ export default function ExpensesLatestWidget({ widget }) {
           })}
         </ul>
       ) : (
-        <button type="button" className="app-home-empty" onClick={() => open('add-expense')}>
-          <Plus size={18} />
-          {t('هنوز هزینه‌ای برای این ماه ثبت نشده؛ اولین را ثبت کنید')}
-        </button>
+        <WidgetState state="empty" message={t('هنوز هزینه‌ای برای این ماه ثبت نشده؛ اولین را ثبت کنید')} onAction={() => open('add-expense')} />
       )}
-    </section>
+    </WidgetCard>
   );
 }

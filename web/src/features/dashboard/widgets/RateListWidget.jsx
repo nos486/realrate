@@ -6,12 +6,13 @@
 
 import { t } from '../../../utils/i18n.js';
 import React, { useMemo } from 'react';
-import { Plus } from 'lucide-react';
+import { List } from 'lucide-react';
 import { usePricing } from '../../market/context/PricingContext.jsx';
 import HomeAssetCard from '../../home/HomeAssetCard.jsx';
 import { buildAssetIndex, resolveHomeAsset } from '../../home/homeAssets.js';
 import { useDashboardData } from '../DashboardContext.js';
-import DashScroll from '../DashScroll.jsx';
+import WidgetCard from '../WidgetCard.jsx';
+import WidgetState from '../WidgetState.jsx';
 
 export default function RateListWidget({ widget, editing, onConfigure }) {
   const { analysis } = useDashboardData();
@@ -23,23 +24,25 @@ export default function RateListWidget({ widget, editing, onConfigure }) {
     [assetIds, index],
   );
 
+  const title = t('نرخ‌های دلخواه');
   if (assets.length === 0) {
     return (
-      <button type="button" className="app-home-empty" onClick={onConfigure} disabled={!editing && !onConfigure}>
-        <Plus size={18} />
-        {t('نرخ‌های دلخواه را انتخاب کنید')}
-      </button>
+      <WidgetCard title={title} Icon={List}>
+        <WidgetState state="empty" message={t('نرخ‌های دلخواه را انتخاب کنید')} onAction={onConfigure} disabled={!editing && !onConfigure} />
+      </WidgetCard>
     );
   }
   return (
-    <DashScroll>
-      <div className={`dash-rate-list is-size-${widget.size}`}>
-        {assets.map((asset) => (
-          <div key={asset.id} className="home-item dash-asset">
-            <HomeAssetCard asset={asset} style="compact" flippable={false} />
-          </div>
-        ))}
+    <WidgetCard title={title} Icon={List}>
+      <div className="dash-scroll">
+        <div className={`dash-rate-list is-size-${widget.size}`}>
+          {assets.map((asset) => (
+            <div key={asset.id} className="home-item dash-asset">
+              <HomeAssetCard asset={asset} style="compact" flippable={false} />
+            </div>
+          ))}
+        </div>
       </div>
-    </DashScroll>
+    </WidgetCard>
   );
 }

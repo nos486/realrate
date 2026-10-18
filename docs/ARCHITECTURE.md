@@ -276,6 +276,15 @@ are validated by the shared `api/src/domain/incomeDocument.js`. A portfolio pays
 in that currency (`PAYABLE_ASSETS`: its price book id), priced at its rate on the day from the
 history (`recordRates.js`).
 
+### Home widgets (`web/src/features/dashboard/`)
+The home page is a grid of widgets. One catalog (`api/src/domain/dashboardLayout.js`: title, description, group, sizes, options, `requires`) is the single list of widget types; `widgetRegistry.jsx` adds each type's icon and component. Every widget follows one standard, and `api/tests/unit/dashboardWidgetContract.test.jsx` checks the catalog-wide part of it:
+- **Catalog entry**: title, description, group, allowed sizes and defaults, `options` (the only config that is saved), `requires` (one of `WIDGET_REQUIREMENTS`). A new widget is a catalog row, a registry row and one `widgets/<Name>Widget.jsx` file with a header comment — no change to the page.
+- **Shell**: card-style widgets are built in `WidgetCard` (icon, title, optional «همه» link, labelled region); a widget with a look of its own (month hero, a tile that is one button) skips the card but still sets an `aria-label`.
+- **States**: loading, empty and error are drawn by `WidgetState` (placeholder rows; a message with the next step as a button; a message with a retry). A widget with nothing worth a card (no loans, no goals) returns `null` and the page hides it.
+- **Size contract**: the page gives a widget its width (1–3 columns, three at most; two on a mid-size window; one in the app frame) and height class; the widget fills it. The card never scrolls, only the list or content under the header does (`.app-home-list` or `.dash-scroll`), and the widget may read `widget.size` to adapt its density.
+- **Data**: a widget reads its own data through the feature's hooks (decrypted in the browser, nothing sent out), or the market data the page already holds (`DashboardContext`); it asks for nothing on a timer (the clock's minute tick aside).
+- **Failure and access**: every widget runs inside an `ErrorBoundary`, so one failing widget never blanks the page; a widget the user cannot use is neither shown nor offered.
+
 ## 3. Feature Flags and User Groups
 
 Features are rolled out through one mechanism shared by the client and the server: a feature can be tried in production by the admin alone, opened to everyone, or opened only to some **groups** of users (e.g. "pro").
