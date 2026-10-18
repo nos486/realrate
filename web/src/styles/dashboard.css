@@ -783,7 +783,7 @@ button.dash-rate-tile:focus-visible {
 }
 
 /* The month's heading carries a «امروز» button once another month is open */
-.dash-cal-head strong {
+.dash-cal-head > strong {
   flex: 1;
   text-align: center;
   font-size: 15px;
@@ -851,11 +851,6 @@ button.dash-rate-tile:focus-visible {
   font-weight: 700;
 }
 
-.dash-cal-day.tone-loan { background: var(--color-negative-soft); }
-.dash-cal-day.tone-cheque { background: var(--color-primary-soft); }
-.dash-cal-day.tone-subscription { background: var(--color-warning-soft); }
-.dash-cal-day.tone-goal { background: var(--color-positive-soft); }
-.dash-cal-day.tone-done { background: var(--bg-surface); }
 
 /* What is behind: finished events are grey, what is still owed after its day keeps its colour but
    gets a warning edge */
@@ -867,16 +862,76 @@ button.dash-rate-tile:focus-visible {
   font-weight: 800;
 }
 
-/* Today is a filled disc, so it reads at a glance even beside a tinted day */
-.dash-cal-day.is-today > span:first-child {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 24px;
-  height: 24px;
-  border-radius: 50%;
+/* Today is a filled rounded square, so it reads at a glance */
+.dash-cal-day.is-today,
+.dash-cal-day.is-today:hover {
   background: var(--color-primary);
+}
+
+.dash-cal-day.is-today,
+.dash-cal-day.is-today .dash-cal-greg,
+.dash-cal-day.is-today.is-friday > span:first-child {
   color: var(--text-heading);
+}
+
+/* The Gregorian day, small under the Shamsi one */
+.dash-cal-greg {
+  font-size: 10px;
+  line-height: 1;
+  color: var(--text-muted);
+}
+
+.dash-cal.is-cozy .dash-cal-greg {
+  display: none;
+}
+
+/* The title block: the month, its Gregorian span under it, the way back to today */
+.dash-cal-title {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dash-cal-title small {
+  font-size: 11px;
+  direction: ltr;
+  color: var(--text-muted);
+}
+
+.dash-cal-title .dash-cal-today {
+  margin-inline-end: 0;
+}
+
+/* The picked day (today at first), named in both calendars */
+.dash-cal-selected {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 8px 12px;
+  color: var(--color-primary-text);
+  background: var(--bg-surface);
+  border-radius: 10px;
+}
+
+.dash-cal-selected > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dash-cal-selected strong {
+  font-size: 13px;
+  color: var(--text-heading);
+}
+
+.dash-cal-selected small {
+  font-size: 11.5px;
+  color: var(--text-secondary);
 }
 
 .dash-cal-day.is-picked {

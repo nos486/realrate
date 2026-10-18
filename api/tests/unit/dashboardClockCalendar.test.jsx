@@ -147,3 +147,16 @@ describe('the favorite rates widget', () => {
     expect(c.querySelector('.dash-rate-list.is-list')).toBeTruthy();
   });
 });
+
+describe('the calendar\'s look', () => {
+  it('shows the Gregorian span, a Gregorian day under each day and the picked day in both calendars', () => {
+    const { container } = render(<MemoryRouter><CalendarWidget widget={{ height: 3, config: {} }} /></MemoryRouter>);
+    expect(container.querySelector('.dash-cal-title small')?.textContent).toMatch(/\d{1,2} \w{3} - \d{1,2} \w{3} \d{4}/);
+    expect(container.querySelectorAll('.dash-cal-greg').length).toBeGreaterThanOrEqual(29);
+    const footer = container.querySelector('.dash-cal-selected');
+    expect(footer?.textContent).toContain('میلادی');
+    const marked = container.querySelector('.dash-cal-day.has-events');
+    fireEvent.click(marked);
+    expect(container.querySelector('.dash-cal-selected')?.textContent).not.toBe(footer.textContent);
+  });
+});

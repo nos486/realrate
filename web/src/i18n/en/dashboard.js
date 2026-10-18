@@ -112,4 +112,5 @@ export default {
   'هفته قبل': 'Previous week',
   'هفته بعد': 'Next week',
   'تمام‌شده': 'Done',
+  'میلادی': 'Gregorian',
 };

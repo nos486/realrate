@@ -11,10 +11,10 @@
 
 import { intlLocale, t } from '../../../utils/i18n.js';
 import React, { useMemo, useState } from 'react';
-import { CalendarRange, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CalendarDays, CalendarRange, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
-import { todayIso } from '../../../shared/utils/dates.js';
+import { calendarLocale, todayIso } from '../../../shared/utils/dates.js';
 import { appPath } from '../../../shared/routes.js';
 import { formatShamsiMonth } from '../../../shared/flow/flowYear.js';
 import { formatMoney } from '../../../utils/currencies.js';
@@ -60,6 +60,23 @@ const markerOf = (event) => (event.state === 'done' ? 'done' : event.kind);
 
 /** What a kind's event is for the user: a payment, or money coming in (a received cheque) */
 const toneOf = (event) => (event.kind === 'cheque' && event.direction === 'received' ? 'in' : event.kind === 'goal' ? 'goal' : 'out');
+
+/** Gregorian dates are always written in Latin letters, whatever the page's language */
+const GREGORIAN = { UTC: { timeZone: 'UTC' } };
+const gregorianFormat = (options) => new Intl.DateTimeFormat('en-GB-u-ca-gregory', { ...GREGORIAN.UTC, ...options });
+const GREG_MONTH = gregorianFormat({ month: 'long' });
+/** «23 Sep»: the three-letter month is cut by hand, as `short` spells September «Sept» */
+const GREG_SHORT = { format: (d) => `${d.getUTCDate()} ${GREG_MONTH.format(d).slice(0, 3)}` };
+const GREG_YEAR = gregorianFormat({ year: 'numeric' });
+const GREG_FULL = gregorianFormat({ weekday: 'long', day: 'numeric', month: 'long' });
+const SHAMSI_FULL = new Intl.DateTimeFormat(calendarLocale(), { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+const atNoon = (iso) => new Date(`${iso}T12:00:00Z`);
+
+/** The Gregorian dates a Shamsi month spans, like «23 Sep - 22 Oct 2026» */
+const gregorianSpan = (from, to) => {
+  const sameYear = GREG_YEAR.format(atNoon(from)) === GREG_YEAR.format(atNoon(to));
+  return `${GREG_SHORT.format(atNoon(from))}${sameYear ? '' : ` ${GREG_YEAR.format(atNoon(from))}`} - ${GREG_SHORT.format(atNoon(to))} ${GREG_YEAR.format(atNoon(to))}`;
+};
 
 const dayLabel = (n) => n.toLocaleString(intlLocale(), { useGrouping: false });
 /** The Shamsi day of the month of a Gregorian day (YYYY-MM-DD) */
@@ -123,7 +140,6 @@ function DayTip({ iso, events, today, hidden, placement }) {
 /** One day: its number, the markers of what is due and, on hover or focus, the card of the day */
 function DayCell({ iso, events, today, picked, hidden, column, rows, row, onPick }) {
   const markers = [...new Set(events.map(markerOf))];
-  const open = events.find((e) => e.state !== 'done');
   const placement = `${row < rows / 2 ? 'is-below' : 'is-above'} ${column < 3 ? 'is-start' : column > 3 ? 'is-end' : 'is-mid'}`;
   const text = formatShamsiDisplay(`${iso}T00:00:00`);
   const cls = [
@@ -132,7 +148,7 @@ function DayCell({ iso, events, today, picked, hidden, column, rows, row, onPick
     iso === picked && 'is-picked',
     column === 6 && 'is-friday',
     iso < today && 'is-past',
-    events.length > 0 && `has-events tone-${open ? open.kind : 'done'}`,
+    events.length > 0 && 'has-events',
     events.some((e) => e.state === 'overdue') && 'has-overdue',
   ].filter(Boolean).join(' ');
   return (
@@ -145,6 +161,7 @@ function DayCell({ iso, events, today, picked, hidden, column, rows, row, onPick
         onClick={() => onPick(iso === picked ? '' : iso)}
       >
         <span>{dayLabel(shamsiDayOf(iso))}</span>
+        <small className="dash-cal-greg" aria-hidden="true">{Number(iso.slice(8, 10))}</small>
         <span className="dash-cal-dots" aria-hidden="true">
           {markers.map((marker) => <i key={marker} className={`dash-cal-dot is-${marker}`} />)}
           {events.length > markers.length && <small>{`+${dayLabel(events.length - markers.length)}`}</small>}
@@ -278,6 +295,8 @@ export default function CalendarWidget({ widget }) {
   const onCurrentMonth = month.jy === currentMonth.jy && month.jm === currentMonth.jm;
   const shownKinds = kinds || Object.keys(KINDS);
   const full = density === 'full';
+  // The day the footer names: the one picked, else today (or the month's first day in another month)
+  const focusDay = picked || (onCurrentMonth ? today : range.from);
   const go = (delta) => {
     setMonth(shiftShamsiMonth(month, delta));
     setPicked('');
@@ -289,10 +308,13 @@ export default function CalendarWidget({ widget }) {
         <div className="dash-cal-grid-side">
           <header className="dash-cal-head">
             <button type="button" className="dash-cal-nav" onClick={() => go(-1)} aria-label={t('ماه قبل')}><ChevronRight size={16} /></button>
-            <strong>{formatShamsiMonth(month.jy, month.jm)}</strong>
-            {!onCurrentMonth && (
-              <button type="button" className="dash-cal-today" onClick={() => { setMonth(currentMonth); setPicked(''); }}>{t('امروز')}</button>
-            )}
+            <div className="dash-cal-title">
+              <strong>{formatShamsiMonth(month.jy, month.jm)}</strong>
+              <small>{gregorianSpan(range.from, range.to)}</small>
+              {!onCurrentMonth && (
+                <button type="button" className="dash-cal-today" onClick={() => { setMonth(currentMonth); setPicked(''); }}>{t('امروز')}</button>
+              )}
+            </div>
             <button type="button" className="dash-cal-nav" onClick={() => go(1)} aria-label={t('ماه بعد')}><ChevronLeft size={16} /></button>
           </header>
           <div className="dash-cal-grid" role="grid">
@@ -312,6 +334,15 @@ export default function CalendarWidget({ widget }) {
               />
             ))}
           </div>
+          {full && (
+            <p className="dash-cal-selected">
+              <CalendarDays size={18} aria-hidden="true" />
+              <span>
+                <strong>{SHAMSI_FULL.format(atNoon(focusDay))}</strong>
+                <small>{`${t('میلادی')}: ${GREG_FULL.format(atNoon(focusDay))}`}</small>
+              </span>
+            </p>
+          )}
           {full && (
             <ul className="dash-cal-legend" aria-label={t('نشانه‌ها')}>
               {shownKinds.map((kind) => <li key={kind}><i className={`dash-cal-dot is-${kind}`} aria-hidden="true" />{KINDS[kind].label}</li>)}
