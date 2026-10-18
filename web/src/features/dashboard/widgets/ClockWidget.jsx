@@ -82,13 +82,13 @@ function AnalogFace({ angles, seconds }) {
 }
 
 export default function ClockWidget({ widget }) {
-  const { style = 'digital', seconds = false, gregorian = true } = widget.config || {};
+  const { style = 'digital', seconds = false, gregorian = true, weekday = true } = widget.config || {};
   const now = useClock(seconds);
   const fmt = useMemo(() => formats(), []);
   const time = (seconds ? fmt.timeSeconds : fmt.time).format(now);
   const dates = (
     <>
-      <span className="dash-clock-weekday">{fmt.weekday.format(now)}</span>
+      {weekday && <span className="dash-clock-weekday">{fmt.weekday.format(now)}</span>}
       <strong className="dash-clock-date">{fmt.shamsi.format(now)}</strong>
       {gregorian && <small className="dash-clock-sub">{fmt.gregorian.format(now)}</small>}
     </>

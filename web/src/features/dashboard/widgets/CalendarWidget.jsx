@@ -148,7 +148,7 @@ export default function CalendarWidget({ widget }) {
             })}
           </div>
         </div>
-        <div className="dash-cal-agenda">
+        {widget.config?.list !== false && <div className="dash-cal-agenda">
           <p className="dash-cal-agenda-title">{picked ? formatShamsiDisplay(`${picked}T00:00:00`) : t('رویدادهای این ماه')}</p>
           {listed.length === 0 ? (
             <p className="dash-cal-empty">{vaultLocked ? t('برای دیدن رویدادهای مالی، اطلاعات را باز کنید.') : t('رویدادی در این بازه نیست.')}</p>
@@ -159,7 +159,7 @@ export default function CalendarWidget({ widget }) {
               )))}
             </ul>
           )}
-        </div>
+        </div>}
       </div>
     </WidgetCard>
   );

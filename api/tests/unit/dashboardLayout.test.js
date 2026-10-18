@@ -46,8 +46,9 @@ describe('sanitizeWidgets', () => {
   it('makes options valid and keeps no width (every widget is one column wide)', () => {
     const [news] = sanitizeWidgets([{ type: 'news', size: 9, config: { count: 4, extra: 1 } }]);
     expect(news.size).toBeUndefined();
-    expect(news.config).toEqual({ count: 10 });
-    expect(sanitizeWidgets([{ type: 'news', config: { count: 8 } }])[0].config).toEqual({ count: 8 });
+    expect(news.config).toMatchObject({ count: 10 });
+    expect(news.config.extra).toBeUndefined();
+    expect(sanitizeWidgets([{ type: 'news', config: { count: 8 } }])[0].config.count).toBe(8);
   });
 
   it('keeps one of a unique widget, and several of the others', () => {
@@ -151,8 +152,8 @@ describe('edits', () => {
 
   it('sets its options', () => {
     const [, news] = start;
-    expect(configureWidget(start, news.id, { count: 5 })[1].config).toEqual({ count: 5 });
-    expect(configureWidget(start, news.id, { count: 4 })[1].config).toEqual({ count: 10 });
+    expect(configureWidget(start, news.id, { count: 5 })[1].config.count).toBe(5);
+    expect(configureWidget(start, news.id, { count: 4 })[1].config.count).toBe(10);
   });
 });
 
@@ -184,6 +185,20 @@ describe('widget settings', () => {
   });
 
   it('drops a setting the widget does not declare', () => {
-    expect(config({ type: 'plan', config: { style: 'grid', seconds: true } })).toEqual({});
+    expect(config({ type: 'plan', config: { style: 'grid', seconds: true } })).toEqual({ title: true, card: true });
+  });
+
+  it('gives every widget the title and card switches, on by default', () => {
+    for (const type of Object.keys(WIDGET_CATALOG)) {
+      expect(config({ type })).toMatchObject({ title: true, card: true });
+    }
+    expect(config({ type: 'goals', config: { title: false, card: 'no' } })).toMatchObject({ title: false, card: true });
+  });
+
+  it('keeps a choice only as one of its values, else its default', () => {
+    expect(config({ type: 'loans', config: { sort: 'balance' } }).sort).toBe('balance');
+    expect(config({ type: 'loans', config: { sort: 'x' } }).sort).toBe('due');
+    expect(config({ type: 'expenses_latest', config: { range: 'week' } }).range).toBe('week');
+    expect(config({ type: 'expenses_latest' }).range).toBe('month');
   });
 });

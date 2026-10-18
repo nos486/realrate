@@ -15,7 +15,7 @@ import Modal from '../../shared/ui/Modal.jsx';
 import AssetPickerModal from '../home/AssetPickerModal.jsx';
 import { usePricing } from '../market/context/PricingContext.jsx';
 import { assetOf } from '../market/priceBookAssets.js';
-import { DASHBOARD_LIMITS, WIDGET_CATALOG } from '../../utils/dashboardLayout.js';
+import { DASHBOARD_LIMITS, WIDGET_APPEARANCE, WIDGET_CATALOG } from '../../utils/dashboardLayout.js';
 
 /** An icon for each style value of the catalog (a style without one is drawn with its name only) */
 const STYLE_ICONS = {
@@ -44,6 +44,23 @@ function Segmented({ label, options, value, onPick }) {
         </button>
       ))}
     </div>
+  );
+}
+
+/** A titled block of on/off switches, each declared as `{ label, default }` */
+function SwitchGroup({ title, defs, config, onChange }) {
+  return (
+    <Group title={title}>
+      {Object.entries(defs).map(([key, def]) => (
+        <label key={key} className="dash-switch-row">
+          <span>{t(def.label)}</span>
+          <span className="switch-wrapper">
+            <input type="checkbox" checked={config[key] ?? def.default} onChange={(e) => onChange({ [key]: e.target.checked })} />
+            <span className="switch-slider" />
+          </span>
+        </label>
+      ))}
+    </Group>
   );
 }
 
@@ -118,6 +135,16 @@ export default function WidgetSettings({ widget, onClose, onChange }) {
 
   return (
     <Modal isOpen onClose={onClose} title={t('تنظیم «{title}»', { title: t(spec.title) })} icon={<Settings2 size={18} />} maxWidth="440px">
+      {Object.entries(options.choices || {}).map(([key, def]) => (
+        <Group key={key} title={t(def.label)}>
+          <Segmented
+            label={t(def.label)}
+            value={config[key] ?? def.default}
+            onPick={(value) => onChange({ [key]: value })}
+            options={def.values.map((id) => ({ id, text: t(def.labels[id]) }))}
+          />
+        </Group>
+      ))}
       {options.style && (
         <Group title={t('نمایش')}>
           <Segmented
@@ -161,19 +188,8 @@ export default function WidgetSettings({ widget, onClose, onChange }) {
           </div>
         </Group>
       ))}
-      {Object.keys(options.toggles || {}).length > 0 && (
-        <Group title={t('گزینه‌ها')}>
-          {Object.entries(options.toggles).map(([key, def]) => (
-            <label key={key} className="dash-switch-row">
-              <span>{t(def.label)}</span>
-              <span className="switch-wrapper">
-                <input type="checkbox" checked={config[key] ?? def.default} onChange={(e) => onChange({ [key]: e.target.checked })} />
-                <span className="switch-slider" />
-              </span>
-            </label>
-          ))}
-        </Group>
-      )}
+      {Object.keys(options.toggles || {}).length > 0 && <SwitchGroup title={t('گزینه‌ها')} defs={options.toggles} config={config} onChange={onChange} />}
+      <SwitchGroup title={t('ظاهر کارت')} defs={WIDGET_APPEARANCE} config={config} onChange={onChange} />
     </Modal>
   );
 }

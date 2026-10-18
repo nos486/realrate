@@ -71,6 +71,16 @@ describe('the settings every widget declares', () => {
     }
   });
 
+  it('labels every choice and keeps its default among its values', () => {
+    for (const type of WIDGET_TYPES) {
+      for (const [key, def] of Object.entries(optionsOf(type).choices || {})) {
+        expect(def.label, `${type}.${key}`).toBeTruthy();
+        expect(def.values, `${type}.${key}`).toContain(def.default);
+        for (const v of def.values) expect(def.labels[v], `${type}.${key}.${v}`).toBeTruthy();
+      }
+    }
+  });
+
   it('labels every switch', () => {
     for (const type of WIDGET_TYPES) {
       for (const [key, def] of Object.entries(optionsOf(type).toggles || {})) {

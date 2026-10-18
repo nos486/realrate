@@ -21,7 +21,7 @@ export default function NewsCard(props) {
   return hasNews && localeHasNews() ? <NewsCardContent {...props} /> : null;
 }
 
-function NewsCardContent({ count = 4, className = '' }) {
+function NewsCardContent({ count = 4, className = '', showAnalysis = true }) {
   const navigate = useNavigate();
   const { items, loading } = useNews({ limit: count });
   const { analysis } = useNewsToday();
@@ -42,7 +42,7 @@ function NewsCardContent({ count = 4, className = '' }) {
         </button>
       </header>
       {/* The day's analysis in one line (the news page has all of it) */}
-      {analysis?.title && (
+      {showAnalysis && analysis?.title && (
         <button type="button" className="news-card-analysis" onClick={() => open()} title={analysis.title}>
           <Sparkles size={14} aria-hidden="true" />
           <span className="news-card-analysis-label">{t('تحلیل روز')}</span>
