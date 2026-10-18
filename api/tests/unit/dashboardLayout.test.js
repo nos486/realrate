@@ -146,11 +146,23 @@ describe('a dashboard per screen', () => {
     expect(sanitizeDashboard(JSON.parse(JSON.stringify(doc)))).toEqual(doc);
   });
 
-  it('starts a 4- or 2-column list from the 3-column one, saved or default; the phone list stays its own', () => {
-    expect(types(widgetsOf(null, 'wide'))).toEqual(types(defaultWidgets('desktop')));
-    const doc = withScreen(null, 'desktop', [{ type: 'month' }]);
-    expect(types(widgetsOf(doc, 'wide'))).toEqual(['month']);
-    expect(types(widgetsOf(doc, 'tablet'))).toEqual(['month']);
+  it('gives every column count its own default, filling all columns', () => {
+    for (const [screen, count] of [['wide', 4], ['desktop', 3], ['tablet', 2]]) {
+      expect(types(widgetsOf(null, screen)), screen).toEqual(DEFAULT_DASHBOARD[screen].map((w) => w.type));
+      const columns = layoutColumns(defaultWidgets(screen), count);
+      expect(columns.every((c) => c.length > 0), screen).toBe(true);
+    }
+    // Also when the user cannot see some of them (no news or analysis in English)
+    const visible = defaultWidgets('wide').filter((w) => !['news', 'ai_analysis'].includes(w.type));
+    expect(layoutColumns(visible, 4).every((c) => c.length > 0)).toBe(true);
+  });
+
+  it('starts a 4- or 2-column list from the 3-column one when that was arranged, spreading it over the columns', () => {
+    const doc = withScreen(null, 'desktop', [{ type: 'month', col: 2 }, { type: 'goals', col: 2 }, { type: 'plan', col: 2 }, { type: 'alerts', col: 2 }]);
+    const wide = widgetsOf(doc, 'wide');
+    expect(types(wide)).toEqual(['month', 'goals', 'plan', 'alerts']);
+    expect(wide.every((w) => w.col === undefined)).toBe(true);
+    expect(layoutColumns(wide, 4).every((c) => c.length > 0)).toBe(true);
     expect(types(widgetsOf(doc, 'mobile'))).toEqual(DEFAULT_DASHBOARD.mobile.map((w) => w.type));
   });
 

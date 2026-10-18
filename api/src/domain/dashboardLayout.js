@@ -4,7 +4,8 @@
  * The home page is a list of widgets the user adds, removes and reorders. There is one list per
  * number of columns the page shows (4 on a wide screen, 3, 2 on a mid-size window and 1 in the
  * app frame: the Android app and phones), so each can be arranged on its own and keeps its
- * arrangement; a list never arranged starts from the 3-column one. The whole document is one encrypted vault record
+ * arrangement; a list never arranged starts from the default made for its column count (or, when the
+ * 3-column list was arranged, from that list's widgets spread evenly over the columns). The whole document is one encrypted vault record
  * (kind `dashboard_layout`), so the server never sees it; it is also part of the full backup.
  * Shared by the web client and the tests through a symlink; pure, no DOM.
  *
@@ -38,7 +39,7 @@ const SCREEN_OF_COLUMNS = { 4: "wide", 3: "desktop", 2: "tablet", 1: "mobile" };
 /** @param {number} count - columns shown now (1 to DASHBOARD_LIMITS.columns) */
 export const screenOfColumns = (count) => SCREEN_OF_COLUMNS[count] || "desktop";
 
-/** Where a list never arranged starts from: the 3-column list, saved or default */
+/** The list a never-arranged screen takes its widgets from, when that one was arranged */
 const SCREEN_FALLBACK = { wide: "desktop", tablet: "desktop" };
 
 /** Height classes of the wide grid and the pixels each stands for (the same four for every widget) */
@@ -364,10 +365,22 @@ export function sanitizeWidgets(raw) {
 
 const preset = (type) => ({ type });
 
-/** What a user who never arranged the page sees, per screen */
+/**
+ * What a user who never arranged the page sees, per screen. A widget without a column goes under
+ * the shortest one at its turn (layoutColumns), so the order is what fills every column evenly,
+ * also when some of the widgets are not shown to the user (no news in English).
+ */
 export const DEFAULT_DASHBOARD = {
+  wide: [
+    preset("ai_analysis"), preset("month"), preset("news"), preset("expenses_latest"), preset("alerts"),
+    preset("loans"), preset("rates"), preset("goals"), preset("plan"),
+  ],
   desktop: [
     preset("alerts"), preset("month"), preset("rates"), preset("news"), preset("ai_analysis"),
+    preset("expenses_latest"), preset("goals"), preset("loans"), preset("plan"),
+  ],
+  tablet: [
+    preset("ai_analysis"), preset("month"), preset("news"), preset("alerts"), preset("rates"),
     preset("expenses_latest"), preset("goals"), preset("loans"), preset("plan"),
   ],
   mobile: [
@@ -381,7 +394,7 @@ export const DEFAULT_DASHBOARD = {
  * @param {"wide"|"desktop"|"tablet"|"mobile"} screen
  */
 export function defaultWidgets(screen) {
-  return sanitizeWidgets(DEFAULT_DASHBOARD[screen === "mobile" ? "mobile" : "desktop"]);
+  return sanitizeWidgets(DEFAULT_DASHBOARD[screen] || DEFAULT_DASHBOARD.desktop);
 }
 
 /**
@@ -402,10 +415,16 @@ export function sanitizeDashboard(raw) {
 /** Whether any screen of the dashboard has a saved list */
 export const hasSavedScreen = (dashboard) => DASHBOARD_SCREENS.some((s) => Array.isArray(dashboard?.[s]));
 
-/** The widgets of one screen: its saved list, else the 3-column one it starts from (wide, tablet), else the default */
+/**
+ * The widgets of one screen: its saved list; else, for the 4- and 2-column screens, the 3-column
+ * list when the user arranged it (the same widgets in the same order, their columns dropped so
+ * they spread over this screen's columns); else the screen's own default
+ */
 export function widgetsOf(dashboard, screen) {
-  const saved = dashboard?.[screen] ?? dashboard?.[SCREEN_FALLBACK[screen]];
-  return Array.isArray(saved) ? saved : defaultWidgets(screen);
+  const saved = dashboard?.[screen];
+  if (Array.isArray(saved)) return saved;
+  const base = dashboard?.[SCREEN_FALLBACK[screen]];
+  return Array.isArray(base) ? base.map(({ col, ...widget }) => widget) : defaultWidgets(screen);
 }
 
 /** The dashboard with one screen's list replaced */
