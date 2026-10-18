@@ -221,10 +221,20 @@ describe('reading messages the way phones deliver them', () => {
 
   it('the transaction key: bank, direction, amount, day and time — whatever the wording', () => {
     const tx = parse(base);
-    expect(tx.key).toBe('parsian|debit|39750|2026-09-28|14:49');
+    expect(tx.key).toBe('parsian|debit|39750|2026-09-28|14:49|8129405');
+    expect(tx.baseKey).toBe('parsian|debit|39750|2026-09-28|14:49');
     // Other spacing and digits, same transaction
     expect(parse('30101540968603\nمبلغ : -۳۹۷,۵۰۰\nمانده:81,294,045\n07/06\n14:49').key).toBe(tx.key);
     expect(parse(base.replace('14:49', '14:50')).key).not.toBe(tx.key);
+  });
+
+  it('two equal deposits in the same minute differ by the balance after them', () => {
+    const deposit = (balance) => parse(`30101540968603\nمبلغ : +2,500,000\nمانده:${balance}\n07/26\n12:12`);
+    const first = deposit('241,150,644');
+    const second = deposit('243,650,644');
+    expect(first.key).not.toBe(second.key);
+    expect(first.baseKey).toBe(second.baseKey);
+    expect(deposit('241,150,644').key).toBe(first.key);
   });
 
   it('the same message gives the same fingerprint, another message another one', () => {
