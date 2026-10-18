@@ -54,7 +54,9 @@ describe('the home page', () => {
   it('shows the default widgets the user can see', () => {
     render(<Dashboard onOpen={open} />);
     const expected = DEFAULT_DASHBOARD.desktop.map((w) => w.type);
-    expect(shownTypes()).toEqual(expected);
+    // The page is columns of stacked widgets, so the order in the page is column by column
+    expect([...shownTypes()].sort()).toEqual([...expected].sort());
+    expect(document.querySelectorAll('.dash-col').length).toBeGreaterThan(1);
   });
 
   it('saves an added widget as an encrypted record and shows it', async () => {

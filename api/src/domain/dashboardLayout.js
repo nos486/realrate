@@ -16,7 +16,7 @@
  *
  * Every widget is one column wide; `height` is its height class
  * (1 short, 2 medium, 3 tall; a widget with more to show scrolls inside it); the app frame is one
- * column of natural height and ignores it. `config` holds the few per-widget options the catalog declares (an asset id, how
+ * column of natural height and ignores it. `config` holds the few per-widget options the catalog declares (the market assets, how
  * many rows to list); anything else is dropped. A list that is missing starts from the default.
  */
 
@@ -29,7 +29,7 @@ export const DASHBOARD_LAYOUT_VERSION = 1;
 /** Screens a list is arranged for */
 export const DASHBOARD_SCREENS = ["desktop", "mobile"];
 
-export const DASHBOARD_LIMITS = { widgets: 40, idLength: 40, assetIdLength: 120, rateListAssets: 4 };
+export const DASHBOARD_LIMITS = { widgets: 40, idLength: 40, assetIdLength: 120, rateListAssets: 4, columns: 3 };
 
 /** Height classes of the wide grid: short, medium, tall */
 export const WIDGET_HEIGHTS = [1, 2, 3];
@@ -40,7 +40,7 @@ export const WIDGET_HEIGHTS = [1, 2, 3];
  * widget's settings, all of them saved in its `config` and nothing else. Every widget also has the
  * two appearance switches of WIDGET_APPEARANCE (its title, its card):
  *   count    one of the listed numbers (how many rows)
- *   asset    one market asset id;  assets  a list of them
+ *   assets   a list of market asset ids
  *   style    { values, labels, default }: how the widget is drawn (a grid or a list, a clock face)
  *   choices  { key: { label, values, labels, default } }: one of several values (a range, an order)
  *   toggles  { key: { label, default } }: on/off switches
@@ -142,22 +142,15 @@ export const WIDGET_CATALOG = {
       toggles: { change: { label: msg("نمایش تغییر"), default: true } },
     },
   },
-  asset: {
-    title: msg("قیمت یک دارایی"),
-    description: msg("قیمت و تغییر هر دارایی بازار که انتخاب کنید"),
-    group: "market",
-    defaultHeight: 2, requires: "market",
-    options: { asset: true, style: { values: ["compact", "detailed"], labels: { compact: msg("فشرده"), detailed: msg("کامل با نمودار") }, default: "compact" } },
-  },
   rate_list: {
     title: msg("نرخ‌های دلخواه"),
-    description: msg("چند نرخ دلخواه از بازار، هرکدام با قیمت و تغییرش"),
+    description: msg("چند نرخ دلخواه از بازار، هرکدام با آیکون، قیمت، تغییر و بازه‌ی امروز"),
     group: "market",
     defaultHeight: 2, requires: "market",
     options: {
       assets: true,
       style: { values: ["grid", "list"], labels: { grid: msg("شبکه‌ای"), list: msg("فهرست") }, default: "grid" },
-      toggles: { change: { label: msg("نمایش تغییر"), default: true } },
+      toggles: { change: { label: msg("نمایش تغییر"), default: true }, range: { label: msg("نمایش بازه‌ی امروز"), default: true } },
     },
   },
   market: {
@@ -298,7 +291,6 @@ function cleanConfig(type, raw) {
   const options = spec.options || {};
   const src = raw && typeof raw === "object" ? raw : {};
   if (options.count && options.count.includes(Number(src.count))) config.count = Number(src.count);
-  if (options.asset && typeof src.assetId === "string" && ASSET_ID_RE.test(src.assetId)) config.assetId = src.assetId;
   if (options.assets && Array.isArray(src.assetIds)) {
     const ids = src.assetIds.filter((id) => typeof id === "string" && ASSET_ID_RE.test(id));
     config.assetIds = [...new Set(ids)].slice(0, DASHBOARD_LIMITS.rateListAssets);
@@ -321,19 +313,22 @@ function cleanWidget(raw, usedIds) {
   let id = typeof raw.id === "string" && ID_RE.test(raw.id) ? raw.id : newWidgetId();
   while (usedIds.has(id)) id = newWidgetId();
   usedIds.add(id);
-  return {
+  const widget = {
     id,
     type,
     height: fitHeight(type, raw.height),
     config: cleanConfig(type, raw.config),
   };
+  // The column the user put it in (the wide grid); absent, it goes where there is the most room
+  if (Number.isInteger(raw.col) && raw.col >= 0 && raw.col < DASHBOARD_LIMITS.columns) widget.col = raw.col;
+  return widget;
 }
 
 /**
  * A list of widgets from stored or restored data: unknown types dropped, a second copy of a
  * unique widget dropped, heights and options made valid, the length limited
  * @param {unknown} raw
- * @returns {Array<{ id: string, type: string, height: number, config: object }>}
+ * @returns {Array<{ id: string, type: string, height: number, config: object, col?: number }>}
  */
 export function sanitizeWidgets(raw) {
   if (!Array.isArray(raw)) return [];
@@ -433,6 +428,47 @@ export function moveWidget(widgets, activeId, overId) {
   const [item] = next.splice(from, 1);
   next.splice(to, 0, item);
   return next;
+}
+
+/** How tall a widget is in the columns, in the grid's row units (its height class) */
+const HEIGHT_UNITS = { 1: 3, 2: 5, 3: 8 };
+
+/**
+ * The widgets in `count` columns (the wide grid). A widget keeps the column the user put it in
+ * (`col`, wrapped when there are fewer columns); one without goes under the shortest column at
+ * its turn, so a layout never arranged still tiles evenly. Each column keeps the list's order.
+ * @param {Array<object>} widgets
+ * @param {number} count - 1 to DASHBOARD_LIMITS.columns
+ * @returns {Array<Array<object>>}
+ */
+export function layoutColumns(widgets, count) {
+  const columns = Array.from({ length: count }, () => []);
+  const heights = Array(count).fill(0);
+  for (const widget of widgets) {
+    const column = Number.isInteger(widget.col) ? widget.col % count : heights.indexOf(Math.min(...heights));
+    columns[column].push(widget);
+    heights[column] += HEIGHT_UNITS[widget.height] || HEIGHT_UNITS[2];
+  }
+  return columns;
+}
+
+/**
+ * Put a widget in column `column`, before the widget `beforeId` (the end of the column without
+ * one). Every widget's column is saved with it, so the others stay where they are shown. Within
+ * its own column it moves to where `beforeId` is, like moveWidget.
+ */
+export function placeWidget(widgets, count, id, column, beforeId = null) {
+  const shown = layoutColumns(widgets, count);
+  const columnOf = new Map(shown.flatMap((list, c) => list.map((w) => [w.id, c])));
+  const fixed = widgets.map((w) => ({ ...w, col: columnOf.get(w.id) }));
+  const active = fixed.find((w) => w.id === id);
+  if (!active || !(column >= 0 && column < count)) return widgets;
+  if (active.col === column && beforeId) return moveWidget(fixed, id, beforeId);
+  const rest = fixed.filter((w) => w.id !== id);
+  const at = beforeId ? rest.findIndex((w) => w.id === beforeId) : -1;
+  const placed = { ...active, col: column };
+  if (at < 0) return [...rest, placed];
+  return [...rest.slice(0, at), placed, ...rest.slice(at)];
 }
 
 /** Move a widget one place up (-1) or down (+1): the keyboard and the arrows of the editor */

@@ -94,22 +94,17 @@ export default function WidgetSettings({ widget, onClose, onChange }) {
   // A widget that needs an asset opens straight onto the picker while it has none
   const [picking, setPicking] = useState(() => {
     const o = widget ? WIDGET_CATALOG[widget.type].options || {} : {};
-    return Boolean((o.asset || o.assets) && !(widget.config?.assetId || widget.config?.assetIds?.length));
+    return Boolean(o.assets && !widget.config?.assetIds?.length);
   });
   if (!widget) return null;
   const spec = WIDGET_CATALOG[widget.type];
   const options = spec.options || {};
   const config = widget.config || {};
-  const max = options.assets ? DASHBOARD_LIMITS.rateListAssets : 1;
-  const chosen = options.assets ? (config.assetIds || []) : (config.assetId ? [config.assetId] : []);
+  const max = DASHBOARD_LIMITS.rateListAssets;
+  const chosen = config.assetIds || [];
 
-  const setAssets = (ids) => onChange(options.assets ? { assetIds: ids } : { assetId: ids[0] });
+  const setAssets = (ids) => onChange({ assetIds: ids });
   const toggleAsset = (id, add) => {
-    if (!options.assets) {
-      setAssets([id]);
-      setPicking(false);
-      return;
-    }
     if (add && chosen.length >= max) return;
     setAssets(add ? [...chosen, id] : chosen.filter((x) => x !== id));
   };
@@ -155,9 +150,9 @@ export default function WidgetSettings({ widget, onClose, onChange }) {
           />
         </Group>
       )}
-      {(options.asset || options.assets) && (
+      {options.assets && (
         <AssetsGroup
-          title={options.assets ? t('دارایی‌ها') : t('دارایی')}
+          title={t('دارایی‌ها')}
           ids={chosen}
           max={max}
           onPick={() => setPicking(true)}

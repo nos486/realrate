@@ -8,7 +8,7 @@ import { describe, it, expect } from 'vitest';
 import {
   WIDGET_CATALOG, WIDGET_GROUPS, WIDGET_TYPES, DASHBOARD_LIMITS, DEFAULT_DASHBOARD,
   sanitizeWidgets, sanitizeDashboard, defaultWidgets, widgetsOf, withScreen, canAddWidget,
-  addWidget, removeWidget, moveWidget, shiftWidget, setWidgetHeight, configureWidget,
+  addWidget, removeWidget, moveWidget, shiftWidget, setWidgetHeight, configureWidget, layoutColumns, placeWidget,
 } from '../../src/domain/dashboardLayout.js';
 import { ACCOUNT_KINDS } from '../../../web/src/shared/vault/fullBackup.js';
 import { VAULT_RECORD_KINDS } from '../../src/repositories/vault.repository.js';
@@ -52,12 +52,12 @@ describe('sanitizeWidgets', () => {
   });
 
   it('keeps one of a unique widget, and several of the others', () => {
-    const out = sanitizeWidgets([{ type: 'news' }, { type: 'news' }, { type: 'asset' }, { type: 'asset' }]);
-    expect(types(out)).toEqual(['news', 'asset', 'asset']);
+    const out = sanitizeWidgets([{ type: 'news' }, { type: 'news' }, { type: 'rate_list' }, { type: 'rate_list' }]);
+    expect(types(out)).toEqual(['news', 'rate_list', 'rate_list']);
   });
 
   it('gives every widget its own valid id', () => {
-    const out = sanitizeWidgets([{ id: 'w_a', type: 'asset' }, { id: 'w_a', type: 'asset' }, { id: 'bad id!', type: 'goals' }]);
+    const out = sanitizeWidgets([{ id: 'w_a', type: 'rate_list' }, { id: 'w_a', type: 'rate_list' }, { id: 'bad id!', type: 'goals' }]);
     expect(new Set(out.map((w) => w.id)).size).toBe(3);
     expect(out[0].id).toBe('w_a');
     expect(out.every((w) => /^[A-Za-z0-9_-]{1,40}$/.test(w.id))).toBe(true);
@@ -71,13 +71,13 @@ describe('sanitizeWidgets', () => {
     expect(sanitizeWidgets([{ type: 'rate_list' }, { type: 'rate_list' }])).toHaveLength(2);
   });
 
-  it('keeps an asset id only when it looks like one', () => {
-    expect(sanitizeWidgets([{ type: 'asset', config: { assetId: 'gold_18k' } }])[0].config.assetId).toBe('gold_18k');
-    expect(sanitizeWidgets([{ type: 'asset', config: { assetId: 'a b' } }])[0].config.assetId).toBeUndefined();
+  it('no longer has the single-asset widget: a stored one is dropped', () => {
+    expect(WIDGET_CATALOG.asset).toBeUndefined();
+    expect(sanitizeWidgets([{ type: 'asset', config: { assetId: 'usd' } }, { type: 'goals' }]).map((w) => w.type)).toEqual(['goals']);
   });
 
   it('limits the length', () => {
-    const many = Array.from({ length: DASHBOARD_LIMITS.widgets + 10 }, () => ({ type: 'asset' }));
+    const many = Array.from({ length: DASHBOARD_LIMITS.widgets + 10 }, () => ({ type: 'rate_list' }));
     expect(sanitizeWidgets(many)).toHaveLength(DASHBOARD_LIMITS.widgets);
     expect(sanitizeWidgets('x')).toEqual([]);
   });
@@ -132,11 +132,11 @@ describe('edits', () => {
   it('adds a widget at the end, and a unique one only once', () => {
     expect(canAddWidget(start, 'news')).toBe(false);
     expect(addWidget(start, 'news')).toBe(start);
-    expect(canAddWidget(start, 'asset')).toBe(true);
-    const next = addWidget(start, 'asset', { assetId: 'usd' });
-    expect(types(next)).toEqual(['month', 'news', 'goals', 'asset']);
-    expect(next[3]).toMatchObject({ config: { assetId: 'usd' } });
-    expect(types(addWidget(next, 'asset'))).toHaveLength(5);
+    expect(canAddWidget(start, 'rate_list')).toBe(true);
+    const next = addWidget(start, 'rate_list', { assetIds: ['usd'] });
+    expect(types(next)).toEqual(['month', 'news', 'goals', 'rate_list']);
+    expect(next[3]).toMatchObject({ config: { assetIds: ['usd'] } });
+    expect(types(addWidget(next, 'rate_list'))).toHaveLength(5);
   });
 
   it('removes, moves and shifts', () => {
@@ -200,5 +200,46 @@ describe('widget settings', () => {
     expect(config({ type: 'loans', config: { sort: 'x' } }).sort).toBe('due');
     expect(config({ type: 'expenses_latest', config: { range: 'week' } }).range).toBe('week');
     expect(config({ type: 'expenses_latest' }).range).toBe('month');
+  });
+});
+
+describe('columns', () => {
+  const list = (specs) => sanitizeWidgets(specs.map(([type, height, col]) => ({ id: `w_${type}`, type, height, col })));
+  const ids = (columns) => columns.map((c) => c.map((w) => w.type));
+
+  it('keeps a valid column and drops another', () => {
+    expect(sanitizeWidgets([{ type: 'goals', col: 2 }])[0].col).toBe(2);
+    expect(sanitizeWidgets([{ type: 'goals', col: 3 }])[0].col).toBeUndefined();
+    expect(sanitizeWidgets([{ type: 'goals', col: 'x' }])[0].col).toBeUndefined();
+  });
+
+  it('puts widgets without a column under the shortest one, in order', () => {
+    const widgets = list([['ai_analysis', 3], ['month', 1], ['goals', 1], ['plan', 1], ['news', 2]]);
+    expect(ids(layoutColumns(widgets, 3))).toEqual([['ai_analysis'], ['month', 'plan'], ['goals', 'news']]);
+  });
+
+  it('keeps the user\'s column, wrapped when there are fewer columns', () => {
+    const widgets = list([['month', 1, 2], ['goals', 1, 0]]);
+    expect(ids(layoutColumns(widgets, 3))).toEqual([['goals'], [], ['month']]);
+    expect(ids(layoutColumns(widgets, 2))).toEqual([['month', 'goals'], []].map((c) => c));
+  });
+
+  it('drops a widget into the empty space under a tall one (the end of a column)', () => {
+    const widgets = list([['ai_analysis', 3], ['month', 1], ['goals', 1], ['plan', 1]]);
+    const moved = placeWidget(widgets, 3, 'w_plan', 0);
+    expect(ids(layoutColumns(moved, 3))[0]).toEqual(['ai_analysis', 'plan']);
+    // the others stay where they were shown
+    expect(ids(layoutColumns(moved, 3)).slice(1)).toEqual([['month'], ['goals']]);
+  });
+
+  it('drops a widget before another, in its column or another', () => {
+    const widgets = list([['month', 1, 0], ['goals', 1, 0], ['plan', 1, 1]]);
+    expect(ids(layoutColumns(placeWidget(widgets, 3, 'w_plan', 0, 'w_goals'), 3))[0]).toEqual(['month', 'plan', 'goals']);
+    expect(ids(layoutColumns(placeWidget(widgets, 3, 'w_goals', 0, 'w_month'), 3))[0]).toEqual(['goals', 'month']);
+  });
+
+  it('ignores a column that does not exist', () => {
+    const widgets = list([['month', 1]]);
+    expect(placeWidget(widgets, 3, 'w_month', 5)).toBe(widgets);
   });
 });
