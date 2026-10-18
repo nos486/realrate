@@ -1,9 +1,10 @@
 /**
  * dashboardLayout.js — Shape, defaults and edits of the user's widget dashboard (the home page)
  *
- * The home page is a list of widgets the user adds, removes and reorders. There are two
- * lists, one for the wide screen (the website) and one for the app frame (the Android app and
- * phones), so each can be arranged on its own. The whole document is one encrypted vault record
+ * The home page is a list of widgets the user adds, removes and reorders. There is one list per
+ * number of columns the page shows (4 on a wide screen, 3, 2 on a mid-size window and 1 in the
+ * app frame: the Android app and phones), so each can be arranged on its own and keeps its
+ * arrangement; a list never arranged starts from the 3-column one. The whole document is one encrypted vault record
  * (kind `dashboard_layout`), so the server never sees it; it is also part of the full backup.
  * Shared by the web client and the tests through a symlink; pure, no DOM.
  *
@@ -15,7 +16,7 @@
  * }
  *
  * Every widget is one column wide; `height` is its height class
- * (1 short, 2 medium, 3 tall; a widget with more to show scrolls inside it); the app frame is one
+ * (1..4 = 150, 300, 450, 600px, of those its catalog entry allows; a widget with more to show scrolls inside it); the app frame is one
  * column of natural height and ignores it. `config` holds the few per-widget options the catalog declares (the market assets, how
  * many rows to list); anything else is dropped. A list that is missing starts from the default.
  */
@@ -27,18 +28,29 @@ export const DASHBOARD_RECORD_ID = "main";
 export const DASHBOARD_LAYOUT_VERSION = 1;
 
 /** Screens a list is arranged for */
-export const DASHBOARD_SCREENS = ["desktop", "mobile"];
+export const DASHBOARD_SCREENS = ["wide", "desktop", "tablet", "mobile"];
 
-export const DASHBOARD_LIMITS = { widgets: 40, idLength: 40, assetIdLength: 120, rateListAssets: 4, columns: 3 };
+export const DASHBOARD_LIMITS = { widgets: 40, idLength: 40, assetIdLength: 120, rateListAssets: 4, columns: 4 };
 
-/** Height classes of the wide grid: short, medium, tall */
-export const WIDGET_HEIGHTS = [1, 2, 3];
+/** The list each column count is arranged in (the 3-column one is `desktop`, as it was stored before there were more) */
+const SCREEN_OF_COLUMNS = { 4: "wide", 3: "desktop", 2: "tablet", 1: "mobile" };
+
+/** @param {number} count - columns shown now (1 to DASHBOARD_LIMITS.columns) */
+export const screenOfColumns = (count) => SCREEN_OF_COLUMNS[count] || "desktop";
+
+/** Where a list never arranged starts from: the 3-column list, saved or default */
+const SCREEN_FALLBACK = { wide: "desktop", tablet: "desktop" };
+
+/** Height classes of the wide grid and the pixels each stands for (the same four for every widget) */
+export const WIDGET_HEIGHT_PX = { 1: 150, 2: 300, 3: 450, 4: 600 };
+export const WIDGET_HEIGHTS = Object.keys(WIDGET_HEIGHT_PX).map(Number);
 
 /**
  * The widgets a user can add. `requires` names what the user needs to see it (checked by the
  * client: a feature, `news`, `native`); `unique` widgets can be added once. `options` declares the
  * widget's settings, all of them saved in its `config` and nothing else. Every widget also has the
- * two appearance switches of WIDGET_APPEARANCE (its title, its card):
+ * two appearance switches of WIDGET_APPEARANCE (its title, its card). `heights` lists the height
+ * classes (WIDGET_HEIGHT_PX) the widget can be drawn at, `defaultHeight` is the one a new widget gets:
  *   count    one of the listed numbers (how many rows)
  *   assets   a list of market asset ids
  *   style    { values, labels, default }: how the widget is drawn (a grid or a list, a clock face)
@@ -51,7 +63,7 @@ export const WIDGET_CATALOG = {
     title: msg("خلاصه‌ی ماه"),
     description: msg("خرج، درآمد و باقی‌مانده‌ی ماه، با مقایسه با ماه قبل"),
     group: "money",
-    defaultHeight: 2, unique: true, requires: "vault",
+    heights: [1, 2, 3], defaultHeight: 2, unique: true, requires: "vault",
     options: {
       style: { values: ["full", "compact"], labels: { full: msg("کامل"), compact: msg("فشرده") }, default: "full" },
       toggles: {
@@ -65,7 +77,7 @@ export const WIDGET_CATALOG = {
     title: msg("آخرین هزینه‌ها"),
     description: msg("هزینه‌هایی که تازه ثبت شده است"),
     group: "money",
-    defaultHeight: 2, requires: "expenses",
+    heights: [1, 2, 3, 4], defaultHeight: 2, requires: "expenses",
     options: {
       count: [3, 5, 8, 10],
       choices: {
@@ -84,7 +96,7 @@ export const WIDGET_CATALOG = {
     title: msg("وام‌ها"),
     description: msg("قسط بعدی وام‌ها و مانده‌ی هر کدام"),
     group: "money",
-    defaultHeight: 2, unique: true, requires: "vault",
+    heights: [2, 3, 4], defaultHeight: 2, unique: true, requires: "vault",
     options: {
       count: [3, 5, 8, 12],
       choices: {
@@ -103,14 +115,14 @@ export const WIDGET_CATALOG = {
     title: msg("اهداف پس‌انداز"),
     description: msg("نزدیک‌ترین هدف‌ها و پیشرفت هر کدام"),
     group: "money",
-    defaultHeight: 1, unique: true, requires: "vault",
+    heights: [1, 2, 3], defaultHeight: 1, unique: true, requires: "vault",
     options: { count: [3, 5, 8, 12] }, defaults: { count: 12 },
   },
   alerts: {
     title: msg("یادآورها"),
     description: msg("اقساط، چک‌ها و اشتراک‌هایی که سررسیدشان نزدیک است"),
     group: "money",
-    defaultHeight: 1, unique: true, requires: "vault",
+    heights: [1, 2, 3], defaultHeight: 1, unique: true, requires: "vault",
     options: {
       multi: {
         sources: {
@@ -127,7 +139,7 @@ export const WIDGET_CATALOG = {
     title: msg("نرخ‌های امروز"),
     description: msg("دلار، طلای ۱۸ و سکه با تغییر امروز"),
     group: "market",
-    defaultHeight: 1, unique: true, requires: "market",
+    heights: [1, 2, 3], defaultHeight: 1, unique: true, requires: "market",
     options: {
       style: { values: ["tiles", "list"], labels: { tiles: msg("کاشی"), list: msg("فهرست") }, default: "tiles" },
       multi: {
@@ -146,7 +158,7 @@ export const WIDGET_CATALOG = {
     title: msg("نرخ‌های دلخواه"),
     description: msg("چند نرخ دلخواه از بازار، هرکدام با آیکون، قیمت، تغییر و بازه‌ی امروز"),
     group: "market",
-    defaultHeight: 2, requires: "market",
+    heights: [1, 2, 3], defaultHeight: 2, requires: "market",
     options: {
       assets: true,
       style: { values: ["grid", "list"], labels: { grid: msg("شبکه‌ای"), list: msg("فهرست") }, default: "grid" },
@@ -157,13 +169,13 @@ export const WIDGET_CATALOG = {
     title: msg("نرخ و حباب"),
     description: msg("بخش‌های دلخواه بازار: طلا، سکه، ارز، بورس و حباب، با کارت‌های قابل تنظیم"),
     group: "market",
-    defaultHeight: 3, unique: true, requires: "market",
+    heights: [2, 3, 4], defaultHeight: 3, unique: true, requires: "market",
   },
   news: {
     title: msg("آخرین اخبار"),
     description: msg("تازه‌ترین خبرهای بازار"),
     group: "news",
-    defaultHeight: 2, unique: true, requires: "news",
+    heights: [2, 3, 4], defaultHeight: 2, unique: true, requires: "news",
     options: {
       count: [3, 5, 8, 10],
       toggles: { analysis: { label: msg("نمایش خلاصه‌ی تحلیل روز"), default: true } },
@@ -174,7 +186,7 @@ export const WIDGET_CATALOG = {
     title: msg("تحلیل روز با هوش مصنوعی"),
     description: msg("فقط تحلیل روز: خلاصه‌ی خبرها، مهم‌ترین رویدادها و نکته‌ها"),
     group: "news",
-    defaultHeight: 3, unique: true, requires: "news",
+    heights: [3, 4], defaultHeight: 4, unique: true, requires: "news",
     options: {
       toggles: {
         drivers: { label: msg("مهم‌ترین خبرها"), default: true },
@@ -187,13 +199,13 @@ export const WIDGET_CATALOG = {
     title: msg("پیامک‌های بانکی"),
     description: msg("پیامک‌هایی که منتظر ثبت هستند"),
     group: "tools",
-    defaultHeight: 1, unique: true, requires: "native_sms",
+    heights: [1, 2, 3], defaultHeight: 1, unique: true, requires: "native_sms",
   },
   clock: {
     title: msg("ساعت و تاریخ"),
     description: msg("ساعت و تاریخ امروز به وقت تهران، با تاریخ شمسی و میلادی"),
     group: "tools",
-    defaultHeight: 1, unique: true, requires: null,
+    heights: [1, 2], defaultHeight: 1, unique: true, requires: null,
     options: {
       style: { values: ["digital", "analog", "compact"], labels: { digital: msg("دیجیتال"), analog: msg("عقربه‌ای"), compact: msg("فشرده") }, default: "digital" },
       toggles: {
@@ -207,7 +219,7 @@ export const WIDGET_CATALOG = {
     title: msg("تقویم"),
     description: msg("تقویم شمسی با نشان اقساط، سررسید چک‌ها، تمدید اشتراک‌ها و تاریخ هدف‌ها"),
     group: "tools",
-    defaultHeight: 2, unique: true, requires: null,
+    heights: [2, 4], defaultHeight: 2, unique: true, requires: null,
     options: {
       toggles: { list: { label: msg("فهرست رویدادها زیر تقویم"), default: true }, total: { label: msg("جمع پرداختی و دریافتی ماه"), default: true } },
       style: { values: ["month", "agenda"], labels: { month: msg("ماه"), agenda: msg("برنامه") }, default: "month" },
@@ -226,7 +238,7 @@ export const WIDGET_CATALOG = {
     title: msg("میان‌بُرها"),
     description: msg("ثبت سریع هزینه و رفتن به بخش‌های پرکاربرد"),
     group: "tools",
-    defaultHeight: 1, unique: true, requires: null,
+    heights: [1, 2, 3], defaultHeight: 1, unique: true, requires: null,
     options: {
       style: { values: ["grid", "list"], labels: { grid: msg("شبکه‌ای"), list: msg("فهرست") }, default: "grid" },
       multi: {
@@ -247,7 +259,7 @@ export const WIDGET_CATALOG = {
     title: msg("پلن"),
     description: msg("محدودیت‌های پلن رایگان و میزان استفاده"),
     group: "tools",
-    defaultHeight: 1, unique: true, requires: "free_plan",
+    heights: [1, 2], defaultHeight: 1, unique: true, requires: "free_plan",
   },
 };
 
@@ -272,10 +284,12 @@ const ASSET_ID_RE = /^[^\s/\\]{1,120}$/;
 
 const newWidgetId = () => `w_${Math.random().toString(36).slice(2, 10)}`;
 
-/** A valid height class: the one given, else the type's default */
+/** A valid height class: the one given when the widget allows it, else the allowed one nearest to it (the taller on a tie), else the type's default */
 function fitHeight(type, height) {
+  const { heights, defaultHeight } = WIDGET_CATALOG[type];
   const n = Math.round(Number(height));
-  return WIDGET_HEIGHTS.includes(n) ? n : WIDGET_CATALOG[type].defaultHeight;
+  if (!WIDGET_HEIGHTS.includes(n)) return defaultHeight;
+  return [...heights].sort((a, b) => Math.abs(a - n) - Math.abs(b - n) || b - a)[0];
 }
 
 /** A subset of `def.values` in their own order, or the default when fewer than `def.min` remain */
@@ -364,7 +378,7 @@ export const DEFAULT_DASHBOARD = {
 
 /**
  * The default widgets of a screen, each with a fresh id
- * @param {"desktop"|"mobile"} screen
+ * @param {"wide"|"desktop"|"tablet"|"mobile"} screen
  */
 export function defaultWidgets(screen) {
   return sanitizeWidgets(DEFAULT_DASHBOARD[screen === "mobile" ? "mobile" : "desktop"]);
@@ -374,20 +388,23 @@ export function defaultWidgets(screen) {
  * A whole dashboard document from stored or restored data; a screen without a valid list is not
  * set (null), so the default applies to it
  * @param {unknown} raw
- * @returns {{ version: number, desktop: object[]|null, mobile: object[]|null, updatedAt: string }|null}
+ * @returns {{ version: number, wide: object[]|null, desktop: object[]|null, tablet: object[]|null, mobile: object[]|null, updatedAt: string }|null}
  */
 export function sanitizeDashboard(raw) {
   if (!raw || typeof raw !== "object") return null;
-  const out = { version: DASHBOARD_LAYOUT_VERSION, desktop: null, mobile: null, updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt.slice(0, 40) : "" };
+  const out = { version: DASHBOARD_LAYOUT_VERSION, ...Object.fromEntries(DASHBOARD_SCREENS.map((s) => [s, null])), updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt.slice(0, 40) : "" };
   for (const screen of DASHBOARD_SCREENS) {
     if (Array.isArray(raw[screen])) out[screen] = sanitizeWidgets(raw[screen]);
   }
-  return out.desktop || out.mobile ? out : null;
+  return DASHBOARD_SCREENS.some((s) => out[s]) ? out : null;
 }
 
-/** The widgets of one screen: the saved list, else the default */
+/** Whether any screen of the dashboard has a saved list */
+export const hasSavedScreen = (dashboard) => DASHBOARD_SCREENS.some((s) => Array.isArray(dashboard?.[s]));
+
+/** The widgets of one screen: its saved list, else the 3-column one it starts from (wide, tablet), else the default */
 export function widgetsOf(dashboard, screen) {
-  const saved = dashboard?.[screen];
+  const saved = dashboard?.[screen] ?? dashboard?.[SCREEN_FALLBACK[screen]];
   return Array.isArray(saved) ? saved : defaultWidgets(screen);
 }
 
@@ -395,8 +412,7 @@ export function widgetsOf(dashboard, screen) {
 export function withScreen(dashboard, screen, widgets) {
   return {
     version: DASHBOARD_LAYOUT_VERSION,
-    desktop: dashboard?.desktop ?? null,
-    mobile: dashboard?.mobile ?? null,
+    ...Object.fromEntries(DASHBOARD_SCREENS.map((s) => [s, dashboard?.[s] ?? null])),
     [screen]: sanitizeWidgets(widgets),
     updatedAt: new Date().toISOString(),
   };
@@ -431,7 +447,7 @@ export function moveWidget(widgets, activeId, overId) {
 }
 
 /** How tall a widget is in the columns, in the grid's row units (its height class) */
-const HEIGHT_UNITS = { 1: 3, 2: 5, 3: 8 };
+const HEIGHT_UNITS = { 1: 2, 2: 4, 3: 6, 4: 8 };
 
 /**
  * The widgets in `count` columns (the wide grid). A widget keeps the column the user put it in

@@ -6,8 +6,8 @@
 
 import { describe, it, expect } from 'vitest';
 import {
-  WIDGET_CATALOG, WIDGET_GROUPS, WIDGET_TYPES, DASHBOARD_LIMITS, DEFAULT_DASHBOARD,
-  sanitizeWidgets, sanitizeDashboard, defaultWidgets, widgetsOf, withScreen, canAddWidget,
+  WIDGET_CATALOG, WIDGET_HEIGHTS, WIDGET_HEIGHT_PX, WIDGET_GROUPS, WIDGET_TYPES, DASHBOARD_LIMITS, DEFAULT_DASHBOARD,
+  sanitizeWidgets, sanitizeDashboard, screenOfColumns, hasSavedScreen, defaultWidgets, widgetsOf, withScreen, canAddWidget,
   addWidget, removeWidget, moveWidget, shiftWidget, setWidgetHeight, configureWidget, layoutColumns, placeWidget,
 } from '../../src/domain/dashboardLayout.js';
 import { ACCOUNT_KINDS } from '../../../web/src/shared/vault/fullBackup.js';
@@ -17,7 +17,7 @@ const types = (widgets) => widgets.map((w) => w.type);
 
 describe('the catalog', () => {
   it('gives every widget a default height class', () => {
-    for (const type of WIDGET_TYPES) expect([1, 2, 3], type).toContain(WIDGET_CATALOG[type].defaultHeight);
+    for (const type of WIDGET_TYPES) expect(WIDGET_HEIGHTS, type).toContain(WIDGET_CATALOG[type].defaultHeight);
   });
 
   it('puts every widget in a known group, ', () => {
@@ -91,6 +91,24 @@ describe('heights', () => {
     expect(c.height).toBe(3);
   });
 
+  it('offers four sizes (150, 300, 450, 600px) and each widget allows some of them, its default among them', () => {
+    expect(WIDGET_HEIGHT_PX).toEqual({ 1: 150, 2: 300, 3: 450, 4: 600 });
+    for (const spec of Object.values(WIDGET_CATALOG)) {
+      expect(spec.heights.length).toBeGreaterThan(0);
+      expect(spec.heights.every((h) => WIDGET_HEIGHTS.includes(h))).toBe(true);
+      expect(spec.heights).toContain(spec.defaultHeight);
+    }
+    expect(WIDGET_CATALOG.calendar.heights).toEqual([2, 4]);
+  });
+
+  it('snaps a height the widget does not allow to the nearest allowed one (the taller on a tie)', () => {
+    const height = (type, h) => sanitizeWidgets([{ type, height: h }])[0].height;
+    expect(height('calendar', 1)).toBe(2);
+    expect(height('ai_analysis', 1)).toBe(3);
+    expect(height('calendar', 3)).toBe(4);
+    expect(setWidgetHeight([{ id: 'w_c', type: 'calendar', height: 2, config: {} }], 'w_c', 1)[0].height).toBe(2);
+  });
+
   it('sets a height class, and a new widget starts at its default', () => {
     const list = sanitizeWidgets([{ type: 'month' }]);
     expect(setWidgetHeight(list, list[0].id, 1)[0].height).toBe(1);
@@ -114,6 +132,26 @@ describe('a dashboard per screen', () => {
     const both = withScreen(doc, 'desktop', [{ type: 'news' }]);
     expect(types(both.mobile)).toEqual(['rates']);
     expect(types(both.desktop)).toEqual(['news']);
+  });
+
+  it('keeps a list per number of columns: 4, 3, 2 and 1', () => {
+    expect([4, 3, 2, 1].map(screenOfColumns)).toEqual(['wide', 'desktop', 'tablet', 'mobile']);
+    let doc = withScreen(null, 'wide', [{ type: 'news' }]);
+    doc = withScreen(doc, 'tablet', [{ type: 'goals' }]);
+    expect([types(doc.wide), types(doc.tablet), doc.desktop, doc.mobile]).toEqual([['news'], ['goals'], null, null]);
+    expect(types(widgetsOf(doc, 'wide'))).toEqual(['news']);
+    expect(types(widgetsOf(doc, 'tablet'))).toEqual(['goals']);
+    expect(hasSavedScreen(doc)).toBe(true);
+    expect(hasSavedScreen(null)).toBe(false);
+    expect(sanitizeDashboard(JSON.parse(JSON.stringify(doc)))).toEqual(doc);
+  });
+
+  it('starts a 4- or 2-column list from the 3-column one, saved or default; the phone list stays its own', () => {
+    expect(types(widgetsOf(null, 'wide'))).toEqual(types(defaultWidgets('desktop')));
+    const doc = withScreen(null, 'desktop', [{ type: 'month' }]);
+    expect(types(widgetsOf(doc, 'wide'))).toEqual(['month']);
+    expect(types(widgetsOf(doc, 'tablet'))).toEqual(['month']);
+    expect(types(widgetsOf(doc, 'mobile'))).toEqual(DEFAULT_DASHBOARD.mobile.map((w) => w.type));
   });
 
   it('reads a stored document back, and refuses one with no list', () => {
@@ -209,7 +247,8 @@ describe('columns', () => {
 
   it('keeps a valid column and drops another', () => {
     expect(sanitizeWidgets([{ type: 'goals', col: 2 }])[0].col).toBe(2);
-    expect(sanitizeWidgets([{ type: 'goals', col: 3 }])[0].col).toBeUndefined();
+    expect(sanitizeWidgets([{ type: 'goals', col: 3 }])[0].col).toBe(3);
+    expect(sanitizeWidgets([{ type: 'goals', col: 4 }])[0].col).toBeUndefined();
     expect(sanitizeWidgets([{ type: 'goals', col: 'x' }])[0].col).toBeUndefined();
   });
 

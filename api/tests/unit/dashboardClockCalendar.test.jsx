@@ -60,7 +60,7 @@ describe('the calendar day card', () => {
 
 describe('the calendar\'s past days', () => {
   it('marks a reached goal as finished with a grey marker', () => {
-    const { container } = render(<MemoryRouter><CalendarWidget widget={{ height: 3, config: {} }} /></MemoryRouter>);
+    const { container } = render(<MemoryRouter><CalendarWidget widget={{ height: 4, config: {} }} /></MemoryRouter>);
     expect(container.querySelector('.dash-cal-legend .dash-cal-dot.is-done')).toBeTruthy();
   });
 });
@@ -68,26 +68,19 @@ describe('the calendar\'s past days', () => {
 describe('the calendar at each height', () => {
   const at = (height) => render(<MemoryRouter><CalendarWidget widget={{ height, config: {} }} /></MemoryRouter>).container;
 
-  it('shows everything when tall: month, legend and the list', () => {
-    const c = at(3);
+  it('shows everything at 600px: month, legend and the list', () => {
+    const c = at(4);
     expect(c.querySelector('.dash-cal-legend')).toBeTruthy();
     expect(c.querySelector('.dash-cal-agenda')).toBeTruthy();
     expect(c.querySelector('.dash-cal.is-cozy')).toBeNull();
   });
 
-  it('shows the month alone when medium', () => {
+  it('shows the month alone at 300px', () => {
     const c = at(2);
     expect(c.querySelectorAll('.dash-cal-day').length).toBeGreaterThanOrEqual(29);
     expect(c.querySelector('.dash-cal.is-cozy')).toBeTruthy();
     expect(c.querySelector('.dash-cal-legend')).toBeNull();
     expect(c.querySelector('.dash-cal-agenda')).toBeNull();
-  });
-
-  it('shows a week and the next thing due when short', () => {
-    const c = at(1);
-    expect(c.querySelectorAll('.dash-cal-strip .dash-cal-day')).toHaveLength(7);
-    expect(c.querySelector('.dash-cal-grid')).toBeNull();
-    expect(c.querySelector('.dash-cal-list.is-next')?.textContent).toContain('Car');
   });
 });
 
@@ -150,7 +143,7 @@ describe('the favorite rates widget', () => {
 
 describe('the calendar\'s look', () => {
   it('shows the Gregorian span, a Gregorian day under each day and the picked day in both calendars', () => {
-    const { container } = render(<MemoryRouter><CalendarWidget widget={{ height: 3, config: {} }} /></MemoryRouter>);
+    const { container } = render(<MemoryRouter><CalendarWidget widget={{ height: 4, config: {} }} /></MemoryRouter>);
     expect(container.querySelector('.dash-cal-title small')?.textContent).toMatch(/\d{1,2} \w{3} - \d{1,2} \w{3} \d{4}/);
     expect(container.querySelectorAll('.dash-cal-greg').length).toBeGreaterThanOrEqual(29);
     const before = container.querySelector('.dash-cal-selected')?.textContent;

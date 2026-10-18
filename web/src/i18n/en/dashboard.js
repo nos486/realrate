@@ -5,7 +5,7 @@
 export default {
   'بازگشت به چیدمان پیش‌فرض': 'Back to the default layout',
   'چیدمان ویجت‌های صفحه اصلی موبایل به حالت پیش‌فرض برمی‌گردد. چیدمان نسخه‌ی وب تغییری نمی‌کند.': 'The mobile home page goes back to its default widgets. The website layout stays as it is.',
-  'چیدمان ویجت‌های صفحه اصلی وب به حالت پیش‌فرض برمی‌گردد. چیدمان موبایل تغییری نمی‌کند.': 'The website home page goes back to its default widgets. The mobile layout stays as it is.',
+  'چیدمان ویجت‌های صفحه اصلی برای همین تعداد ستون به حالت پیش‌فرض برمی‌گردد. چیدمان تعداد ستون‌های دیگر و موبایل تغییری نمی‌کند.': 'The home page goes back to its default widgets for this number of columns. The layouts for other column counts and for mobile stay as they are.',
   'حذف ویجت': 'Remove widget',
   'ویجت «{title}» از صفحه اصلی برداشته شود؟ هر وقت خواستید دوباره اضافه‌اش کنید.': 'Remove the “{title}” widget from the home page? You can add it again any time.',
   'در حال چیدن صفحه اصلی موبایل': 'Arranging the mobile home page',
@@ -13,8 +13,6 @@ export default {
   'افزودن ویجت': 'Add widget',
   'برای دیدن ویجت‌های مالی، اطلاعات را باز کنید': 'Unlock your data to see the financial widgets',
   'هنوز ویجتی روی صفحه اصلی نیست.': 'There are no widgets on the home page yet.',
-  'کوتاه': 'Short',
-  'بلند': 'Tall',
   'ارتفاع': 'Height',
   'جابه‌جایی {title}': 'Move {title}',
   'بالاتر': 'Move up',
@@ -109,8 +107,7 @@ export default {
   'پرداختی این ماه': 'To pay this month',
   'دریافتی این ماه': 'Coming in this month',
   'جمع پرداختی و دریافتی ماه': 'Show what the month pays and brings in',
-  'هفته قبل': 'Previous week',
-  'هفته بعد': 'Next week',
   'تمام‌شده': 'Done',
+  'ارتفاع {n} پیکسل': 'Height {n} pixels',
   'میلادی': 'Gregorian',
 };

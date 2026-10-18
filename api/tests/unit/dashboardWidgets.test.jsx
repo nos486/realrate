@@ -57,8 +57,9 @@ describe('a widget on the page', () => {
     const onRemove = vi.fn();
     const onMove = vi.fn();
     frame({ editing: true, onHeight, onSettings, onRemove, onMove });
-    fireEvent.click(screen.getByRole('button', { name: 'کوتاه' }));
-    expect(onHeight).toHaveBeenCalledWith(1);
+    expect(screen.getAllByRole('button', { name: /^ارتفاع/ })).toHaveLength(3); // the news widget allows 300, 450 and 600px
+    fireEvent.click(screen.getByRole('button', { name: /450|۴۵۰/ }));
+    expect(onHeight).toHaveBeenCalledWith(3);
     expect(screen.queryByRole('group', { name: 'عرض' })).toBeNull(); // the width is fixed
     fireEvent.click(screen.getByRole('button', { name: /^تنظیم/ }));
     expect(onSettings).toHaveBeenCalled();

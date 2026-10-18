@@ -1,14 +1,12 @@
 /*
  * dashboard.css — The home page: a grid of widgets the user arranges (features/dashboard/)
  *
- * Columns of stacked widgets: three on the website (two on a mid-size window), one in the app
- * frame. A widget keeps the column the user dropped it in and has a height class (short, medium,
- * tall) on the website.
+ * Columns of stacked widgets: four on a wide window, three, two on a mid-size one, one in the app
+ * frame. A widget keeps the column the user dropped it in and has one of four heights (150 to 600px).
  * The widgets' own looks are the home cards of app-shell.css.
  */
 
 .dash {
-  --dash-row: 56px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -102,18 +100,11 @@
   min-height: 0;
 }
 
-/* Height classes: 3, 5 and 8 rows of --dash-row (200, 344 and 560px) */
-.dash-widget.is-height-1 {
-  height: calc(var(--dash-row) * 3 + 32px);
-}
-
-.dash-widget.is-height-2 {
-  height: calc(var(--dash-row) * 5 + 64px);
-}
-
-.dash-widget.is-height-3 {
-  height: calc(var(--dash-row) * 8 + 112px);
-}
+/* Height classes: the four sizes every widget is drawn at (a widget allows some of them) */
+.dash-widget.is-height-1 { height: 150px; }
+.dash-widget.is-height-2 { height: 300px; }
+.dash-widget.is-height-3 { height: 450px; }
+.dash-widget.is-height-4 { height: 600px; }
 
 /* A widget with nothing to show (no loans, no goals, ...) takes no room */
 .dash-widget:not(.is-editing):has(> .dash-widget-body:empty),
@@ -708,33 +699,6 @@ button.dash-rate-tile:focus-visible {
 
 .dash-cal.is-cozy .dash-cal-weekday {
   padding-block: 0;
-}
-
-.dash-cal.is-compact {
-  gap: 8px;
-  justify-content: space-between;
-}
-
-.dash-cal-strip {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 4px;
-}
-
-.dash-cal-strip-day {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.dash-cal-strip-day .dash-cal-day {
-  min-height: 44px;
-}
-
-.dash-cal-list.is-next {
-  flex: 0 0 auto;
-  overflow: visible;
 }
 
 .dash-cal-head {
@@ -1391,7 +1355,8 @@ button.dash-rate-tile:focus-visible {
 .dash.is-app .dash-widget,
 .dash.is-app .dash-widget.is-height-1,
 .dash.is-app .dash-widget.is-height-2,
-.dash.is-app .dash-widget.is-height-3 {
+.dash.is-app .dash-widget.is-height-3,
+.dash.is-app .dash-widget.is-height-4 {
   height: auto;
 }
 

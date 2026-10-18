@@ -4,16 +4,15 @@
  * it, and the widget itself stops reacting to taps.
  */
 
-import { t } from '../../utils/i18n.js';
+import { intlLocale, t } from '../../utils/i18n.js';
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ChevronDown, ChevronUp, GripVertical, Settings2, X } from 'lucide-react';
 import ErrorBoundary from '../../shared/ui/ErrorBoundary.jsx';
-import { WIDGET_CATALOG, WIDGET_HEIGHTS } from '../../utils/dashboardLayout.js';
+import { WIDGET_CATALOG, WIDGET_HEIGHT_PX } from '../../utils/dashboardLayout.js';
 import { WIDGET_VIEWS } from './widgetRegistry.jsx';
 
-const HEIGHT_LABELS = { 1: t('کوتاه'), 2: t('متوسط'), 3: t('بلند') };
 
 export default function WidgetFrame({
   widget, editing, available, sizable, first, last, onHeight, onMove, onSettings, onRemove,
@@ -53,9 +52,9 @@ export default function WidgetFrame({
           </button>
           {sizable && (
             <div className="dash-size-toggle" role="group" aria-label={t('ارتفاع')}>
-              {WIDGET_HEIGHTS.map((height) => (
-                <button key={height} type="button" className={widget.height === height ? 'is-active' : ''} aria-pressed={widget.height === height} onClick={() => onHeight(height)}>
-                  {HEIGHT_LABELS[height]}
+              {WIDGET_CATALOG[widget.type].heights.map((height) => (
+                <button key={height} type="button" className={widget.height === height ? 'is-active' : ''} aria-pressed={widget.height === height} onClick={() => onHeight(height)} aria-label={t('ارتفاع {n} پیکسل', { n: WIDGET_HEIGHT_PX[height] })}>
+                  {WIDGET_HEIGHT_PX[height].toLocaleString(intlLocale(), { useGrouping: false })}
                 </button>
               ))}
             </div>
