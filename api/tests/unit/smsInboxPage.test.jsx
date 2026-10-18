@@ -327,6 +327,8 @@ describe('«انتقال بین حساب‌های خودم»: neither expense no
     await waitFor(() => expect(screen.getAllByLabelText('گزینه‌های این پیامک')).toHaveLength(2));
     fireEvent.click(screen.getAllByLabelText('گزینه‌های این پیامک')[0]);
     fireEvent.click(screen.getByText('انتقال بین حساب‌های خودم').closest('button'));
+    // The deposit waiting does not pair on its own: «فقط همین پیامک» goes on with this one
+    fireEvent.click((await screen.findByText('فقط همین پیامک')).closest('button'));
     // To: the cash account (from is the withdrawal's account)
     await screen.findByText('ثبت انتقال');
     pickRow('به حساب', 'نقد');
@@ -337,6 +339,22 @@ describe('«انتقال بین حساب‌های خودم»: neither expense no
     });
     expect(expenses.saveExpense).not.toHaveBeenCalled();
     await waitFor(() => expect(getPendingSms()).toHaveLength(1));
+  });
+
+  it('picks the other side by hand: the gap between the amounts becomes the fee', async () => {
+    accountList.list = [
+      { id: 'acc_1', name: 'بلو', bankId: 'blu', type: 'bank' },
+      { id: 'acc_2', name: 'نقد', type: 'cash' },
+    ];
+    render(<SmsInboxPage />);
+    await waitFor(() => expect(screen.getAllByLabelText('گزینه‌های این پیامک')).toHaveLength(2));
+    fireEvent.click(screen.getAllByLabelText('گزینه‌های این پیامک')[0]);
+    fireEvent.click(screen.getByText('انتقال بین حساب‌های خودم').closest('button'));
+    const options = (await screen.findByText('فقط همین پیامک')).closest('.loan-deposit-body').querySelectorAll('.loan-deposit-option');
+    expect(options).toHaveLength(1);
+    fireEvent.click(options[0]);
+    await screen.findByText('ثبت انتقال');
+    expect(screen.getByText(/کارمزد ثبت می‌شود/)).toBeTruthy();
   });
 
   it('a message already in a transfer leaves the inbox', async () => {
