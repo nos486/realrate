@@ -10,7 +10,6 @@
 import {
   createLoanDoc,
   buildLoanView,
-  summarizeLoan,
   updateLoanDoc,
   markInstallmentPaidDoc,
   markInstallmentPaidCascadeDoc,
@@ -78,10 +77,17 @@ export function clearVaultLoansCache() {
   docs = new Map();
 }
 
+/** A loan as listed: the aggregates and the whole installment schedule (the calendar shows the paid ones too), without the extra payments */
+function withSchedule(doc) {
+  const view = buildLoanView(doc);
+  delete view.extraPayments;
+  return view;
+}
+
 export async function getLoans() {
   await loadDocs();
   const loans = [...docs.values()]
-    .map(summarizeLoan)
+    .map(withSchedule)
     .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
   return { success: true, count: loans.length, loans };
 }

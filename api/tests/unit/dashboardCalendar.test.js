@@ -58,6 +58,20 @@ describe('calendarEvents', () => {
     expect(events.get('2026-03-11')[0]).toMatchObject({ kind: 'subscription', state: 'done' });
   });
 
+  it('reads the whole schedule of a loan, so paid installments of earlier months show too', () => {
+    const installments = [
+      { isPaid: true, dueDate: '2026-01-10', totalAmount: 100, paidAmount: 90 },
+      { isPaid: true, dueDate: '2026-02-10', totalAmount: 100 },
+      { isPaid: false, dueDate: '2026-03-10', totalAmount: 120 },
+    ];
+    const loans = [{ id: 'l1', title: 'Car loan', installments }];
+    const events = calendarEvents({ today: '2026-03-01', from: '2026-01-01', to: '2026-03-31', loans });
+    expect([...events.keys()]).toEqual(['2026-01-10', '2026-02-10', '2026-03-10']);
+    expect(events.get('2026-01-10')[0]).toMatchObject({ kind: 'loan', state: 'done', amount: 90 });
+    expect(events.get('2026-02-10')[0]).toMatchObject({ state: 'done', amount: 100 });
+    expect(events.get('2026-03-10')[0]).toMatchObject({ state: 'upcoming', amount: 120 });
+  });
+
   it('keeps what is owed past its day as overdue, and lists open things before finished ones', () => {
     const now = { today: '2026-03-20', from: '2026-03-01', to: '2026-03-31' };
     const events = calendarEvents({ ...now, cheques: [cheque({ dueDate: '2026-03-05' }), cheque({ id: 'c2', status: 'cleared', dueDate: '2026-03-05' })] });
