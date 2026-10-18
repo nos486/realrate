@@ -58,6 +58,32 @@ describe('the calendar day card', () => {
   });
 });
 
+describe('the calendar at each height', () => {
+  const at = (height) => render(<MemoryRouter><CalendarWidget widget={{ height, config: {} }} /></MemoryRouter>).container;
+
+  it('shows everything when tall: month, legend and the list', () => {
+    const c = at(3);
+    expect(c.querySelector('.dash-cal-legend')).toBeTruthy();
+    expect(c.querySelector('.dash-cal-agenda')).toBeTruthy();
+    expect(c.querySelector('.dash-cal.is-cozy')).toBeNull();
+  });
+
+  it('shows the month alone when medium', () => {
+    const c = at(2);
+    expect(c.querySelectorAll('.dash-cal-day').length).toBeGreaterThanOrEqual(29);
+    expect(c.querySelector('.dash-cal.is-cozy')).toBeTruthy();
+    expect(c.querySelector('.dash-cal-legend')).toBeNull();
+    expect(c.querySelector('.dash-cal-agenda')).toBeNull();
+  });
+
+  it('shows a week and the next thing due when short', () => {
+    const c = at(1);
+    expect(c.querySelectorAll('.dash-cal-strip .dash-cal-day')).toHaveLength(7);
+    expect(c.querySelector('.dash-cal-grid')).toBeNull();
+    expect(c.querySelector('.dash-cal-list.is-next')?.textContent).toContain('Car');
+  });
+});
+
 describe('the calendar agenda style', () => {
   it('lists the coming events day by day instead of a month grid', () => {
     const { container } = render(<MemoryRouter><CalendarWidget widget={{ config: { style: 'agenda' } }} /></MemoryRouter>);
