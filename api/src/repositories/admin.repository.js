@@ -8,6 +8,7 @@
 
 import { ensureSchema } from "./schema.repository.js";
 import { logger } from "../lib/logger.js";
+import { tehranDay } from "./priceHistory.repository.js";
 import { compareVersions } from "../domain/clientInfo.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -148,7 +149,7 @@ export async function dbGetUserStats(env, { now = Date.now() } = {}) {
              (SELECT COUNT(*) FROM client_activity WHERE platform = 'android' AND day = ?) AS appActiveToday,
              (SELECT COUNT(DISTINCT user_id) FROM client_activity WHERE platform = 'android' AND day >= ?) AS appActive30,
              ${parts.join(",\n             ")}
-    `).bind(today, today, recentDay, ...params).first();
+    `).bind(tehranDay(now), today, recentDay, ...params).first();
     // The app's versions in use (by users seen in the last CLIENT_RECENT_DAYS days), newest first
     const { results: versionRows = [] } = await env.DB.prepare(`
       SELECT app_version AS version, COUNT(*) AS users FROM user_clients
@@ -211,7 +212,7 @@ export async function dbGetUserDetail(env, userId, { now = Date.now() } = {}) {
            (SELECT COUNT(*) FROM sessions WHERE user_id = ?1 AND expires_at > ?2) AS activeSessions,
            (SELECT COUNT(*) FROM user_vaults WHERE user_id = ?1) AS vaultEnabled,
            (SELECT COUNT(*) FROM user_activity WHERE user_id = ?1 AND day >= ?3) AS activeDays30
-  `).bind(userId, now, new Date(now - 29 * DAY_MS).toISOString().slice(0, 10)).first();
+  `).bind(userId, now, tehranDay(now - 29 * DAY_MS)).first();
 
   // How many records of each kind (all encrypted: the counts, never the contents)
   const usage = { portfolios: Number(usageRow?.portfolios) || 0, ...Object.fromEntries(Object.values(VAULT_KIND_KEYS).map((key) => [key, 0])) };

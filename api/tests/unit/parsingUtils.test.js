@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { extractValueByPath } from "../../src/services/market/sources/parsingUtils.js";
+import { extractValueByPath, normalizeDigits } from "../../src/services/market/sources/parsingUtils.js";
 import { apiUrlSourceAdapter } from "../../src/services/market/sources/apiUrl.source.adapter.js";
 
 describe("parsingUtils — extractValueByPath with predicate filtering", () => {
@@ -160,3 +160,10 @@ describe("parsingUtils — extractValueByPath with predicate filtering", () => {
 });
 
 
+
+describe("parsingUtils — normalizeDigits", () => {
+  it("turns every Persian and Arabic-Indic digit into ASCII", () => {
+    expect(normalizeDigits("۰۱۲۳۴۵۶۷۸۹")).toBe("0123456789");
+    expect(normalizeDigits("٠١٢٣٤٥٦٧٨٩")).toBe("0123456789");
+  });
+});

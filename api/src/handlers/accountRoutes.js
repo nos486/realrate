@@ -18,7 +18,7 @@
  */
 
 import { assertNotMaintenance } from "../lib/maintenance.js";
-import { getAuthenticatedUser, isUserAdmin } from "../lib/auth.js";
+import { getAuthenticatedUser, isUserAdmin, readSessionToken } from "../lib/auth.js";
 import {
   dbGetUserAuthByEmail,
   dbGetUserAuthById,
@@ -362,7 +362,7 @@ export async function handleSetPassword(request, env) {
   }
 
   await dbSetUserPassword(env, userId, await hashPassword(password));
-  const currentToken = (request.headers.get("Authorization") || "").replace(/^Bearer\s+/, "").trim() || null;
+  const currentToken = readSessionToken(request) || null;
   const signedOut = await dbDeleteUserSessions(env, userId, { exceptToken: currentToken });
   await clearRateLimit(env, `pwchange:${userId}`);
 

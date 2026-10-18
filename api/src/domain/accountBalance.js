@@ -19,6 +19,7 @@
 import { CURRENCY_CODES, BASE_CURRENCY, normalizeCurrency, currencyRateToday } from './currencies.js';
 import { accountCurrencies } from './accountDocument.js';
 import { t } from './i18n.js';
+import { isValidIsoDate } from './isoDate.js';
 
 /** The largest balance accepted, in one currency's units */
 export const BALANCE_LIMIT = 1e13;
@@ -46,7 +47,7 @@ export function validateBalance(body, currencies, { today, now }) {
     if (!Number.isFinite(value) || Math.abs(value) > BALANCE_LIMIT) return { error: t('موجودی حساب نامعتبر است.') };
     amounts[code] = round2(value);
   }
-  const startDate = DATE_RE.test(String(body.startDate || '')) ? body.startDate : today;
+  const startDate = isValidIsoDate(String(body.startDate || '')) ? body.startDate : today;
   const startAt = Number.isFinite(Date.parse(body.startAt)) ? new Date(body.startAt).toISOString() : now;
   return { value: { amounts, startDate, startAt } };
 }

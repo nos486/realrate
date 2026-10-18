@@ -21,6 +21,14 @@ describe('loan document', () => {
     expect(buildLoanView(res.doc).remainingBalance).toBe(0);
   });
 
+  it('a second extra payment starts from the balance the first one left', () => {
+    let doc = createLoanDoc({ id: 'loan_x2', title: 'x', principalAmount: 12_000_000, annualInterestRate: 0, installmentCount: 12, startDate: '1404-01-01' });
+    doc = addExtraPaymentDoc(doc, { amount: 5_000_000, paymentDate: '1404-01-10' }).doc;
+    const res = addExtraPaymentDoc(doc, { amount: 7_000_000, paymentDate: '1404-01-11' });
+    expect(res.extraPayment.resultingBalance).toBe(0);
+    expect(res.fullyPaidOff).toBe(true);
+  });
+
   it('create validation matches the API', () => {
     expect(() => createLoanDoc({ principalAmount: 1, installmentCount: 1 })).toThrow('عنوان وام الزامی است.');
     expect(() => createLoanDoc({ title: 'x', installmentCount: 1 })).toThrow('مبلغ اصل وام');

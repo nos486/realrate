@@ -640,9 +640,14 @@ export function addExtraPaymentDoc(doc, { amount, paymentDate, reductionMode = "
 
   const paidInstallments = view.installments.filter((inst) => inst.isPaid);
   const paidCount = paidInstallments.length;
-  const currentBalance = paidCount > 0
-    ? Number(paidInstallments[paidCount - 1].remainingBalanceAfter) || 0
-    : view.principalAmount;
+  // After the last paid installment, less the extra payments already made since it (the smallest
+  // balance they left, whatever the order of their dates)
+  const sinceLastPaid = (doc.extraPayments || []).filter((e) => e.anchorInstallmentNumber === paidCount);
+  const currentBalance = sinceLastPaid.length
+    ? Math.min(...sinceLastPaid.map((e) => Number(e.resultingBalance) || 0))
+    : paidCount > 0
+      ? Number(paidInstallments[paidCount - 1].remainingBalanceAfter) || 0
+      : view.principalAmount;
 
   const resultingBalance = Math.max(0, currentBalance - payAmount);
   const fullyPaidOff = resultingBalance === 0;

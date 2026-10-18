@@ -18,6 +18,7 @@
  */
 
 import { t } from './i18n.js';
+import { isValidIsoDate } from './isoDate.js';
 
 export const TRANSFER_LIMITS = {
   notesLength: 300,
@@ -27,7 +28,6 @@ export const TRANSFER_LIMITS = {
 };
 
 const ID_RE = /^[A-Za-z0-9_-]{1,80}$/;
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const text = (v) => String(v ?? '').trim();
 
 /**
@@ -49,7 +49,7 @@ export function validateTransfer(body = {}) {
   if (fee < 0 || fee > amount) return { error: t('کارمزد نامعتبر است.') };
 
   const date = text(body.date);
-  if (!DATE_RE.test(date) || Number.isNaN(Date.parse(`${date}T00:00:00Z`))) return { error: t('تاریخ انتقال نامعتبر است.') };
+  if (!isValidIsoDate(date)) return { error: t('تاریخ انتقال نامعتبر است.') };
 
   const notes = text(body.notes);
   if (notes.length > TRANSFER_LIMITS.notesLength) return { error: t('یادداشت نباید بیشتر از {notesLength} کاراکتر باشد.', { notesLength: TRANSFER_LIMITS.notesLength }) };

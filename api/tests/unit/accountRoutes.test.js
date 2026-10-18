@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('../../src/lib/auth.js', () => ({
   getAuthenticatedUser: vi.fn(),
   isUserAdmin: (email) => email === 'admin@example.com',
+  readSessionToken: (request) => (request.headers.get('Authorization') || '').replace(/^Bearer\s+/, '').trim() || null,
 }));
 
 vi.mock('../../src/repositories/index.js', () => ({

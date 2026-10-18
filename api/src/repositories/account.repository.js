@@ -130,11 +130,11 @@ export async function dbConsumeAuthToken(env, token, purpose) {
   if (!token || typeof token !== "string" || token.length > 200) return null;
   await ensureSchema(env);
   const tokenHash = await sha256Hex(token);
+  // One statement, so two parallel requests with the same token cannot both use it up
   const row = await env.DB.prepare(`
-    SELECT user_id AS userId, purpose, expires_at AS expiresAt FROM auth_tokens WHERE token_hash = ?
-  `).bind(tokenHash).first();
-  if (!row || row.purpose !== purpose) return null;
-  await env.DB.prepare(`DELETE FROM auth_tokens WHERE token_hash = ?`).bind(tokenHash).run();
+    DELETE FROM auth_tokens WHERE token_hash = ? AND purpose = ? RETURNING user_id AS userId, expires_at AS expiresAt
+  `).bind(tokenHash, purpose).first();
+  if (!row) return null;
   return Number(row.expiresAt) > Date.now() ? row.userId : null;
 }
 

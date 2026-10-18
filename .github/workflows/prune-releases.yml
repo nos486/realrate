@@ -39,7 +39,7 @@ jobs:
           [ "$KEEP" -ge 1 ] || { echo "keep must be at least 1"; exit 1; }
           # Newest first (by creation date); everything after the first $KEEP goes
           gh release list --repo "$GITHUB_REPOSITORY" --limit 1000 --json tagName,createdAt \
-            --jq 'sort_by(.createdAt) | reverse | .['"$KEEP"':][].tagName' > old.txt
+            --jq 'map(select(.tagName | startswith("v"))) | sort_by(.createdAt) | reverse | .['"$KEEP"':][].tagName' > old.txt
           echo "Keeping the newest $KEEP; $(wc -l < old.txt) older releases:"
           cat old.txt
           [ "$DRY_RUN" = "true" ] && exit 0

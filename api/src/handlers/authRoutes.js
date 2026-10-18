@@ -296,6 +296,10 @@ export async function handleGoogleCallback(request, env) {
       } catch {}
     }
 
+    // An address Google has not verified proves nothing about its owner
+    if (userInfo && (userInfo.email_verified === false || userInfo.email_verified === "false")) {
+      return Response.redirect(finishTarget({ auth_error: "ایمیل حساب گوگل تأیید نشده است." }), 302);
+    }
     const email = (userInfo?.email || "").toLowerCase().trim();
     if (!email) {
       const errorTarget = finishTarget({
@@ -414,6 +418,9 @@ export async function handleGoogleAuth(request, env) {
       }
     }
 
+    if (payload.email_verified === false || payload.email_verified === "false") {
+      return errorResponse("ایمیل حساب گوگل تأیید نشده است.", 401, request);
+    }
     const email = (payload.email || "").toLowerCase().trim();
     if (!email) {
       return errorResponse("ایمیل از حساب گوگل دریافت نشد.", 400, request);
