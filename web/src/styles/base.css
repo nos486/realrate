@@ -1001,10 +1001,25 @@ input.search-bar-input:focus-visible {
   max-width: 100%;
 }
 
-/* Tablets and small laptops: the section tabs don't all fit with their names, so only the active
-   tab keeps its label and the rest are icons (each still has its name as title and aria-label).
-   Everything then fits without a hidden horizontal scroll. */
-@media (max-width: 1360px) {
+/* The section tabs don't all fit with their names unless the bar is wide, so below that width
+   (measured on the bar itself, not the window, so the side padding and the language's longer
+   names don't matter) only the active tab keeps its label and the rest are icons (each still has
+   its name as title and aria-label). Where even icons don't fit, the pills scroll sideways inside
+   the bar instead of pushing the page wider. */
+.main-nav-container {
+  container-type: inline-size;
+}
+
+.main-nav-tabs-bar .ui-filter-pills.variant-segmented {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.main-nav-tabs-bar .ui-filter-pills.variant-segmented::-webkit-scrollbar {
+  display: none;
+}
+
+@container (max-width: 1560px) {
   .main-nav-tabs-bar .ui-filter-pills.variant-segmented .filter-pill-btn:not(.active) {
     padding: 0 11px;
   }
