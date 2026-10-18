@@ -363,26 +363,29 @@ export function sanitizeWidgets(raw) {
   return out;
 }
 
-const preset = (type) => ({ type });
+const preset = (type, extra = {}) => ({ type, ...extra });
 
 /**
- * What a user who never arranged the page sees, per screen. A widget without a column goes under
- * the shortest one at its turn (layoutColumns), so the order is what fills every column evenly,
- * also when some of the widgets are not shown to the user (no news in English).
+ * Every widget, in the order that spreads them evenly: a widget without a column goes under the
+ * shortest one at its turn (layoutColumns), so the same list fills 4, 3 or 2 columns, also when
+ * some are not shown to the user (no news in English, no bank messages on the website)
+ */
+const EVERYTHING = [
+  preset("clock"), preset("month", { height: 2 }), preset("rate_list", { height: 2, config: { assetIds: ["USD", "USDT", "ons_gold", "oil_brent"] } }),
+  preset("ai_analysis", { height: 4 }), preset("calendar", { height: 4 }), preset("expenses_latest", { height: 3 }),
+  preset("goals", { height: 1 }), preset("shortcuts", { height: 2 }), preset("news", { height: 3 }),
+  preset("market", { height: 4 }), preset("alerts", { height: 1 }), preset("loans", { height: 2 }),
+  preset("rates", { height: 1 }), preset("plan", { height: 1 }), preset("sms", { height: 1 }),
+];
+
+/**
+ * What a user who never arranged the page sees, per screen: every widget on the website, for the
+ * user to keep what they want; the app frame (one long column) starts with the essentials
  */
 export const DEFAULT_DASHBOARD = {
-  wide: [
-    preset("ai_analysis"), preset("month"), preset("news"), preset("expenses_latest"), preset("alerts"),
-    preset("loans"), preset("rates"), preset("goals"), preset("plan"),
-  ],
-  desktop: [
-    preset("alerts"), preset("month"), preset("rates"), preset("news"), preset("ai_analysis"),
-    preset("expenses_latest"), preset("goals"), preset("loans"), preset("plan"),
-  ],
-  tablet: [
-    preset("ai_analysis"), preset("month"), preset("news"), preset("alerts"), preset("rates"),
-    preset("expenses_latest"), preset("goals"), preset("loans"), preset("plan"),
-  ],
+  wide: EVERYTHING,
+  desktop: EVERYTHING,
+  tablet: EVERYTHING,
   mobile: [
     preset("rates"), preset("month"), preset("sms"), preset("alerts"), preset("plan"),
     preset("goals"), preset("news"), preset("expenses_latest"),
