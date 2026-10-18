@@ -28,7 +28,9 @@ import { moneyText } from '../dashboardFormat.js';
 
 const DAY_MS = 86_400_000;
 
-export default function MonthWidget() {
+export default function MonthWidget({ widget }) {
+  const compact = widget.config?.style === 'compact';
+  const showComparison = widget.config?.comparison !== false;
   const { usdToman, open } = useDashboardData();
   const expenseCategories = useCategories('expense', { includeHidden: true });
   const incomeCategories = useCategories('income', { includeHidden: true });
@@ -91,7 +93,7 @@ export default function MonthWidget() {
   const money = (v) => moneyText(v, hideValues);
 
   return (
-    <section className="app-home-hero dash-month" aria-label={t('خلاصه‌ی {month}', { month: formatShamsiMonth(month.jy, month.jm) })}>
+    <section className={`app-home-hero dash-month${compact ? ' is-compact' : ''}`} aria-label={t('خلاصه‌ی {month}', { month: formatShamsiMonth(month.jy, month.jm) })}>
       <div className="app-home-hero-top">
         <span className="app-home-month-nav">
           <button type="button" className="app-home-month-btn" onClick={() => setPicked({ for: starts, month: shiftShamsiMonth(month, -1) })} aria-label={t('ماه قبل')}>
@@ -102,7 +104,7 @@ export default function MonthWidget() {
             <ChevronLeft size={16} />
           </button>
         </span>
-        {change !== null && !loading && (
+        {showComparison && change !== null && !loading && (
           <span className={`app-home-change ${change > 0 ? 'is-up' : 'is-down'}`}>
             {change > 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
             {change > 0 ? t('{n}٪ بیشتر از ماه قبل', { n: moneyText(Math.abs(change)) }) : t('{n}٪ کمتر از ماه قبل', { n: moneyText(Math.abs(change)) })}

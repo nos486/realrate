@@ -18,14 +18,14 @@ afterEach(cleanup);
 
 describe('the clock widget', () => {
   it('shows the time and today\'s date', () => {
-    const { container } = render(<ClockWidget />);
+    const { container } = render(<ClockWidget widget={{ config: {} }} />);
     expect(container.querySelector('time')?.textContent).toMatch(/[\d۰-۹]{2}:[\d۰-۹]{2}/);
     expect(container.querySelector('.dash-clock-date')?.textContent).toBeTruthy();
   });
 });
 
 describe('the calendar widget', () => {
-  const view = () => render(<MemoryRouter><CalendarWidget /></MemoryRouter>);
+  const view = () => render(<MemoryRouter><CalendarWidget widget={{ config: {} }} /></MemoryRouter>);
 
   it('draws the month with a dot on a day a goal falls due', () => {
     const { container } = view();
@@ -43,6 +43,19 @@ describe('the calendar widget', () => {
   });
 });
 
+describe('the calendar agenda style', () => {
+  it('lists the coming events day by day instead of a month grid', () => {
+    const { container } = render(<MemoryRouter><CalendarWidget widget={{ config: { style: 'agenda' } }} /></MemoryRouter>);
+    expect(container.querySelector('.dash-cal-grid')).toBeNull();
+    expect(screen.getAllByText('Car').length).toBeGreaterThan(0);
+  });
+
+  it('marks only the kinds the user chose', () => {
+    const { container } = render(<MemoryRouter><CalendarWidget widget={{ config: { kinds: ['loan'] } }} /></MemoryRouter>);
+    expect(container.querySelectorAll('.dash-cal-dot.is-goal')).toHaveLength(0);
+  });
+});
+
 describe('the favorite rates widget', () => {
   it('always draws four tiles, the unchosen ones empty', async () => {
     vi.resetModules();
@@ -51,5 +64,14 @@ describe('the favorite rates widget', () => {
     const { container } = render(<RateListWidget widget={{ config: { assetIds: ['usd'] } }} editing={false} />);
     expect(container.querySelectorAll('.dash-rate-tile')).toHaveLength(4);
     expect(container.querySelectorAll('.dash-rate-tile.is-empty')).toHaveLength(4);
+    expect(container.querySelector('.dash-rate-list.is-grid')).toBeTruthy();
+  });
+
+  it('draws rows in the list style', async () => {
+    vi.resetModules();
+    vi.doMock('../../../web/src/features/market/context/PricingContext.jsx', () => ({ usePricing: () => ({ itemMap: {} }) }));
+    const { default: RateListWidget } = await import('../../../web/src/features/dashboard/widgets/RateListWidget.jsx');
+    const { container } = render(<RateListWidget widget={{ config: { style: 'list', assetIds: [] } }} editing={false} />);
+    expect(container.querySelector('.dash-rate-list.is-list')).toBeTruthy();
   });
 });

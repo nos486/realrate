@@ -168,6 +168,7 @@ export default function Dashboard({ usdToman = 0, analysis = [], currencies = []
 
         <WidgetPicker isOpen={pickerOpen} onClose={() => setPickerOpen(false)} widgets={widgets} canSee={canSee} onAdd={handleAdd} />
         <WidgetSettings
+          key={settingsWidget?.id || 'none'}
           widget={settingsWidget}
           onClose={() => setSettingsId(null)}
           onChange={(config) => setWidgets(configureWidget(widgets, settingsWidget.id, config))}

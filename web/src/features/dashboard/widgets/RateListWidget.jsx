@@ -1,7 +1,8 @@
 /**
  * RateListWidget.jsx — «نرخ‌های دلخواه»: up to four market assets the user picked (the widget's
- * `assetIds` option) as a 2×2 grid of tiles — name, price and the last change — that fills the
- * widget with no scrolling. An empty tile is a button that opens the picker.
+ * `assetIds` option) as a 2×2 grid of tiles or as a list of rows (the `style` setting) — name, price and the
+ * last change — that fills the widget with no scrolling. An empty slot is a button that opens
+ * the picker.
  */
 
 import { intlLocale, t } from '../../../utils/i18n.js';
@@ -26,15 +27,17 @@ export default function RateListWidget({ widget, editing, onConfigure }) {
     [assetIds, index],
   );
   const tiles = [...assets, ...Array(SLOTS - assets.length).fill(null)];
+  const style = widget.config?.style || 'grid';
+  const showChange = widget.config?.change !== false;
 
   return (
     <WidgetCard title={t('نرخ‌های دلخواه')} Icon={List}>
-      <div className="dash-rate-list">
+      <div className={`dash-rate-list is-${style}`}>
         {tiles.map((asset, i) => asset ? (
           <div key={asset.id} className="dash-rate-tile">
             <small>{asset.name}</small>
             <strong>{asset.currency === 'usd' ? <bdi>${formatPrice(asset.price, 'usd')}</bdi> : formatPrice(asset.price)}</strong>
-            {asset.changePercent !== null && Math.abs(asset.changePercent) >= 0.01 && (
+            {showChange && asset.changePercent !== null && Math.abs(asset.changePercent) >= 0.01 && (
               <em className={asset.changePercent > 0 ? 'is-up' : 'is-down'}>
                 {asset.changePercent > 0 ? '▲' : '▼'} {Math.abs(asset.changePercent).toLocaleString(intlLocale(), { maximumFractionDigits: 2 })}{t('٪')}
               </em>

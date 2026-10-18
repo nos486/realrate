@@ -27,6 +27,7 @@ export default function LoansWidget({ widget }) {
   const { loans, loadingLoans } = useLoans();
   const today = todayIso();
   const count = widget.config?.count || 3;
+  const balance = widget.config?.balance !== false;
   const rows = useMemo(
     () => loans
       .filter((loan) => !isLoanCompleted(loan))
@@ -56,7 +57,7 @@ export default function LoansWidget({ widget }) {
                       : (loan.lenderName || '—')}
                   </small>
                 </span>
-                <span className="app-home-row-amount">{moneyText(loan.remainingBalance, hideValues)}</span>
+                {balance && <span className="app-home-row-amount">{moneyText(loan.remainingBalance, hideValues)}</span>}
               </button>
             </li>
           );

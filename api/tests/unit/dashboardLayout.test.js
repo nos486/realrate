@@ -162,3 +162,28 @@ describe('storage', () => {
     expect(ACCOUNT_KINDS).toContain('dashboard_layout');
   });
 });
+
+describe('widget settings', () => {
+  const config = (widget) => sanitizeWidgets([widget])[0].config;
+
+  it('keeps a valid style and falls back to the default for another', () => {
+    expect(config({ type: 'clock', config: { style: 'analog' } }).style).toBe('analog');
+    expect(config({ type: 'clock', config: { style: 'nope' } }).style).toBe('digital');
+    expect(config({ type: 'rate_list' }).style).toBe('grid');
+  });
+
+  it('keeps a switch only as a boolean, else its default', () => {
+    expect(config({ type: 'clock', config: { seconds: true, gregorian: 'x' } })).toMatchObject({ seconds: true, gregorian: true });
+    expect(config({ type: 'month' }).comparison).toBe(true);
+  });
+
+  it('keeps a subset of a multi choice in its own order, never an empty one', () => {
+    expect(config({ type: 'alerts', config: { sources: ['subscription', 'loan', 'x'] } }).sources).toEqual(['loan', 'subscription']);
+    expect(config({ type: 'alerts', config: { sources: [] } }).sources).toEqual(['loan', 'cheque', 'subscription']);
+    expect(config({ type: 'calendar', config: { kinds: ['goal'] } }).kinds).toEqual(['goal']);
+  });
+
+  it('drops a setting the widget does not declare', () => {
+    expect(config({ type: 'plan', config: { style: 'grid', seconds: true } })).toEqual({});
+  });
+});
