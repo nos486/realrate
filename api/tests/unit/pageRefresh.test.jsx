@@ -327,9 +327,10 @@ describe('coming back from the background', () => {
 describe('the tabs and what they read', () => {
   it('names the scopes of each tab', () => {
     expect(refreshScopesOf('news')).toEqual(['news']);
-    expect(refreshScopesOf('market')).toEqual(['prices', 'news']);
-    expect(refreshScopesOf('market', { hasMarket: false })).toEqual(['news']);
-    expect(refreshScopesOf('market', { appLayout: true })).toEqual(['prices', 'news', 'incomes', 'expenses']);
+    // The home is the widget dashboard: the dollar is shown to every user
+    expect(refreshScopesOf('market')).toEqual(['prices', 'news', 'incomes', 'expenses']);
+    expect(refreshScopesOf('market', { hasMarket: false })).toEqual(['prices', 'news', 'incomes', 'expenses']);
+    expect(refreshScopesOf('rates', { hasMarket: false })).toEqual([]);
     expect(refreshScopesOf('portfolio', { hasMarket: false })).toContain('prices');
     expect(refreshScopesOf('loans')).toEqual(['loans']);
     expect(refreshScopesOf('settings')).toEqual([]);

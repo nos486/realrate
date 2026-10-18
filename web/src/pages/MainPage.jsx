@@ -2,11 +2,10 @@ import { hasNews as localeHasNews, t } from '../utils/i18n.js';
 import React, { useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import ErrorBoundary from '../shared/ui/ErrorBoundary.jsx';
-import { TrendingUp, Briefcase, ShieldCheck, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards, Smartphone, MessageSquareText, FolderKanban, Newspaper, ChartColumn, CalendarSync, Crown, Compass, Target } from 'lucide-react';
+import { TrendingUp, Briefcase, ShieldCheck, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards, Smartphone, MessageSquareText, FolderKanban, Newspaper, ChartColumn, CalendarSync, Crown, Compass, Target, Home } from 'lucide-react';
 import { AppLayout, FilterPills, AlertBanner, Button } from '../shared/ui/index.js';
 import { PriceRefreshStatus } from '../features/market/components/index.js';
 import HomeDashboard from '../features/home/HomeDashboard.jsx';
-import NewsCard from '../features/news/NewsCard.jsx';
 // Imported from its own file (not the loans barrel) so LoansPage stays in its lazy chunk
 import AlertStack from '../shared/alerts/AlertStack.jsx';
 import AppAlertSources from '../shared/alerts/AppAlertSources.jsx';
@@ -54,7 +53,7 @@ const ReportsPage = lazy(() => import('../features/reports/ReportsPage.jsx'));
 const ExplorePage = lazy(() => import('../features/explore/ExplorePage.jsx'));
 const ProPage = lazy(() => import('../features/pro/ProPage.jsx'));
 // The Android app's home (its own month at a glance); the website's home is the market
-const AppHomeDashboard = lazy(() => import('../features/home/AppHomeDashboard.jsx'));
+const Dashboard = lazy(() => import('../features/dashboard/Dashboard.jsx'));
 
 /** What the news give, shown to users without them (FeatureOffer) */
 const NEWS_BENEFITS = [
@@ -232,8 +231,8 @@ export default function MainPage() {
   // Free and Pro side by side: the «Pro» button and every free-plan limit lead here
   const isProPage = Boolean(user) && subPath.startsWith(PRO_PATH);
 
-  // App frame: the market has its own page (the home is the user's own dashboard)
-  const isRates = appLayout && subPath.startsWith('/rates');
+  // The market has its own page; the home is the user's own widget dashboard
+  const isRates = subPath.startsWith('/rates');
 
   const isLoans =
     !isSettings && !isIncomes && !isCheques && !isExpenses && !isAccounts && !isPortfolio && (
@@ -264,7 +263,7 @@ export default function MainPage() {
 
   // The header's refresh button, the window getting focus again and opening the tab again read
   // only what this tab shows (shared/refresh): never the prices on the news tab, never on a timer
-  usePageScopes(refreshScopesOf(activeTab, { appLayout, hasMarket }), activeTab);
+  usePageScopes(refreshScopesOf(activeTab, { hasMarket }), activeTab);
   useEffect(() => startFocusRefresh(), []);
 
   const tabTitle = useMemo(() => {
@@ -304,23 +303,13 @@ export default function MainPage() {
       case 'pro':
         return t('پلن رایگان و Pro | RealRate');
       default:
-        return t('داشبورد بازار | RealRate');
+        return t('خانه | RealRate');
     }
   }, [activeTab]);
 
   useDocumentTitle(tabTitle);
 
   const goToTab = useTabNavigation(activeTab === 'market', appPath('/'));
-
-  // Website: without the market page, the app opens on the portfolio; «نرخ و حباب» (/rates) still
-  // shows what the market page offers
-  const marketLocked = Boolean(user) && !hasMarket;
-  const opensOnPortfolio = marketLocked && !appLayout && subPath === '/' && !searchParams.get('tab');
-  useEffect(() => {
-    if (opensOnPortfolio) navigate(lastPortfolioPath('/portfolio'), { replace: true });
-    // Only when it starts on the home path
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opensOnPortfolio]);
 
   // Old links to projects under /expenses (/expenses/projects, /expenses/:id) move to /projects
   useEffect(() => {
@@ -369,11 +358,7 @@ export default function MainPage() {
       if (!subPath.startsWith('/portfolio')) goToTab(lastPortfolioPath('/portfolio'));
     } else if (TAB_PATHS[nextTab]) {
       goToTab(appPath(TAB_PATHS[nextTab]));
-    // Website without the market page: /app opens the portfolio, so the offer is at /rates
-    } else if (nextTab === 'market' && marketLocked && !appLayout) {
-      goToTab(appPath('/rates'));
-    // On the website /rates is the home page too; in the app it is the market's own page
-    } else if (subPath !== '/' && (appLayout || subPath !== '/rates')) {
+    } else if (subPath !== '/') {
       goToTab(appPath('/'));
     }
   };
@@ -381,9 +366,9 @@ export default function MainPage() {
 
   const tabOptions = useMemo(() => {
     const options = [
-      { value: 'market', label: t('نرخ و حباب'), icon: <TrendingUp size={16} strokeWidth={2} /> },
-      // App frame: «خانه» is the dashboard, the market is one of the other sections
-      ...(appLayout ? [{ value: 'rates', label: t('نرخ و حباب'), icon: <TrendingUp size={16} strokeWidth={2} /> }] : []),
+      // «خانه» is the widget dashboard; the market (prices and bubbles) is one of the other sections
+      { value: 'market', label: t('خانه'), icon: <Home size={16} strokeWidth={2} /> },
+      { value: 'rates', label: t('نرخ و حباب'), icon: <TrendingUp size={16} strokeWidth={2} /> },
       ...(localeHasNews() ? [{ value: 'news', label: t('اخبار'), icon: <Newspaper size={16} strokeWidth={2} /> }] : []),
       { value: 'explore', label: t('کاوش بازار'), icon: <Compass size={16} strokeWidth={2} /> },
       { value: 'incomes', label: t('درآمدها'), icon: <Wallet size={16} strokeWidth={2} /> },
@@ -416,7 +401,7 @@ export default function MainPage() {
       );
     }
     return options;
-  }, [user, isDemo, isPro, hasExpenses, hasAccounts, appLayout]);
+  }, [user, isDemo, isPro, hasExpenses, hasAccounts]);
 
 
   const {
@@ -495,7 +480,7 @@ export default function MainPage() {
       )}
 
       {/* Only where prices are shown */}
-      {(appLayout ? ['rates', 'portfolio', 'explore'] : ['market', 'portfolio', 'explore']).includes(activeTab) && (hasMarket || activeTab === 'portfolio') && <PriceRefreshStatus />}
+      {['rates', 'portfolio', 'explore'].includes(activeTab) && (hasMarket || activeTab === 'portfolio') && <PriceRefreshStatus />}
 
       {/* Tab Views */}
       <section className="tab-view-container">
@@ -508,23 +493,28 @@ export default function MainPage() {
         {!isDemo && <PlanNote section={activeTab} />}
 
 
-        {/* Due-date alerts: on the home page, and each on its own page — not repeated on every
-            other page (the bell lists them all) */}
-        {activeTab === 'market' && <AlertStack sources={['loan', 'cheque', 'subscription']} />}
+        {/* Due-date alerts: on the home page they are a widget («یادآورها»), and each on its own
+            page — not repeated on every other page (the bell lists them all) */}
         {activeTab === 'loans' && <AlertStack sources={['loan']} />}
         {activeTab === 'cheques' && <AlertStack sources={['cheque']} />}
         {activeTab === 'subscriptions' && <AlertStack sources={['subscription']} />}
 
-        {activeTab === 'market' && appLayout && (
+        {/* The home: the user's widget dashboard (the website's and the app's each arranged on their own) */}
+        {activeTab === 'market' && (
           <Suspense fallback={<TabLoader />}>
-            <AppHomeDashboard usdToman={usdNum} analysis={analysis} onOpen={openFromHome} />
+            <Dashboard
+              usdToman={usdNum}
+              analysis={analysis}
+              currencies={currencies}
+              recommendation={recommendation}
+              marketLoading={marketLoading}
+              onOpen={openFromHome}
+            />
           </Suspense>
         )}
 
-        {activeTab === (appLayout ? 'rates' : 'market') && (
+        {activeTab === 'rates' && (
           <div className="market-tab-content">
-            {/* The website's home: the latest news above the market (the app's home has its own) */}
-            {!appLayout && <NewsCard className="is-web-home" />}
             {hasMarket ? (
               /* The user's own home page: sections of any assets, customizable per user */
               <HomeDashboard

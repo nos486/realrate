@@ -18,7 +18,8 @@
  *   banks.css           — Bank logos and bank picker
  *   donut-chart.css     — Shared donut (part-to-whole) chart card
  *   vault.css           — Account-wide end-to-end encryption settings
- *   home.css            — Customizable home page (sections, edit mode, asset picker)
+ *   home.css            — Customizable market sections (cards, edit mode, asset picker)
+ *   dashboard.css       — The home page: the widget grid, its edit mode and the widget picker
  *   alerts.css          — The alert center (bell, list) of shared/alerts
  *   incomes.css         — Incomes page, summary cards, category/monthly report
  *   reports.css         — Reports page, month bar chart, picking rows, move to project
@@ -61,6 +62,7 @@
 @import './donut-chart.css';
 @import './vault.css';
 @import './home.css';
+@import './dashboard.css';
 @import './alerts.css';
 @import './incomes.css';
 @import './cheques.css';

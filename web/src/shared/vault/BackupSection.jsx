@@ -40,6 +40,7 @@ const KIND_LABELS = {
   goal: t('هدف پس‌انداز'),
   recurring_income: t('درآمد تکرارشونده'),
   salary_month: t('روزهای دریافت حقوق'),
+  dashboard_layout: t('چیدمان ویجت‌های صفحه اصلی'),
 };
 
 export default function BackupSection() {
