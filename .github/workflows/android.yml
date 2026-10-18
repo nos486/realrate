@@ -14,7 +14,7 @@ name: Android
 on:
   push:
     branches: [main]
-    paths: ['web/**', 'api/src/domain/**', 'package-lock.json', '.github/workflows/android.yml', '.github/scripts/**', 'CHANGELOG.md']
+    paths: ['web/**', 'api/src/domain/**', 'api/src/config/**', 'api/src/lib/**', 'package-lock.json', '.github/workflows/android.yml', '.github/scripts/**', 'CHANGELOG.md']
   workflow_dispatch:
     inputs:
       apk:

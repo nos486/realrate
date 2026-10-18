@@ -123,8 +123,9 @@ export async function dbUpdatePortfolio(env, portfolioId, userId, { name, shareS
   }
 
   if (isDefault) {
-    // One default per user
-    await env.DB.prepare("UPDATE portfolios SET is_default = 0 WHERE user_id = ?").bind(userId).run();
+    // One default per user — only for a portfolio that is the user's own
+    const own = await env.DB.prepare("SELECT 1 AS ok FROM portfolios WHERE id = ? AND user_id = ?").bind(portfolioId, userId).first();
+    if (own) await env.DB.prepare("UPDATE portfolios SET is_default = 0 WHERE user_id = ?").bind(userId).run();
   }
 
   const updates = ["updated_at = ?"];
@@ -179,7 +180,7 @@ export async function dbDeletePortfolio(env, portfolioId, userId) {
 
   const countRow = await env.DB.prepare("SELECT COUNT(*) AS total FROM portfolios WHERE user_id = ?").bind(userId).first();
   if (countRow && countRow.total <= 1) {
-    throw new Error("امکان حذف تنها پورتفوی فعال وجود ندارد. هر کاربر باید حداقل یک پورتفو داشته باشد.");
+    throw AppError.badRequest("امکان حذف تنها پورتفوی فعال وجود ندارد. هر کاربر باید حداقل یک پورتفو داشته باشد.");
   }
 
   await env.DB.batch([
