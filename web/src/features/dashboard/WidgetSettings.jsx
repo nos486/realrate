@@ -1,6 +1,6 @@
 /**
  * WidgetSettings.jsx — The options of one widget (the catalog's `options`): how many rows to
- * list, or which market asset to show
+ * list, which market asset to show, or which ones (a list of rates)
  */
 
 import { intlLocale, t } from '../../utils/i18n.js';
@@ -26,6 +26,20 @@ export default function WidgetSettings({ widget, onClose, onChange }) {
         onToggle={(assetId) => {
           onChange({ assetId });
           onClose();
+        }}
+      />
+    );
+  }
+  if (spec.options?.assets) {
+    const chosen = widget.config?.assetIds || [];
+    return (
+      <AssetPickerModal
+        isOpen
+        onClose={onClose}
+        section={{ title: t(spec.title), items: chosen }}
+        onToggle={(assetId, add) => {
+          const next = add ? [...chosen, assetId] : chosen.filter((id) => id !== assetId);
+          onChange({ assetIds: next });
         }}
       />
     );

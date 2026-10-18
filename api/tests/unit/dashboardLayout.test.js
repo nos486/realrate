@@ -8,7 +8,7 @@ import { describe, it, expect } from 'vitest';
 import {
   WIDGET_CATALOG, WIDGET_GROUPS, WIDGET_TYPES, DASHBOARD_LIMITS, DEFAULT_DASHBOARD,
   sanitizeWidgets, sanitizeDashboard, defaultWidgets, widgetsOf, withScreen, canAddWidget,
-  addWidget, removeWidget, moveWidget, shiftWidget, resizeWidget, setWidgetHeight, configureWidget,
+  addWidget, removeWidget, moveWidget, shiftWidget, configureWidget,
 } from '../../src/domain/dashboardLayout.js';
 import { ACCOUNT_KINDS } from '../../../web/src/shared/vault/fullBackup.js';
 import { VAULT_RECORD_KINDS } from '../../src/repositories/vault.repository.js';
@@ -16,28 +16,18 @@ import { VAULT_RECORD_KINDS } from '../../src/repositories/vault.repository.js';
 const types = (widgets) => widgets.map((w) => w.type);
 
 describe('the catalog', () => {
-  it('lets every widget take all three sizes, so small and medium ones sit side by side', () => {
-    for (const type of WIDGET_TYPES) expect(WIDGET_CATALOG[type].sizes, type).toEqual([1, 2, 3]);
-  });
-
-  it('gives every widget a default height class', () => {
-    for (const type of WIDGET_TYPES) expect([1, 2, 3], type).toContain(WIDGET_CATALOG[type].defaultHeight);
-  });
-
-  it('puts every widget in a known group, with a default size it allows', () => {
+  it('puts every widget in a known group, ', () => {
     const groups = new Set(WIDGET_GROUPS.map((g) => g.id));
     for (const type of WIDGET_TYPES) {
       const spec = WIDGET_CATALOG[type];
       expect(groups.has(spec.group), type).toBe(true);
-      expect(spec.sizes, type).toContain(spec.defaultSize);
     }
   });
 
   it('only defaults to widgets that exist', () => {
     for (const list of Object.values(DEFAULT_DASHBOARD)) {
-      for (const { type, size } of list) {
+      for (const { type } of list) {
         expect(WIDGET_CATALOG[type], type).toBeTruthy();
-        expect(WIDGET_CATALOG[type].sizes, type).toContain(size);
       }
     }
   });
@@ -49,11 +39,11 @@ describe('sanitizeWidgets', () => {
     expect(types(out)).toEqual(['news', 'month']);
   });
 
-  it('makes sizes and options valid', () => {
-    const [news, month] = sanitizeWidgets([{ type: 'news', size: 9, config: { count: 4, extra: 1 } }, { type: 'month', size: 1 }]);
-    expect(news.size).toBe(3);
+  it('makes options valid and keeps no size (every widget is the same size)', () => {
+    const [news] = sanitizeWidgets([{ type: 'news', size: 9, height: 3, config: { count: 4, extra: 1 } }]);
+    expect(news.size).toBeUndefined();
+    expect(news.height).toBeUndefined();
     expect(news.config).toEqual({ count: 10 });
-    expect(month.size).toBe(1);
     expect(sanitizeWidgets([{ type: 'news', config: { count: 8 } }])[0].config).toEqual({ count: 8 });
   });
 
@@ -69,6 +59,14 @@ describe('sanitizeWidgets', () => {
     expect(out.every((w) => /^[A-Za-z0-9_-]{1,40}$/.test(w.id))).toBe(true);
   });
 
+  it('keeps a rate list\'s assets: valid ids only, no repeats, at most the limit', () => {
+    const ids = ['usd', 'usd', 'a b', 7, 'gold_18k'];
+    expect(sanitizeWidgets([{ type: 'rate_list', config: { assetIds: ids } }])[0].config.assetIds).toEqual(['usd', 'gold_18k']);
+    const many = Array.from({ length: DASHBOARD_LIMITS.rateListAssets + 5 }, (_, i) => `asset${i}`);
+    expect(sanitizeWidgets([{ type: 'rate_list', config: { assetIds: many } }])[0].config.assetIds).toHaveLength(DASHBOARD_LIMITS.rateListAssets);
+    expect(sanitizeWidgets([{ type: 'rate_list' }, { type: 'rate_list' }])).toHaveLength(2);
+  });
+
   it('keeps an asset id only when it looks like one', () => {
     expect(sanitizeWidgets([{ type: 'asset', config: { assetId: 'gold_18k' } }])[0].config.assetId).toBe('gold_18k');
     expect(sanitizeWidgets([{ type: 'asset', config: { assetId: 'a b' } }])[0].config.assetId).toBeUndefined();
@@ -81,22 +79,6 @@ describe('sanitizeWidgets', () => {
   });
 });
 
-describe('heights', () => {
-  it('uses the type\'s default when none (or an invalid one) is stored', () => {
-    const [a, b, c] = sanitizeWidgets([{ type: 'ai_analysis' }, { type: 'rates', height: 9 }, { type: 'month', height: 3 }]);
-    expect(a.height).toBe(WIDGET_CATALOG.ai_analysis.defaultHeight);
-    expect(b.height).toBe(WIDGET_CATALOG.rates.defaultHeight);
-    expect(c.height).toBe(3);
-  });
-
-  it('sets a height class, and a new widget starts at its default', () => {
-    const list = sanitizeWidgets([{ type: 'month' }]);
-    expect(setWidgetHeight(list, list[0].id, 1)[0].height).toBe(1);
-    expect(setWidgetHeight(list, list[0].id, 7)[0].height).toBe(WIDGET_CATALOG.month.defaultHeight);
-    expect(addWidget(list, 'goals')[1].height).toBe(WIDGET_CATALOG.goals.defaultHeight);
-  });
-});
-
 describe('a dashboard per screen', () => {
   it('starts from the default of a screen that was never arranged', () => {
     expect(types(widgetsOf(null, 'desktop'))).toEqual(types(defaultWidgets('desktop')));
@@ -105,7 +87,7 @@ describe('a dashboard per screen', () => {
   });
 
   it('arranges one screen without touching the other', () => {
-    const doc = withScreen(null, 'mobile', [{ type: 'rates', size: 3 }]);
+    const doc = withScreen(null, 'mobile', [{ type: 'rates' }]);
     expect(types(doc.mobile)).toEqual(['rates']);
     expect(doc.desktop).toBeNull();
     expect(types(widgetsOf(doc, 'desktop'))).toEqual(types(defaultWidgets('desktop')));
@@ -133,7 +115,7 @@ describe('edits', () => {
     expect(canAddWidget(start, 'asset')).toBe(true);
     const next = addWidget(start, 'asset', { assetId: 'usd' });
     expect(types(next)).toEqual(['month', 'news', 'goals', 'asset']);
-    expect(next[3]).toMatchObject({ size: 1, config: { assetId: 'usd' } });
+    expect(next[3]).toMatchObject({ config: { assetId: 'usd' } });
     expect(types(addWidget(next, 'asset'))).toHaveLength(5);
   });
 
@@ -148,11 +130,8 @@ describe('edits', () => {
     expect(shiftWidget(start, c.id, 1)).toBe(start);
   });
 
-  it('resizes to a size the widget allows and sets its options', () => {
-    const [month, news] = start;
-    expect(resizeWidget(start, month.id, 3)[0].size).toBe(3);
-    expect(resizeWidget(start, month.id, 1)[0].size).toBe(1);
-    expect(resizeWidget(start, month.id, 9)[0].size).toBe(3);
+  it('sets its options', () => {
+    const [, news] = start;
     expect(configureWidget(start, news.id, { count: 5 })[1].config).toEqual({ count: 5 });
     expect(configureWidget(start, news.id, { count: 4 })[1].config).toEqual({ count: 10 });
   });
