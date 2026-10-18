@@ -153,9 +153,9 @@ describe('the calendar\'s look', () => {
     const { container } = render(<MemoryRouter><CalendarWidget widget={{ height: 3, config: {} }} /></MemoryRouter>);
     expect(container.querySelector('.dash-cal-title small')?.textContent).toMatch(/\d{1,2} \w{3} - \d{1,2} \w{3} \d{4}/);
     expect(container.querySelectorAll('.dash-cal-greg').length).toBeGreaterThanOrEqual(29);
-    const footer = container.querySelector('.dash-cal-selected');
-    expect(footer?.textContent).toContain('میلادی');
+    const before = container.querySelector('.dash-cal-selected')?.textContent;
+    expect(before).toContain('میلادی');
     fireEvent.click([...container.querySelectorAll('.dash-cal-day:not(.is-today)')].pop());
-    expect(container.querySelector('.dash-cal-selected')?.textContent).not.toBe(footer.textContent);
+    expect(container.querySelector('.dash-cal-selected')?.textContent).not.toBe(before);
   });
 });
