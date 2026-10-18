@@ -16,6 +16,10 @@ import { VAULT_RECORD_KINDS } from '../../src/repositories/vault.repository.js';
 const types = (widgets) => widgets.map((w) => w.type);
 
 describe('the catalog', () => {
+  it('lets every widget take all three sizes, so small and medium ones sit side by side', () => {
+    for (const type of WIDGET_TYPES) expect(WIDGET_CATALOG[type].sizes, type).toEqual([1, 2, 3]);
+  });
+
   it('puts every widget in a known group, with a default size it allows', () => {
     const groups = new Set(WIDGET_GROUPS.map((g) => g.id));
     for (const type of WIDGET_TYPES) {
@@ -45,7 +49,7 @@ describe('sanitizeWidgets', () => {
     const [news, month] = sanitizeWidgets([{ type: 'news', size: 9, config: { count: 4, extra: 1 } }, { type: 'month', size: 1 }]);
     expect(news.size).toBe(3);
     expect(news.config).toEqual({ count: 5 });
-    expect(month.size).toBe(2);
+    expect(month.size).toBe(1);
     expect(sanitizeWidgets([{ type: 'news', config: { count: 8 } }])[0].config).toEqual({ count: 8 });
   });
 
@@ -127,7 +131,8 @@ describe('edits', () => {
   it('resizes to a size the widget allows and sets its options', () => {
     const [month, news] = start;
     expect(resizeWidget(start, month.id, 3)[0].size).toBe(3);
-    expect(resizeWidget(start, month.id, 1)[0].size).toBe(2);
+    expect(resizeWidget(start, month.id, 1)[0].size).toBe(1);
+    expect(resizeWidget(start, month.id, 9)[0].size).toBe(3);
     expect(configureWidget(start, news.id, { count: 10 })[1].config).toEqual({ count: 10 });
     expect(configureWidget(start, news.id, { count: 4 })[1].config).toEqual({ count: 5 });
   });

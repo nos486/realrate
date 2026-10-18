@@ -43,7 +43,7 @@ export const WIDGET_CATALOG = {
     title: msg("خلاصه‌ی ماه"),
     description: msg("خرج، درآمد و باقی‌مانده‌ی ماه، با مقایسه با ماه قبل"),
     group: "money",
-    sizes: [2, 3], defaultSize: 2, unique: true, requires: "vault",
+    sizes: [1, 2, 3], defaultSize: 2, unique: true, requires: "vault",
   },
   expenses_latest: {
     title: msg("آخرین هزینه‌ها"),
@@ -69,7 +69,7 @@ export const WIDGET_CATALOG = {
     title: msg("یادآورها"),
     description: msg("اقساط، چک‌ها و اشتراک‌هایی که سررسیدشان نزدیک است"),
     group: "money",
-    sizes: [2, 3], defaultSize: 3, unique: true, requires: "vault",
+    sizes: [1, 2, 3], defaultSize: 3, unique: true, requires: "vault",
   },
   rates: {
     title: msg("نرخ‌های امروز"),
@@ -81,14 +81,14 @@ export const WIDGET_CATALOG = {
     title: msg("قیمت یک دارایی"),
     description: msg("قیمت و تغییر هر دارایی بازار که انتخاب کنید"),
     group: "market",
-    sizes: [1, 2], defaultSize: 1, requires: "market",
+    sizes: [1, 2, 3], defaultSize: 1, requires: "market",
     options: { asset: true },
   },
   market: {
     title: msg("نرخ و حباب"),
     description: msg("بخش‌های دلخواه بازار: طلا، سکه، ارز، بورس و حباب، با کارت‌های قابل تنظیم"),
     group: "market",
-    sizes: [3], defaultSize: 3, unique: true, requires: "market",
+    sizes: [1, 2, 3], defaultSize: 3, unique: true, requires: "market",
   },
   news: {
     title: msg("آخرین اخبار"),
