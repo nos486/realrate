@@ -57,21 +57,45 @@ describe('the calendar agenda style', () => {
 });
 
 describe('the favorite rates widget', () => {
-  it('always draws four tiles, the unchosen ones empty', async () => {
+  const book = {
+    usd: { id: 'usd', name: 'دلار', price: 100000, changePercent: 1.5, category: 'currency', unit: 'تومان', params: {} },
+    gold: { id: 'gold', name: 'طلا', price: 5000000, changePercent: -0.5, category: 'gold', unit: 'گرم', stale: true, params: {} },
+  };
+  const draw = async (config, editing = false, onConfigure) => {
     vi.resetModules();
-    vi.doMock('../../../web/src/features/market/context/PricingContext.jsx', () => ({ usePricing: () => ({ itemMap: {} }) }));
+    vi.doMock('../../../web/src/features/market/context/PricingContext.jsx', () => ({ usePricing: () => ({ itemMap: book }) }));
     const { default: RateListWidget } = await import('../../../web/src/features/dashboard/widgets/RateListWidget.jsx');
-    const { container } = render(<RateListWidget widget={{ config: { assetIds: ['usd'] } }} editing={false} />);
-    expect(container.querySelectorAll('.dash-rate-tile')).toHaveLength(4);
-    expect(container.querySelectorAll('.dash-rate-tile.is-empty')).toHaveLength(4);
-    expect(container.querySelector('.dash-rate-list.is-grid')).toBeTruthy();
+    return render(<RateListWidget widget={{ config }} editing={editing} onConfigure={onConfigure} />).container;
+  };
+
+  it('draws a tile per chosen asset with its price, unit and a coloured change', async () => {
+    const c = await draw({ assetIds: ['usd', 'gold'] });
+    expect(c.querySelectorAll('.dash-rate-tile')).toHaveLength(2);
+    expect(c.querySelector('.dash-rate-list').dataset.count).toBe('2');
+    expect(c.querySelector('.dash-rate-change.is-up')).toBeTruthy();
+    expect(c.querySelector('.dash-rate-change.is-down')).toBeTruthy();
+    expect(c.querySelector('.home-stale-mark')).toBeTruthy();
+    expect(c.querySelector('.dash-rate-list.is-grid')).toBeTruthy();
+  });
+
+  it('hides the change on request', async () => {
+    const c = await draw({ assetIds: ['usd'], change: false });
+    expect(c.querySelector('.dash-rate-change')).toBeNull();
+  });
+
+  it('shows free slots only while arranging, and asks for assets when there are none', async () => {
+    expect((await draw({ assetIds: ['usd'] })).querySelectorAll('.dash-rate-tile.is-empty')).toHaveLength(0);
+    cleanup();
+    const onConfigure = vi.fn();
+    const c = await draw({ assetIds: ['usd'] }, true, onConfigure);
+    expect(c.querySelectorAll('.dash-rate-tile.is-empty')).toHaveLength(3);
+    cleanup();
+    const empty = await draw({ assetIds: [] });
+    expect(empty.querySelector('.dash-rate-list')).toBeNull();
   });
 
   it('draws rows in the list style', async () => {
-    vi.resetModules();
-    vi.doMock('../../../web/src/features/market/context/PricingContext.jsx', () => ({ usePricing: () => ({ itemMap: {} }) }));
-    const { default: RateListWidget } = await import('../../../web/src/features/dashboard/widgets/RateListWidget.jsx');
-    const { container } = render(<RateListWidget widget={{ config: { style: 'list', assetIds: [] } }} editing={false} />);
-    expect(container.querySelector('.dash-rate-list.is-list')).toBeTruthy();
+    const c = await draw({ style: 'list', assetIds: ['usd'] });
+    expect(c.querySelector('.dash-rate-list.is-list')).toBeTruthy();
   });
 });

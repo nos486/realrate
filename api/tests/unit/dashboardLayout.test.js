@@ -52,12 +52,12 @@ describe('sanitizeWidgets', () => {
   });
 
   it('keeps one of a unique widget, and several of the others', () => {
-    const out = sanitizeWidgets([{ type: 'news' }, { type: 'news' }, { type: 'asset' }, { type: 'asset' }]);
-    expect(types(out)).toEqual(['news', 'asset', 'asset']);
+    const out = sanitizeWidgets([{ type: 'news' }, { type: 'news' }, { type: 'rate_list' }, { type: 'rate_list' }]);
+    expect(types(out)).toEqual(['news', 'rate_list', 'rate_list']);
   });
 
   it('gives every widget its own valid id', () => {
-    const out = sanitizeWidgets([{ id: 'w_a', type: 'asset' }, { id: 'w_a', type: 'asset' }, { id: 'bad id!', type: 'goals' }]);
+    const out = sanitizeWidgets([{ id: 'w_a', type: 'rate_list' }, { id: 'w_a', type: 'rate_list' }, { id: 'bad id!', type: 'goals' }]);
     expect(new Set(out.map((w) => w.id)).size).toBe(3);
     expect(out[0].id).toBe('w_a');
     expect(out.every((w) => /^[A-Za-z0-9_-]{1,40}$/.test(w.id))).toBe(true);
@@ -71,13 +71,13 @@ describe('sanitizeWidgets', () => {
     expect(sanitizeWidgets([{ type: 'rate_list' }, { type: 'rate_list' }])).toHaveLength(2);
   });
 
-  it('keeps an asset id only when it looks like one', () => {
-    expect(sanitizeWidgets([{ type: 'asset', config: { assetId: 'gold_18k' } }])[0].config.assetId).toBe('gold_18k');
-    expect(sanitizeWidgets([{ type: 'asset', config: { assetId: 'a b' } }])[0].config.assetId).toBeUndefined();
+  it('no longer has the single-asset widget: a stored one is dropped', () => {
+    expect(WIDGET_CATALOG.asset).toBeUndefined();
+    expect(sanitizeWidgets([{ type: 'asset', config: { assetId: 'usd' } }, { type: 'goals' }]).map((w) => w.type)).toEqual(['goals']);
   });
 
   it('limits the length', () => {
-    const many = Array.from({ length: DASHBOARD_LIMITS.widgets + 10 }, () => ({ type: 'asset' }));
+    const many = Array.from({ length: DASHBOARD_LIMITS.widgets + 10 }, () => ({ type: 'rate_list' }));
     expect(sanitizeWidgets(many)).toHaveLength(DASHBOARD_LIMITS.widgets);
     expect(sanitizeWidgets('x')).toEqual([]);
   });
@@ -132,11 +132,11 @@ describe('edits', () => {
   it('adds a widget at the end, and a unique one only once', () => {
     expect(canAddWidget(start, 'news')).toBe(false);
     expect(addWidget(start, 'news')).toBe(start);
-    expect(canAddWidget(start, 'asset')).toBe(true);
-    const next = addWidget(start, 'asset', { assetId: 'usd' });
-    expect(types(next)).toEqual(['month', 'news', 'goals', 'asset']);
-    expect(next[3]).toMatchObject({ config: { assetId: 'usd' } });
-    expect(types(addWidget(next, 'asset'))).toHaveLength(5);
+    expect(canAddWidget(start, 'rate_list')).toBe(true);
+    const next = addWidget(start, 'rate_list', { assetIds: ['usd'] });
+    expect(types(next)).toEqual(['month', 'news', 'goals', 'rate_list']);
+    expect(next[3]).toMatchObject({ config: { assetIds: ['usd'] } });
+    expect(types(addWidget(next, 'rate_list'))).toHaveLength(5);
   });
 
   it('removes, moves and shifts', () => {

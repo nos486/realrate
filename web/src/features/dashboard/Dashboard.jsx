@@ -69,7 +69,7 @@ export default function Dashboard({ usdToman = 0, analysis = [], currencies = []
     setWidgets(next);
     setPickerOpen(false);
     // A widget that needs a choice asks for it right away
-    if (WIDGET_CATALOG[type].options?.asset || WIDGET_CATALOG[type].options?.assets) setSettingsId(next[next.length - 1].id);
+    if (WIDGET_CATALOG[type].options?.assets) setSettingsId(next[next.length - 1].id);
   };
 
   const handleReset = async () => {

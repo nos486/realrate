@@ -16,7 +16,7 @@
  *
  * Every widget is one column wide; `height` is its height class
  * (1 short, 2 medium, 3 tall; a widget with more to show scrolls inside it); the app frame is one
- * column of natural height and ignores it. `config` holds the few per-widget options the catalog declares (an asset id, how
+ * column of natural height and ignores it. `config` holds the few per-widget options the catalog declares (the market assets, how
  * many rows to list); anything else is dropped. A list that is missing starts from the default.
  */
 
@@ -40,7 +40,7 @@ export const WIDGET_HEIGHTS = [1, 2, 3];
  * widget's settings, all of them saved in its `config` and nothing else. Every widget also has the
  * two appearance switches of WIDGET_APPEARANCE (its title, its card):
  *   count    one of the listed numbers (how many rows)
- *   asset    one market asset id;  assets  a list of them
+ *   assets   a list of market asset ids
  *   style    { values, labels, default }: how the widget is drawn (a grid or a list, a clock face)
  *   choices  { key: { label, values, labels, default } }: one of several values (a range, an order)
  *   toggles  { key: { label, default } }: on/off switches
@@ -142,22 +142,15 @@ export const WIDGET_CATALOG = {
       toggles: { change: { label: msg("نمایش تغییر"), default: true } },
     },
   },
-  asset: {
-    title: msg("قیمت یک دارایی"),
-    description: msg("قیمت و تغییر هر دارایی بازار که انتخاب کنید"),
-    group: "market",
-    defaultHeight: 2, requires: "market",
-    options: { asset: true, style: { values: ["compact", "detailed"], labels: { compact: msg("فشرده"), detailed: msg("کامل با نمودار") }, default: "compact" } },
-  },
   rate_list: {
     title: msg("نرخ‌های دلخواه"),
-    description: msg("چند نرخ دلخواه از بازار، هرکدام با قیمت و تغییرش"),
+    description: msg("چند نرخ دلخواه از بازار، هرکدام با آیکون، قیمت، تغییر و بازه‌ی امروز"),
     group: "market",
     defaultHeight: 2, requires: "market",
     options: {
       assets: true,
       style: { values: ["grid", "list"], labels: { grid: msg("شبکه‌ای"), list: msg("فهرست") }, default: "grid" },
-      toggles: { change: { label: msg("نمایش تغییر"), default: true } },
+      toggles: { change: { label: msg("نمایش تغییر"), default: true }, range: { label: msg("نمایش بازه‌ی امروز"), default: true } },
     },
   },
   market: {
@@ -298,7 +291,6 @@ function cleanConfig(type, raw) {
   const options = spec.options || {};
   const src = raw && typeof raw === "object" ? raw : {};
   if (options.count && options.count.includes(Number(src.count))) config.count = Number(src.count);
-  if (options.asset && typeof src.assetId === "string" && ASSET_ID_RE.test(src.assetId)) config.assetId = src.assetId;
   if (options.assets && Array.isArray(src.assetIds)) {
     const ids = src.assetIds.filter((id) => typeof id === "string" && ASSET_ID_RE.test(id));
     config.assetIds = [...new Set(ids)].slice(0, DASHBOARD_LIMITS.rateListAssets);

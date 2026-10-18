@@ -9,7 +9,7 @@
 
 import { hasNews as localeHasNews } from '../../utils/i18n.js';
 import {
-  Bell, CalendarDays, CalendarRange, ChartCandlestick, CircleDollarSign, Clock, Crown, List, Landmark, MessageSquareText, Newspaper,
+  Bell, CalendarDays, CalendarRange, ChartCandlestick, Clock, Crown, List, Landmark, MessageSquareText, Newspaper,
   Receipt, Sparkles, Target, TrendingUp, Zap,
 } from 'lucide-react';
 import { useFeature } from '../../shared/features/useFeature.js';
@@ -22,7 +22,6 @@ import LoansWidget from './widgets/LoansWidget.jsx';
 import GoalsWidget from './widgets/GoalsWidget.jsx';
 import AlertsWidget from './widgets/AlertsWidget.jsx';
 import RatesWidget from './widgets/RatesWidget.jsx';
-import AssetWidget from './widgets/AssetWidget.jsx';
 import RateListWidget from './widgets/RateListWidget.jsx';
 import ClockWidget from './widgets/ClockWidget.jsx';
 import CalendarWidget from './widgets/CalendarWidget.jsx';
@@ -41,7 +40,6 @@ export const WIDGET_VIEWS = {
   goals: { Icon: Target, Component: GoalsWidget },
   alerts: { Icon: Bell, Component: AlertsWidget },
   rates: { Icon: TrendingUp, Component: RatesWidget },
-  asset: { Icon: CircleDollarSign, Component: AssetWidget },
   rate_list: { Icon: List, Component: RateListWidget },
   clock: { Icon: Clock, Component: ClockWidget },
   calendar: { Icon: CalendarRange, Component: CalendarWidget },

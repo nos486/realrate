@@ -458,23 +458,33 @@
   text-align: start;
 }
 
-/* Rate list: four equal tiles (2x2) that fill the widget; no scrolling */
+/* Rate list: the tiles share the widget's height by how many assets there are (two columns, one
+   when there are one or two); a lone odd tile spans both columns. No scrolling */
 .dash-rate-list {
   display: grid;
   flex: 1 1 auto;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
   gap: 8px;
   min-height: 0;
+}
+
+.dash-rate-list[data-count="1"],
+.dash-rate-list[data-count="2"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.dash-rate-list.is-grid .dash-rate-tile:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
 }
 
 .dash-rate-tile {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 4px;
+  justify-content: space-between;
+  gap: 6px;
   min-width: 0;
-  padding: 10px;
+  padding: 12px;
   overflow: hidden;
   border: 1px solid var(--border-subtle);
   border-radius: 14px;
@@ -484,29 +494,127 @@
   text-align: start;
 }
 
-.dash-rate-tile small {
+.dash-rate-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dash-rate-name > span:not(.dash-rate-icon):not(.home-stale-mark) {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dash-rate-name strong,
+.dash-rate-name small {
   overflow: hidden;
-  font-size: 12px;
-  color: var(--text-secondary);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.dash-rate-tile strong {
-  font-size: 16px;
+.dash-rate-name strong {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-heading);
+}
+
+.dash-rate-name small {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.dash-rate-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  background: var(--bg-surface);
+  color: var(--color-primary-text);
+  font-size: 15px;
+}
+
+.dash-rate-price {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+  min-width: 0;
+}
+
+.dash-rate-price b {
+  font-size: 19px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-heading);
+}
+
+.dash-rate-price small {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.dash-rate-change {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-start: auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
-.dash-rate-tile em {
-  font-size: 11.5px;
-  font-style: normal;
+.dash-rate-change.is-up { background: var(--color-positive-soft); color: var(--color-positive-text); }
+.dash-rate-change.is-down { background: var(--color-negative-soft); color: var(--color-negative-text); }
+.dash-rate-change.is-flat { background: var(--bg-surface); color: var(--text-muted); }
+
+/* Today's low-high: a thin bar with a dot where the price is, the two ends under it */
+.dash-rate-range {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 
-.dash-rate-tile em.is-up { color: var(--color-positive-text); }
-.dash-rate-tile em.is-down { color: var(--color-negative-text); }
+.dash-rate-range-bar {
+  position: relative;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border-subtle);
+}
+
+.dash-rate-range-bar i {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  margin-inline-start: -5px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  transform: translateY(-50%);
+}
+
+.dash-rate-range-ends {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A short widget has no room for the range */
+.dash-widget.is-height-1 .dash-rate-range {
+  display: none;
+}
 
 .dash-rate-tile.is-empty {
   align-items: center;
+  justify-content: center;
   border-style: dashed;
   color: var(--text-muted);
   background: none;
@@ -515,34 +623,42 @@
 /* The list style: one row per asset, name on one side, price and change on the other */
 .dash-rate-list.is-list {
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: repeat(4, minmax(0, 1fr));
   gap: 6px;
 }
 
 .dash-rate-list.is-list .dash-rate-tile {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 4px 12px;
-  padding: 6px 12px;
+  padding: 8px 12px;
 }
 
-.dash-rate-list.is-list .dash-rate-tile small {
-  font-size: 13px;
-  color: var(--text-primary);
+.dash-rate-list.is-list .dash-rate-price {
+  justify-content: flex-end;
+  flex-wrap: nowrap;
 }
 
-.dash-rate-list.is-list .dash-rate-tile em {
-  min-width: 56px;
-  text-align: end;
+.dash-rate-list.is-list .dash-rate-price b {
+  font-size: 16px;
+}
+
+.dash-rate-list.is-list .dash-rate-change {
+  min-width: 62px;
+  justify-content: center;
 }
 
 .dash-rate-list.is-list .dash-rate-tile.is-empty {
-  justify-content: center;
+  display: flex;
 }
 
 button.dash-rate-tile:not(:disabled) {
   cursor: pointer;
+}
+
+button.dash-rate-tile:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
 }
 
 /* Calendar: the month grid, and the events' list beside it (below it in a narrow widget) */
@@ -956,7 +1072,7 @@ button.dash-rate-tile:not(:disabled) {
 }
 
 .dash.is-app .dash-rate-tile {
-  min-height: 72px;
+  min-height: 96px;
 }
 
 /* Month summary, compact style: the figure and the two stats, without the loan breakdown */
