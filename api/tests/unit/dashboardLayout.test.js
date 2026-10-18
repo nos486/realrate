@@ -8,7 +8,7 @@ import { describe, it, expect } from 'vitest';
 import {
   WIDGET_CATALOG, WIDGET_GROUPS, WIDGET_TYPES, DASHBOARD_LIMITS, DEFAULT_DASHBOARD,
   sanitizeWidgets, sanitizeDashboard, defaultWidgets, widgetsOf, withScreen, canAddWidget,
-  addWidget, removeWidget, moveWidget, shiftWidget, resizeWidget, configureWidget,
+  addWidget, removeWidget, moveWidget, shiftWidget, resizeWidget, setWidgetHeight, configureWidget,
 } from '../../src/domain/dashboardLayout.js';
 import { ACCOUNT_KINDS } from '../../../web/src/shared/vault/fullBackup.js';
 import { VAULT_RECORD_KINDS } from '../../src/repositories/vault.repository.js';
@@ -18,6 +18,10 @@ const types = (widgets) => widgets.map((w) => w.type);
 describe('the catalog', () => {
   it('lets every widget take all three sizes, so small and medium ones sit side by side', () => {
     for (const type of WIDGET_TYPES) expect(WIDGET_CATALOG[type].sizes, type).toEqual([1, 2, 3]);
+  });
+
+  it('gives every widget a default height class', () => {
+    for (const type of WIDGET_TYPES) expect([1, 2, 3], type).toContain(WIDGET_CATALOG[type].defaultHeight);
   });
 
   it('puts every widget in a known group, with a default size it allows', () => {
@@ -74,6 +78,22 @@ describe('sanitizeWidgets', () => {
     const many = Array.from({ length: DASHBOARD_LIMITS.widgets + 10 }, () => ({ type: 'asset' }));
     expect(sanitizeWidgets(many)).toHaveLength(DASHBOARD_LIMITS.widgets);
     expect(sanitizeWidgets('x')).toEqual([]);
+  });
+});
+
+describe('heights', () => {
+  it('uses the type\'s default when none (or an invalid one) is stored', () => {
+    const [a, b, c] = sanitizeWidgets([{ type: 'ai_analysis' }, { type: 'rates', height: 9 }, { type: 'month', height: 3 }]);
+    expect(a.height).toBe(WIDGET_CATALOG.ai_analysis.defaultHeight);
+    expect(b.height).toBe(WIDGET_CATALOG.rates.defaultHeight);
+    expect(c.height).toBe(3);
+  });
+
+  it('sets a height class, and a new widget starts at its default', () => {
+    const list = sanitizeWidgets([{ type: 'month' }]);
+    expect(setWidgetHeight(list, list[0].id, 1)[0].height).toBe(1);
+    expect(setWidgetHeight(list, list[0].id, 7)[0].height).toBe(WIDGET_CATALOG.month.defaultHeight);
+    expect(addWidget(list, 'goals')[1].height).toBe(WIDGET_CATALOG.goals.defaultHeight);
   });
 });
 
