@@ -6,7 +6,7 @@
 
 import { describe, it, expect } from 'vitest';
 import {
-  WIDGET_CATALOG, WIDGET_GROUPS, WIDGET_TYPES, DASHBOARD_LIMITS, DEFAULT_DASHBOARD,
+  WIDGET_CATALOG, WIDGET_HEIGHTS, WIDGET_HEIGHT_PX, WIDGET_GROUPS, WIDGET_TYPES, DASHBOARD_LIMITS, DEFAULT_DASHBOARD,
   sanitizeWidgets, sanitizeDashboard, defaultWidgets, widgetsOf, withScreen, canAddWidget,
   addWidget, removeWidget, moveWidget, shiftWidget, setWidgetHeight, configureWidget, layoutColumns, placeWidget,
 } from '../../src/domain/dashboardLayout.js';
@@ -17,7 +17,7 @@ const types = (widgets) => widgets.map((w) => w.type);
 
 describe('the catalog', () => {
   it('gives every widget a default height class', () => {
-    for (const type of WIDGET_TYPES) expect([1, 2, 3], type).toContain(WIDGET_CATALOG[type].defaultHeight);
+    for (const type of WIDGET_TYPES) expect(WIDGET_HEIGHTS, type).toContain(WIDGET_CATALOG[type].defaultHeight);
   });
 
   it('puts every widget in a known group, ', () => {
@@ -89,6 +89,24 @@ describe('heights', () => {
     expect(a.height).toBe(WIDGET_CATALOG.ai_analysis.defaultHeight);
     expect(b.height).toBe(WIDGET_CATALOG.rates.defaultHeight);
     expect(c.height).toBe(3);
+  });
+
+  it('offers four sizes (150, 300, 450, 600px) and each widget allows some of them, its default among them', () => {
+    expect(WIDGET_HEIGHT_PX).toEqual({ 1: 150, 2: 300, 3: 450, 4: 600 });
+    for (const spec of Object.values(WIDGET_CATALOG)) {
+      expect(spec.heights.length).toBeGreaterThan(0);
+      expect(spec.heights.every((h) => WIDGET_HEIGHTS.includes(h))).toBe(true);
+      expect(spec.heights).toContain(spec.defaultHeight);
+    }
+    expect(WIDGET_CATALOG.calendar.heights).toEqual([2, 4]);
+  });
+
+  it('snaps a height the widget does not allow to the nearest allowed one (the taller on a tie)', () => {
+    const height = (type, h) => sanitizeWidgets([{ type, height: h }])[0].height;
+    expect(height('calendar', 1)).toBe(2);
+    expect(height('ai_analysis', 1)).toBe(3);
+    expect(height('calendar', 3)).toBe(4);
+    expect(setWidgetHeight([{ id: 'w_c', type: 'calendar', height: 2, config: {} }], 'w_c', 1)[0].height).toBe(2);
   });
 
   it('sets a height class, and a new widget starts at its default', () => {

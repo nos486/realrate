@@ -4,7 +4,7 @@
  * coloured markers on every such day: hovering (or focusing) a day opens a card saying what is due
  * that day and for how much, and a tap lists the day's events under the month; a line under it
  * sums what the month asks to pay and what comes in. The month fits the widget's height: tall shows
- * all of it, medium the month alone, short a week strip with the next thing due. «برنامه» is the
+ * all of it (600px), medium the month alone (300px); the calendar allows only those two heights. «برنامه» is the
  * agenda of the coming weeks, day by day. The `kinds` setting chooses which of the four are marked. Records are decrypted in
  * the browser, so a locked vault shows the bare calendar.
  */
@@ -81,10 +81,6 @@ const gregorianSpan = (from, to) => {
 const dayLabel = (n) => n.toLocaleString(intlLocale(), { useGrouping: false });
 /** The Shamsi day of the month of a Gregorian day (YYYY-MM-DD) */
 const shamsiDayOf = (iso) => gregorianToJalali(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)), Number(iso.slice(8, 10))).jd;
-/** How many days the day is after the Saturday that starts its week */
-const sinceSaturday = (iso) => (new Date(`${iso}T00:00:00Z`).getUTCDay() + 1) % 7;
-/** How far ahead the short widget looks for the next thing due */
-const NEXT_DAYS = 45;
 const addDays = (iso, n) => new Date(Date.parse(iso) + n * DAY_MS).toISOString().slice(0, 10);
 
 /** What a kind of event is called; a cheque also says which way the money goes */
@@ -195,10 +191,9 @@ export default function CalendarWidget({ widget }) {
   const currentMonth = useMemo(() => shamsiMonthOf(today), [today]);
   const [month, setMonth] = useState(currentMonth);
   const [picked, setPicked] = useState('');
-  const [weekShift, setWeekShift] = useState(0);
   // How much of the month the widget's height has room for (the app frame is as tall as it needs)
   const appLayout = useAppLayout();
-  const density = appLayout || style === 'agenda' ? 'full' : widget.height === 1 ? 'compact' : widget.height === 2 ? 'cozy' : 'full';
+  const density = appLayout || style === 'agenda' || widget.height !== 2 ? 'full' : 'cozy';
   const loans = useOptionalLoans();
   const cheques = useOptionalCheques();
   const subscriptions = useOptionalSubscriptions();
@@ -206,12 +201,9 @@ export default function CalendarWidget({ widget }) {
   const { progressOf } = useGoalProgress(goals, { enabled: !vaultLocked });
 
   const range = useMemo(() => shamsiMonthRange(month.jy, month.jm), [month]);
-  const weekStart = addDays(today, -sinceSaturday(today) + weekShift * 7);
   const span = style === 'agenda'
     ? { from: today, to: addDays(today, AGENDA_DAYS) }
-    : density === 'compact'
-      ? { from: weekStart < today ? weekStart : today, to: addDays(weekStart > today ? weekStart : today, NEXT_DAYS) }
-      : { from: range.from, to: range.to };
+    : { from: range.from, to: range.to };
   const events = useMemo(() => {
     const all = calendarEvents({ loans, cheques, subscriptions, goals, reachedGoal: (g) => progressOf(g).reached, today, ...span });
     if (!kinds) return all;
@@ -244,46 +236,6 @@ export default function CalendarWidget({ widget }) {
             })}
           </div>
         )}
-      </WidgetCard>
-    );
-  }
-
-  if (density === 'compact') {
-    const days = Array.from({ length: 7 }, (_, d) => addDays(weekStart, d));
-    const next = [...events.entries()].map(([day, list]) => [day, list.filter((e) => e.state !== 'done')]).filter(([day, list]) => day >= today && list.length).sort(([a], [b]) => a.localeCompare(b))[0];
-    const [nextDay, nextList] = next || [];
-    const left = nextDay ? Math.round((Date.parse(nextDay) - Date.parse(today)) / DAY_MS) : 0;
-    const shown = shamsiMonthOf(addDays(weekStart, 3));
-    return (
-      <WidgetCard title={title} Icon={CalendarRange}>
-        <div className="dash-cal is-compact">
-          <header className="dash-cal-head">
-            <button type="button" className="dash-cal-nav" onClick={() => setWeekShift(weekShift - 1)} aria-label={t('هفته قبل')}><ChevronRight size={16} /></button>
-            <strong>{formatShamsiMonth(shown.jy, shown.jm)}</strong>
-            {weekShift !== 0 && <button type="button" className="dash-cal-today" onClick={() => setWeekShift(0)}>{t('امروز')}</button>}
-            <button type="button" className="dash-cal-nav" onClick={() => setWeekShift(weekShift + 1)} aria-label={t('هفته بعد')}><ChevronLeft size={16} /></button>
-          </header>
-          <div className="dash-cal-strip">
-            {days.map((iso, column) => (
-              <div key={iso} className="dash-cal-strip-day">
-                <span className={`dash-cal-weekday${column === 6 ? ' is-friday' : ''}`}>{WEEKDAYS[column]}</span>
-                <DayCell iso={iso} events={events.get(iso) || []} today={today} picked="" hidden={hidden} column={column} rows={1} row={1} onPick={() => {}} />
-              </div>
-            ))}
-          </div>
-          {nextList ? (
-            <ul className="dash-cal-list is-next">
-              <EventRow
-                event={nextList[0]}
-                onOpen={open}
-                hidden={hidden}
-                right={left === 0 ? t('امروز') : left === 1 ? t('فردا') : t('{n} روز دیگر', { n: dayLabel(left) })}
-              />
-            </ul>
-          ) : (
-            <p className="dash-cal-empty">{vaultLocked ? t('برای دیدن رویدادهای مالی، اطلاعات را باز کنید.') : t('رویدادی در این بازه نیست.')}</p>
-          )}
-        </div>
       </WidgetCard>
     );
   }

@@ -13,8 +13,6 @@ export default {
   'افزودن ویجت': 'Add widget',
   'برای دیدن ویجت‌های مالی، اطلاعات را باز کنید': 'Unlock your data to see the financial widgets',
   'هنوز ویجتی روی صفحه اصلی نیست.': 'There are no widgets on the home page yet.',
-  'کوتاه': 'Short',
-  'بلند': 'Tall',
   'ارتفاع': 'Height',
   'جابه‌جایی {title}': 'Move {title}',
   'بالاتر': 'Move up',
@@ -109,8 +107,7 @@ export default {
   'پرداختی این ماه': 'To pay this month',
   'دریافتی این ماه': 'Coming in this month',
   'جمع پرداختی و دریافتی ماه': 'Show what the month pays and brings in',
-  'هفته قبل': 'Previous week',
-  'هفته بعد': 'Next week',
   'تمام‌شده': 'Done',
+  'ارتفاع {n} پیکسل': 'Height {n} pixels',
   'میلادی': 'Gregorian',
 };
