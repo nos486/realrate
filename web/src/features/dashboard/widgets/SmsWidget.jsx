@@ -20,7 +20,7 @@ export default function SmsWidget() {
   }, []);
   if (list.length === 0) return null;
   return (
-    <button type="button" className="app-home-card app-home-sms" onClick={() => open('sms')}>
+    <button type="button" className="app-home-card app-home-sms" aria-label={t('پیامک‌های بانکی')} onClick={() => open('sms')}>
       <span className="app-home-sms-icon"><MessageSquareText size={20} /></span>
       <span className="app-home-sms-text">
         <strong>{t('{n} پیامک بانکی منتظر ثبت', { n: wholeText(list.length) })}</strong>

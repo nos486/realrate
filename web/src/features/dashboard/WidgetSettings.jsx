@@ -8,7 +8,7 @@ import React from 'react';
 import { Settings2 } from 'lucide-react';
 import Modal from '../../shared/ui/Modal.jsx';
 import AssetPickerModal from '../home/AssetPickerModal.jsx';
-import { WIDGET_CATALOG } from '../../utils/dashboardLayout.js';
+import { DASHBOARD_LIMITS, WIDGET_CATALOG } from '../../utils/dashboardLayout.js';
 
 /**
  * @param {{ widget: object|null, onClose: () => void, onChange: (config: object) => void }} props
@@ -36,8 +36,9 @@ export default function WidgetSettings({ widget, onClose, onChange }) {
       <AssetPickerModal
         isOpen
         onClose={onClose}
-        section={{ title: t(spec.title), items: chosen }}
+        section={{ title: t('{title} (حداکثر {n})', { title: t(spec.title), n: DASHBOARD_LIMITS.rateListAssets.toLocaleString(intlLocale()) }), items: chosen }}
         onToggle={(assetId, add) => {
+          if (add && chosen.length >= DASHBOARD_LIMITS.rateListAssets) return;
           const next = add ? [...chosen, assetId] : chosen.filter((id) => id !== assetId);
           onChange({ assetIds: next });
         }}

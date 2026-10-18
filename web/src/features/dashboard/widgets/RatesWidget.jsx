@@ -6,10 +6,11 @@
 
 import { intlLocale, t } from '../../../utils/i18n.js';
 import React from 'react';
-import { ChevronLeft } from 'lucide-react';
+import { TrendingUp } from 'lucide-react';
 import { usePricing } from '../../market/index.js';
 import { useDashboardData } from '../DashboardContext.js';
 import { wholeText } from '../dashboardFormat.js';
+import WidgetCard from '../WidgetCard.jsx';
 
 export default function RatesWidget() {
   const { usdToman, analysis, open } = useDashboardData();
@@ -31,11 +32,7 @@ export default function RatesWidget() {
   if (rates.length === 0) return null;
 
   return (
-    <button type="button" className="app-home-card app-home-rates" onClick={() => open('rates')} aria-label={t('نرخ‌های امروز — رفتن به بازار')}>
-      <span className="app-home-rates-head">
-        <span>{t('نرخ‌های امروز')} <small>{t('تومان')}</small></span>
-        <ChevronLeft size={16} aria-hidden="true" />
-      </span>
+    <WidgetCard title={t('نرخ‌های امروز')} Icon={TrendingUp} action={{ label: t('بازار'), onClick: () => open('rates') }}>
       <span className="app-home-rates-grid">
         {rates.map((r) => (
           <span key={r.key} className="app-home-rate">
@@ -49,6 +46,6 @@ export default function RatesWidget() {
           </span>
         ))}
       </span>
-    </button>
+    </WidgetCard>
   );
 }

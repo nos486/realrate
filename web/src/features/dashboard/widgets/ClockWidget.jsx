@@ -43,11 +43,11 @@ function useMinuteClock() {
   return now;
 }
 
-export default function ClockWidget({ widget }) {
+export default function ClockWidget() {
   const now = useMinuteClock();
   const fmt = React.useMemo(() => formats(), []);
   return (
-    <section className={`app-home-card dash-clock is-size-${widget.size}`} aria-label={t('ساعت و تاریخ')}>
+    <section className="app-home-card dash-clock" aria-label={t('ساعت و تاریخ')}>
       <time className="dash-clock-time" dateTime={now.toISOString()} dir="ltr">{fmt.time.format(now)}</time>
       <span className="dash-clock-weekday">{fmt.weekday.format(now)}</span>
       <strong className="dash-clock-date">{fmt.shamsi.format(now)}</strong>

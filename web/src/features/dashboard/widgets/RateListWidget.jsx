@@ -1,18 +1,20 @@
 /**
- * RateListWidget.jsx — «نرخ‌های دلخواه»: the market assets the user picked (the widget's
- * `assetIds` option), each as the compact home row with its price and change; the list scrolls
- * inside the widget. Without a choice it asks for one.
+ * RateListWidget.jsx — «نرخ‌های دلخواه»: up to four market assets the user picked (the widget's
+ * `assetIds` option) as a 2×2 grid of tiles — name, price and the last change — that fills the
+ * widget with no scrolling. An empty tile is a button that opens the picker.
  */
 
-import { t } from '../../../utils/i18n.js';
+import { intlLocale, t } from '../../../utils/i18n.js';
 import React, { useMemo } from 'react';
-import { List } from 'lucide-react';
+import { List, Plus } from 'lucide-react';
 import { usePricing } from '../../market/context/PricingContext.jsx';
-import HomeAssetCard from '../../home/HomeAssetCard.jsx';
 import { buildAssetIndex, resolveHomeAsset } from '../../home/homeAssets.js';
+import { formatPrice } from '../../market/assetPrice.js';
+import { DASHBOARD_LIMITS } from '../../../utils/dashboardLayout.js';
 import { useDashboardData } from '../DashboardContext.js';
 import WidgetCard from '../WidgetCard.jsx';
-import WidgetState from '../WidgetState.jsx';
+
+const SLOTS = DASHBOARD_LIMITS.rateListAssets;
 
 export default function RateListWidget({ widget, editing, onConfigure }) {
   const { analysis } = useDashboardData();
@@ -20,28 +22,29 @@ export default function RateListWidget({ widget, editing, onConfigure }) {
   const index = useMemo(() => buildAssetIndex({ itemMap: pricing?.itemMap, analysis }), [pricing?.itemMap, analysis]);
   const assetIds = widget.config?.assetIds;
   const assets = useMemo(
-    () => (assetIds || []).map((id) => resolveHomeAsset(id, index)).filter((asset) => asset?.found),
+    () => (assetIds || []).map((id) => resolveHomeAsset(id, index)).filter((asset) => asset?.found).slice(0, SLOTS),
     [assetIds, index],
   );
+  const tiles = [...assets, ...Array(SLOTS - assets.length).fill(null)];
 
-  const title = t('نرخ‌های دلخواه');
-  if (assets.length === 0) {
-    return (
-      <WidgetCard title={title} Icon={List}>
-        <WidgetState state="empty" message={t('نرخ‌های دلخواه را انتخاب کنید')} onAction={onConfigure} disabled={!editing && !onConfigure} />
-      </WidgetCard>
-    );
-  }
   return (
-    <WidgetCard title={title} Icon={List}>
-      <div className="dash-scroll">
-        <div className={`dash-rate-list is-size-${widget.size}`}>
-          {assets.map((asset) => (
-            <div key={asset.id} className="home-item dash-asset">
-              <HomeAssetCard asset={asset} style="compact" flippable={false} />
-            </div>
-          ))}
-        </div>
+    <WidgetCard title={t('نرخ‌های دلخواه')} Icon={List}>
+      <div className="dash-rate-list">
+        {tiles.map((asset, i) => asset ? (
+          <div key={asset.id} className="dash-rate-tile">
+            <small>{asset.name}</small>
+            <strong>{asset.currency === 'usd' ? <bdi>${formatPrice(asset.price, 'usd')}</bdi> : formatPrice(asset.price)}</strong>
+            {asset.changePercent !== null && Math.abs(asset.changePercent) >= 0.01 && (
+              <em className={asset.changePercent > 0 ? 'is-up' : 'is-down'}>
+                {asset.changePercent > 0 ? '▲' : '▼'} {Math.abs(asset.changePercent).toLocaleString(intlLocale(), { maximumFractionDigits: 2 })}{t('٪')}
+              </em>
+            )}
+          </div>
+        ) : (
+          <button key={`empty-${i}`} type="button" className="dash-rate-tile is-empty" onClick={onConfigure} disabled={!editing || !onConfigure} aria-label={t('نرخ‌های دلخواه را انتخاب کنید')}>
+            {editing && <Plus size={18} aria-hidden="true" />}
+          </button>
+        ))}
       </div>
     </WidgetCard>
   );
