@@ -103,7 +103,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (url.pathname === '/sw.js') return;
+  if (url.pathname === '/sw.js' || url.pathname === '/version.json') return; // always from the network
   event.respondWith(staleWhileRevalidate(request, STATIC_CACHE));
 });
 

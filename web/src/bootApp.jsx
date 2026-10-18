@@ -10,6 +10,7 @@ import '@fontsource-variable/vazirmatn'
 import './styles/index.css'
 import App from './App.jsx'
 import { registerServiceWorker } from './shared/pwa/registerServiceWorker.js'
+import { startVersionChecks } from './shared/pwa/versionCheck.js'
 import { initNativeApp } from './shared/native/nativeApp.js'
 import { initAppLayoutClass } from './shared/app/appLayout.js'
 
@@ -20,6 +21,7 @@ import { initAppLayoutClass } from './shared/app/appLayout.js'
 export function renderApp() {
   const root = createRoot(document.getElementById('root'))
   registerServiceWorker()
+  startVersionChecks()
   // The app's frame and touch feel (styles/app-shell.css): the Android app and phone-sized screens
   initAppLayoutClass()
   initNativeApp()
