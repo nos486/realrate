@@ -43,6 +43,21 @@ describe('the calendar widget', () => {
   });
 });
 
+describe('the calendar day card', () => {
+  it('has a card on a marked day saying what is due, and none on a free day', () => {
+    const { container } = render(<MemoryRouter><CalendarWidget widget={{ config: {} }} /></MemoryRouter>);
+    const marked = container.querySelector('.dash-cal-day.has-events').closest('.dash-cal-cell');
+    expect(marked.querySelector('.dash-cal-tip')?.textContent).toContain('Car');
+    const free = [...container.querySelectorAll('.dash-cal-cell')].find((cell) => !cell.querySelector('.has-events'));
+    expect(free.querySelector('.dash-cal-tip')).toBeNull();
+  });
+
+  it('lists what each marker means', () => {
+    const { container } = render(<MemoryRouter><CalendarWidget widget={{ config: { kinds: ['loan', 'goal'] } }} /></MemoryRouter>);
+    expect(container.querySelectorAll('.dash-cal-legend li')).toHaveLength(2);
+  });
+});
+
 describe('the calendar agenda style', () => {
   it('lists the coming events day by day instead of a month grid', () => {
     const { container } = render(<MemoryRouter><CalendarWidget widget={{ config: { style: 'agenda' } }} /></MemoryRouter>);

@@ -715,57 +715,123 @@ button.dash-rate-tile:focus-visible {
 .dash-cal-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 3px;
+  gap: 4px;
 }
 
 .dash-cal-weekday {
-  padding-block: 2px;
+  padding-block: 4px;
   font-size: 11px;
+  font-weight: 700;
   text-align: center;
   color: var(--text-muted);
 }
 
+.dash-cal-weekday.is-friday,
+.dash-cal-day.is-friday > span:first-child {
+  color: var(--color-negative-text);
+}
+
+/* The month's heading carries a «امروز» button once another month is open */
+.dash-cal-head strong {
+  flex: 1;
+  text-align: center;
+  font-size: 15px;
+  color: var(--text-heading);
+}
+
+.dash-cal-today {
+  padding: 3px 10px;
+  margin-inline-end: 6px;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--color-primary-text);
+  background: var(--color-primary-soft);
+  border: 1px solid var(--color-primary-border);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+/* A day: its number, markers of what is due (one colour per kind) and, on hover, the card */
+.dash-cal-cell {
+  position: relative;
+  display: flex;
+}
+
+.dash-cal-cell:hover,
+.dash-cal-cell:focus-within {
+  z-index: 6;
+}
+
 .dash-cal-day {
   display: flex;
+  flex: 1;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  min-height: 32px;
-  padding: 2px 0;
+  gap: 3px;
+  min-width: 0;
+  min-height: 38px;
+  padding: 3px 0;
   font-family: inherit;
   font-size: 13px;
+  font-variant-numeric: tabular-nums;
   color: var(--text-primary);
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 10px;
   cursor: pointer;
+}
+
+.dash-cal-day.is-past:not(.has-events) {
+  color: var(--text-muted);
 }
 
 .dash-cal-day:hover {
   background: var(--bg-surface);
 }
 
+.dash-cal-day:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.dash-cal-day.has-events {
+  font-weight: 700;
+}
+
+.dash-cal-day.tone-loan { background: var(--color-negative-soft); }
+.dash-cal-day.tone-cheque { background: var(--color-primary-soft); }
+.dash-cal-day.tone-subscription { background: var(--color-warning-soft); }
+.dash-cal-day.tone-goal { background: var(--color-positive-soft); }
+
 .dash-cal-day.is-today {
   border-color: var(--color-primary-text);
+  font-weight: 800;
 }
 
 .dash-cal-day.is-picked {
-  background: var(--color-primary-soft);
-  border-color: var(--color-primary-border);
+  border-color: var(--text-primary);
 }
 
 .dash-cal-dots {
   display: flex;
-  gap: 2px;
-  min-height: 5px;
+  align-items: center;
+  gap: 3px;
+  min-height: 6px;
+}
+
+.dash-cal-dots small {
+  font-size: 9px;
+  line-height: 1;
+  color: var(--text-secondary);
 }
 
 .dash-cal-dot {
   display: inline-block;
   flex: none;
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: var(--text-muted);
 }
@@ -774,6 +840,146 @@ button.dash-rate-tile:focus-visible {
 .dash-cal-dot.is-cheque { background: var(--color-primary-text); }
 .dash-cal-dot.is-subscription { background: var(--color-warning-text); }
 .dash-cal-dot.is-goal { background: var(--color-positive-text); }
+
+/* The day's card: opens beside its cell, toward the room the month has */
+.dash-cal-tip {
+  position: absolute;
+  z-index: 6;
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  width: 216px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  background: var(--bg-surface-elevated);
+  color: var(--text-primary);
+  text-align: start;
+  pointer-events: none;
+}
+
+.dash-cal-cell:hover > .dash-cal-tip,
+.dash-cal-cell:focus-within > .dash-cal-tip {
+  display: flex;
+}
+
+.dash-cal-tip.is-below { top: calc(100% + 6px); }
+.dash-cal-tip.is-above { bottom: calc(100% + 6px); }
+.dash-cal-tip.is-start { inset-inline-start: 0; }
+.dash-cal-tip.is-end { inset-inline-end: 0; }
+.dash-cal-tip.is-mid { inset-inline-start: 50%; margin-inline-start: -108px; }
+
+.dash-cal-tip-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 12.5px;
+}
+
+.dash-cal-tip-head small {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.dash-cal-tip ul {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dash-cal-tip li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dash-cal-tip li > span {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dash-cal-tip li strong {
+  overflow: hidden;
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-cal-tip li small {
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.dash-cal-tip li b,
+.dash-cal-event-amount {
+  flex: none;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-cal-tip li b.is-out,
+.dash-cal-event-amount.is-out { color: var(--color-negative-text); }
+.dash-cal-tip li b.is-in,
+.dash-cal-event-amount.is-in { color: var(--color-positive-text); }
+.dash-cal-tip li b.is-goal,
+.dash-cal-event-amount.is-goal { color: var(--text-secondary); }
+
+/* Under the month: what the markers mean, and what the month asks to pay and brings in */
+.dash-cal-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.dash-cal-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.dash-cal-totals {
+  display: flex;
+  gap: 8px;
+}
+
+.dash-cal-totals span {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: var(--bg-surface);
+}
+
+.dash-cal-totals small {
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.dash-cal-totals b {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-cal-totals .is-out b { color: var(--color-negative-text); }
+.dash-cal-totals .is-in b { color: var(--color-positive-text); }
 
 .dash-cal-agenda {
   display: flex;
