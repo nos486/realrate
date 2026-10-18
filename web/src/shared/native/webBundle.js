@@ -5,7 +5,9 @@
  * `web-bundle`, .github/workflows/android.yml). The app looks for a newer one when it opens and
  * when it comes back to the front (at most every WEB_BUNDLE_CHECK_GAP_MS); the native side takes
  * it only when it was built for this APK's exact native side and is signed with the APK's own
- * key, downloads it in the background and uses it from the next start of the app. A change to
+ * key and downloads it in the background. A downloaded bundle is loaded by reloading the pages
+ * at a safe moment (no open dialog or focused field, safeReload.js), so the app need not be
+ * closed and opened; if that cannot happen it is used from the next start. A change to
  * the native side (Java, the Android manifest, Capacitor plugins) still needs a new APK, which
  * appUpdate.js offers as before.
  *
@@ -19,6 +21,7 @@
 import { Capacitor } from '@capacitor/core';
 import { isNativeApp } from './nativeApp.js';
 import { WebBundle } from './nativePlugins.js';
+import { reloadWhenSafe } from '../pwa/safeReload.js';
 
 export const WEB_BUNDLE_MANIFEST_URL = 'https://github.com/nos486/realrate/releases/download/web-bundle/manifest.json';
 /* ── The download's progress, for the bar at the top of the app (WebBundleProgress) ── */
@@ -115,15 +118,29 @@ export async function updatePagesNow(now = Date.now()) {
   }
 }
 
+/**
+ * A bundle came down: load it by reloading the pages as soon as that loses no input. apply() says
+ * no (a bundle not confirmed yet, an older APK) → it waits for the next start of the app.
+ */
+function applyDownloadedBundle() {
+  reloadWhenSafe(() => { WebBundle.apply().catch(() => {}); });
+}
+
+/** Check and, when a newer bundle was downloaded, load it at a safe moment */
+async function checkAndApply(options) {
+  const result = await checkWebBundle(Date.now(), options);
+  if (result?.status === 'ready') applyDownloadedBundle();
+}
+
 /** Once per load of the pages: confirm they started, then look for updates now and on each return */
 export function startWebBundleUpdates() {
   if (started || !isNativeApp() || !Capacitor.isNativePlatform()) return;
   started = true;
   // A one-off delay, not a refresh timer: pages that crash on start never get here
   setTimeout(() => WebBundle.ready().catch(() => {}), WEB_BUNDLE_CONFIRM_MS);
-  checkWebBundle();
+  checkAndApply();
   import('@capacitor/app')
-    .then(({ App }) => App.addListener('resume', () => checkWebBundle()))
+    .then(({ App }) => App.addListener('resume', () => checkAndApply()))
     .catch(() => {});
 }
 
