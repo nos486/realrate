@@ -2,9 +2,10 @@
  * calendarEvents.js — The dated things the calendar widget marks: loan installments, open cheques,
  * subscription renewals and goal target dates
  *
- * Pure: the decrypted records in, the events of a day window out. Loans, cheques and subscriptions
- * use the same schedule as their reminders (utils/reminders.js), so the calendar and the alerts
- * never disagree about a due day. An event also carries what it costs (an installment's amount, a
+ * Pure: the decrypted records in, the events of a day window out. One adapter per kind (EVENT_SOURCES)
+ * reads that feature's records, so the calendar has a single place that knows what is dated; the
+ * ones ahead follow the reminders' schedule (utils/reminders.js) where a record repeats, so the
+ * calendar and the alerts do not disagree about a due day. An event also carries what it costs (an installment's amount, a
  * cheque's, a subscription's renewal in its own currency) so a day can say what is due, and its
  * `state`: still ahead («upcoming»), past and still owed («overdue») or finished («done»: a paid
  * installment, a closed cheque, a renewal that went through, a reached goal).
@@ -18,6 +19,53 @@ import { renewalsBetween } from '../../utils/subscriptionDocument.js';
 export const CALENDAR_EVENT_KINDS = ['loan', 'cheque', 'subscription', 'goal'];
 
 const isDay = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''));
+const dayOf = (v) => String(v || '').slice(0, 10);
+const directionOf = (cheque) => (cheque.direction === 'received' ? 'received' : 'issued');
+
+/**
+ * The event sources: one adapter per kind, turning that feature's records into plain events
+ * `{ day, recordId, title, amount?, currency?, direction?, done }` inside the window. A feature
+ * with dated things adds its adapter here and a kind to CALENDAR_EVENT_KINDS; the calendar itself
+ * knows nothing else about it. `ctx` is `{ today, from, to, reachedGoal }`.
+ */
+const EVENT_SOURCES = {
+  // Every installment of the schedule, paid or not (the list of loans carries it), so the past
+  // ones show as finished and each one has its own amount
+  loan: (loans, { from, to }) => (loans || []).flatMap((loan) => (loan.installments || []).flatMap((installment) => {
+    const day = dayOf(installment.dueDate);
+    if (day < from || day > to) return [];
+    const done = Boolean(installment.isPaid);
+    return [{ day, recordId: loan.id, title: loan.title, amount: done ? installment.paidAmount || installment.totalAmount : installment.totalAmount, done }];
+  })),
+  // A cheque sits on its due day; a closed one is finished
+  cheque: (cheques, { from, to }) => (cheques || []).flatMap((cheque) => {
+    const day = dayOf(cheque.dueDate);
+    if (day < from || day > to) return [];
+    return [{ day, recordId: cheque.id, title: cheque.counterparty, amount: cheque.amount, direction: directionOf(cheque), done: !isChequeOpen(cheque) }];
+  }),
+  // The renewals ahead follow the reminders' schedule; the ones behind went through when the
+  // subscription renews by itself or was paid up to that day
+  subscription: (subscriptions, { today, from, to }) => (subscriptions || []).flatMap((sub) => {
+    const events = [];
+    const detail = { recordId: sub.id, title: sub.name, amount: sub.amount, currency: sub.currency || 'IRT' };
+    const reminder = reminderOf('subscription', sub, { today });
+    if (reminder) for (const day of occurrencesBetween(reminder, from, to)) events.push({ ...detail, day, recordId: reminder.recordId || sub.id, done: false });
+    if (sub.status !== 'cancelled' && sub.status !== 'paused') {
+      for (const day of renewalsBetween(sub, from, to < today ? to : today)) {
+        if (day < today) events.push({ ...detail, day, done: Boolean(sub.autoRenew || (sub.lastPaidOn && day <= sub.lastPaidOn)) });
+      }
+    }
+    return events;
+  }),
+  // A goal's target day, finished once it is reached
+  goal: (goals, { from, to, reachedGoal }) => (goals || []).flatMap((goal) => {
+    const day = dayOf(goal?.targetDate);
+    return day >= from && day <= to ? [{ day, recordId: goal.id, title: goal.name, done: reachedGoal(goal) }] : [];
+  }),
+};
+
+/** The input key each kind's records come in under */
+const INPUT_OF = { loan: 'loans', cheque: 'cheques', subscription: 'subscriptions', goal: 'goals' };
 
 /**
  * @param {{ loans?: object[], cheques?: object[], subscriptions?: object[], goals?: object[],
@@ -29,60 +77,22 @@ const isDay = (v) => /^\d{4}-\d{2}-\d{2}$/.test(String(v || ''));
  *   events by day, each day's in CALENDAR_EVENT_KINDS order; `direction` is a cheque's («issued» is
  *   paid by the user, «received» comes to them), else empty
  */
-export function calendarEvents({ loans = [], cheques = [], subscriptions = [], goals = [], reachedGoal = () => false, today, from, to }) {
+export function calendarEvents({ reachedGoal = () => false, today, from, to, ...records }) {
   const byDay = new Map();
-  const add = (day, kind, recordId, title, { amount = null, currency = 'IRT', direction = '', done = false } = {}) => {
-    if (!isDay(day)) return;
-    const key = `${kind}:${recordId}:${day}`;
-    const list = byDay.get(day) || [];
-    if (list.some((e) => e.key === key)) return;
-    const value = Number(amount);
-    list.push({
-      key, kind, title: String(title || '').trim(), recordId,
-      amount: Number.isFinite(value) && value > 0 ? value : null, currency, direction,
-      state: done ? 'done' : day < today ? 'overdue' : 'upcoming',
-    });
-    byDay.set(day, list);
-  };
-  const inWindow = (day) => isDay(day) && day >= from && day <= to;
-  const scheduled = (kind, records, titleOf, detailOf) => {
-    for (const record of records || []) {
-      const reminder = reminderOf(kind, record, { today });
-      if (!reminder) continue;
-      for (const day of occurrencesBetween(reminder, from, to)) add(day, kind, reminder.recordId || record.id, titleOf(record), detailOf(record, day));
-    }
-  };
-  // An installment's amount is its own when the schedule is there; the next one's on its own day
-  const installmentAmount = (loan, day) => {
-    const own = (loan.installments || []).find((i) => !i.isPaid && String(i.dueDate || '').slice(0, 10) === day);
-    if (own) return own.totalAmount;
-    const next = loan.nextDueInstallment;
-    return next && String(next.dueDate || '').slice(0, 10) === day ? next.totalAmount ?? next.amount : null;
-  };
-  scheduled('loan', loans, (loan) => loan.title, (loan, day) => ({ amount: installmentAmount(loan, day) }));
-  scheduled('cheque', cheques, (cheque) => cheque.counterparty, (cheque) => ({ amount: cheque.amount, direction: cheque.direction === 'received' ? 'received' : 'issued' }));
-  scheduled('subscription', subscriptions, (sub) => sub.name, (sub) => ({ amount: sub.amount, currency: sub.currency || 'IRT' }));
-  for (const goal of goals || []) {
-    const day = String(goal?.targetDate || '');
-    if (day >= from && day <= to) add(day, 'goal', goal.id, goal.name, { done: reachedGoal(goal) });
-  }
-  // What is already behind: paid installments, closed cheques and the renewals that went through
-  for (const loan of loans || []) {
-    for (const installment of loan.installments || []) {
-      const day = String(installment.dueDate || '').slice(0, 10);
-      if (installment.isPaid && inWindow(day)) add(day, 'loan', loan.id, loan.title, { amount: installment.paidAmount || installment.totalAmount, done: true });
-    }
-  }
-  for (const cheque of cheques || []) {
-    if (!isChequeOpen(cheque) && inWindow(String(cheque.dueDate || ''))) {
-      add(cheque.dueDate, 'cheque', cheque.id, cheque.counterparty, { amount: cheque.amount, direction: cheque.direction === 'received' ? 'received' : 'issued', done: true });
-    }
-  }
-  for (const sub of subscriptions || []) {
-    if (sub.status === 'cancelled' || sub.status === 'paused') continue;
-    for (const day of renewalsBetween(sub, from, to < today ? to : today)) {
-      if (day >= today) continue;
-      add(day, 'subscription', sub.id, sub.name, { amount: sub.amount, currency: sub.currency || 'IRT', done: Boolean(sub.autoRenew || (sub.lastPaidOn && day <= sub.lastPaidOn)) });
+  const ctx = { today, from, to, reachedGoal };
+  for (const kind of CALENDAR_EVENT_KINDS) {
+    for (const { day, recordId, title, amount = null, currency = 'IRT', direction = '', done = false } of EVENT_SOURCES[kind](records[INPUT_OF[kind]], ctx)) {
+      if (!isDay(day)) continue;
+      const key = `${kind}:${recordId}:${day}`;
+      const list = byDay.get(day) || [];
+      if (list.some((e) => e.key === key)) continue;
+      const value = Number(amount);
+      list.push({
+        key, kind, title: String(title || '').trim(), recordId,
+        amount: Number.isFinite(value) && value > 0 ? value : null, currency, direction,
+        state: done ? 'done' : day < today ? 'overdue' : 'upcoming',
+      });
+      byDay.set(day, list);
     }
   }
   // Open things first, finished ones after, each in the order of the kinds
