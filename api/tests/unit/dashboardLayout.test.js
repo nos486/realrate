@@ -157,6 +157,15 @@ describe('a dashboard per screen', () => {
     expect(layoutColumns(visible, 4).every((c) => c.length > 0)).toBe(true);
   });
 
+  it('starts a user who arranged nothing with every widget on the website, the favorite rates already filled', () => {
+    for (const screen of ['wide', 'desktop', 'tablet']) {
+      expect(types(defaultWidgets(screen)).sort(), screen).toEqual([...WIDGET_TYPES].sort());
+    }
+    const rates = defaultWidgets('desktop').find((w) => w.type === 'rate_list');
+    expect(rates.config.assetIds.length).toBe(DASHBOARD_LIMITS.rateListAssets);
+    expect(types(defaultWidgets('mobile')).length).toBeLessThan(WIDGET_TYPES.length);
+  });
+
   it('starts a 4- or 2-column list from the 3-column one when that was arranged, spreading it over the columns', () => {
     const doc = withScreen(null, 'desktop', [{ type: 'month', col: 2 }, { type: 'goals', col: 2 }, { type: 'plan', col: 2 }, { type: 'alerts', col: 2 }]);
     const wide = widgetsOf(doc, 'wide');

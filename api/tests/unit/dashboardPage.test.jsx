@@ -53,7 +53,8 @@ const shownTypes = () => screen.queryAllByText(/^widget:/).map((el) => el.textCo
 describe('the home page', () => {
   it('shows the default widgets the user can see', () => {
     render(<Dashboard onOpen={open} />);
-    const expected = DEFAULT_DASHBOARD.tablet.map((w) => w.type); // the test window is mid-size: 2 columns
+    const hidden = ['market', 'sms']; // what the stubbed access hides
+    const expected = DEFAULT_DASHBOARD.tablet.map((w) => w.type).filter((type) => !hidden.includes(type)); // the test window is mid-size: 2 columns
     // The page is columns of stacked widgets, so the order in the page is column by column
     expect([...shownTypes()].sort()).toEqual([...expected].sort());
     expect(document.querySelectorAll('.dash-col').length).toBeGreaterThan(1);
@@ -63,15 +64,17 @@ describe('the home page', () => {
     render(<Dashboard onOpen={open} />);
     fireEvent.click(screen.getByRole('button', { name: /شخصی‌سازی/ }));
     fireEvent.click(screen.getByRole('button', { name: /افزودن ویجت/ }));
-    fireEvent.click(screen.getByText('میان‌بُرها').closest('button'));
-    expect(shownTypes()).toContain('shortcuts');
+    // Everything is on the page by default, so add a second copy of a widget that can be repeated
+    const before = shownTypes().filter((type) => type === 'rate_list').length;
+    fireEvent.click(screen.getByText('نرخ‌های دلخواه', { selector: '.dash-picker *' }).closest('button'));
+    expect(shownTypes().filter((type) => type === 'rate_list')).toHaveLength(before + 1);
     await waitFor(() => expect(putRecord).toHaveBeenCalled(), { timeout: 3000 });
     const [kind, id, payload, plain] = putRecord.mock.calls.at(-1);
     expect(kind).toBe('dashboard_layout');
     expect(id).toBe('main');
     expect(payload.startsWith('enc:')).toBe(true);
     // The test window is mid-size (2 columns), so the edit lands in the 2-column list only
-    expect(plain.tablet.map((w) => w.type)).toContain('shortcuts');
+    expect(plain.tablet.filter((w) => w.type === 'rate_list')).toHaveLength(before + 1);
     expect(plain.mobile).toBeNull();
     expect(plain.desktop).toBeNull();
     expect(JSON.parse(localStorage.getItem('realrate_dashboard_u1')).tablet).toHaveLength(plain.tablet.length);
