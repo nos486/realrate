@@ -109,4 +109,6 @@ export default {
   'پرداختی این ماه': 'To pay this month',
   'دریافتی این ماه': 'Coming in this month',
   'جمع پرداختی و دریافتی ماه': 'Show what the month pays and brings in',
+  'هفته قبل': 'Previous week',
+  'هفته بعد': 'Next week',
 };

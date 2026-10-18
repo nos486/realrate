@@ -680,10 +680,61 @@ button.dash-rate-tile:focus-visible {
 
 .dash-cal-grid-side {
   display: flex;
-  flex: 1 1 0;
+  flex: 0 0 auto;
   flex-direction: column;
   gap: 8px;
   min-width: 0;
+}
+
+/* A medium widget shows the month alone and the days share the height left; a short one shows a
+   week strip and the next thing due */
+.dash-cal.is-cozy .dash-cal-grid-side {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.dash-cal.is-cozy .dash-cal-grid {
+  flex: 1 1 0;
+  grid-template-rows: auto;
+  grid-auto-rows: minmax(0, 1fr);
+  min-height: 0;
+}
+
+.dash-cal.is-cozy .dash-cal-day {
+  min-height: 0;
+  padding: 0;
+  gap: 1px;
+}
+
+.dash-cal.is-cozy .dash-cal-weekday {
+  padding-block: 0;
+}
+
+.dash-cal.is-compact {
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.dash-cal-strip {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.dash-cal-strip-day {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dash-cal-strip-day .dash-cal-day {
+  min-height: 44px;
+}
+
+.dash-cal-list.is-next {
+  flex: 0 0 auto;
+  overflow: visible;
 }
 
 .dash-cal-head {
@@ -806,12 +857,23 @@ button.dash-rate-tile:focus-visible {
 .dash-cal-day.tone-goal { background: var(--color-positive-soft); }
 
 .dash-cal-day.is-today {
-  border-color: var(--color-primary-text);
   font-weight: 800;
 }
 
+/* Today is a filled disc, so it reads at a glance even beside a tinted day */
+.dash-cal-day.is-today > span:first-child {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: var(--text-heading);
+}
+
 .dash-cal-day.is-picked {
-  border-color: var(--text-primary);
+  border-color: var(--text-secondary);
 }
 
 .dash-cal-dots {
