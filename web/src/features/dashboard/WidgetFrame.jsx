@@ -1,6 +1,6 @@
 /**
  * WidgetFrame.jsx — One widget on the home page. In view mode it is just the widget; in edit mode
- * it gets a bar to drag it (or move it with the arrows), resize it, set its options and remove
+ * it gets a bar to drag it (or move it with the arrows), set its options and remove
  * it, and the widget itself stops reacting to taps.
  */
 
@@ -10,14 +10,11 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ChevronDown, ChevronUp, GripVertical, Settings2, X } from 'lucide-react';
 import ErrorBoundary from '../../shared/ui/ErrorBoundary.jsx';
-import { WIDGET_CATALOG, WIDGET_HEIGHTS } from '../../utils/dashboardLayout.js';
+import { WIDGET_CATALOG } from '../../utils/dashboardLayout.js';
 import { WIDGET_VIEWS } from './widgetRegistry.jsx';
 
-const SIZE_LABELS = { 1: t('کوچک'), 2: t('متوسط'), 3: t('بزرگ') };
-const HEIGHT_LABELS = { 1: t('کوتاه'), 2: t('متوسط'), 3: t('بلند') };
-
 export default function WidgetFrame({
-  widget, editing, available, sizable, first, last, onResize, onHeight, onMove, onSettings, onRemove,
+  widget, editing, available, first, last, onMove, onSettings, onRemove,
 }) {
   const spec = WIDGET_CATALOG[widget.type];
   const { Icon, Component } = WIDGET_VIEWS[widget.type];
@@ -30,7 +27,7 @@ export default function WidgetFrame({
     <div
       ref={sortable.setNodeRef}
       style={style}
-      className={`dash-widget is-size-${widget.size} is-height-${widget.height} ${editing ? 'is-editing' : ''} ${sortable.isDragging ? 'is-dragging' : ''}`}
+      className={`dash-widget ${editing ? 'is-editing' : ''} ${sortable.isDragging ? 'is-dragging' : ''}`}
       data-widget={widget.type}
     >
       {editing && (
@@ -52,24 +49,6 @@ export default function WidgetFrame({
           <button type="button" className="dash-bar-btn" onClick={() => onMove(1)} disabled={last} aria-label={t('پایین‌تر')} title={t('پایین‌تر')}>
             <ChevronDown size={16} />
           </button>
-          {sizable && spec.sizes.length > 1 && (
-            <div className="dash-size-toggle" role="group" aria-label={t('عرض')}>
-              {spec.sizes.map((size) => (
-                <button key={size} type="button" className={widget.size === size ? 'is-active' : ''} aria-pressed={widget.size === size} onClick={() => onResize(size)}>
-                  {SIZE_LABELS[size]}
-                </button>
-              ))}
-            </div>
-          )}
-          {sizable && (
-            <div className="dash-size-toggle" role="group" aria-label={t('ارتفاع')}>
-              {WIDGET_HEIGHTS.map((height) => (
-                <button key={height} type="button" className={widget.height === height ? 'is-active' : ''} aria-pressed={widget.height === height} onClick={() => onHeight(height)}>
-                  {HEIGHT_LABELS[height]}
-                </button>
-              ))}
-            </div>
-          )}
           {configurable && (
             <button type="button" className="dash-bar-btn" onClick={onSettings} aria-label={t('تنظیم {title}', { title })} title={t('تنظیم')}>
               <Settings2 size={16} />
