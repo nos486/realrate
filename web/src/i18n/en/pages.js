@@ -31,7 +31,7 @@ export default {
   'گزارش‌ها | RealRate': 'Reports | RealRate',
   'کاوش بازار | RealRate': 'Explore the market | RealRate',
   'پلن رایگان و Pro | RealRate': 'Free and Pro plans | RealRate',
-  'داشبورد بازار | RealRate': 'Market dashboard | RealRate',
+  'خانه | RealRate': 'Market dashboard | RealRate',
   'نرخ و حباب': 'Rates and bubble',
   'اخبار': 'News',
   'کاوش بازار': 'Explore',

@@ -30,6 +30,7 @@ const PRIMARY_DATE = {
   subscription: (s) => s?.startDate,
   goal: (g) => g?.createdAt,
   salary_month: (r) => r?.updatedAt,
+  dashboard_layout: (r) => r?.updatedAt,
 };
 
 /**

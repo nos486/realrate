@@ -34,6 +34,8 @@ export const VAULT_RECORD_KINDS = [
   "goal",
   // The days the user received salary, which start their months (domain/salaryMonth.js), one record
   "salary_month",
+  // The user's widget dashboard (home page), arranged per screen (domain/dashboardLayout.js), one record
+  "dashboard_layout",
 ];
 
 /** Kinds that exist only for users of a feature (config/features.js); others get 404 */

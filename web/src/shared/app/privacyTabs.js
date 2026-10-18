@@ -4,7 +4,7 @@
  */
 
 /** Tabs with the user's own amounts, on the site and in the app */
-export const PRIVATE_VALUE_TABS = ['portfolio', 'incomes', 'expenses', 'projects', 'accounts', 'loans', 'cheques', 'subscriptions', 'goals', 'reports'];
+export const PRIVATE_VALUE_TABS = ['market', 'portfolio', 'incomes', 'expenses', 'projects', 'accounts', 'loans', 'cheques', 'subscriptions', 'goals', 'reports'];
 
-/** In the app, the home tab ('market') is the personal dashboard: it has amounts too */
-export const APP_PRIVATE_VALUE_TABS = ['market', ...PRIVATE_VALUE_TABS];
+/** The home tab ('market') is the personal dashboard, on the site and in the app: it has amounts too */
+export const APP_PRIVATE_VALUE_TABS = PRIVATE_VALUE_TABS;

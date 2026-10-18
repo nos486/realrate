@@ -9,10 +9,8 @@
 
 /** Tab → the scopes its refresh reads */
 export const TAB_REFRESH_SCOPES = {
-  // The website's home: the market and the latest news above it
-  market: ['prices', 'news'],
-  // The app frame's home: the user's month, the latest news and the dollar
-  'app-home': ['prices', 'news', 'incomes', 'expenses'],
+  // The home page (the widget dashboard): the dollar, the latest news and the user's month
+  market: ['prices', 'news', 'incomes', 'expenses'],
   rates: ['prices'],
   news: ['news'],
   portfolio: ['prices', 'portfolio'],
@@ -38,13 +36,13 @@ export const TAB_REFRESH_SCOPES = {
 /**
  * The scopes of the open tab
  * @param {string} tab - MainPage's active tab
- * @param {{ appLayout?: boolean, hasMarket?: boolean }} [context] - the app frame (its home is the
- *   user's dashboard); whether the user has the market page (without it, no prices are shown)
+ * @param {{ hasMarket?: boolean }} [context] - whether the user has the market page (without it,
+ *   no prices are shown, except on the home and the portfolio)
  * @returns {string[]}
  */
-export function refreshScopesOf(tab, { appLayout = false, hasMarket = true } = {}) {
-  const key = tab === 'market' && appLayout ? 'app-home' : tab;
-  const scopes = TAB_REFRESH_SCOPES[key] || [];
-  const showsPrices = key === 'app-home' || key === 'portfolio' || hasMarket;
+export function refreshScopesOf(tab, { hasMarket = true } = {}) {
+  const scopes = TAB_REFRESH_SCOPES[tab] || [];
+  // The home shows the dollar to every user (its widgets pick what they show)
+  const showsPrices = tab === 'market' || tab === 'portfolio' || hasMarket;
   return showsPrices ? scopes : scopes.filter((s) => s !== 'prices');
 }

@@ -607,7 +607,7 @@ html.is-app-layout .site-footer {
   }
 }
 
-/* ══ App home dashboard (features/home/AppHomeDashboard.jsx) ══ */
+/* ══ Home cards and rows, used by the dashboard's widgets (features/dashboard/) ══ */
 .app-home {
   display: flex;
   flex-direction: column;

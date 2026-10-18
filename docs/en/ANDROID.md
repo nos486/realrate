@@ -22,7 +22,7 @@ The Android app is the same web app (`web/`) packaged in an Android shell (`web/
   - Bottom bar: **home · expenses · (+) · incomes · more** (the portfolio is under «بیشتر»). Instead of the website's header and drawer, the app's top bar has the section's title and the hide-amounts and lock buttons. No footer.
   - **+** opens a "quick add" bottom sheet (expense, income, portfolio holding, pending SMS). The form opens on its section's page with `?add=expense|income|holding` (and `cheque` for direct links; `loan` from a deposit SMS) (`useQuickAddParam`).
   - **More**: the other sections (from the same `navItems` as the site, so a section the user doesn't have doesn't appear) and sign-out / lock / hide amounts.
-  - **Home** in the app is the user's own dashboard (`features/home/AppHomeDashboard.jsx`): this month's spending and income, pending SMS, the latest expenses, today's rates. The market ("rates and bubble") is at `/rates`, under "more". The dollar-rate bar only shows on home and the market.
+  - **Home** in the app is the user's own dashboard (`features/dashboard/`): a list of widgets the user arranges (this month's summary, pending SMS, the latest expenses, loans, goals, today's rates, news, the AI analysis, ...). The market ("rates and bubble") is at `/rates`, under "more". The dollar-rate bar only shows on home and the market.
   - Touch feel: a short vibration (`@capacitor/haptics`, `shared/native/haptics.js`), buttons that press in on touch, a soft entry for each section, no text selection on buttons.
   - Preview in the browser during development: `?app=1` (only `vite dev`; `?app=0` goes back).
 - Android's back button walks the page history (closing dialogs and menus as on the site — `useBackToClose`); on the home page it exits the app.
