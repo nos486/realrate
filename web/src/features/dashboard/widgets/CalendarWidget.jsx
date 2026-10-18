@@ -1,7 +1,7 @@
 /**
  * CalendarWidget.jsx — «تقویم»: a Shamsi month with a dot on every day something falls due — loan
  * installments, open cheques, subscription renewals and goal target dates. A tap on a day lists
- * its events; without one the list shows the whole month. The list sits under the grid. Records are decrypted in the browser, so a locked vault shows the bare calendar.
+ * its events; without one the list shows the whole month. A wide widget puts the list beside the grid. Records are decrypted in the browser, so a locked vault shows the bare calendar.
  */
 
 import { intlLocale, t } from '../../../utils/i18n.js';
@@ -34,7 +34,7 @@ const KINDS = {
 
 const dayLabel = (n) => n.toLocaleString(intlLocale(), { useGrouping: false });
 
-export default function CalendarWidget() {
+export default function CalendarWidget({ widget }) {
   const navigate = useNavigate();
   const today = todayIso();
   const [month, setMonth] = useState(() => shamsiMonthOf(todayIso()));
@@ -61,7 +61,7 @@ export default function CalendarWidget() {
   };
 
   return (
-    <section className="app-home-card dash-cal">
+    <section className={`app-home-card dash-cal is-size-${widget.size}`}>
       <div className="dash-cal-grid-side">
         <header className="dash-cal-head">
           <button type="button" className="dash-cal-nav" onClick={() => go(-1)} aria-label={t('ماه قبل')}><ChevronRight size={16} /></button>
