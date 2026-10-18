@@ -54,14 +54,14 @@ export const WIDGET_CATALOG = {
     description: msg("هزینه‌هایی که تازه ثبت شده است"),
     group: "money",
     sizes: [1, 2, 3], defaultSize: 2, defaultHeight: 2, requires: "expenses",
-    options: { count: [3, 5, 8, 10] }, defaults: { count: 5 },
+    options: { count: [3, 5, 8, 10] }, defaults: { count: 10 },
   },
   loans: {
     title: msg("وام‌ها"),
     description: msg("قسط بعدی وام‌ها و مانده‌ی هر کدام"),
     group: "money",
     sizes: [1, 2, 3], defaultSize: 1, defaultHeight: 2, unique: true, requires: "vault",
-    options: { count: [3, 5, 8] }, defaults: { count: 3 },
+    options: { count: [3, 5, 8, 12] }, defaults: { count: 8 },
   },
   goals: {
     title: msg("اهداف پس‌انداز"),
@@ -99,7 +99,7 @@ export const WIDGET_CATALOG = {
     description: msg("تازه‌ترین خبرهای بازار"),
     group: "news",
     sizes: [1, 2, 3], defaultSize: 2, defaultHeight: 2, unique: true, requires: "news",
-    options: { count: [3, 5, 8, 10] }, defaults: { count: 5 },
+    options: { count: [3, 5, 8, 10] }, defaults: { count: 10 },
   },
   ai_analysis: {
     title: msg("تحلیل روز با هوش مصنوعی"),

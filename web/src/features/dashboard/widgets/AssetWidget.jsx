@@ -11,6 +11,7 @@ import { usePricing } from '../../market/context/PricingContext.jsx';
 import HomeAssetCard from '../../home/HomeAssetCard.jsx';
 import { buildAssetIndex, resolveHomeAsset } from '../../home/homeAssets.js';
 import { useDashboardData } from '../DashboardContext.js';
+import DashScroll from '../DashScroll.jsx';
 
 export default function AssetWidget({ widget, editing, onConfigure }) {
   const { analysis } = useDashboardData();
@@ -28,8 +29,10 @@ export default function AssetWidget({ widget, editing, onConfigure }) {
     );
   }
   return (
-    <div className="home-item dash-asset">
-      <HomeAssetCard asset={asset} style={widget.size >= 2 ? 'detailed' : 'compact'} flippable={!editing} />
-    </div>
+    <DashScroll>
+      <div className="home-item dash-asset">
+        <HomeAssetCard asset={asset} style={widget.size >= 2 ? 'detailed' : 'compact'} flippable={!editing} />
+      </div>
+    </DashScroll>
   );
 }

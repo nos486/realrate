@@ -96,7 +96,7 @@ export default function Dashboard({ usdToman = 0, analysis = [], currencies = []
 
   return (
     <DashboardContext.Provider value={data}>
-      <div className={`dash ${isEditing ? 'is-editing' : ''}`}>
+      <div className={`dash ${isEditing ? 'is-editing' : ''} ${appLayout ? 'is-app' : ''}`}>
         <div className="dash-toolbar">
           {isEditing ? (
             <>

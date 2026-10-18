@@ -52,7 +52,7 @@ describe('sanitizeWidgets', () => {
   it('makes sizes and options valid', () => {
     const [news, month] = sanitizeWidgets([{ type: 'news', size: 9, config: { count: 4, extra: 1 } }, { type: 'month', size: 1 }]);
     expect(news.size).toBe(3);
-    expect(news.config).toEqual({ count: 5 });
+    expect(news.config).toEqual({ count: 10 });
     expect(month.size).toBe(1);
     expect(sanitizeWidgets([{ type: 'news', config: { count: 8 } }])[0].config).toEqual({ count: 8 });
   });
@@ -153,8 +153,8 @@ describe('edits', () => {
     expect(resizeWidget(start, month.id, 3)[0].size).toBe(3);
     expect(resizeWidget(start, month.id, 1)[0].size).toBe(1);
     expect(resizeWidget(start, month.id, 9)[0].size).toBe(3);
-    expect(configureWidget(start, news.id, { count: 10 })[1].config).toEqual({ count: 10 });
-    expect(configureWidget(start, news.id, { count: 4 })[1].config).toEqual({ count: 5 });
+    expect(configureWidget(start, news.id, { count: 5 })[1].config).toEqual({ count: 5 });
+    expect(configureWidget(start, news.id, { count: 4 })[1].config).toEqual({ count: 10 });
   });
 });
 

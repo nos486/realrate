@@ -6,8 +6,13 @@
 import React from 'react';
 import HomeDashboard from '../../home/HomeDashboard.jsx';
 import { useDashboardData } from '../DashboardContext.js';
+import DashScroll from '../DashScroll.jsx';
 
 export default function MarketWidget() {
   const { analysis, currencies, recommendation, marketLoading } = useDashboardData();
-  return <HomeDashboard analysis={analysis} currencies={currencies} recommendation={recommendation} loading={marketLoading} />;
+  return (
+    <DashScroll>
+      <HomeDashboard analysis={analysis} currencies={currencies} recommendation={recommendation} loading={marketLoading} />
+    </DashScroll>
+  );
 }
