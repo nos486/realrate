@@ -18,14 +18,14 @@ afterEach(cleanup);
 
 describe('the clock widget', () => {
   it('shows the time and today\'s date', () => {
-    const { container } = render(<ClockWidget widget={{}} />);
+    const { container } = render(<ClockWidget widget={{ size: 2 }} />);
     expect(container.querySelector('time')?.textContent).toMatch(/[\d۰-۹]{2}:[\d۰-۹]{2}/);
     expect(container.querySelector('.dash-clock-date')?.textContent).toBeTruthy();
   });
 });
 
 describe('the calendar widget', () => {
-  const view = () => render(<MemoryRouter><CalendarWidget widget={{}} /></MemoryRouter>);
+  const view = () => render(<MemoryRouter><CalendarWidget widget={{ size: 2 }} /></MemoryRouter>);
 
   it('draws the month with a dot on a day a goal falls due', () => {
     const { container } = view();

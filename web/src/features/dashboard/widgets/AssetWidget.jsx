@@ -31,7 +31,7 @@ export default function AssetWidget({ widget, editing, onConfigure }) {
   return (
     <DashScroll>
       <div className="home-item dash-asset">
-        <HomeAssetCard asset={asset} style="compact" flippable={!editing} />
+        <HomeAssetCard asset={asset} style={widget.size >= 2 ? 'detailed' : 'compact'} flippable={!editing} />
       </div>
     </DashScroll>
   );

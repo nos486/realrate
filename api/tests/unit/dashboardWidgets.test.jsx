@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 /**
  * dashboardWidgets.test.jsx — The home page's edit mode: a widget in view mode is just its
- * content, in edit mode it gets the bar (move, set up, remove), and the picker offers
+ * content, in edit mode it gets the bar (move, resize, set up, remove), and the picker offers
  * only the widgets the user can see, once for the unique ones
  */
 import React from 'react';
@@ -26,7 +26,7 @@ const [news] = sanitizeWidgets([{ type: 'news' }]);
 const frame = (props) => render(
   <DndContext>
     <SortableContext items={[news.id]}>
-      <WidgetFrame widget={news} editing={false} available first last onMove={() => {}} onSettings={() => {}} onRemove={() => {}} {...props} />
+      <WidgetFrame widget={news} editing={false} available sizable first last onResize={() => {}} onMove={() => {}} onSettings={() => {}} onRemove={() => {}} {...props} />
     </SortableContext>
   </DndContext>,
 );
@@ -43,11 +43,14 @@ describe('a widget on the page', () => {
     expect(screen.queryByText('content news')).toBeNull();
   });
 
-  it('gets a bar to move, set up and remove it while arranging', () => {
+  it('gets a bar to resize, set up and remove it while arranging', () => {
+    const onResize = vi.fn();
     const onSettings = vi.fn();
     const onRemove = vi.fn();
     const onMove = vi.fn();
-    frame({ editing: true, onSettings, onRemove, onMove });
+    frame({ editing: true, onResize, onSettings, onRemove, onMove });
+    fireEvent.click(screen.getByRole('button', { name: 'کوچک' }));
+    expect(onResize).toHaveBeenCalledWith(1);
     fireEvent.click(screen.getByRole('button', { name: /^تنظیم/ }));
     expect(onSettings).toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: /^حذف/ }));
@@ -56,10 +59,9 @@ describe('a widget on the page', () => {
     expect(onMove).not.toHaveBeenCalled(); // last widget: cannot go down
   });
 
-  it('has no size choice: every widget is the same size', () => {
-    frame({ editing: true });
-    expect(screen.queryByRole('group', { name: 'عرض' })).toBeNull();
-    expect(screen.queryByRole('group', { name: 'ارتفاع' })).toBeNull();
+  it('has no size choice in the app frame', () => {
+    frame({ editing: true, sizable: false });
+    expect(screen.queryByRole('button', { name: 'کوچک' })).toBeNull();
   });
 });
 

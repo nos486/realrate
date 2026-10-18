@@ -33,7 +33,7 @@ export default function RateListWidget({ widget, editing, onConfigure }) {
   }
   return (
     <DashScroll>
-      <div className="dash-rate-list">
+      <div className={`dash-rate-list is-size-${widget.size}`}>
         {assets.map((asset) => (
           <div key={asset.id} className="home-item dash-asset">
             <HomeAssetCard asset={asset} style="compact" flippable={false} />
