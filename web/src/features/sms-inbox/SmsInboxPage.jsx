@@ -36,9 +36,11 @@ import SmsInboxList from './SmsInboxList.jsx';
 import LoanDepositSheet from './LoanDepositSheet.jsx';
 import ShareDepositSheet from './ShareDepositSheet.jsx';
 import ProjectPickSheet from './ProjectPickSheet.jsx';
+import TransferPairSheet from './TransferPairSheet.jsx';
 import TransferForm from '../accounts/components/TransferForm.jsx';
 import { saveTransfer } from '../../shared/vault/vaultTransfers.js';
-import { smsExpenseDraft, smsProjectExpenseDraft, smsIncomeDraft, smsTransferDraft, findTransferCounterpart } from './smsDrafts.js';
+import { smsExpenseDraft, smsProjectExpenseDraft, smsIncomeDraft, smsTransferDraft, findTransferCounterpart, oppositeMessages } from './smsDrafts.js';
+import { formatAmount } from '../expenses/utils/format.js';
 import { ensureSmsAccount } from './smsAccounts.js';
 import { saveSmsExpense, recordSmsExpense, recordSmsRejected, dropAlreadyRecorded, autoRecordSms } from './smsRecord.js';
 import { getExpenseCategory } from '../expenses/constants/expenseCategories.js';
@@ -110,6 +112,8 @@ export default function SmsInboxPage() {
   const [projectDraft, setProjectDraft] = useState(null); // { project, draft }
   // «انتقال بین حساب‌های خودم»: the message (and the other side's, when it waits too)
   const [transferDraft, setTransferDraft] = useState(null); // { draft, items: [message, counterpart?] }
+  // No pair found on its own but others wait: the message whose other side the user picks
+  const [pairItem, setPairItem] = useState(null);
 
   const locked = vaultStatus === 'locked';
   const { pending, settings: smsSettings } = useSmsInbox();
@@ -177,12 +181,22 @@ export default function SmsInboxPage() {
     }
   };
 
-  const handleTransfer = async (item) => {
+  /** Opens the transfer form for a message; `chosen` is the other side picked by hand */
+  const openTransfer = async (item, chosen = null) => {
     // Both sides are the user's own accounts: the other message's too
-    const other = findTransferCounterpart(item, pending);
+    const other = chosen || findTransferCounterpart(item, pending);
     const active = await withMessageAccounts(...[item, other].filter(Boolean));
-    const { draft, counterpart } = smsTransferDraft(item, pending, active);
+    const { draft, counterpart } = smsTransferDraft(item, pending, active, chosen);
     setTransferDraft({ draft, items: [item, counterpart].filter(Boolean) });
+  };
+
+  const handleTransfer = async (item) => {
+    // Nothing pairs on its own but opposite messages wait: the user may pick the other side
+    if (!findTransferCounterpart(item, pending) && oppositeMessages(item, pending).length) {
+      setPairItem(item);
+      return;
+    }
+    await openTransfer(item);
   };
 
   const handleSaveTransfer = async (input) => {
@@ -403,8 +417,22 @@ export default function SmsInboxPage() {
           onClose={() => setTransferDraft(null)}
           onSubmit={handleSaveTransfer}
           note={transferDraft.items.length > 1 && (
-            <AlertBanner type="info" message={t('پیامک طرف دیگر این انتقال (همان مبلغ، همان روز) هم پیدا شد و با ثبت آن کنار گذاشته می‌شود.')} />
+            <AlertBanner
+              type="info"
+              message={transferDraft.draft.fee
+                ? t('پیامک طرف دیگر این انتقال هم پیدا شد و با ثبت آن کنار گذاشته می‌شود؛ اختلاف دو مبلغ ({fee} تومان) کارمزد ثبت می‌شود.', { fee: formatAmount(transferDraft.draft.fee) })
+                : t('پیامک طرف دیگر این انتقال (همان مبلغ، همان روز) هم پیدا شد و با ثبت آن کنار گذاشته می‌شود.')}
+            />
           )}
+        />
+      )}
+      {pairItem && (
+        <TransferPairSheet
+          item={pairItem}
+          candidates={oppositeMessages(pairItem, pending)}
+          onClose={() => setPairItem(null)}
+          onAlone={() => { const it = pairItem; setPairItem(null); openTransfer(it); }}
+          onPick={(other) => { const it = pairItem; setPairItem(null); openTransfer(it, other); }}
         />
       )}
       {shareItem && <ShareDepositSheet item={shareItem} accounts={accounts} onClose={() => setShareItem(null)} />}

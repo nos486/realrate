@@ -72,6 +72,19 @@ describe('a transfer from bank messages', () => {
     expect(draft.smsKeys).toEqual([credit.tx.key, debit.tx.key]);
   });
 
+  it('pairs a deposit short of the withdrawal by a small fee, and records the gap as the fee', () => {
+    const debit = msg('d', 'debit', 'blu', 10_005_000, '2026-10-18');
+    const credit = msg('c', 'credit', 'mellat', 10_000_000, '2026-10-18');
+    expect(findTransferCounterpart(debit, [debit, credit])?.fingerprint).toBe('c');
+    expect(findTransferCounterpart(credit, [debit, credit])?.fingerprint).toBe('d');
+    const { draft } = smsTransferDraft(credit, [debit, credit], accounts);
+    expect(draft).toMatchObject({ fromAccountId: 'acc_blu', toAccountId: 'acc_mellat', amount: 10_005_000, fee: 5_000 });
+    // too large a gap is no fee; a manual pick still turns the gap into the fee
+    const far = msg('c2', 'credit', 'mellat', 9_000_000, '2026-10-18');
+    expect(findTransferCounterpart(debit, [debit, far])).toBeNull();
+    expect(smsTransferDraft(debit, [debit, far], accounts, far).draft).toMatchObject({ amount: 10_005_000, fee: 1_005_000 });
+  });
+
   it('alone, only its own side is known', () => {
     const debit = msg('d', 'debit', 'blu', 2_000_000, '2026-09-28');
     const { draft, counterpart } = smsTransferDraft(debit, [debit], accounts);

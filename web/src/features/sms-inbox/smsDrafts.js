@@ -82,38 +82,64 @@ export function smsReimbursement(tx, accounts = []) {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** The most a bank keeps as a transfer fee for the two messages to pair up on their own (tomans, and a share of the amount) */
+export const TRANSFER_FEE_MAX = 100_000;
+export const TRANSFER_FEE_MAX_SHARE = 0.01;
+
+/** What the bank kept: the withdrawal less the deposit, or null when the pair cannot be a transfer with a fee */
+function pairFee(debit, credit) {
+  const out = Math.round(debit.tx.amount);
+  const fee = out - Math.round(credit.tx.amount);
+  return fee >= 0 && fee <= Math.min(TRANSFER_FEE_MAX, out * TRANSFER_FEE_MAX_SHARE) ? fee : null;
+}
+
+/** Messages of the opposite direction that are not `item` itself, whatever their amount (for picking by hand) */
+export function oppositeMessages(item, pending = []) {
+  const opposite = item.tx.direction === 'debit' ? 'credit' : 'debit';
+  return pending.filter((p) => p.fingerprint !== item.fingerprint && p.tx?.direction === opposite);
+}
+
 /**
  * The other side of a transfer between the user's own accounts, still waiting: the opposite
- * direction, the same amount, within a day, another message
+ * direction within a day, another message, with the same amount or — the bank keeping a fee —
+ * a deposit slightly below the withdrawal. The smallest fee wins, then the closest day.
  * @param {object} item the message being recorded
  * @param {object[]} pending the waiting messages
  */
 export function findTransferCounterpart(item, pending = []) {
   const { tx } = item;
-  const opposite = tx.direction === 'debit' ? 'credit' : 'debit';
   const day = Date.parse(`${tx.date}T00:00:00Z`);
-  return pending.find((p) => p.fingerprint !== item.fingerprint
-    && p.tx?.direction === opposite
-    && Math.round(p.tx.amount) === Math.round(tx.amount)
-    && Math.abs(Date.parse(`${p.tx.date}T00:00:00Z`) - day) <= DAY_MS) || null;
+  let best = null;
+  for (const p of oppositeMessages(item, pending)) {
+    const gap = Math.abs(Date.parse(`${p.tx.date}T00:00:00Z`) - day);
+    if (!(gap <= DAY_MS)) continue;
+    const fee = tx.direction === 'debit' ? pairFee(item, p) : pairFee(p, item);
+    if (fee === null) continue;
+    if (!best || fee < best.fee || (fee === best.fee && gap < best.gap)) best = { p, fee, gap };
+  }
+  return best ? best.p : null;
 }
 
 /**
- * The transfer form's draft for a message (and the other side's message, when it waits too):
- * the withdrawal's account is the source, the deposit's the destination
+ * The transfer form's draft for a message and the other side's message (found among the waiting
+ * ones, or `chosen` by hand): the withdrawal's account is the source, the deposit's the destination,
+ * and what the deposit lacks of the withdrawal is the fee
  * @returns {{ draft: object, counterpart: object|null }}
  */
-export function smsTransferDraft(item, pending = [], accounts = []) {
-  const counterpart = findTransferCounterpart(item, pending);
+export function smsTransferDraft(item, pending = [], accounts = [], chosen = null) {
+  const counterpart = chosen || findTransferCounterpart(item, pending);
   const debit = item.tx.direction === 'debit' ? item : counterpart;
   const credit = item.tx.direction === 'credit' ? item : counterpart;
   const accountOf = (msg) => (msg ? matchSmsAccount(msg.tx, accounts) || '' : '');
+  const out = Math.round((debit || item).tx.amount);
+  const fee = debit && credit ? Math.max(0, out - Math.round(credit.tx.amount)) : 0;
   return {
     counterpart,
     draft: {
       fromAccountId: accountOf(debit),
       toAccountId: accountOf(credit),
-      amount: Math.round(item.tx.amount),
+      amount: debit && credit ? Math.max(out, Math.round(credit.tx.amount)) : Math.round(item.tx.amount),
+      ...(fee > 0 ? { fee } : {}),
       // The withdrawal's day (the money left then)
       date: (debit || item).tx.date,
       notes: smsNote(item.tx),
