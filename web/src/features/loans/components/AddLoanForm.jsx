@@ -31,7 +31,6 @@ import {
   solveAnnualRateFromTotalRepayment,
   distributeInstallmentAmounts,
 } from '../../../utils/loanCalculator.js';
-import { getLoanDetail } from '../api/loanApi.js';
 import { BankPicker } from '../../../shared/banks/index.js';
 import { todayIso } from '../../../shared/utils/dates.js';
 
