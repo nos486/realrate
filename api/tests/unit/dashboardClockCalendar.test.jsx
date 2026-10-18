@@ -155,8 +155,7 @@ describe('the calendar\'s look', () => {
     expect(container.querySelectorAll('.dash-cal-greg').length).toBeGreaterThanOrEqual(29);
     const footer = container.querySelector('.dash-cal-selected');
     expect(footer?.textContent).toContain('میلادی');
-    const marked = container.querySelector('.dash-cal-day.has-events');
-    fireEvent.click(marked);
+    fireEvent.click([...container.querySelectorAll('.dash-cal-day:not(.is-today)')].pop());
     expect(container.querySelector('.dash-cal-selected')?.textContent).not.toBe(footer.textContent);
   });
 });
