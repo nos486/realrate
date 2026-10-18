@@ -54,7 +54,14 @@ describe('the calendar day card', () => {
 
   it('lists what each marker means', () => {
     const { container } = render(<MemoryRouter><CalendarWidget widget={{ config: { kinds: ['loan', 'goal'] } }} /></MemoryRouter>);
-    expect(container.querySelectorAll('.dash-cal-legend li')).toHaveLength(2);
+    expect(container.querySelectorAll('.dash-cal-legend li')).toHaveLength(3); // the two kinds and «تمام‌شده»
+  });
+});
+
+describe('the calendar\'s past days', () => {
+  it('marks a reached goal as finished with a grey marker', () => {
+    const { container } = render(<MemoryRouter><CalendarWidget widget={{ height: 3, config: {} }} /></MemoryRouter>);
+    expect(container.querySelector('.dash-cal-legend .dash-cal-dot.is-done')).toBeTruthy();
   });
 });
 

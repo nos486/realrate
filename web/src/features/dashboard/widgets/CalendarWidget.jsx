@@ -55,6 +55,9 @@ const amountText = (event, hidden) => {
   return hidden ? MASK : formatMoney(event.amount, event.currency);
 };
 
+/** The marker of an event: its kind's colour, or grey once it is finished */
+const markerOf = (event) => (event.state === 'done' ? 'done' : event.kind);
+
 /** What a kind's event is for the user: a payment, or money coming in (a received cheque) */
 const toneOf = (event) => (event.kind === 'cheque' && event.direction === 'received' ? 'in' : event.kind === 'goal' ? 'goal' : 'out');
 
@@ -70,16 +73,19 @@ const addDays = (iso, n) => new Date(Date.parse(iso) + n * DAY_MS).toISOString()
 /** What a kind of event is called; a cheque also says which way the money goes */
 const kindLabel = (event) => (event.kind === 'cheque' ? (event.direction === 'received' ? t('چک دریافتی') : t('چک پرداختی')) : KINDS[event.kind].label);
 
+/** Where an event stands, when it is behind: finished, or still owed after its day */
+const stateLabel = (event) => (event.state === 'done' ? t('تمام‌شده') : event.state === 'overdue' ? t('عقب‌افتاده') : '');
+
 /** One event as a row that opens its record */
 function EventRow({ event, onOpen, hidden, right = '' }) {
   const amount = amountText(event, hidden);
   return (
     <li>
-      <button type="button" className="dash-cal-event" onClick={() => onOpen(event)}>
-        <i className={`dash-cal-dot is-${event.kind}`} aria-hidden="true" />
+      <button type="button" className={`dash-cal-event is-${event.state}`} onClick={() => onOpen(event)}>
+        <i className={`dash-cal-dot is-${markerOf(event)}`} aria-hidden="true" />
         <span className="dash-cal-event-text">
           <strong>{event.title || KINDS[event.kind].label}</strong>
-          <small>{kindLabel(event)}</small>
+          <small>{[kindLabel(event), stateLabel(event)].filter(Boolean).join(' · ')}</small>
         </span>
         {amount && <span className={`dash-cal-event-amount is-${toneOf(event)}`}>{amount}</span>}
         {right && <span className="dash-cal-event-day">{right}</span>}
@@ -100,13 +106,13 @@ function DayTip({ iso, events, today, hidden, placement }) {
       </p>
       <ul>
         {events.map((event) => (
-          <li key={event.key}>
-            <i className={`dash-cal-dot is-${event.kind}`} />
+          <li key={event.key} className={`is-${event.state}`}>
+            <i className={`dash-cal-dot is-${markerOf(event)}`} />
             <span>
               <strong>{event.title || KINDS[event.kind].label}</strong>
-              <small>{kindLabel(event)}</small>
+              <small>{[kindLabel(event), stateLabel(event)].filter(Boolean).join(' · ')}</small>
             </span>
-            {event.amount !== null && <b className={`is-${toneOf(event)}`}>{amountText(event, hidden)}</b>}
+            {event.amount !== null && <b className={`is-${event.state === 'done' ? 'done' : toneOf(event)}`}>{amountText(event, hidden)}</b>}
           </li>
         ))}
       </ul>
@@ -116,7 +122,8 @@ function DayTip({ iso, events, today, hidden, placement }) {
 
 /** One day: its number, the markers of what is due and, on hover or focus, the card of the day */
 function DayCell({ iso, events, today, picked, hidden, column, rows, row, onPick }) {
-  const kinds = [...new Set(events.map((e) => e.kind))];
+  const markers = [...new Set(events.map(markerOf))];
+  const open = events.find((e) => e.state !== 'done');
   const placement = `${row < rows / 2 ? 'is-below' : 'is-above'} ${column < 3 ? 'is-start' : column > 3 ? 'is-end' : 'is-mid'}`;
   const text = formatShamsiDisplay(`${iso}T00:00:00`);
   const cls = [
@@ -125,7 +132,8 @@ function DayCell({ iso, events, today, picked, hidden, column, rows, row, onPick
     iso === picked && 'is-picked',
     column === 6 && 'is-friday',
     iso < today && 'is-past',
-    events.length > 0 && `has-events tone-${kinds[0]}`,
+    events.length > 0 && `has-events tone-${open ? open.kind : 'done'}`,
+    events.some((e) => e.state === 'overdue') && 'has-overdue',
   ].filter(Boolean).join(' ');
   return (
     <div className="dash-cal-cell">
@@ -138,8 +146,8 @@ function DayCell({ iso, events, today, picked, hidden, column, rows, row, onPick
       >
         <span>{dayLabel(shamsiDayOf(iso))}</span>
         <span className="dash-cal-dots" aria-hidden="true">
-          {kinds.map((kind) => <i key={kind} className={`dash-cal-dot is-${kind}`} />)}
-          {events.length > kinds.length && <small>{`+${dayLabel(events.length - kinds.length)}`}</small>}
+          {markers.map((marker) => <i key={marker} className={`dash-cal-dot is-${marker}`} />)}
+          {events.length > markers.length && <small>{`+${dayLabel(events.length - markers.length)}`}</small>}
         </span>
       </button>
       {events.length > 0 && <DayTip iso={iso} events={events} today={today} hidden={hidden} placement={placement} />}
@@ -147,12 +155,12 @@ function DayCell({ iso, events, today, picked, hidden, column, rows, row, onPick
   );
 }
 
-/** What the month's events ask to pay and bring in, in tomans (a foreign-currency one is left out) */
+/** What the month's events still ask to pay and bring in, in tomans (a foreign-currency or finished one is left out) */
 function monthTotals(events) {
   const totals = { out: 0, in: 0 };
   for (const list of events.values()) {
     for (const event of list) {
-      if (event.amount === null || event.currency !== BASE) continue;
+      if (event.amount === null || event.currency !== BASE || event.state === 'done') continue;
       const tone = toneOf(event);
       if (tone === 'out') totals.out += event.amount;
       else if (tone === 'in') totals.in += event.amount;
@@ -225,7 +233,7 @@ export default function CalendarWidget({ widget }) {
 
   if (density === 'compact') {
     const days = Array.from({ length: 7 }, (_, d) => addDays(weekStart, d));
-    const next = [...events.entries()].filter(([day]) => day >= today).sort(([a], [b]) => a.localeCompare(b))[0];
+    const next = [...events.entries()].map(([day, list]) => [day, list.filter((e) => e.state !== 'done')]).filter(([day, list]) => day >= today && list.length).sort(([a], [b]) => a.localeCompare(b))[0];
     const [nextDay, nextList] = next || [];
     const left = nextDay ? Math.round((Date.parse(nextDay) - Date.parse(today)) / DAY_MS) : 0;
     const shown = shamsiMonthOf(addDays(weekStart, 3));
@@ -307,6 +315,7 @@ export default function CalendarWidget({ widget }) {
           {full && (
             <ul className="dash-cal-legend" aria-label={t('نشانه‌ها')}>
               {shownKinds.map((kind) => <li key={kind}><i className={`dash-cal-dot is-${kind}`} aria-hidden="true" />{KINDS[kind].label}</li>)}
+              <li><i className="dash-cal-dot is-done" aria-hidden="true" />{t('تمام‌شده')}</li>
             </ul>
           )}
           {full && widget.config?.total !== false && (totals.out > 0 || totals.in > 0) && (

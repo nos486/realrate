@@ -855,6 +855,13 @@ button.dash-rate-tile:focus-visible {
 .dash-cal-day.tone-cheque { background: var(--color-primary-soft); }
 .dash-cal-day.tone-subscription { background: var(--color-warning-soft); }
 .dash-cal-day.tone-goal { background: var(--color-positive-soft); }
+.dash-cal-day.tone-done { background: var(--bg-surface); }
+
+/* What is behind: finished events are grey, what is still owed after its day keeps its colour but
+   gets a warning edge */
+.dash-cal-day.has-overdue {
+  border-color: var(--color-warning-border);
+}
 
 .dash-cal-day.is-today {
   font-weight: 800;
@@ -902,6 +909,7 @@ button.dash-rate-tile:focus-visible {
 .dash-cal-dot.is-cheque { background: var(--color-primary-text); }
 .dash-cal-dot.is-subscription { background: var(--color-warning-text); }
 .dash-cal-dot.is-goal { background: var(--color-positive-text); }
+.dash-cal-dot.is-done { background: var(--text-muted); opacity: 0.55; }
 
 /* The day's card: opens beside its cell, toward the room the month has */
 .dash-cal-tip {
@@ -995,6 +1003,19 @@ button.dash-rate-tile:focus-visible {
 .dash-cal-event-amount.is-in { color: var(--color-positive-text); }
 .dash-cal-tip li b.is-goal,
 .dash-cal-event-amount.is-goal { color: var(--text-secondary); }
+.dash-cal-tip li b.is-done,
+.dash-cal-event-amount.is-done { color: var(--text-muted); font-weight: 600; }
+
+.dash-cal-event.is-done .dash-cal-event-text strong,
+.dash-cal-tip li.is-done strong {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.dash-cal-event.is-overdue .dash-cal-event-text small,
+.dash-cal-tip li.is-overdue small {
+  color: var(--color-warning-text);
+}
 
 /* Under the month: what the markers mean, and what the month asks to pay and brings in */
 .dash-cal-legend {

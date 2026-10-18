@@ -111,4 +111,5 @@ export default {
   'جمع پرداختی و دریافتی ماه': 'Show what the month pays and brings in',
   'هفته قبل': 'Previous week',
   'هفته بعد': 'Next week',
+  'تمام‌شده': 'Done',
 };
