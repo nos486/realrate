@@ -7,7 +7,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   WIDGET_CATALOG, WIDGET_HEIGHTS, WIDGET_HEIGHT_PX, WIDGET_GROUPS, WIDGET_TYPES, DASHBOARD_LIMITS, DEFAULT_DASHBOARD,
-  sanitizeWidgets, sanitizeDashboard, defaultWidgets, widgetsOf, withScreen, canAddWidget,
+  sanitizeWidgets, sanitizeDashboard, screenOfColumns, hasSavedScreen, defaultWidgets, widgetsOf, withScreen, canAddWidget,
   addWidget, removeWidget, moveWidget, shiftWidget, setWidgetHeight, configureWidget, layoutColumns, placeWidget,
 } from '../../src/domain/dashboardLayout.js';
 import { ACCOUNT_KINDS } from '../../../web/src/shared/vault/fullBackup.js';
@@ -134,6 +134,26 @@ describe('a dashboard per screen', () => {
     expect(types(both.desktop)).toEqual(['news']);
   });
 
+  it('keeps a list per number of columns: 4, 3, 2 and 1', () => {
+    expect([4, 3, 2, 1].map(screenOfColumns)).toEqual(['wide', 'desktop', 'tablet', 'mobile']);
+    let doc = withScreen(null, 'wide', [{ type: 'news' }]);
+    doc = withScreen(doc, 'tablet', [{ type: 'goals' }]);
+    expect([types(doc.wide), types(doc.tablet), doc.desktop, doc.mobile]).toEqual([['news'], ['goals'], null, null]);
+    expect(types(widgetsOf(doc, 'wide'))).toEqual(['news']);
+    expect(types(widgetsOf(doc, 'tablet'))).toEqual(['goals']);
+    expect(hasSavedScreen(doc)).toBe(true);
+    expect(hasSavedScreen(null)).toBe(false);
+    expect(sanitizeDashboard(JSON.parse(JSON.stringify(doc)))).toEqual(doc);
+  });
+
+  it('starts a 4- or 2-column list from the 3-column one, saved or default; the phone list stays its own', () => {
+    expect(types(widgetsOf(null, 'wide'))).toEqual(types(defaultWidgets('desktop')));
+    const doc = withScreen(null, 'desktop', [{ type: 'month' }]);
+    expect(types(widgetsOf(doc, 'wide'))).toEqual(['month']);
+    expect(types(widgetsOf(doc, 'tablet'))).toEqual(['month']);
+    expect(types(widgetsOf(doc, 'mobile'))).toEqual(DEFAULT_DASHBOARD.mobile.map((w) => w.type));
+  });
+
   it('reads a stored document back, and refuses one with no list', () => {
     const doc = withScreen(null, 'desktop', [{ type: 'month' }, { type: 'bogus' }]);
     expect(sanitizeDashboard(JSON.parse(JSON.stringify(doc)))).toEqual(doc);
@@ -227,7 +247,8 @@ describe('columns', () => {
 
   it('keeps a valid column and drops another', () => {
     expect(sanitizeWidgets([{ type: 'goals', col: 2 }])[0].col).toBe(2);
-    expect(sanitizeWidgets([{ type: 'goals', col: 3 }])[0].col).toBeUndefined();
+    expect(sanitizeWidgets([{ type: 'goals', col: 3 }])[0].col).toBe(3);
+    expect(sanitizeWidgets([{ type: 'goals', col: 4 }])[0].col).toBeUndefined();
     expect(sanitizeWidgets([{ type: 'goals', col: 'x' }])[0].col).toBeUndefined();
   });
 

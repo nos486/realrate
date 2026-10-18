@@ -21,6 +21,7 @@ import {
   sanitizeDashboard,
   widgetsOf,
   withScreen,
+  hasSavedScreen,
 } from '../../utils/dashboardLayout.js';
 
 const CACHE_PREFIX = 'realrate_dashboard_';
@@ -44,7 +45,7 @@ function writeCache(userId, dashboard) {
 }
 
 /**
- * @param {'desktop'|'mobile'} screen - the list being shown and arranged
+ * @param {'wide'|'desktop'|'tablet'|'mobile'} screen - the list being shown and arranged (one per column count)
  */
 export function useDashboardLayout(screen) {
   const { user } = useAuth();
@@ -132,7 +133,7 @@ export function useDashboardLayout(screen) {
     /** Back to the default arrangement of this screen */
     resetScreen: () => {
       const rest = { ...dashboard, [screen]: null };
-      commit(rest.desktop || rest.mobile ? { ...rest, updatedAt: new Date().toISOString() } : null);
+      commit(hasSavedScreen(rest) ? { ...rest, updatedAt: new Date().toISOString() } : null);
     },
     isCustomized: Boolean(dashboard?.[screen]),
     saveError,

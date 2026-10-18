@@ -70,9 +70,11 @@ describe('the home page', () => {
     expect(kind).toBe('dashboard_layout');
     expect(id).toBe('main');
     expect(payload.startsWith('enc:')).toBe(true);
-    expect(plain.desktop.map((w) => w.type)).toContain('shortcuts');
+    // The test window is mid-size (2 columns), so the edit lands in the 2-column list only
+    expect(plain.tablet.map((w) => w.type)).toContain('shortcuts');
     expect(plain.mobile).toBeNull();
-    expect(JSON.parse(localStorage.getItem('realrate_dashboard_u1')).desktop).toHaveLength(plain.desktop.length);
+    expect(plain.desktop).toBeNull();
+    expect(JSON.parse(localStorage.getItem('realrate_dashboard_u1')).tablet).toHaveLength(plain.tablet.length);
   });
 
   it('removes a widget after asking', async () => {

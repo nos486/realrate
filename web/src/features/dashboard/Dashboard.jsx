@@ -23,7 +23,7 @@ import VaultUnlockCard from '../../shared/vault/VaultUnlockCard.jsx';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { useDemo } from '../demo/index.js';
 import {
-  addWidget, configureWidget, layoutColumns, placeWidget, removeWidget, setWidgetHeight, DASHBOARD_LIMITS, WIDGET_CATALOG,
+  addWidget, configureWidget, layoutColumns, placeWidget, removeWidget, setWidgetHeight, screenOfColumns, WIDGET_CATALOG,
 } from '../../utils/dashboardLayout.js';
 import { DashboardContext } from './DashboardContext.js';
 import { useDashboardLayout } from './useDashboardLayout.js';
@@ -61,7 +61,11 @@ function DashColumn({ index, ids, children }) {
  */
 export default function Dashboard({ usdToman = 0, analysis = [], currencies = [], recommendation = null, marketLoading = false, onOpen }) {
   const appLayout = useAppLayout();
-  const screen = appLayout ? 'mobile' : 'desktop';
+  // 4 columns on a wide window, 3, 2 on a mid-size one; the app frame is one column. Each count has its own saved list
+  const wide = useMediaQuery('(min-width: 1500px)');
+  const midSize = useMediaQuery('(max-width: 1100px)');
+  const columnCount = appLayout ? 1 : midSize ? 2 : wide ? 4 : 3;
+  const screen = screenOfColumns(columnCount);
   const { widgets, setWidgets, resetScreen, isCustomized, saveError } = useDashboardLayout(screen);
   const vault = useVault();
   const { confirm } = useFeedback();
@@ -71,9 +75,6 @@ export default function Dashboard({ usdToman = 0, analysis = [], currencies = []
   const [pickerOpen, setPickerOpen] = useState(false);
   const [settingsId, setSettingsId] = useState(null);
 
-  // The wide grid has 3 columns, 2 on a mid-size window; the app frame is one column
-  const midSize = useMediaQuery('(max-width: 1100px)');
-  const columnCount = appLayout ? 1 : midSize ? 2 : DASHBOARD_LIMITS.columns;
   const unlocked = vault.status === 'unlocked';
   // The arrangement is an encrypted record: it can be changed once the vault is open
   const canEdit = unlocked && !readOnly;
@@ -118,7 +119,7 @@ export default function Dashboard({ usdToman = 0, analysis = [], currencies = []
       title: t('بازگشت به چیدمان پیش‌فرض'),
       message: appLayout
         ? t('چیدمان ویجت‌های صفحه اصلی موبایل به حالت پیش‌فرض برمی‌گردد. چیدمان نسخه‌ی وب تغییری نمی‌کند.')
-        : t('چیدمان ویجت‌های صفحه اصلی وب به حالت پیش‌فرض برمی‌گردد. چیدمان موبایل تغییری نمی‌کند.'),
+        : t('چیدمان ویجت‌های صفحه اصلی برای همین تعداد ستون به حالت پیش‌فرض برمی‌گردد. چیدمان تعداد ستون‌های دیگر و موبایل تغییری نمی‌کند.'),
       confirmLabel: t('بازگشت به پیش‌فرض'),
       danger: true,
     });

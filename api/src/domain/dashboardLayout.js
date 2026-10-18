@@ -1,9 +1,10 @@
 /**
  * dashboardLayout.js — Shape, defaults and edits of the user's widget dashboard (the home page)
  *
- * The home page is a list of widgets the user adds, removes and reorders. There are two
- * lists, one for the wide screen (the website) and one for the app frame (the Android app and
- * phones), so each can be arranged on its own. The whole document is one encrypted vault record
+ * The home page is a list of widgets the user adds, removes and reorders. There is one list per
+ * number of columns the page shows (4 on a wide screen, 3, 2 on a mid-size window and 1 in the
+ * app frame: the Android app and phones), so each can be arranged on its own and keeps its
+ * arrangement; a list never arranged starts from the 3-column one. The whole document is one encrypted vault record
  * (kind `dashboard_layout`), so the server never sees it; it is also part of the full backup.
  * Shared by the web client and the tests through a symlink; pure, no DOM.
  *
@@ -27,9 +28,18 @@ export const DASHBOARD_RECORD_ID = "main";
 export const DASHBOARD_LAYOUT_VERSION = 1;
 
 /** Screens a list is arranged for */
-export const DASHBOARD_SCREENS = ["desktop", "mobile"];
+export const DASHBOARD_SCREENS = ["wide", "desktop", "tablet", "mobile"];
 
-export const DASHBOARD_LIMITS = { widgets: 40, idLength: 40, assetIdLength: 120, rateListAssets: 4, columns: 3 };
+export const DASHBOARD_LIMITS = { widgets: 40, idLength: 40, assetIdLength: 120, rateListAssets: 4, columns: 4 };
+
+/** The list each column count is arranged in (the 3-column one is `desktop`, as it was stored before there were more) */
+const SCREEN_OF_COLUMNS = { 4: "wide", 3: "desktop", 2: "tablet", 1: "mobile" };
+
+/** @param {number} count - columns shown now (1 to DASHBOARD_LIMITS.columns) */
+export const screenOfColumns = (count) => SCREEN_OF_COLUMNS[count] || "desktop";
+
+/** Where a list never arranged starts from: the 3-column list, saved or default */
+const SCREEN_FALLBACK = { wide: "desktop", tablet: "desktop" };
 
 /** Height classes of the wide grid and the pixels each stands for (the same four for every widget) */
 export const WIDGET_HEIGHT_PX = { 1: 150, 2: 300, 3: 450, 4: 600 };
@@ -368,7 +378,7 @@ export const DEFAULT_DASHBOARD = {
 
 /**
  * The default widgets of a screen, each with a fresh id
- * @param {"desktop"|"mobile"} screen
+ * @param {"wide"|"desktop"|"tablet"|"mobile"} screen
  */
 export function defaultWidgets(screen) {
   return sanitizeWidgets(DEFAULT_DASHBOARD[screen === "mobile" ? "mobile" : "desktop"]);
@@ -378,20 +388,23 @@ export function defaultWidgets(screen) {
  * A whole dashboard document from stored or restored data; a screen without a valid list is not
  * set (null), so the default applies to it
  * @param {unknown} raw
- * @returns {{ version: number, desktop: object[]|null, mobile: object[]|null, updatedAt: string }|null}
+ * @returns {{ version: number, wide: object[]|null, desktop: object[]|null, tablet: object[]|null, mobile: object[]|null, updatedAt: string }|null}
  */
 export function sanitizeDashboard(raw) {
   if (!raw || typeof raw !== "object") return null;
-  const out = { version: DASHBOARD_LAYOUT_VERSION, desktop: null, mobile: null, updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt.slice(0, 40) : "" };
+  const out = { version: DASHBOARD_LAYOUT_VERSION, ...Object.fromEntries(DASHBOARD_SCREENS.map((s) => [s, null])), updatedAt: typeof raw.updatedAt === "string" ? raw.updatedAt.slice(0, 40) : "" };
   for (const screen of DASHBOARD_SCREENS) {
     if (Array.isArray(raw[screen])) out[screen] = sanitizeWidgets(raw[screen]);
   }
-  return out.desktop || out.mobile ? out : null;
+  return DASHBOARD_SCREENS.some((s) => out[s]) ? out : null;
 }
 
-/** The widgets of one screen: the saved list, else the default */
+/** Whether any screen of the dashboard has a saved list */
+export const hasSavedScreen = (dashboard) => DASHBOARD_SCREENS.some((s) => Array.isArray(dashboard?.[s]));
+
+/** The widgets of one screen: its saved list, else the 3-column one it starts from (wide, tablet), else the default */
 export function widgetsOf(dashboard, screen) {
-  const saved = dashboard?.[screen];
+  const saved = dashboard?.[screen] ?? dashboard?.[SCREEN_FALLBACK[screen]];
   return Array.isArray(saved) ? saved : defaultWidgets(screen);
 }
 
@@ -399,8 +412,7 @@ export function widgetsOf(dashboard, screen) {
 export function withScreen(dashboard, screen, widgets) {
   return {
     version: DASHBOARD_LAYOUT_VERSION,
-    desktop: dashboard?.desktop ?? null,
-    mobile: dashboard?.mobile ?? null,
+    ...Object.fromEntries(DASHBOARD_SCREENS.map((s) => [s, dashboard?.[s] ?? null])),
     [screen]: sanitizeWidgets(widgets),
     updatedAt: new Date().toISOString(),
   };

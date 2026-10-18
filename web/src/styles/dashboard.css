@@ -1,9 +1,8 @@
 /*
  * dashboard.css — The home page: a grid of widgets the user arranges (features/dashboard/)
  *
- * Columns of stacked widgets: three on the website (two on a mid-size window), one in the app
- * frame. A widget keeps the column the user dropped it in and has a height class (short, medium,
- * tall) on the website.
+ * Columns of stacked widgets: four on a wide window, three, two on a mid-size one, one in the app
+ * frame. A widget keeps the column the user dropped it in and has one of four heights (150 to 600px).
  * The widgets' own looks are the home cards of app-shell.css.
  */
 
