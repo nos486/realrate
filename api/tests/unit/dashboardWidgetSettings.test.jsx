@@ -42,6 +42,22 @@ describe('the settings sheet', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it('offers the title and card switches on every widget', () => {
+    const onChange = vi.fn();
+    render(<WidgetSettings widget={widgetOf('plan')} onClose={() => {}} onChange={onChange} />);
+    fireEvent.click(screen.getByLabelText('نمایش عنوان'));
+    expect(onChange).toHaveBeenCalledWith({ title: false });
+    fireEvent.click(screen.getByLabelText('پس‌زمینه‌ی کارت'));
+    expect(onChange).toHaveBeenCalledWith({ card: false });
+  });
+
+  it('picks one of several choices', () => {
+    const onChange = vi.fn();
+    render(<WidgetSettings widget={widgetOf('loans')} onClose={() => {}} onChange={onChange} />);
+    fireEvent.click(screen.getByRole('button', { name: 'مانده‌ی بیشتر' }));
+    expect(onChange).toHaveBeenCalledWith({ sort: 'balance' });
+  });
+
   it('shows nothing for a closed sheet', () => {
     const { container } = render(<WidgetSettings widget={null} onClose={() => {}} onChange={() => {}} />);
     expect(container.innerHTML).toBe('');
@@ -49,6 +65,11 @@ describe('the settings sheet', () => {
 });
 
 describe('the clock styles', () => {
+  it('hides the weekday on request', () => {
+    const c = render(<ClockWidget widget={widgetOf('clock', { weekday: false })} />).container;
+    expect(c.querySelector('.dash-clock-weekday')).toBeNull();
+  });
+
   const draw = (config) => render(<ClockWidget widget={widgetOf('clock', config)} />).container;
 
   it('draws the digital time by default', () => {

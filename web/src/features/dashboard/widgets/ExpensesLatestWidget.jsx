@@ -22,6 +22,13 @@ import { moneyText } from '../dashboardFormat.js';
 import WidgetCard from '../WidgetCard.jsx';
 import WidgetState from '../WidgetState.jsx';
 
+/** The ISO day `days` days from `iso` (Tehran days are plain calendar dates, so UTC arithmetic is exact) */
+function shiftIso(iso, days) {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 export default function ExpensesLatestWidget({ widget }) {
   const { usdToman, open } = useDashboardData();
   const unlocked = useVault().status === 'unlocked';
@@ -34,9 +41,12 @@ export default function ExpensesLatestWidget({ widget }) {
   const rates = useMemo(() => ({ usdToman, usdAt, ...fx }), [usdToman, usdAt, fx]);
   const count = widget.config?.count || 5;
   const details = widget.config?.details !== false;
+  const range = widget.config?.range || 'month';
   const latest = useMemo(
-    () => [...expenses].sort((a, b) => b.date.localeCompare(a.date) || String(b.createdAt || '').localeCompare(String(a.createdAt || ''))).slice(0, count),
-    [expenses, count],
+    () => expenses
+      .filter((e) => (range === 'today' ? e.date === todayIso() : range === 'week' ? e.date >= shiftIso(todayIso(), -6) : true))
+      .sort((a, b) => b.date.localeCompare(a.date) || String(b.createdAt || '').localeCompare(String(a.createdAt || ''))).slice(0, count),
+    [expenses, count, range],
   );
 
   if (!unlocked) return null;

@@ -38,6 +38,14 @@ describe('a widget on the page', () => {
     expect(screen.queryByRole('button')).toBeNull();
   });
 
+  it('marks a widget without title or card background for the stylesheet', () => {
+    const [plain] = sanitizeWidgets([{ type: 'news', config: { title: false, card: false } }]);
+    const { container } = frame({ widget: plain });
+    const root = container.querySelector('.dash-widget');
+    expect(root.classList.contains('is-untitled')).toBe(true);
+    expect(root.classList.contains('is-plain')).toBe(true);
+  });
+
   it('shows nothing for a widget the user cannot see', () => {
     frame({ available: false });
     expect(screen.queryByText('content news')).toBeNull();

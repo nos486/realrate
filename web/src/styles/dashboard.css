@@ -113,6 +113,31 @@
   display: none;
 }
 
+/* Appearance switches (every widget): «نمایش عنوان» off drops the heading (a header left with
+   only its «همه» link keeps it at the end; one with nothing is dropped) and «پس‌زمینه‌ی کارت» off
+   lets the content sit on the page itself */
+.dash-widget.is-untitled .app-home-card-head h2,
+.dash-widget.is-untitled .news-card-head h2,
+.dash-widget.is-untitled .plan-home-card h2,
+.dash-widget.is-untitled .news-analysis-badge {
+  display: none;
+}
+
+.dash-widget.is-untitled .app-home-card-head,
+.dash-widget.is-untitled .news-card-head {
+  justify-content: flex-end;
+}
+
+.dash-widget.is-untitled .app-home-card-head:not(:has(.app-home-link)),
+.dash-widget.is-untitled .news-card-head:not(:has(.news-card-more)) {
+  display: none;
+}
+
+.dash-widget.is-plain .dash-widget-body > * {
+  border-color: transparent;
+  background: transparent;
+}
+
 .dash-widget.is-editing {
   padding: 8px;
   border: 1px dashed var(--border-strong);

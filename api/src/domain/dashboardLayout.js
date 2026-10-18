@@ -37,10 +37,12 @@ export const WIDGET_HEIGHTS = [1, 2, 3];
 /**
  * The widgets a user can add. `requires` names what the user needs to see it (checked by the
  * client: a feature, `news`, `native`); `unique` widgets can be added once. `options` declares the
- * widget's settings, all of them saved in its `config` and nothing else:
+ * widget's settings, all of them saved in its `config` and nothing else. Every widget also has the
+ * two appearance switches of WIDGET_APPEARANCE (its title, its card):
  *   count    one of the listed numbers (how many rows)
  *   asset    one market asset id;  assets  a list of them
  *   style    { values, labels, default }: how the widget is drawn (a grid or a list, a clock face)
+ *   choices  { key: { label, values, labels, default } }: one of several values (a range, an order)
  *   toggles  { key: { label, default } }: on/off switches
  *   multi    { key: { label, values, labels, default, min } }: a subset of `values` to show
  */
@@ -52,7 +54,11 @@ export const WIDGET_CATALOG = {
     defaultHeight: 2, unique: true, requires: "vault",
     options: {
       style: { values: ["full", "compact"], labels: { full: msg("کامل"), compact: msg("فشرده") }, default: "full" },
-      toggles: { comparison: { label: msg("مقایسه با ماه قبل"), default: true } },
+      toggles: {
+        comparison: { label: msg("مقایسه با ماه قبل"), default: true },
+        breakdown: { label: msg("جدا کردن اقساط وام"), default: true },
+        stats: { label: msg("نمایش درآمد و باقی‌مانده"), default: true },
+      },
     },
   },
   expenses_latest: {
@@ -60,7 +66,18 @@ export const WIDGET_CATALOG = {
     description: msg("هزینه‌هایی که تازه ثبت شده است"),
     group: "money",
     defaultHeight: 2, requires: "expenses",
-    options: { count: [3, 5, 8, 10], toggles: { details: { label: msg("نمایش دسته و تاریخ"), default: true } } },
+    options: {
+      count: [3, 5, 8, 10],
+      choices: {
+        range: {
+          label: msg("بازه‌ی هزینه‌ها"),
+          values: ["month", "week", "today"],
+          labels: { month: msg("این ماه"), week: msg("۷ روز اخیر"), today: msg("امروز") },
+          default: "month",
+        },
+      },
+      toggles: { details: { label: msg("نمایش دسته و تاریخ"), default: true } },
+    },
     defaults: { count: 10 },
   },
   loans: {
@@ -68,7 +85,18 @@ export const WIDGET_CATALOG = {
     description: msg("قسط بعدی وام‌ها و مانده‌ی هر کدام"),
     group: "money",
     defaultHeight: 2, unique: true, requires: "vault",
-    options: { count: [3, 5, 8, 12], toggles: { balance: { label: msg("نمایش مانده‌ی وام"), default: true } } },
+    options: {
+      count: [3, 5, 8, 12],
+      choices: {
+        sort: {
+          label: msg("ترتیب وام‌ها"),
+          values: ["due", "balance"],
+          labels: { due: msg("قسط نزدیک‌تر"), balance: msg("مانده‌ی بیشتر") },
+          default: "due",
+        },
+      },
+      toggles: { balance: { label: msg("نمایش مانده‌ی وام"), default: true } },
+    },
     defaults: { count: 8 },
   },
   goals: {
@@ -143,13 +171,24 @@ export const WIDGET_CATALOG = {
     description: msg("تازه‌ترین خبرهای بازار"),
     group: "news",
     defaultHeight: 2, unique: true, requires: "news",
-    options: { count: [3, 5, 8, 10] }, defaults: { count: 10 },
+    options: {
+      count: [3, 5, 8, 10],
+      toggles: { analysis: { label: msg("نمایش خلاصه‌ی تحلیل روز"), default: true } },
+    },
+    defaults: { count: 10 },
   },
   ai_analysis: {
     title: msg("تحلیل روز با هوش مصنوعی"),
     description: msg("فقط تحلیل روز: خلاصه‌ی خبرها، مهم‌ترین رویدادها و نکته‌ها"),
     group: "news",
     defaultHeight: 3, unique: true, requires: "news",
+    options: {
+      toggles: {
+        drivers: { label: msg("مهم‌ترین خبرها"), default: true },
+        points: { label: msg("نکته‌ها"), default: true },
+        risk: { label: msg("زیر نظر بگیرید"), default: true },
+      },
+    },
   },
   sms: {
     title: msg("پیامک‌های بانکی"),
@@ -166,6 +205,7 @@ export const WIDGET_CATALOG = {
       style: { values: ["digital", "analog", "compact"], labels: { digital: msg("دیجیتال"), analog: msg("عقربه‌ای"), compact: msg("فشرده") }, default: "digital" },
       toggles: {
         seconds: { label: msg("نمایش ثانیه"), default: false },
+        weekday: { label: msg("نمایش روز هفته"), default: true },
         gregorian: { label: msg("نمایش تاریخ میلادی"), default: true },
       },
     },
@@ -176,6 +216,7 @@ export const WIDGET_CATALOG = {
     group: "tools",
     defaultHeight: 2, unique: true, requires: null,
     options: {
+      toggles: { list: { label: msg("فهرست رویدادها زیر تقویم"), default: true } },
       style: { values: ["month", "agenda"], labels: { month: msg("ماه"), agenda: msg("برنامه") }, default: "month" },
       multi: {
         kinds: {
@@ -215,6 +256,12 @@ export const WIDGET_CATALOG = {
     group: "tools",
     defaultHeight: 1, unique: true, requires: "free_plan",
   },
+};
+
+/** The appearance switches every widget has, whatever its type: its title and its card (background) */
+export const WIDGET_APPEARANCE = {
+  title: { label: msg("نمایش عنوان"), default: true },
+  card: { label: msg("پس‌زمینه‌ی کارت"), default: true },
 };
 
 /** Groups of the «افزودن ویجت» list, in order */
@@ -257,7 +304,10 @@ function cleanConfig(type, raw) {
     config.assetIds = [...new Set(ids)].slice(0, DASHBOARD_LIMITS.rateListAssets);
   }
   if (options.style) config.style = options.style.values.includes(src.style) ? src.style : options.style.default;
-  for (const [key, def] of Object.entries(options.toggles || {})) {
+  for (const [key, def] of Object.entries(options.choices || {})) {
+    config[key] = def.values.includes(src[key]) ? src[key] : def.default;
+  }
+  for (const [key, def] of Object.entries({ ...WIDGET_APPEARANCE, ...(options.toggles || {}) })) {
     config[key] = typeof src[key] === "boolean" ? src[key] : def.default;
   }
   for (const [key, def] of Object.entries(options.multi || {})) config[key] = cleanMulti(def, src[key]);

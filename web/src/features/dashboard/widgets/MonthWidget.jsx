@@ -31,6 +31,8 @@ const DAY_MS = 86_400_000;
 export default function MonthWidget({ widget }) {
   const compact = widget.config?.style === 'compact';
   const showComparison = widget.config?.comparison !== false;
+  const showBreakdown = widget.config?.breakdown !== false;
+  const showStats = widget.config?.stats !== false;
   const { usdToman, open } = useDashboardData();
   const expenseCategories = useCategories('expense', { includeHidden: true });
   const incomeCategories = useCategories('income', { includeHidden: true });
@@ -115,13 +117,13 @@ export default function MonthWidget({ widget }) {
       <div className="app-home-hero-value">
         {loading ? <Skeleton width="60%" height={36} radius={10} /> : <>{money(spent)} <small>{t('تومان')}</small></>}
       </div>
-      {!loading && loanSpent > 0 && (
+      {showBreakdown && !loading && loanSpent > 0 && (
         <div className="app-home-hero-breakdown">
           <span><small>{t('بدون اقساط وام')}</small> <strong>{money(spent - loanSpent)}</strong></span>
           <span><small>{t('اقساط وام')}</small> <strong>{money(loanSpent)}</strong></span>
         </div>
       )}
-      <div className="app-home-hero-split">
+      {showStats && <div className="app-home-hero-split">
         <button type="button" className="app-home-stat" onClick={() => open('incomes')}>
           <span className="app-home-stat-icon is-in"><ArrowDownLeft size={16} /></span>
           <span className="app-home-stat-text">
@@ -136,7 +138,7 @@ export default function MonthWidget({ widget }) {
             <strong className={left < 0 ? 'is-negative' : ''}>{loading ? '…' : money(Math.abs(left))}</strong>
           </span>
         </button>
-      </div>
+      </div>}
     </section>
   );
 }

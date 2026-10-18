@@ -28,12 +28,15 @@ export default function LoansWidget({ widget }) {
   const today = todayIso();
   const count = widget.config?.count || 3;
   const balance = widget.config?.balance !== false;
+  const sort = widget.config?.sort || 'due';
   const rows = useMemo(
     () => loans
       .filter((loan) => !isLoanCompleted(loan))
-      .sort((a, b) => (a.nextDueInstallment?.dueDate || DUE_FAR).localeCompare(b.nextDueInstallment?.dueDate || DUE_FAR))
+      .sort(sort === 'balance'
+        ? (a, b) => (b.remainingBalance || 0) - (a.remainingBalance || 0)
+        : (a, b) => (a.nextDueInstallment?.dueDate || DUE_FAR).localeCompare(b.nextDueInstallment?.dueDate || DUE_FAR))
       .slice(0, count),
-    [loans, count],
+    [loans, count, sort],
   );
 
   if (loadingLoans) return <WidgetCard title={t('وام‌ها')} Icon={Landmark}><WidgetState state="loading" rows={2} /></WidgetCard>;

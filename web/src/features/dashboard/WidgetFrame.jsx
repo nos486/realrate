@@ -22,14 +22,14 @@ export default function WidgetFrame({
   const { Icon, Component } = WIDGET_VIEWS[widget.type];
   const sortable = useSortable({ id: widget.id, disabled: !editing });
   const style = { transform: CSS.Translate.toString(sortable.transform), transition: sortable.transition };
-  const configurable = Boolean(spec.options);
+  const configurable = true; // every widget has at least the appearance switches
   const title = t(spec.title);
 
   return (
     <div
       ref={sortable.setNodeRef}
       style={style}
-      className={`dash-widget is-height-${widget.height} ${editing ? 'is-editing' : ''} ${sortable.isDragging ? 'is-dragging' : ''}`}
+      className={`dash-widget is-height-${widget.height} ${editing ? 'is-editing' : ''} ${sortable.isDragging ? 'is-dragging' : ''} ${widget.config?.title === false ? 'is-untitled' : ''} ${widget.config?.card === false ? 'is-plain' : ''}`}
       data-widget={widget.type}
     >
       {editing && (
