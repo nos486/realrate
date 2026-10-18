@@ -138,4 +138,10 @@ describe('selfUpdateEnabled', () => {
     vi.stubEnv('VITE_NO_SMS', '1');
     expect(selfUpdateEnabled()).toBe(false);
   });
+
+  it('is off in the Cafe Bazaar build, which Bazaar updates', async () => {
+    const { selfUpdateEnabled } = await import('../../../web/src/shared/native/nativeApp.js');
+    vi.stubEnv('VITE_NO_SELF_UPDATE', '1');
+    expect(selfUpdateEnabled()).toBe(false);
+  });
 });

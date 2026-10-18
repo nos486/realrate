@@ -5,7 +5,8 @@
 #   newest one built for its exact native side (WebBundlePlugin.java).
 # - APKs, only when the native side changed (.github/scripts/native-hash.mjs: Java, Android manifest/resources, Gradle,
 #   Capacitor plugins) since the latest release, or when run by hand with "apk". Files of one GitHub release (v1.0.<run>):
-#   realrate-<version>.apk (reads bank SMS; also as realrate.apk, the stable name) and realrate-nosms-<version>.apk
+#   realrate-<version>.apk (reads bank SMS; also as realrate.apk, the stable name) and realrate-bazaar-<version>.apk
+#   (the full app for Cafe Bazaar: no install-packages permission, no in-app update) and realrate-nosms-<version>.apk
 #   (no SMS permission, for stores that refuse it), plus realrate-nosms-<version>.aab (the same build as an app bundle, for
 #   Google Play), and native-hash.txt. Latest: releases/latest/download/realrate.apk.
 name: Android
@@ -100,7 +101,11 @@ jobs:
           # One flavor: its web build, zipped and signed as a web bundle, then (when due) its APK
           build_flavor() {
             flavor=$1
-            if [ "$flavor" = "nosms" ]; then VITE_NO_SMS=1 npm run build:app; else npm run build:app; fi
+            case "$flavor" in
+              nosms) VITE_NO_SMS=1 npm run build:app ;;
+              bazaar) VITE_NO_SELF_UPDATE=1 npm run build:app ;;
+              *) npm run build:app ;;
+            esac
             # Inside the signed zip, so a manifest cannot pass it off as another build or native side
             printf '{"build":%s,"nativeHash":"%s"}\n' "$VERSION_CODE" "$NATIVE_HASH" > dist-app/bundle.json
             zip="$out/web-$VERSION_CODE-$flavor.zip"
@@ -119,11 +124,14 @@ jobs:
           build_flavor full assembleFullRelease
           # The no-SMS build: its own web bundle (SMS screens hidden) and manifest (no SMS permission)
           build_flavor nosms assembleNosmsRelease bundleNosmsRelease
+          # The Cafe Bazaar build: the full app without the install-packages permission and the in-app update
+          build_flavor bazaar assembleBazaarRelease
           rm -f "$RUNNER_TEMP/bundle-key.pem" "$ANDROID_KEYSTORE_PATH"
           if [ "$BUILD_APK" = "true" ] && [ "$HAS_SIGNING" = "true" ]; then
             # Files carry the version; realrate.apk stays too (the website's stable download link)
             cp android/app/build/outputs/apk/full/release/*.apk "$RUNNER_TEMP/realrate-$VERSION_NAME.apk"
             cp android/app/build/outputs/apk/full/release/*.apk "$RUNNER_TEMP/realrate.apk"
+            cp android/app/build/outputs/apk/bazaar/release/*.apk "$RUNNER_TEMP/realrate-bazaar-$VERSION_NAME.apk"
             cp android/app/build/outputs/apk/nosms/release/*.apk "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.apk"
             cp android/app/build/outputs/bundle/nosmsRelease/*.aab "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.aab"
             echo "$NATIVE_HASH" > "$RUNNER_TEMP/native-hash.txt"
@@ -135,6 +143,7 @@ jobs:
           name: realrate-release-${{ env.VERSION_NAME }}
           path: |
             ${{ runner.temp }}/realrate-${{ env.VERSION_NAME }}.apk
+            ${{ runner.temp }}/realrate-bazaar-${{ env.VERSION_NAME }}.apk
             ${{ runner.temp }}/realrate-nosms-${{ env.VERSION_NAME }}.apk
             ${{ runner.temp }}/realrate-nosms-${{ env.VERSION_NAME }}.aab
           if-no-files-found: ignore
@@ -157,12 +166,12 @@ jobs:
           fi
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             # A re-run (or a publish that failed half way): replace the file, make sure it is out
-            gh release upload "$tag" "$RUNNER_TEMP/realrate-$VERSION_NAME.apk" "$RUNNER_TEMP/realrate.apk" "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.apk" "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.aab" "$RUNNER_TEMP/native-hash.txt" --repo "$GITHUB_REPOSITORY" --clobber
+            gh release upload "$tag" "$RUNNER_TEMP/realrate-$VERSION_NAME.apk" "$RUNNER_TEMP/realrate.apk" "$RUNNER_TEMP/realrate-bazaar-$VERSION_NAME.apk" "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.apk" "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.aab" "$RUNNER_TEMP/native-hash.txt" --repo "$GITHUB_REPOSITORY" --clobber
             gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest \
               --title "RealRate $VERSION_NAME" \
               --notes-file "$RUNNER_TEMP/release_notes.md"
           else
-            gh release create "$tag" "$RUNNER_TEMP/realrate-$VERSION_NAME.apk" "$RUNNER_TEMP/realrate.apk" "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.apk" "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.aab" "$RUNNER_TEMP/native-hash.txt" --repo "$GITHUB_REPOSITORY" --verify-tag --latest \
+            gh release create "$tag" "$RUNNER_TEMP/realrate-$VERSION_NAME.apk" "$RUNNER_TEMP/realrate.apk" "$RUNNER_TEMP/realrate-bazaar-$VERSION_NAME.apk" "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.apk" "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.aab" "$RUNNER_TEMP/native-hash.txt" --repo "$GITHUB_REPOSITORY" --verify-tag --latest \
               --title "RealRate $VERSION_NAME" \
               --notes-file "$RUNNER_TEMP/release_notes.md"
           fi
@@ -175,13 +184,13 @@ jobs:
         run: |
           tag=web-bundle
           out="$RUNNER_TEMP/out"
-          node .github/scripts/web-bundle-manifest.mjs "$VERSION_CODE" "$NATIVE_HASH" "$out" "$out/manifest.json" full nosms
+          node .github/scripts/web-bundle-manifest.mjs "$VERSION_CODE" "$NATIVE_HASH" "$out" "$out/manifest.json" full nosms bazaar
           if ! gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease --latest=false \
               --title "Web bundles" --notes "The app's pages, updated without a new APK (docs/en/ANDROID.md). Not for download."
           fi
           # The zips first, the manifest that names them last
-          gh release upload "$tag" "$out/web-$VERSION_CODE-full.zip" "$out/web-$VERSION_CODE-nosms.zip" --repo "$GITHUB_REPOSITORY" --clobber
+          gh release upload "$tag" "$out/web-$VERSION_CODE-full.zip" "$out/web-$VERSION_CODE-nosms.zip" "$out/web-$VERSION_CODE-bazaar.zip" --repo "$GITHUB_REPOSITORY" --clobber
           gh release upload "$tag" "$out/manifest.json" --repo "$GITHUB_REPOSITORY" --clobber
           # Older zips: an app mid-download may still need the previous build's
           for name in $(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name'); do
