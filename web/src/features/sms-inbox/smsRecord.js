@@ -147,6 +147,28 @@ async function accountsOrNone() {
   }
 }
 
+const TWINS_KEY = 'realrate_sms_twins';
+
+/**
+ * A hand-recorded twin (same day, amount and kind) accounts for ONE message: two deposits of the
+ * same amount on a day (say from two banks) need two records. The claim is remembered (record id →
+ * message), because the record stays in the vault after its message is dropped.
+ * @returns {boolean} the message has a twin — an earlier claim of its own, or a free record
+ */
+function claimTwin(item, sameDay) {
+  let claims = {};
+  try { claims = JSON.parse(localStorage.getItem(TWINS_KEY)) || {}; } catch { /* no storage: claims last one run */ }
+  const twin = sameDayKey(item.tx.direction, item.tx.date, item.tx.amount);
+  const ids = (sameDay.get(twin) || []).map((id) => `${twin}#${id}`);
+  const id = ids.find((c) => claims[c] === item.fingerprint) || ids.find((c) => !claims[c]);
+  if (!id) return false;
+  if (claims[id] !== item.fingerprint) {
+    claims[id] = item.fingerprint;
+    try { localStorage.setItem(TWINS_KEY, JSON.stringify(claims)); } catch { /* full or blocked */ }
+  }
+  return true;
+}
+
 let checking = null;
 
 /**
@@ -160,9 +182,7 @@ export function dropAlreadyRecorded() {
     const pending = getPendingSms();
     if (!pending.length) return 0;
     const { recordedKeys, sameDay } = await findRecorded(pending);
-    const byHand = pending
-      .filter((p) => p.tx?.key && sameDay.has(sameDayKey(p.tx.direction, p.tx.date, p.tx.amount)))
-      .map((p) => p.tx.key);
+    const byHand = pending.filter((p) => p.tx?.key && claimTwin(p, sameDay)).map((p) => p.tx.key);
     return dropRecordedSms([...recordedKeys, ...byHand]);
   });
   checking = run;

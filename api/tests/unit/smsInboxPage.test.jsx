@@ -165,6 +165,17 @@ describe('SmsInboxPage', () => {
     expect(expenses.getExpenses).toHaveBeenCalledWith({ from: '2025-09-25', to: '2026-09-28' });
   });
 
+  it('one hand-recorded income accounts for one of two same-amount deposits, not both', async () => {
+    const parsian = (balance) => ({ address: 'PARSIANBANK', body: `30101540968603\nمبلغ:+2,500,000\nمانده:${balance}\n07/06\n12:12`, date: RECEIVED });
+    expect(addSmsMessages([parsian('241,150,644'), parsian('243,650,644')])).toBe(2);
+    expenses.getExpenses.mockResolvedValue({ expenses: [] });
+    // One income by hand, same day and amount as both
+    incomes.getIncomes.mockResolvedValue({ incomes: [{ id: 'i1', incomeDate: '2026-09-28', amount: 250000 }] });
+    render(<SmsInboxPage />);
+    await waitFor(() => expect(incomes.getIncomes).toHaveBeenCalled());
+    await waitFor(() => expect(getPendingSms().filter((p) => p.tx.amount === 250000 && p.tx.date === '2026-09-28')).toHaveLength(1));
+  });
+
   it('keeps a message whose look-alike differs in amount', async () => {
     expenses.getExpenses.mockResolvedValue({ expenses: [] });
     incomes.getIncomes.mockResolvedValue({ incomes: [{ id: 'i1', incomeDate: '2026-09-25', amount: 250001 }] });

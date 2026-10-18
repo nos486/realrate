@@ -27,14 +27,18 @@ const daysBefore = (iso, days) => new Date(Date.parse(iso) - days * 86_400_000).
 /** Same day, same amount, same kind: what a hand-recorded twin looks like */
 export const sameDayKey = (direction, date, amount) => `${direction}|${date}|${Math.round(Number(amount) || 0)}`;
 
+/** Note a hand-recorded twin by its record id: each record accounts for one message, not every one alike */
+const addTwin = (twins, key, id) => twins.set(key, [...(twins.get(key) || []), String(id)]);
+
 /**
  * @param {Array<{ tx: object }>} pending
- * @returns {Promise<{ recordedKeys: Set<string>, sameDay: Set<string> }>}
+ * @returns {Promise<{ recordedKeys: Set<string>, sameDay: Map<string, string[]> }>} `sameDay` lists the ids of the
+ *   hand-recorded twins per `sameDayKey`
  */
 export async function findRecorded(pending) {
   const dates = pending.map((p) => p.tx?.date).filter(Boolean).sort();
   const recordedKeys = new Set();
-  const sameDay = new Set();
+  const sameDay = new Map();
   if (!dates.length) return { recordedKeys, sameDay };
   const range = { from: dates[0], to: dates[dates.length - 1] };
   const creditDates = pending.filter((p) => p.tx?.direction === 'credit' && p.tx?.date).map((p) => p.tx.date).sort();
@@ -50,23 +54,23 @@ export async function findRecorded(pending) {
     // What was paid (a shared expense's whole amount), as the bank's message says
     if (e.date >= range.from) {
       if (e.smsKey) recordedKeys.add(e.smsKey);
-      else sameDay.add(sameDayKey('debit', e.date, expensePaidInToman(e) || 0));
+      else addTwin(sameDay, sameDayKey('debit', e.date, expensePaidInToman(e) || 0), e.id);
     }
-    for (const r of e.reimbursements || []) {
+    for (const [n, r] of (e.reimbursements || []).entries()) {
       if (r.smsKey) recordedKeys.add(r.smsKey);
-      else if (!isForeignCurrency(e.currency)) sameDay.add(sameDayKey('credit', r.date, r.amount));
+      else if (!isForeignCurrency(e.currency)) addTwin(sameDay, sameDayKey('credit', r.date, r.amount), `${e.id}/${r.id ?? n}`);
     }
   }
   for (const i of incomes) {
     if (i.smsKey) recordedKeys.add(i.smsKey);
     // A bank's message is in tomans: a foreign income is never one
-    else if (!isForeignCurrency(i.currency)) sameDay.add(sameDayKey('credit', i.incomeDate, i.amount));
+    else if (!isForeignCurrency(i.currency)) addTwin(sameDay, sameDayKey('credit', i.incomeDate, i.amount), i.id);
   }
   for (const t of transfers) {
     if (t.smsKeys?.length) for (const key of t.smsKeys) recordedKeys.add(key);
     else {
-      sameDay.add(sameDayKey('debit', t.date, t.amount));
-      sameDay.add(sameDayKey('credit', t.date, t.amount));
+      addTwin(sameDay, sameDayKey('debit', t.date, t.amount), t.id);
+      addTwin(sameDay, sameDayKey('credit', t.date, t.amount), t.id);
     }
   }
   return { recordedKeys, sameDay };
