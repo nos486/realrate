@@ -14,8 +14,9 @@
  *   updatedAt
  * }
  *
- * `size` is the widget's width in columns of a 3-column grid (the app frame is one column and
- * ignores it). `config` holds the few per-widget options the catalog declares (an asset id, how
+ * `size` is the widget's width in columns of a 3-column grid and `height` its height class
+ * (1 short, 2 medium, 3 tall; a widget with more to show scrolls inside it); the app frame is one
+ * column of natural height and ignores both. `config` holds the few per-widget options the catalog declares (an asset id, how
  * many rows to list); anything else is dropped. A list that is missing starts from the default.
  */
 
@@ -33,6 +34,9 @@ export const DASHBOARD_LIMITS = { widgets: 40, idLength: 40, assetIdLength: 120 
 /** Sizes in columns of the wide grid */
 export const WIDGET_SIZES = [1, 2, 3];
 
+/** Height classes of the wide grid: short, medium, tall */
+export const WIDGET_HEIGHTS = [1, 2, 3];
+
 /**
  * The widgets a user can add. `requires` names what the user needs to see it (checked by the
  * client: a feature, `news`, `native`); `unique` widgets can be added once. `options` declares the
@@ -43,83 +47,83 @@ export const WIDGET_CATALOG = {
     title: msg("خلاصه‌ی ماه"),
     description: msg("خرج، درآمد و باقی‌مانده‌ی ماه، با مقایسه با ماه قبل"),
     group: "money",
-    sizes: [1, 2, 3], defaultSize: 2, unique: true, requires: "vault",
+    sizes: [1, 2, 3], defaultSize: 2, defaultHeight: 2, unique: true, requires: "vault",
   },
   expenses_latest: {
     title: msg("آخرین هزینه‌ها"),
     description: msg("هزینه‌هایی که تازه ثبت شده است"),
     group: "money",
-    sizes: [1, 2, 3], defaultSize: 2, requires: "expenses",
+    sizes: [1, 2, 3], defaultSize: 2, defaultHeight: 2, requires: "expenses",
     options: { count: [3, 5, 8, 10] }, defaults: { count: 5 },
   },
   loans: {
     title: msg("وام‌ها"),
     description: msg("قسط بعدی وام‌ها و مانده‌ی هر کدام"),
     group: "money",
-    sizes: [1, 2, 3], defaultSize: 1, unique: true, requires: "vault",
+    sizes: [1, 2, 3], defaultSize: 1, defaultHeight: 2, unique: true, requires: "vault",
     options: { count: [3, 5, 8] }, defaults: { count: 3 },
   },
   goals: {
     title: msg("اهداف پس‌انداز"),
     description: msg("نزدیک‌ترین هدف‌ها و پیشرفت هر کدام"),
     group: "money",
-    sizes: [1, 2, 3], defaultSize: 1, unique: true, requires: "vault",
+    sizes: [1, 2, 3], defaultSize: 1, defaultHeight: 1, unique: true, requires: "vault",
   },
   alerts: {
     title: msg("یادآورها"),
     description: msg("اقساط، چک‌ها و اشتراک‌هایی که سررسیدشان نزدیک است"),
     group: "money",
-    sizes: [1, 2, 3], defaultSize: 3, unique: true, requires: "vault",
+    sizes: [1, 2, 3], defaultSize: 3, defaultHeight: 1, unique: true, requires: "vault",
   },
   rates: {
     title: msg("نرخ‌های امروز"),
     description: msg("دلار، طلای ۱۸ و سکه با تغییر امروز"),
     group: "market",
-    sizes: [1, 2, 3], defaultSize: 1, unique: true, requires: "market",
+    sizes: [1, 2, 3], defaultSize: 1, defaultHeight: 1, unique: true, requires: "market",
   },
   asset: {
     title: msg("قیمت یک دارایی"),
     description: msg("قیمت و تغییر هر دارایی بازار که انتخاب کنید"),
     group: "market",
-    sizes: [1, 2, 3], defaultSize: 1, requires: "market",
+    sizes: [1, 2, 3], defaultSize: 1, defaultHeight: 2, requires: "market",
     options: { asset: true },
   },
   market: {
     title: msg("نرخ و حباب"),
     description: msg("بخش‌های دلخواه بازار: طلا، سکه، ارز، بورس و حباب، با کارت‌های قابل تنظیم"),
     group: "market",
-    sizes: [1, 2, 3], defaultSize: 3, unique: true, requires: "market",
+    sizes: [1, 2, 3], defaultSize: 3, defaultHeight: 3, unique: true, requires: "market",
   },
   news: {
     title: msg("آخرین اخبار"),
     description: msg("تازه‌ترین خبرهای بازار"),
     group: "news",
-    sizes: [1, 2, 3], defaultSize: 2, unique: true, requires: "news",
+    sizes: [1, 2, 3], defaultSize: 2, defaultHeight: 2, unique: true, requires: "news",
     options: { count: [3, 5, 8, 10] }, defaults: { count: 5 },
   },
   ai_analysis: {
     title: msg("تحلیل روز با هوش مصنوعی"),
     description: msg("فقط تحلیل روز: خلاصه‌ی خبرها، مهم‌ترین رویدادها و نکته‌ها"),
     group: "news",
-    sizes: [1, 2, 3], defaultSize: 1, unique: true, requires: "news",
+    sizes: [1, 2, 3], defaultSize: 1, defaultHeight: 3, unique: true, requires: "news",
   },
   sms: {
     title: msg("پیامک‌های بانکی"),
     description: msg("پیامک‌هایی که منتظر ثبت هستند"),
     group: "tools",
-    sizes: [1, 2, 3], defaultSize: 1, unique: true, requires: "native_sms",
+    sizes: [1, 2, 3], defaultSize: 1, defaultHeight: 1, unique: true, requires: "native_sms",
   },
   shortcuts: {
     title: msg("میان‌بُرها"),
     description: msg("ثبت سریع هزینه و رفتن به بخش‌های پرکاربرد"),
     group: "tools",
-    sizes: [1, 2, 3], defaultSize: 1, unique: true, requires: null,
+    sizes: [1, 2, 3], defaultSize: 1, defaultHeight: 1, unique: true, requires: null,
   },
   plan: {
     title: msg("پلن"),
     description: msg("محدودیت‌های پلن رایگان و میزان استفاده"),
     group: "tools",
-    sizes: [1, 2, 3], defaultSize: 1, unique: true, requires: "free_plan",
+    sizes: [1, 2, 3], defaultSize: 1, defaultHeight: 1, unique: true, requires: "free_plan",
   },
 };
 
@@ -146,6 +150,12 @@ function fitSize(type, size) {
   return spec.sizes.reduce((best, s) => (Math.abs(s - n) < Math.abs(best - n) ? s : best), spec.defaultSize);
 }
 
+/** A valid height class: the one given, else the type's default */
+function fitHeight(type, height) {
+  const n = Math.round(Number(height));
+  return WIDGET_HEIGHTS.includes(n) ? n : WIDGET_CATALOG[type].defaultHeight;
+}
+
 /** Only the options the type declares, with valid values */
 function cleanConfig(type, raw) {
   const spec = WIDGET_CATALOG[type];
@@ -165,7 +175,13 @@ function cleanWidget(raw, usedIds) {
   let id = typeof raw.id === "string" && ID_RE.test(raw.id) ? raw.id : newWidgetId();
   while (usedIds.has(id)) id = newWidgetId();
   usedIds.add(id);
-  return { id, type, size: fitSize(type, raw.size ?? WIDGET_CATALOG[type].defaultSize), config: cleanConfig(type, raw.config) };
+  return {
+    id,
+    type,
+    size: fitSize(type, raw.size ?? WIDGET_CATALOG[type].defaultSize),
+    height: fitHeight(type, raw.height),
+    config: cleanConfig(type, raw.config),
+  };
 }
 
 /**
@@ -257,7 +273,7 @@ export function canAddWidget(widgets, type) {
 export function addWidget(widgets, type, config = null) {
   if (!canAddWidget(widgets, type)) return widgets;
   const spec = WIDGET_CATALOG[type];
-  const widget = { id: newWidgetId(), type, size: spec.defaultSize, config: cleanConfig(type, config) };
+  const widget = { id: newWidgetId(), type, size: spec.defaultSize, height: spec.defaultHeight, config: cleanConfig(type, config) };
   return [...widgets, widget];
 }
 
@@ -284,6 +300,9 @@ export function shiftWidget(widgets, id, step) {
 
 export const resizeWidget = (widgets, id, size) =>
   widgets.map((w) => (w.id === id ? { ...w, size: fitSize(w.type, size) } : w));
+
+export const setWidgetHeight = (widgets, id, height) =>
+  widgets.map((w) => (w.id === id ? { ...w, height: fitHeight(w.type, height) } : w));
 
 export const configureWidget = (widgets, id, config) =>
   widgets.map((w) => (w.id === id ? { ...w, config: cleanConfig(w.type, { ...w.config, ...config }) } : w));
