@@ -4,7 +4,8 @@
 
 import React from 'react';
 import AlertStack from '../../../shared/alerts/AlertStack.jsx';
+import DashScroll from '../DashScroll.jsx';
 
 export default function AlertsWidget() {
-  return <AlertStack sources={['loan', 'cheque', 'subscription']} />;
+  return <DashScroll><AlertStack sources={['loan', 'cheque', 'subscription']} /></DashScroll>;
 }

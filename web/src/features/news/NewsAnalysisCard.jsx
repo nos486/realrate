@@ -38,6 +38,8 @@ export default function NewsAnalysisCard({ analysis, className = '', onOpenNews 
         </time>
       </header>
 
+      {/* Everything under the header: the dashboard widget scrolls this part, not the card */}
+      <div className="news-analysis-body">
       <h2 className="news-analysis-title">{analysis.title}</h2>
       <p className="news-analysis-summary">{analysis.summary}</p>
 
@@ -69,6 +71,7 @@ export default function NewsAnalysisCard({ analysis, className = '', onOpenNews 
       )}
 
       <p className="news-analysis-note">{t('این تحلیل را هوش مصنوعی از خبرهای امروز نوشته است و توصیه‌ی خرید یا فروش نیست.')}</p>
+      </div>
     </section>
   );
 }

@@ -13,17 +13,17 @@ import { useGoals } from '../hooks/useGoals.js';
 import { useGoalProgress } from '../hooks/useGoalProgress.js';
 import { goalNumber } from '../constants/goalDisplay.js';
 
-/** How many goals the card lists */
+/** How many goals the card lists unless the page gives a `limit` */
 const CARD_GOALS = 3;
 
-/** @param {{ onOpen?: (tab: string) => void }} props */
-export default function GoalsHomeCard({ onOpen }) {
+/** @param {{ onOpen?: (tab: string) => void, limit?: number }} props */
+export default function GoalsHomeCard({ onOpen, limit = CARD_GOALS }) {
   const hideValues = usePrivacyMode();
   const { goals, vaultLocked } = useGoals();
   const { progressOf } = useGoalProgress(goals, { enabled: !vaultLocked });
   const rows = useMemo(
-    () => [...goals].sort(compareGoals(progressOf)).map((goal) => ({ goal, progress: progressOf(goal) })).slice(0, CARD_GOALS),
-    [goals, progressOf],
+    () => [...goals].sort(compareGoals(progressOf)).map((goal) => ({ goal, progress: progressOf(goal) })).slice(0, limit),
+    [goals, progressOf, limit],
   );
   if (vaultLocked || rows.length === 0) return null;
 

@@ -109,7 +109,8 @@
 }
 
 /* A widget with nothing to show (no loans, no goals, ...) takes no room */
-.dash-widget:not(.is-editing):has(> .dash-widget-body:empty) {
+.dash-widget:not(.is-editing):has(> .dash-widget-body:empty),
+.dash-widget:not(.is-editing):has(> .dash-widget-body > .dash-scroll:empty) {
   display: none;
 }
 
@@ -133,12 +134,75 @@
   gap: 12px;
   min-width: 0;
   min-height: 0;
+}
+
+/* The widget's card fills the widget and never scrolls itself: what scrolls is the list or
+   content inside it (below), so the card's header and edges stay put */
+.dash-widget-body > * {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.dash-widget-body .app-home-list,
+.dash-widget-body .goals-home-list,
+.dash-widget-body .plan-home-list,
+.dash-widget-body .news-card-list,
+.dash-widget-body .news-analysis-body,
+.dash-widget-body .dash-scroll,
+.dash-widget-body .dash-shortcuts {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
 
-.dash-widget-body > * {
-  flex-shrink: 0;
+/* A card whose parts are a header and a scrolling body */
+.dash-widget-body .news-analysis.is-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dash-widget-body .news-analysis-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.news-analysis-body {
+  display: contents;
+}
+
+.dash-widget-body .dash-month {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Extra height goes above the income/left buttons, which stay at the card's bottom */
+.dash-widget-body .dash-month .app-home-hero-split {
+  margin-top: auto;
+}
+
+.dash-widget-body .app-home-rates {
+  justify-content: center;
+}
+
+/* The month's summary adapts to the room it has */
+.dash-widget.is-height-1 .dash-month .app-home-hero-breakdown {
+  display: none;
+}
+
+.dash-widget.is-height-1 .dash-month .app-home-hero-value {
+  margin-bottom: 8px;
+  font-size: 26px;
+}
+
+.dash-widget.is-size-1 .dash-month .app-home-hero-value {
+  font-size: 26px;
+}
+
+.dash-widget.is-size-1 .app-home-rates-grid {
+  gap: 8px;
 }
 
 /* While arranging, a widget is a picture of itself: taps only reach the bar */
@@ -368,32 +432,41 @@
   color: var(--text-secondary);
 }
 
-/* The app frame (the Android app and phones): one column, whatever the size */
-@media (max-width: 768px) {
-  .dash-grid {
-    grid-template-columns: minmax(0, 1fr);
-    grid-auto-rows: auto;
-    gap: 12px;
-  }
+/* The app frame (the Android app and phones, whatever the screen's width): one column, every
+   widget as tall as its content and nothing scrolls inside */
+.dash.is-app .dash-grid {
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: auto;
+  gap: 12px;
+}
 
-  .dash-widget,
-  .dash-widget.is-size-2,
-  .dash-widget.is-size-3 {
-    grid-column: 1 / -1;
-  }
+.dash.is-app .dash-widget,
+.dash.is-app .dash-widget.is-size-2,
+.dash.is-app .dash-widget.is-size-3 {
+  grid-column: 1 / -1;
+}
 
-  /* One column: every widget is as tall as its content */
-  .dash-widget.is-height-1,
-  .dash-widget.is-height-2,
-  .dash-widget.is-height-3 {
-    grid-row: auto;
-  }
+.dash.is-app .dash-widget.is-height-1,
+.dash.is-app .dash-widget.is-height-2,
+.dash.is-app .dash-widget.is-height-3 {
+  grid-row: auto;
+}
 
-  .dash-widget-body {
-    overflow-y: visible;
-  }
+.dash.is-app .dash-widget-body > * {
+  flex: 0 0 auto;
+}
 
-  .dash-toolbar-actions {
-    width: 100%;
-  }
+.dash.is-app .dash-widget-body .app-home-list,
+.dash.is-app .dash-widget-body .goals-home-list,
+.dash.is-app .dash-widget-body .plan-home-list,
+.dash.is-app .dash-widget-body .news-card-list,
+.dash.is-app .dash-widget-body .news-analysis-body,
+.dash.is-app .dash-widget-body .dash-scroll,
+.dash.is-app .dash-widget-body .dash-shortcuts {
+  flex: 0 0 auto;
+  overflow-y: visible;
+}
+
+.dash.is-app .dash-toolbar-actions {
+  width: 100%;
 }
