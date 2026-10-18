@@ -33,6 +33,12 @@ android {
             dimension 'sms'
             manifestPlaceholders = [authScheme: 'ir.realrate.app']
         }
+        // The Cafe Bazaar build: the full app (same id, SMS kept) without the install-packages
+        // permission (src/bazaar/AndroidManifest.xml) and without the in-app update; Bazaar updates it
+        bazaar {
+            dimension 'sms'
+            manifestPlaceholders = [authScheme: 'ir.realrate.app']
+        }
         nosms {
             dimension 'sms'
             applicationId 'org.geekio.realrate'
