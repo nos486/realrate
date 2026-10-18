@@ -61,6 +61,7 @@ import { accountHolds } from './accountDocument.js';
  * @property {string} description
  * @property {string} fingerprint          same message text → same value
  * @property {string} key                  same transaction → same value, whatever the wording
+ * @property {string} baseKey              `key` without the balance (older records, statement imports)
  *   (smsTransactionKey): how a transaction already recorded is recognized
  */
 
@@ -193,11 +194,14 @@ export function smsFingerprint(text) {
 }
 
 /**
- * A transaction's identity: bank, direction, amount (tomans), day and time. Two messages with the
- * same key are the same transaction; an expense or income recorded from one keeps it (`smsKey`).
+ * A transaction's identity: bank, direction, amount (tomans), day and time, plus the balance after
+ * it when the message has one (two equal deposits in the same minute differ by it). Two messages
+ * with the same key are the same transaction; an expense or income recorded from one keeps it
+ * (`smsKey`). Without a balance the key is the bare identity (also `baseKey`, see below).
  */
-export function smsTransactionKey({ bankId, direction, amount, date, time }) {
-  return [bankId, direction, Math.round(Number(amount) || 0), date || '', time || ''].join('|');
+export function smsTransactionKey({ bankId, direction, amount, date, time, balance }) {
+  const base = [bankId, direction, Math.round(Number(amount) || 0), date || '', time || ''].join('|');
+  return typeof balance === 'number' && Number.isFinite(balance) ? `${base}|${Math.round(balance)}` : base;
 }
 
 function resolveDirection(template, groups, sign) {
@@ -241,6 +245,8 @@ export function applyTemplate(bank, template, text, { today = new Date() } = {})
     fingerprint: smsFingerprint(text),
   };
   tx.key = smsTransactionKey(tx);
+  // The identity without the balance: how records made before the balance joined the key are known
+  tx.baseKey = smsTransactionKey({ ...tx, balance: null });
   return tx;
 }
 

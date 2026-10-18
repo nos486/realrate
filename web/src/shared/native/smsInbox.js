@@ -284,7 +284,7 @@ export function restoreSms(item) {
  */
 export function dropRecordedSms(recordedKeys) {
   const recorded = new Set(recordedKeys);
-  const drop = getPendingSms().filter((p) => p.tx?.key && recorded.has(p.tx.key));
+  const drop = getPendingSms().filter((p) => p.tx?.key && (recorded.has(p.tx.key) || recorded.has(p.tx.baseKey)));
   markSmsHandledMany(drop.map((p) => p.fingerprint));
   return drop.length;
 }

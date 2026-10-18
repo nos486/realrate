@@ -139,7 +139,7 @@ describe('SmsInboxPage', () => {
     // As saved (no project: the everyday expenses)
     expect((await expenses.saveExpense.mock.results[0].value).expense).toMatchObject({
       groupId: 'exg_daily', amount: 2000000, date: '2026-09-28', accountId: 'acc_1', source: 'sms', bankId: 'blu',
-      smsKey: 'blu|debit|2000000|2026-09-28|10:47',
+      smsKey: 'blu|debit|2000000|2026-09-28|10:47|7743673',
     });
     await waitFor(() => expect(getPendingSms()).toHaveLength(1));
   });
@@ -151,7 +151,7 @@ describe('SmsInboxPage', () => {
     fireEvent.submit((await screen.findByText('ثبت درآمد')).closest('form'));
     await waitFor(() => expect(incomes.createIncome).toHaveBeenCalled());
     expect(incomes.createIncome.mock.calls[0][0]).toMatchObject({
-      title: 'واریز بلو', amount: 250000, incomeDate: '2026-09-25', smsKey: 'blu|credit|250000|2026-09-25|18:23',
+      title: 'واریز بلو', amount: 250000, incomeDate: '2026-09-25', smsKey: 'blu|credit|250000|2026-09-25|18:23|10445123',
     });
     await waitFor(() => expect(getPendingSms()).toHaveLength(1));
   });
@@ -195,7 +195,7 @@ describe('SmsInboxPage', () => {
     toast.success.mockClear();
     fireEvent.click(screen.getByText('بخوان').closest('button'));
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('۱ مورد جدید')));
-    expect(getPendingSms().map((p) => p.tx.key)).toContain(debitKey);
+    expect(getPendingSms().map((p) => p.tx.baseKey)).toContain(debitKey);
     // Waiting again: no longer in the «already recorded» list
     await waitFor(() => expect(screen.queryByText('قبلاً ثبت‌شده')).toBeNull());
   });
@@ -248,7 +248,7 @@ describe('SmsInboxPage', () => {
     fireEvent.click(screen.getAllByText('رد')[0].closest('button'));
     await waitFor(() => expect(getPendingSms()).toHaveLength(1));
     expect(expenses.saveExpenses.mock.calls[0][0]).toEqual([expect.objectContaining({
-      amount: 2000000, category: 'rejected', accountId: '', title: 'برداشت بلو', smsKey: 'blu|debit|2000000|2026-09-28|10:47',
+      amount: 2000000, category: 'rejected', accountId: '', title: 'برداشت بلو', smsKey: 'blu|debit|2000000|2026-09-28|10:47|7743673',
     })]);
     fireEvent.click(screen.getAllByText('رد')[0].closest('button'));
     await waitFor(() => expect(getPendingSms()).toHaveLength(0));
@@ -303,7 +303,7 @@ describe('«ثبت در یک پروژه»: a withdrawal into a project', () => {
     fireEvent.submit((await screen.findAllByText('ثبت هزینه')).map((el) => el.closest('form')).find(Boolean));
     await waitFor(() => expect(expenses.saveExpense).toHaveBeenCalled());
     expect(expenses.saveExpense.mock.calls[0][0]).toMatchObject({
-      groupId: 'exg_trip', title: 'برداشت بلو', amount: 2000000, source: 'sms', smsKey: 'blu|debit|2000000|2026-09-28|10:47',
+      groupId: 'exg_trip', title: 'برداشت بلو', amount: 2000000, source: 'sms', smsKey: 'blu|debit|2000000|2026-09-28|10:47|7743673',
     });
     await waitFor(() => expect(getPendingSms()).toHaveLength(1));
   });
@@ -335,7 +335,7 @@ describe('«انتقال بین حساب‌های خودم»: neither expense no
     fireEvent.submit(screen.getByText('ثبت انتقال').closest('form'));
     await waitFor(() => expect(transfers.saveTransfer).toHaveBeenCalled());
     expect(transfers.saveTransfer.mock.calls[0][0]).toMatchObject({
-      fromAccountId: 'acc_1', toAccountId: 'acc_2', amount: 2000000, date: '2026-09-28', smsKeys: ['blu|debit|2000000|2026-09-28|10:47'],
+      fromAccountId: 'acc_1', toAccountId: 'acc_2', amount: 2000000, date: '2026-09-28', smsKeys: ['blu|debit|2000000|2026-09-28|10:47|7743673'],
     });
     expect(expenses.saveExpense).not.toHaveBeenCalled();
     await waitFor(() => expect(getPendingSms()).toHaveLength(1));

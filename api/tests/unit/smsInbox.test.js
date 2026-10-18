@@ -89,6 +89,14 @@ describe('SMS inbox', () => {
     expect(addSmsMessages([DEBIT])).toBe(0);
   });
 
+  it('two equal deposits in the same minute with different balances are two messages', () => {
+    const deposit = (id, balance) => ({ id, address: 'PARSIANBANK', body: `30101540968603\nمبلغ:2,500,000+\nمانده:${balance}\n07/26\n12:12`, date: RECEIVED });
+    expect(addSmsMessages([deposit('a', '241,150,644'), deposit('b', '243,650,644')])).toBe(2);
+    expect(getPendingSms()).toHaveLength(2);
+    // A record made before the balance joined the key still drops its message
+    expect(dropRecordedSms(new Set([getPendingSms()[0].tx.baseKey]))).toBe(2);
+  });
+
   it('keeps what was read, never the message\'s text; one-time passwords are not kept at all', () => {
     const otp = { id: '9', address: 'PARSIANBANK', body: 'رمز پویا شما: 551234', date: RECEIVED };
     expect(addSmsMessages([DEBIT, otp])).toBe(1);
@@ -263,7 +271,7 @@ describe('recording a message', () => {
     const accounts = [{ id: 'acc_1', bankId: 'parsian', accountNumber: '30101540968603' }];
     expect(smsExpenseDraft(tx, accounts)).toMatchObject({
       amount: 39750, date: '2026-09-28', accountId: 'acc_1', source: 'sms', bankId: 'parsian', notes: 'پیامک پارسیان · ساعت ۱۴:۴۹',
-      smsKey: 'parsian|debit|39750|2026-09-28|14:49',
+      smsKey: 'parsian|debit|39750|2026-09-28|14:49|8129405',
     });
   });
 
