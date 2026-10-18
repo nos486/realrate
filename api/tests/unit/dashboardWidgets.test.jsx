@@ -78,10 +78,10 @@ describe('a widget on the page', () => {
 describe('the widget picker', () => {
   it('lists what the user can see and adds a widget once when it is unique', () => {
     const onAdd = vi.fn();
-    render(<WidgetPicker isOpen onClose={() => {}} widgets={[news]} canSee={(type) => type !== 'market'} onAdd={onAdd} />);
+    render(<WidgetPicker isOpen onClose={() => {}} widgets={[news]} canSee={(type) => type !== 'rates'} onAdd={onAdd} />);
     expect(screen.getByText('نرخ‌های دلخواه')).toBeTruthy();
     expect(screen.queryByText('قیمت یک دارایی')).toBeNull();
-    expect(screen.queryByText('نرخ و حباب')).toBeNull();
+    expect(screen.queryByText('نرخ‌های امروز')).toBeNull(); // one the user cannot see is not offered
     const newsRow = screen.getByText('آخرین اخبار').closest('button');
     expect(newsRow.disabled).toBe(true);
     const assetRow = screen.getByText('نرخ‌های دلخواه').closest('button');

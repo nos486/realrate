@@ -166,12 +166,6 @@ export const WIDGET_CATALOG = {
       toggles: { change: { label: msg("نمایش تغییر"), default: true }, range: { label: msg("نمایش بازه‌ی امروز"), default: true } },
     },
   },
-  market: {
-    title: msg("نرخ و حباب"),
-    description: msg("بخش‌های دلخواه بازار: طلا، سکه، ارز، بورس و حباب، با کارت‌های قابل تنظیم"),
-    group: "market",
-    heights: [2, 3, 4], defaultHeight: 3, unique: true, requires: "market",
-  },
   news: {
     title: msg("آخرین اخبار"),
     description: msg("تازه‌ترین خبرهای بازار"),
@@ -374,7 +368,7 @@ const EVERYTHING = [
   preset("clock"), preset("month", { height: 2 }), preset("rate_list", { height: 2, config: { assetIds: ["USD", "USDT", "ons_gold", "oil_brent"] } }),
   preset("ai_analysis", { height: 4 }), preset("calendar", { height: 4 }), preset("expenses_latest", { height: 3 }),
   preset("goals", { height: 1 }), preset("shortcuts", { height: 2 }), preset("news", { height: 3 }),
-  preset("market", { height: 4 }), preset("alerts", { height: 1 }), preset("loans", { height: 2 }),
+  preset("alerts", { height: 1 }), preset("loans", { height: 2 }),
   preset("rates", { height: 1 }), preset("plan", { height: 1 }), preset("sms", { height: 1 }),
 ];
 
