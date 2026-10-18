@@ -33,6 +33,7 @@ export default function ExpensesLatestWidget({ widget }) {
   const fx = useFxRates(expenses || []);
   const rates = useMemo(() => ({ usdToman, usdAt, ...fx }), [usdToman, usdAt, fx]);
   const count = widget.config?.count || 5;
+  const details = widget.config?.details !== false;
   const latest = useMemo(
     () => [...expenses].sort((a, b) => b.date.localeCompare(a.date) || String(b.createdAt || '').localeCompare(String(a.createdAt || ''))).slice(0, count),
     [expenses, count],
@@ -53,7 +54,7 @@ export default function ExpensesLatestWidget({ widget }) {
                 <span className="app-home-row-icon"><cat.Icon size={18} /></span>
                 <span className="app-home-row-text">
                   <strong>{e.title || cat.label}</strong>
-                  <small>{cat.label} · {formatShamsiDisplay(`${e.date}T00:00:00`)}</small>
+                  {details && <small>{cat.label} · {formatShamsiDisplay(`${e.date}T00:00:00`)}</small>}
                 </span>
                 <span className="app-home-row-amount">{toman === null ? '—' : moneyText(toman, hideValues)}</span>
               </li>

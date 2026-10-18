@@ -11,7 +11,7 @@ import React from 'react';
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, cleanup, screen, fireEvent } from '@testing-library/react';
 import { Target } from 'lucide-react';
-import { WIDGET_CATALOG, WIDGET_GROUPS, WIDGET_TYPES } from '../../src/domain/dashboardLayout.js';
+import { WIDGET_CATALOG, WIDGET_GROUPS, WIDGET_TYPES, sanitizeWidgets } from '../../src/domain/dashboardLayout.js';
 import { WIDGET_VIEWS, WIDGET_REQUIREMENTS } from '../../../web/src/features/dashboard/widgetRegistry.jsx';
 import WidgetCard from '../../../web/src/features/dashboard/WidgetCard.jsx';
 import WidgetState from '../../../web/src/features/dashboard/WidgetState.jsx';
@@ -50,6 +50,43 @@ describe('every widget of the catalog', () => {
     const files = fs.readdirSync(widgetsDir).filter((f) => f.endsWith('Widget.jsx'));
     expect(files).toHaveLength(WIDGET_TYPES.length);
     for (const file of files) expect(fs.readFileSync(path.join(widgetsDir, file), 'utf8').startsWith('/**'), file).toBe(true);
+  });
+});
+
+describe('the settings every widget declares', () => {
+  const optionsOf = (type) => WIDGET_CATALOG[type].options || {};
+
+  it('has a label for every style and every multi-choice value, and a default among them', () => {
+    for (const type of WIDGET_TYPES) {
+      const { style, multi = {} } = optionsOf(type);
+      if (style) {
+        expect(style.values, type).toContain(style.default);
+        for (const v of style.values) expect(style.labels[v], `${type}.${v}`).toBeTruthy();
+      }
+      for (const [key, def] of Object.entries(multi)) {
+        expect(def.label, `${type}.${key}`).toBeTruthy();
+        expect(def.default.every((v) => def.values.includes(v)), `${type}.${key}`).toBe(true);
+        for (const v of def.values) expect(def.labels[v], `${type}.${key}.${v}`).toBeTruthy();
+      }
+    }
+  });
+
+  it('labels every switch', () => {
+    for (const type of WIDGET_TYPES) {
+      for (const [key, def] of Object.entries(optionsOf(type).toggles || {})) {
+        expect(def.label, `${type}.${key}`).toBeTruthy();
+        expect(typeof def.default, `${type}.${key}`).toBe('boolean');
+      }
+    }
+  });
+
+  it('keeps each widget\'s defaults when nothing is stored', () => {
+    for (const type of WIDGET_TYPES) {
+      const { config } = sanitizeWidgets([{ type }])[0];
+      const o = optionsOf(type);
+      if (o.style) expect(config.style, type).toBe(o.style.default);
+      for (const [key, def] of Object.entries(o.toggles || {})) expect(config[key], `${type}.${key}`).toBe(def.default);
+    }
   });
 });
 

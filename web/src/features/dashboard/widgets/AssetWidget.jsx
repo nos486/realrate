@@ -1,7 +1,6 @@
 /**
  * AssetWidget.jsx — «قیمت یک دارایی»: one market asset the user picked (the widget's `assetId`
- * option) as a home card; a wide widget shows the full card with its chart, a narrow one the
- * compact row. Without a choice it asks for one.
+ * option) as a home card; its `style` setting is the full card with its chart (detailed) or the compact row. Without a choice it asks for one.
  */
 
 import { t } from '../../../utils/i18n.js';
@@ -31,7 +30,7 @@ export default function AssetWidget({ widget, editing, onConfigure }) {
   return (
     <DashScroll>
       <div className="home-item dash-asset">
-        <HomeAssetCard asset={asset} style="compact" flippable={!editing} />
+        <HomeAssetCard asset={asset} style={widget.config?.style === 'detailed' ? 'detailed' : 'compact'} flippable={!editing} />
       </div>
     </DashScroll>
   );

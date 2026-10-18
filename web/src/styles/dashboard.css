@@ -344,18 +344,30 @@
   width: 100%;
 }
 
-/* Clock: the time is the figure; the dates follow, and a wider widget gives it more room */
+/* Clock: digital (the time large), analog (a face with hands) or compact (one line) */
 .dash-clock {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 6px;
+  min-height: 0;
+  text-align: center;
 }
 
 .dash-clock-time {
-  font-size: 40px;
+  font-size: 44px;
   font-weight: 800;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
   unicode-bidi: isolate;
+}
+
+.dash-clock-dates {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .dash-clock-weekday {
@@ -370,6 +382,55 @@
 .dash-clock-sub {
   font-size: 12px;
   color: var(--text-muted);
+}
+
+.dash-clock-face {
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+  max-width: 170px;
+}
+
+.dash-clock-rim {
+  fill: var(--card-inner-bg);
+  stroke: var(--border-strong);
+  stroke-width: 1.5;
+}
+
+.dash-clock-tick,
+.dash-clock-hand {
+  stroke: var(--text-primary);
+  stroke-linecap: round;
+}
+
+.dash-clock-hand.is-second {
+  stroke: var(--color-primary-text);
+}
+
+.dash-clock-pin {
+  fill: var(--color-primary-text);
+}
+
+.dash-clock-caption {
+  font-size: 15px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  unicode-bidi: isolate;
+}
+
+.dash-clock.is-compact {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+
+.dash-clock.is-compact .dash-clock-time {
+  font-size: 30px;
+}
+
+.dash-clock.is-compact .dash-clock-dates {
+  align-items: flex-start;
+  text-align: start;
 }
 
 /* Rate list: four equal tiles (2x2) that fill the widget; no scrolling */
@@ -424,6 +485,35 @@
   border-style: dashed;
   color: var(--text-muted);
   background: none;
+}
+
+/* The list style: one row per asset, name on one side, price and change on the other */
+.dash-rate-list.is-list {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.dash-rate-list.is-list .dash-rate-tile {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 6px 12px;
+}
+
+.dash-rate-list.is-list .dash-rate-tile small {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.dash-rate-list.is-list .dash-rate-tile em {
+  min-width: 56px;
+  text-align: end;
+}
+
+.dash-rate-list.is-list .dash-rate-tile.is-empty {
+  justify-content: center;
 }
 
 button.dash-rate-tile:not(:disabled) {
@@ -543,6 +633,19 @@ button.dash-rate-tile:not(:disabled) {
   gap: 6px;
   min-width: 0;
   min-height: 0;
+}
+
+.dash-cal-day-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.dash-cal-agenda-title small {
+  margin-inline-start: 8px;
+  font-weight: 400;
+  color: var(--text-muted);
 }
 
 .dash-cal-agenda-title {
@@ -706,6 +809,79 @@ button.dash-rate-tile:not(:disabled) {
   color: var(--color-primary-text);
 }
 
+.dash-settings {
+  margin-bottom: 18px;
+}
+
+.dash-style-toggle {
+  display: flex;
+  width: 100%;
+}
+
+.dash-style-toggle button {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.dash-asset-chips,
+.dash-chip-set {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dash-asset-chip,
+.dash-asset-add,
+.dash-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-medium);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12.5px;
+}
+
+.dash-asset-chip button {
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.dash-asset-add,
+.dash-chip {
+  cursor: pointer;
+}
+
+.dash-asset-add {
+  border-style: dashed;
+  color: var(--color-primary-text);
+}
+
+.dash-chip.is-on {
+  border-color: var(--color-primary-border);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-text);
+}
+
+.dash-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  font-size: 13.5px;
+}
+
 .dash-settings-label {
   margin: 0 0 10px;
   font-size: 13px;
@@ -756,4 +932,47 @@ button.dash-rate-tile:not(:disabled) {
 
 .dash.is-app .dash-rate-tile {
   min-height: 72px;
+}
+
+/* Month summary, compact style: the figure and the two stats, without the loan breakdown */
+.dash-month.is-compact .app-home-hero-breakdown {
+  display: none;
+}
+
+/* Today's rates, list style: a row per rate */
+.dash-widget .app-home-rates-grid.is-list {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.dash-widget .app-home-rates-grid.is-list .app-home-rate {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+/* Shortcuts, list style: a row per shortcut */
+.dash-shortcuts.is-list {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.dash-shortcuts.is-list .dash-shortcut {
+  flex-direction: row;
+  justify-content: flex-start;
+  padding: 10px 14px;
+}
+
+.dash-widget .app-home-rates-grid:not(.is-list) {
+  grid-template-columns: none;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+}
+
+.dash-widget .app-home-rates-grid.is-list .app-home-rate {
+  padding: 8px 0;
+}
+
+.dash-widget .app-home-rates-grid.is-list .app-home-rate + .app-home-rate {
+  border-inline-start: 0;
+  border-top: 1px solid var(--border-subtle);
 }

@@ -20,13 +20,15 @@ const SHORTCUTS = [
   { target: 'reports', label: msg('گزارش‌ها'), Icon: BarChart3, feature: 'reports' },
 ];
 
-export default function ShortcutsWidget() {
+export default function ShortcutsWidget({ widget }) {
   const { open } = useDashboardData();
   const features = { expenses: useFeature('expenses'), reports: useFeature('reports') };
+  const style = widget.config?.style || 'grid';
+  const items = widget.config?.items;
   return (
     <WidgetCard title={t('میان‌بُرها')} Icon={Zap}>
-      <div className="dash-shortcuts">
-      {SHORTCUTS.filter((s) => !s.feature || features[s.feature]).map(({ target, label, Icon }) => (
+      <div className={`dash-shortcuts is-${style}`}>
+      {SHORTCUTS.filter((s) => (!s.feature || features[s.feature]) && (!items || items.includes(s.target))).map(({ target, label, Icon }) => (
         <button key={target} type="button" className="dash-shortcut" onClick={() => open(target)}>
           <Icon size={18} aria-hidden="true" />
           <span>{t(label)}</span>

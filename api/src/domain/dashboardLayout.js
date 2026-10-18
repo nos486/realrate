@@ -37,8 +37,12 @@ export const WIDGET_HEIGHTS = [1, 2, 3];
 /**
  * The widgets a user can add. `requires` names what the user needs to see it (checked by the
  * client: a feature, `news`, `native`); `unique` widgets can be added once. `options` declares the
- * widget's config: `count` (one of the listed numbers), `asset` (one market asset id) and `assets`
- * (a list of them).
+ * widget's settings, all of them saved in its `config` and nothing else:
+ *   count    one of the listed numbers (how many rows)
+ *   asset    one market asset id;  assets  a list of them
+ *   style    { values, labels, default }: how the widget is drawn (a grid or a list, a clock face)
+ *   toggles  { key: { label, default } }: on/off switches
+ *   multi    { key: { label, values, labels, default, min } }: a subset of `values` to show
  */
 export const WIDGET_CATALOG = {
   month: {
@@ -46,52 +50,87 @@ export const WIDGET_CATALOG = {
     description: msg("خرج، درآمد و باقی‌مانده‌ی ماه، با مقایسه با ماه قبل"),
     group: "money",
     defaultHeight: 2, unique: true, requires: "vault",
+    options: {
+      style: { values: ["full", "compact"], labels: { full: msg("کامل"), compact: msg("فشرده") }, default: "full" },
+      toggles: { comparison: { label: msg("مقایسه با ماه قبل"), default: true } },
+    },
   },
   expenses_latest: {
     title: msg("آخرین هزینه‌ها"),
     description: msg("هزینه‌هایی که تازه ثبت شده است"),
     group: "money",
     defaultHeight: 2, requires: "expenses",
-    options: { count: [3, 5, 8, 10] }, defaults: { count: 10 },
+    options: { count: [3, 5, 8, 10], toggles: { details: { label: msg("نمایش دسته و تاریخ"), default: true } } },
+    defaults: { count: 10 },
   },
   loans: {
     title: msg("وام‌ها"),
     description: msg("قسط بعدی وام‌ها و مانده‌ی هر کدام"),
     group: "money",
     defaultHeight: 2, unique: true, requires: "vault",
-    options: { count: [3, 5, 8, 12] }, defaults: { count: 8 },
+    options: { count: [3, 5, 8, 12], toggles: { balance: { label: msg("نمایش مانده‌ی وام"), default: true } } },
+    defaults: { count: 8 },
   },
   goals: {
     title: msg("اهداف پس‌انداز"),
     description: msg("نزدیک‌ترین هدف‌ها و پیشرفت هر کدام"),
     group: "money",
     defaultHeight: 1, unique: true, requires: "vault",
+    options: { count: [3, 5, 8, 12] }, defaults: { count: 12 },
   },
   alerts: {
     title: msg("یادآورها"),
     description: msg("اقساط، چک‌ها و اشتراک‌هایی که سررسیدشان نزدیک است"),
     group: "money",
     defaultHeight: 1, unique: true, requires: "vault",
+    options: {
+      multi: {
+        sources: {
+          label: msg("نوع یادآورها"),
+          values: ["loan", "cheque", "subscription"],
+          labels: { loan: msg("اقساط وام"), cheque: msg("چک‌ها"), subscription: msg("اشتراک‌ها") },
+          default: ["loan", "cheque", "subscription"],
+          min: 1,
+        },
+      },
+    },
   },
   rates: {
     title: msg("نرخ‌های امروز"),
     description: msg("دلار، طلای ۱۸ و سکه با تغییر امروز"),
     group: "market",
     defaultHeight: 1, unique: true, requires: "market",
+    options: {
+      style: { values: ["tiles", "list"], labels: { tiles: msg("کاشی"), list: msg("فهرست") }, default: "tiles" },
+      multi: {
+        items: {
+          label: msg("نرخ‌های نمایش‌داده‌شده"),
+          values: ["usd", "gold_18k", "full_coin"],
+          labels: { usd: msg("دلار"), gold_18k: msg("طلای ۱۸"), full_coin: msg("سکه امامی") },
+          default: ["usd", "gold_18k", "full_coin"],
+          min: 1,
+        },
+      },
+      toggles: { change: { label: msg("نمایش تغییر"), default: true } },
+    },
   },
   asset: {
     title: msg("قیمت یک دارایی"),
     description: msg("قیمت و تغییر هر دارایی بازار که انتخاب کنید"),
     group: "market",
     defaultHeight: 2, requires: "market",
-    options: { asset: true },
+    options: { asset: true, style: { values: ["compact", "detailed"], labels: { compact: msg("فشرده"), detailed: msg("کامل با نمودار") }, default: "compact" } },
   },
   rate_list: {
     title: msg("نرخ‌های دلخواه"),
     description: msg("چند نرخ دلخواه از بازار، هرکدام با قیمت و تغییرش"),
     group: "market",
     defaultHeight: 2, requires: "market",
-    options: { assets: true },
+    options: {
+      assets: true,
+      style: { values: ["grid", "list"], labels: { grid: msg("شبکه‌ای"), list: msg("فهرست") }, default: "grid" },
+      toggles: { change: { label: msg("نمایش تغییر"), default: true } },
+    },
   },
   market: {
     title: msg("نرخ و حباب"),
@@ -123,18 +162,52 @@ export const WIDGET_CATALOG = {
     description: msg("ساعت و تاریخ امروز به وقت تهران، با تاریخ شمسی و میلادی"),
     group: "tools",
     defaultHeight: 1, unique: true, requires: null,
+    options: {
+      style: { values: ["digital", "analog", "compact"], labels: { digital: msg("دیجیتال"), analog: msg("عقربه‌ای"), compact: msg("فشرده") }, default: "digital" },
+      toggles: {
+        seconds: { label: msg("نمایش ثانیه"), default: false },
+        gregorian: { label: msg("نمایش تاریخ میلادی"), default: true },
+      },
+    },
   },
   calendar: {
     title: msg("تقویم"),
     description: msg("تقویم شمسی با نشان اقساط، سررسید چک‌ها، تمدید اشتراک‌ها و تاریخ هدف‌ها"),
     group: "tools",
     defaultHeight: 2, unique: true, requires: null,
+    options: {
+      style: { values: ["month", "agenda"], labels: { month: msg("ماه"), agenda: msg("برنامه") }, default: "month" },
+      multi: {
+        kinds: {
+          label: msg("رویدادهای نمایش‌داده‌شده"),
+          values: ["loan", "cheque", "subscription", "goal"],
+          labels: { loan: msg("قسط وام"), cheque: msg("سررسید چک"), subscription: msg("تمدید اشتراک"), goal: msg("تاریخ هدف") },
+          default: ["loan", "cheque", "subscription", "goal"],
+          min: 1,
+        },
+      },
+    },
   },
   shortcuts: {
     title: msg("میان‌بُرها"),
     description: msg("ثبت سریع هزینه و رفتن به بخش‌های پرکاربرد"),
     group: "tools",
     defaultHeight: 1, unique: true, requires: null,
+    options: {
+      style: { values: ["grid", "list"], labels: { grid: msg("شبکه‌ای"), list: msg("فهرست") }, default: "grid" },
+      multi: {
+        items: {
+          label: msg("میان‌بُرهای نمایش‌داده‌شده"),
+          values: ["add-expense", "incomes", "expenses", "portfolio", "loans", "reports"],
+          labels: {
+            "add-expense": msg("ثبت هزینه"), incomes: msg("درآمدها"), expenses: msg("هزینه‌ها"),
+            portfolio: msg("پورتفو"), loans: msg("وام و اقساط"), reports: msg("گزارش‌ها"),
+          },
+          default: ["add-expense", "incomes", "expenses", "portfolio", "loans", "reports"],
+          min: 1,
+        },
+      },
+    },
   },
   plan: {
     title: msg("پلن"),
@@ -165,19 +238,29 @@ function fitHeight(type, height) {
   return WIDGET_HEIGHTS.includes(n) ? n : WIDGET_CATALOG[type].defaultHeight;
 }
 
-/** Only the options the type declares, with valid values */
+/** A subset of `def.values` in their own order, or the default when fewer than `def.min` remain */
+function cleanMulti(def, raw) {
+  const picked = Array.isArray(raw) ? def.values.filter((v) => raw.includes(v)) : [];
+  return picked.length >= (def.min || 0) && picked.length > 0 ? picked : [...def.default];
+}
+
+/** Only the options the type declares, with valid values (the default for anything else) */
 function cleanConfig(type, raw) {
   const spec = WIDGET_CATALOG[type];
   const config = { ...(spec.defaults || {}) };
   const options = spec.options || {};
-  if (raw && typeof raw === "object") {
-    if (options.count && options.count.includes(Number(raw.count))) config.count = Number(raw.count);
-    if (options.asset && typeof raw.assetId === "string" && ASSET_ID_RE.test(raw.assetId)) config.assetId = raw.assetId;
-    if (options.assets && Array.isArray(raw.assetIds)) {
-      const ids = raw.assetIds.filter((id) => typeof id === "string" && ASSET_ID_RE.test(id));
-      config.assetIds = [...new Set(ids)].slice(0, DASHBOARD_LIMITS.rateListAssets);
-    }
+  const src = raw && typeof raw === "object" ? raw : {};
+  if (options.count && options.count.includes(Number(src.count))) config.count = Number(src.count);
+  if (options.asset && typeof src.assetId === "string" && ASSET_ID_RE.test(src.assetId)) config.assetId = src.assetId;
+  if (options.assets && Array.isArray(src.assetIds)) {
+    const ids = src.assetIds.filter((id) => typeof id === "string" && ASSET_ID_RE.test(id));
+    config.assetIds = [...new Set(ids)].slice(0, DASHBOARD_LIMITS.rateListAssets);
   }
+  if (options.style) config.style = options.style.values.includes(src.style) ? src.style : options.style.default;
+  for (const [key, def] of Object.entries(options.toggles || {})) {
+    config[key] = typeof src[key] === "boolean" ? src[key] : def.default;
+  }
+  for (const [key, def] of Object.entries(options.multi || {})) config[key] = cleanMulti(def, src[key]);
   return config;
 }
 
