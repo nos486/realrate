@@ -307,4 +307,8 @@ describe('columns', () => {
     const widgets = list([['month', 1]]);
     expect(placeWidget(widgets, 3, 'w_month', 5)).toBe(widgets);
   });
+
+  it('keeps the same ids for a screen that was never arranged', () => {
+    expect(widgetsOf(null, 'wide').map((w) => w.id)).toEqual(widgetsOf(null, 'wide').map((w) => w.id));
+  });
 });

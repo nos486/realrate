@@ -153,7 +153,7 @@ function DayCell({ iso, events, today, picked, hidden, column, rows, row, onPick
         type="button"
         className={cls}
         aria-pressed={iso === picked}
-        aria-label={events.length ? `${text}: ${events.map((e) => e.title).join('، ')}` : text}
+        aria-label={events.length ? `${text}: ${events.map((e) => e.title).join(t('، '))}` : text}
         onClick={() => onPick(iso === picked ? '' : iso)}
       >
         <span>{dayLabel(shamsiDayOf(iso))}</span>

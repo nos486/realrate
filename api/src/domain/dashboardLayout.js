@@ -390,8 +390,12 @@ export const DEFAULT_DASHBOARD = {
  * The default widgets of a screen, each with a fresh id
  * @param {"wide"|"desktop"|"tablet"|"mobile"} screen
  */
+const defaultsCache = new Map();
 export function defaultWidgets(screen) {
-  return sanitizeWidgets(DEFAULT_DASHBOARD[screen] || DEFAULT_DASHBOARD.desktop);
+  const key = DEFAULT_DASHBOARD[screen] ? screen : "desktop";
+  // Built once per screen: the ids stay the same between renders (keys, open dialogs, drags)
+  if (!defaultsCache.has(key)) defaultsCache.set(key, sanitizeWidgets(DEFAULT_DASHBOARD[key]));
+  return defaultsCache.get(key);
 }
 
 /**
