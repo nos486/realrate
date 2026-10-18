@@ -13,9 +13,25 @@ function androidAppViewport() {
   };
 }
 
+/**
+ * Identifies this build: the code gets it as __APP_BUILD__ and /version.json carries it, so a page
+ * that is already open can tell a newer deploy from itself (shared/pwa/versionCheck.js).
+ */
+const BUILD_ID = (process.env.CF_PAGES_COMMIT_SHA || process.env.GITHUB_SHA || '').slice(0, 12) || Date.now().toString(36);
+
+function versionFile() {
+  return {
+    name: 'version-file',
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ build: BUILD_ID }) });
+    },
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  plugins: [react(), ...(mode === 'app' ? [androidAppViewport()] : [])],
+  define: { __APP_BUILD__: JSON.stringify(BUILD_ID) },
+  plugins: [react(), versionFile(), ...(mode === 'app' ? [androidAppViewport()] : [])],
   server: {
     port: 5173,
     proxy: {
