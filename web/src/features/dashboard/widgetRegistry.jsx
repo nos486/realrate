@@ -9,7 +9,7 @@
 
 import { hasNews as localeHasNews } from '../../utils/i18n.js';
 import {
-  Bell, CalendarDays, CalendarRange, ChartCandlestick, Clock, Crown, List, Landmark, MessageSquareText, Newspaper,
+  Bell, CalendarDays, CalendarRange, Clock, Crown, List, Landmark, MessageSquareText, Newspaper,
   Receipt, Sparkles, Target, TrendingUp, Zap,
 } from 'lucide-react';
 import { useFeature } from '../../shared/features/useFeature.js';
@@ -25,7 +25,6 @@ import RatesWidget from './widgets/RatesWidget.jsx';
 import RateListWidget from './widgets/RateListWidget.jsx';
 import ClockWidget from './widgets/ClockWidget.jsx';
 import CalendarWidget from './widgets/CalendarWidget.jsx';
-import MarketWidget from './widgets/MarketWidget.jsx';
 import NewsWidget from './widgets/NewsWidget.jsx';
 import AiAnalysisWidget from './widgets/AiAnalysisWidget.jsx';
 import SmsWidget from './widgets/SmsWidget.jsx';
@@ -43,7 +42,6 @@ export const WIDGET_VIEWS = {
   rate_list: { Icon: List, Component: RateListWidget },
   clock: { Icon: Clock, Component: ClockWidget },
   calendar: { Icon: CalendarRange, Component: CalendarWidget },
-  market: { Icon: ChartCandlestick, Component: MarketWidget },
   news: { Icon: Newspaper, Component: NewsWidget },
   ai_analysis: { Icon: Sparkles, Component: AiAnalysisWidget },
   sms: { Icon: MessageSquareText, Component: SmsWidget },

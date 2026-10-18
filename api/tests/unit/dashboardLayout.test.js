@@ -91,6 +91,11 @@ describe('heights', () => {
     expect(c.height).toBe(3);
   });
 
+  it('drops a saved widget of a type that no longer exists (the removed «نرخ و حباب» widget)', () => {
+    expect(WIDGET_TYPES).not.toContain('market');
+    expect(types(sanitizeWidgets([{ type: 'market' }, { type: 'month' }]))).toEqual(['month']);
+  });
+
   it('offers four sizes (150, 300, 450, 600px) and each widget allows some of them, its default among them', () => {
     expect(WIDGET_HEIGHT_PX).toEqual({ 1: 150, 2: 300, 3: 450, 4: 600 });
     for (const spec of Object.values(WIDGET_CATALOG)) {

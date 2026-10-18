@@ -37,7 +37,6 @@ export default {
   'یادآورها': 'Reminders',
   'اقساط، چک‌ها و اشتراک‌هایی که سررسیدشان نزدیک است': 'Installments, cheques and subscriptions that are due soon',
   'دلار، طلای ۱۸ و سکه با تغییر امروز': 'The dollar, 18k gold and the coin, with today\'s change',
-  'بخش‌های دلخواه بازار: طلا، سکه، ارز، بورس و حباب، با کارت‌های قابل تنظیم': 'Your own market sections: gold, coins, currencies, the stock market and bubbles, with cards you can set up',
   'تازه‌ترین خبرهای بازار': 'The latest market news',
   'فقط تحلیل روز: خلاصه‌ی خبرها، مهم‌ترین رویدادها و نکته‌ها': 'Only the day\'s analysis: a summary of the news, the key events and points',
   'پیامک‌هایی که منتظر ثبت هستند': 'Bank messages waiting to be recorded',

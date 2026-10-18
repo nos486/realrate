@@ -32,7 +32,7 @@ vi.mock('../../../web/src/features/dashboard/widgetRegistry.jsx', async () => {
   const View = ({ widget }) => <p>widget:{widget.type}</p>;
   return {
     WIDGET_VIEWS: Object.fromEntries(WIDGET_TYPES.map((type) => [type, { Icon: () => <i />, Component: View }])),
-    useWidgetAccess: () => (type) => type !== 'market' && type !== 'sms',
+    useWidgetAccess: () => (type) => type !== 'sms',
   };
 });
 
@@ -53,7 +53,7 @@ const shownTypes = () => screen.queryAllByText(/^widget:/).map((el) => el.textCo
 describe('the home page', () => {
   it('shows the default widgets the user can see', () => {
     render(<Dashboard onOpen={open} />);
-    const hidden = ['market', 'sms']; // what the stubbed access hides
+    const hidden = ['sms']; // what the stubbed access hides
     const expected = DEFAULT_DASHBOARD.tablet.map((w) => w.type).filter((type) => !hidden.includes(type)); // the test window is mid-size: 2 columns
     // The page is columns of stacked widgets, so the order in the page is column by column
     expect([...shownTypes()].sort()).toEqual([...expected].sort());
