@@ -1,7 +1,7 @@
 /**
  * dashboardLayout.js — Shape, defaults and edits of the user's widget dashboard (the home page)
  *
- * The home page is a list of widgets the user adds, removes, resizes and reorders. There are two
+ * The home page is a list of widgets the user adds, removes and reorders. There are two
  * lists, one for the wide screen (the website) and one for the app frame (the Android app and
  * phones), so each can be arranged on its own. The whole document is one encrypted vault record
  * (kind `dashboard_layout`), so the server never sees it; it is also part of the full backup.
@@ -9,14 +9,14 @@
  *
  * {
  *   version: 1,
- *   desktop: [{ id: "w_ab12cd34", type: "month", size: 2, config: {} }, ...],
- *   mobile:  [{ id: "w_ef56ab78", type: "rates", size: 3, config: { count: 4 } }, ...],
+ *   desktop: [{ id: "w_ab12cd34", type: "month", config: {} }, ...],
+ *   mobile:  [{ id: "w_ef56ab78", type: "rates", config: { count: 4 } }, ...],
  *   updatedAt
  * }
  *
- * `size` is the widget's width in columns of a 3-column grid and `height` its height class
+ * Every widget is one column wide; `height` is its height class
  * (1 short, 2 medium, 3 tall; a widget with more to show scrolls inside it); the app frame is one
- * column of natural height and ignores both. `config` holds the few per-widget options the catalog declares (an asset id, how
+ * column of natural height and ignores it. `config` holds the few per-widget options the catalog declares (an asset id, how
  * many rows to list); anything else is dropped. A list that is missing starts from the default.
  */
 
@@ -29,10 +29,7 @@ export const DASHBOARD_LAYOUT_VERSION = 1;
 /** Screens a list is arranged for */
 export const DASHBOARD_SCREENS = ["desktop", "mobile"];
 
-export const DASHBOARD_LIMITS = { widgets: 40, idLength: 40, assetIdLength: 120, rateListAssets: 12 };
-
-/** Sizes in columns of the wide grid */
-export const WIDGET_SIZES = [1, 2, 3];
+export const DASHBOARD_LIMITS = { widgets: 40, idLength: 40, assetIdLength: 120, rateListAssets: 4 };
 
 /** Height classes of the wide grid: short, medium, tall */
 export const WIDGET_HEIGHTS = [1, 2, 3];
@@ -48,102 +45,102 @@ export const WIDGET_CATALOG = {
     title: msg("خلاصه‌ی ماه"),
     description: msg("خرج، درآمد و باقی‌مانده‌ی ماه، با مقایسه با ماه قبل"),
     group: "money",
-    sizes: [1, 2, 3], defaultSize: 2, defaultHeight: 2, unique: true, requires: "vault",
+    defaultHeight: 2, unique: true, requires: "vault",
   },
   expenses_latest: {
     title: msg("آخرین هزینه‌ها"),
     description: msg("هزینه‌هایی که تازه ثبت شده است"),
     group: "money",
-    sizes: [1, 2, 3], defaultSize: 2, defaultHeight: 2, requires: "expenses",
+    defaultHeight: 2, requires: "expenses",
     options: { count: [3, 5, 8, 10] }, defaults: { count: 10 },
   },
   loans: {
     title: msg("وام‌ها"),
     description: msg("قسط بعدی وام‌ها و مانده‌ی هر کدام"),
     group: "money",
-    sizes: [1, 2, 3], defaultSize: 1, defaultHeight: 2, unique: true, requires: "vault",
+    defaultHeight: 2, unique: true, requires: "vault",
     options: { count: [3, 5, 8, 12] }, defaults: { count: 8 },
   },
   goals: {
     title: msg("اهداف پس‌انداز"),
     description: msg("نزدیک‌ترین هدف‌ها و پیشرفت هر کدام"),
     group: "money",
-    sizes: [1, 2, 3], defaultSize: 1, defaultHeight: 1, unique: true, requires: "vault",
+    defaultHeight: 1, unique: true, requires: "vault",
   },
   alerts: {
     title: msg("یادآورها"),
     description: msg("اقساط، چک‌ها و اشتراک‌هایی که سررسیدشان نزدیک است"),
     group: "money",
-    sizes: [1, 2, 3], defaultSize: 3, defaultHeight: 1, unique: true, requires: "vault",
+    defaultHeight: 1, unique: true, requires: "vault",
   },
   rates: {
     title: msg("نرخ‌های امروز"),
     description: msg("دلار، طلای ۱۸ و سکه با تغییر امروز"),
     group: "market",
-    sizes: [1, 2, 3], defaultSize: 1, defaultHeight: 1, unique: true, requires: "market",
+    defaultHeight: 1, unique: true, requires: "market",
   },
   asset: {
     title: msg("قیمت یک دارایی"),
     description: msg("قیمت و تغییر هر دارایی بازار که انتخاب کنید"),
     group: "market",
-    sizes: [1, 2, 3], defaultSize: 1, defaultHeight: 2, requires: "market",
+    defaultHeight: 2, requires: "market",
     options: { asset: true },
   },
   rate_list: {
     title: msg("نرخ‌های دلخواه"),
     description: msg("چند نرخ دلخواه از بازار، هرکدام با قیمت و تغییرش"),
     group: "market",
-    sizes: [1, 2, 3], defaultSize: 1, defaultHeight: 2, requires: "market",
+    defaultHeight: 2, requires: "market",
     options: { assets: true },
   },
   market: {
     title: msg("نرخ و حباب"),
     description: msg("بخش‌های دلخواه بازار: طلا، سکه، ارز، بورس و حباب، با کارت‌های قابل تنظیم"),
     group: "market",
-    sizes: [1, 2, 3], defaultSize: 3, defaultHeight: 3, unique: true, requires: "market",
+    defaultHeight: 3, unique: true, requires: "market",
   },
   news: {
     title: msg("آخرین اخبار"),
     description: msg("تازه‌ترین خبرهای بازار"),
     group: "news",
-    sizes: [1, 2, 3], defaultSize: 2, defaultHeight: 2, unique: true, requires: "news",
+    defaultHeight: 2, unique: true, requires: "news",
     options: { count: [3, 5, 8, 10] }, defaults: { count: 10 },
   },
   ai_analysis: {
     title: msg("تحلیل روز با هوش مصنوعی"),
     description: msg("فقط تحلیل روز: خلاصه‌ی خبرها، مهم‌ترین رویدادها و نکته‌ها"),
     group: "news",
-    sizes: [1, 2, 3], defaultSize: 1, defaultHeight: 3, unique: true, requires: "news",
+    defaultHeight: 3, unique: true, requires: "news",
   },
   sms: {
     title: msg("پیامک‌های بانکی"),
     description: msg("پیامک‌هایی که منتظر ثبت هستند"),
     group: "tools",
-    sizes: [1, 2, 3], defaultSize: 1, defaultHeight: 1, unique: true, requires: "native_sms",
+    defaultHeight: 1, unique: true, requires: "native_sms",
   },
   clock: {
     title: msg("ساعت و تاریخ"),
     description: msg("ساعت و تاریخ امروز به وقت تهران، با تاریخ شمسی و میلادی"),
     group: "tools",
-    sizes: [1, 2, 3], defaultSize: 1, defaultHeight: 1, unique: true, requires: null,
+    defaultHeight: 1, unique: true, requires: null,
   },
   calendar: {
     title: msg("تقویم"),
     description: msg("تقویم شمسی با نشان اقساط، سررسید چک‌ها، تمدید اشتراک‌ها و تاریخ هدف‌ها"),
     group: "tools",
-    sizes: [1, 2, 3], defaultSize: 2, defaultHeight: 2, unique: true, requires: null,
+    defaultHeight: 2, unique: true, requires: null,
   },
   shortcuts: {
     title: msg("میان‌بُرها"),
     description: msg("ثبت سریع هزینه و رفتن به بخش‌های پرکاربرد"),
     group: "tools",
-    sizes: [1, 2, 3], defaultSize: 1, defaultHeight: 1, unique: true, requires: null,
+    defaultHeight: 1, unique: true, requires: null,
   },
   plan: {
     title: msg("پلن"),
     description: msg("محدودیت‌های پلن رایگان و میزان استفاده"),
     group: "tools",
-    sizes: [1, 2, 3], defaultSize: 1, defaultHeight: 1, unique: true, requires: "free_plan",
+    defaultHeight: 1, unique: true, requires: "free_plan",
   },
 };
 
@@ -161,14 +158,6 @@ const ID_RE = /^[A-Za-z0-9_-]{1,40}$/;
 const ASSET_ID_RE = /^[^\s/\\]{1,120}$/;
 
 const newWidgetId = () => `w_${Math.random().toString(36).slice(2, 10)}`;
-
-/** The size closest to `size` that the type allows */
-function fitSize(type, size) {
-  const spec = WIDGET_CATALOG[type];
-  const n = Math.round(Number(size));
-  if (spec.sizes.includes(n)) return n;
-  return spec.sizes.reduce((best, s) => (Math.abs(s - n) < Math.abs(best - n) ? s : best), spec.defaultSize);
-}
 
 /** A valid height class: the one given, else the type's default */
 function fitHeight(type, height) {
@@ -202,7 +191,6 @@ function cleanWidget(raw, usedIds) {
   return {
     id,
     type,
-    size: fitSize(type, raw.size ?? WIDGET_CATALOG[type].defaultSize),
     height: fitHeight(type, raw.height),
     config: cleanConfig(type, raw.config),
   };
@@ -210,9 +198,9 @@ function cleanWidget(raw, usedIds) {
 
 /**
  * A list of widgets from stored or restored data: unknown types dropped, a second copy of a
- * unique widget dropped, sizes and options made valid, the length limited
+ * unique widget dropped, heights and options made valid, the length limited
  * @param {unknown} raw
- * @returns {Array<{ id: string, type: string, size: number, config: object }>}
+ * @returns {Array<{ id: string, type: string, height: number, config: object }>}
  */
 export function sanitizeWidgets(raw) {
   if (!Array.isArray(raw)) return [];
@@ -232,17 +220,17 @@ export function sanitizeWidgets(raw) {
   return out;
 }
 
-const preset = (type, size) => ({ type, size });
+const preset = (type) => ({ type });
 
 /** What a user who never arranged the page sees, per screen */
 export const DEFAULT_DASHBOARD = {
   desktop: [
-    preset("alerts", 3), preset("month", 2), preset("rates", 1), preset("news", 2), preset("ai_analysis", 1),
-    preset("expenses_latest", 2), preset("goals", 1), preset("loans", 1), preset("plan", 1),
+    preset("alerts"), preset("month"), preset("rates"), preset("news"), preset("ai_analysis"),
+    preset("expenses_latest"), preset("goals"), preset("loans"), preset("plan"),
   ],
   mobile: [
-    preset("rates", 3), preset("month", 3), preset("sms", 3), preset("alerts", 3), preset("plan", 3),
-    preset("goals", 3), preset("news", 3), preset("expenses_latest", 3),
+    preset("rates"), preset("month"), preset("sms"), preset("alerts"), preset("plan"),
+    preset("goals"), preset("news"), preset("expenses_latest"),
   ],
 };
 
@@ -297,7 +285,7 @@ export function canAddWidget(widgets, type) {
 export function addWidget(widgets, type, config = null) {
   if (!canAddWidget(widgets, type)) return widgets;
   const spec = WIDGET_CATALOG[type];
-  const widget = { id: newWidgetId(), type, size: spec.defaultSize, height: spec.defaultHeight, config: cleanConfig(type, config) };
+  const widget = { id: newWidgetId(), type, height: spec.defaultHeight, config: cleanConfig(type, config) };
   return [...widgets, widget];
 }
 
@@ -321,9 +309,6 @@ export function shiftWidget(widgets, id, step) {
   if (from < 0 || to < 0 || to >= widgets.length) return widgets;
   return moveWidget(widgets, id, widgets[to].id);
 }
-
-export const resizeWidget = (widgets, id, size) =>
-  widgets.map((w) => (w.id === id ? { ...w, size: fitSize(w.type, size) } : w));
 
 export const setWidgetHeight = (widgets, id, height) =>
   widgets.map((w) => (w.id === id ? { ...w, height: fitHeight(w.type, height) } : w));

@@ -5,9 +5,10 @@
 
 import { t, msg } from '../../../utils/i18n.js';
 import React from 'react';
-import { BarChart3, Briefcase, HandCoins, Landmark, Plus, Wallet } from 'lucide-react';
+import { Zap, BarChart3, Briefcase, HandCoins, Landmark, Plus, Wallet } from 'lucide-react';
 import { useFeature } from '../../../shared/features/useFeature.js';
 import { useDashboardData } from '../DashboardContext.js';
+import WidgetCard from '../WidgetCard.jsx';
 
 /** The shortcuts: the section they open (a tab of the page) and what it needs */
 const SHORTCUTS = [
@@ -23,13 +24,15 @@ export default function ShortcutsWidget() {
   const { open } = useDashboardData();
   const features = { expenses: useFeature('expenses'), reports: useFeature('reports') };
   return (
-    <section className="app-home-card dash-shortcuts" aria-label={t('میان‌بُرها')}>
+    <WidgetCard title={t('میان‌بُرها')} Icon={Zap}>
+      <div className="dash-shortcuts">
       {SHORTCUTS.filter((s) => !s.feature || features[s.feature]).map(({ target, label, Icon }) => (
         <button key={target} type="button" className="dash-shortcut" onClick={() => open(target)}>
           <Icon size={18} aria-hidden="true" />
           <span>{t(label)}</span>
         </button>
       ))}
-    </section>
+      </div>
+    </WidgetCard>
   );
 }

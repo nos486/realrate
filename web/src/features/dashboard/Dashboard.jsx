@@ -21,7 +21,7 @@ import { useVault } from '../../shared/vault/useVault.js';
 import VaultUnlockCard from '../../shared/vault/VaultUnlockCard.jsx';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { useDemo } from '../demo/index.js';
-import { addWidget, configureWidget, moveWidget, removeWidget, resizeWidget, setWidgetHeight, shiftWidget, WIDGET_CATALOG } from '../../utils/dashboardLayout.js';
+import { addWidget, configureWidget, moveWidget, removeWidget, setWidgetHeight, shiftWidget, WIDGET_CATALOG } from '../../utils/dashboardLayout.js';
 import { DashboardContext } from './DashboardContext.js';
 import { useDashboardLayout } from './useDashboardLayout.js';
 import { useWidgetAccess } from './widgetRegistry.jsx';
@@ -155,7 +155,6 @@ export default function Dashboard({ usdToman = 0, analysis = [], currencies = []
                     sizable={!appLayout}
                     first={i === 0}
                     last={i === shown.length - 1}
-                    onResize={(size) => setWidgets(resizeWidget(widgets, widget.id, size))}
                     onHeight={(height) => setWidgets(setWidgetHeight(widgets, widget.id, height))}
                     onMove={(step) => setWidgets(shiftWidget(widgets, widget.id, step))}
                     onSettings={() => setSettingsId(widget.id)}
