@@ -51,11 +51,11 @@ export function investmentPoints(expenses = [], amountOf) {
  * @param {Array<{ date: string, amount: number }>} incomePoints tomans
  * @param {ReturnType<typeof investmentPoints>} investPoints
  * @param {number} jy
- * @param {{ throughMonth?: number }} [options]
+ * @param {{ throughMonth?: number, years?: number }} [options]
  */
-export function investmentShareByMonth(incomePoints, investPoints, jy, { throughMonth = 12 } = {}) {
-  const income = buildYearSeries(incomePoints, jy, { throughMonth });
-  const invest = buildYearSeries(investPoints, jy, { throughMonth });
+export function investmentShareByMonth(incomePoints, investPoints, jy, { throughMonth = 12, years = 1 } = {}) {
+  const income = buildYearSeries(incomePoints, jy, { throughMonth, years });
+  const invest = buildYearSeries(investPoints, jy, { throughMonth, years });
   return income.map((m, i) => {
     const invested = invest[i]?.total || 0;
     return {
@@ -123,10 +123,10 @@ export function dollarPoints(items = [], dateOf, dollarOf) {
  * `unpriced`: the month's items left out for want of a rate (`missing`, from dollarPoints)
  * @returns {Array<{ key: string, jm: number, label: string, monthLabel: string, income: number, expense: number, net: number, unpriced: number }>}
  */
-export function dollarFlowByMonth(incomePoints, expensePoints, jy, { throughMonth = 12, missing = [] } = {}) {
-  const income = buildYearSeries(incomePoints, jy, { throughMonth });
-  const expense = buildYearSeries(expensePoints, jy, { throughMonth });
-  const left = buildYearSeries(missing, jy, { throughMonth });
+export function dollarFlowByMonth(incomePoints, expensePoints, jy, { throughMonth = 12, years = 1, missing = [] } = {}) {
+  const income = buildYearSeries(incomePoints, jy, { throughMonth, years });
+  const expense = buildYearSeries(expensePoints, jy, { throughMonth, years });
+  const left = buildYearSeries(missing, jy, { throughMonth, years });
   return income.map((m, i) => ({
     unpriced: left[i]?.count || 0,
     key: m.key,

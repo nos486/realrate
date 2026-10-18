@@ -29,11 +29,13 @@ function verdict(compare) {
 }
 
 /**
- * @param {{ netWorth: ReturnType<import('./useNetWorth.js').useNetWorth>, f: object, yearLabel: string }} props
+ * @param {{ netWorth: ReturnType<import('./useNetWorth.js').useNetWorth>, f: object, yearLabel: string,
+ *   multi?: boolean }} props multi: the report covers several years (yearLabel is their span)
  */
-export default function NetWorthSection({ netWorth, f, yearLabel }) {
+export default function NetWorthSection({ netWorth, f, yearLabel, multi = false }) {
   const { loading, error, start, end, months, compare, estimated, empty } = netWorth;
 
+  const heading = <h2 className="report-section-title span-12">{t('ارزش خالص')}</h2>;
   if (loading) {
     return (
       <div className="span-12" role="status" aria-label={t('در حال محاسبه‌ی ارزش خالص')}>
@@ -43,13 +45,16 @@ export default function NetWorthSection({ netWorth, f, yearLabel }) {
   }
   if (error || empty || !end) {
     return (
-      <ReportCard title={t('ارزش خالص')} Icon={Scale} span="span-12">
-        <p className="report-empty">
-          {error || (empty
-            ? t('برای دیدن ارزش خالص، دارایی‌هایتان را در پورتفو و وام‌ها و چک‌هایتان را ثبت کنید.')
-            : t('در این سال هنوز چیزی برای ارزش خالص ثبت نشده است.'))}
-        </p>
-      </ReportCard>
+      <>
+        {heading}
+        <ReportCard title={t('ارزش خالص')} Icon={Scale} span="span-12">
+          <p className="report-empty">
+            {error || (empty
+              ? t('برای دیدن ارزش خالص، دارایی‌هایتان را در پورتفو و وام‌ها و چک‌هایتان را ثبت کنید.')
+              : (multi ? t('در این بازه هنوز چیزی برای ارزش خالص ثبت نشده است.') : t('در این سال هنوز چیزی برای ارزش خالص ثبت نشده است.')))}
+          </p>
+        </ReportCard>
+      </>
     );
   }
 
@@ -58,6 +63,7 @@ export default function NetWorthSection({ netWorth, f, yearLabel }) {
 
   return (
     <>
+      {heading}
       <div className="incomes-summary-grid report-kpis span-12">
         <MiniCard
           icon={<Scale size={14} />}
@@ -74,7 +80,7 @@ export default function NetWorthSection({ netWorth, f, yearLabel }) {
           value={f.pct(compare?.pct)}
           color={(compare?.change || 0) >= 0 ? 'green' : 'rose'}
           className="incomes-summary-card"
-          footer={<span>{t('{amount} تومان از ابتدای {year}', { amount: f.compact(compare?.change || 0), year: yearLabel })}</span>}
+          footer={<span>{multi ? t('{amount} تومان در {year}', { amount: f.compact(compare?.change || 0), year: yearLabel }) : t('{amount} تومان از ابتدای {year}', { amount: f.compact(compare?.change || 0), year: yearLabel })}</span>}
         />
         <MiniCard
           icon={<DollarSign size={14} />}
@@ -123,7 +129,7 @@ export default function NetWorthSection({ netWorth, f, yearLabel }) {
       <div className="span-5">
         <MonthBarChart
           compact
-          title={t('در برابر دلار — تغییر از ابتدای سال')}
+          title={multi ? t('در برابر دلار — تغییر از ابتدای بازه') : t('در برابر دلار — تغییر از ابتدای سال')}
           months={shown}
           series={[
             { key: 'net', label: t('ارزش خالص'), color: NET_COLOR, value: (m) => m.netPct },

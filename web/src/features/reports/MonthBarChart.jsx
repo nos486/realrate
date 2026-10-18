@@ -4,6 +4,8 @@
  * a month shows its figures in the readout above the plot; with two series a legend names them
  * (and gives the month's values), so a series is never told apart by color alone.
  *
+ * Over several years (more than two dozen bars) the axis names only the years (at Farvardin).
+ *
  * Built on the same plot as the incomes / expenses year chart (styles/incomes.css
  * `.monthly-income-*`), with its own bars (styles/reports.css).
  */
@@ -95,7 +97,7 @@ export default function MonthBarChart({ title, months, series, format, readout, 
       <div className="monthly-income-axis" style={columns} aria-hidden="true">
         {months.map((m, i) => (
           // On a phone every other month is named (counting back from the latest), the active one always
-          <span key={m.key} className={i === index ? 'is-active' : (months.length - 1 - i) % 2 ? 'is-minor' : ''}>{m.monthLabel}</span>
+          <span key={m.key} className={i === index ? 'is-active' : months.length <= 24 && (months.length - 1 - i) % 2 ? 'is-minor' : ''}>{m.monthLabel}</span>
         ))}
       </div>
 

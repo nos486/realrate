@@ -13,7 +13,7 @@
  */
 
 import { getChequeStatus } from '../../utils/chequeDocument.js';
-import { formatShamsiMonth, shamsiMonthRange } from '../../shared/flow/flowYear.js';
+import { formatShamsiMonth, formatShamsiYear, shamsiMonthRange } from '../../shared/flow/flowYear.js';
 import { PERSIAN_MONTHS } from '../portfolio/components/ShamsiDatePicker.jsx';
 
 const isoDay = (value) => (/^\d{4}-\d{2}-\d{2}/.test(String(value || '')) ? String(value).slice(0, 10) : '');
@@ -121,29 +121,33 @@ export function netWorthAt(input, day) {
  * was recorded is null.
  * @param {object} input - as netWorthAt, with `today`
  * @param {number} jy
- * @param {{ throughMonth?: number }} [options]
+ * @param {{ throughMonth?: number, years?: number }} [options] years: how many years, `jy` the last
  * @returns {{ start: object|null, months: Array<object>, end: object|null }}
  *   each month: { key, jy, jm, label, monthLabel, point: netWorthAt(...)|null }
  */
-export function buildNetWorthYear(input, jy, { throughMonth = 12 } = {}) {
+export function buildNetWorthYear(input, jy, { throughMonth = 12, years = 1 } = {}) {
   const { today } = input;
+  const span = Math.max(1, Math.floor(years) || 1);
+  const firstYear = jy - span + 1;
   const first = firstNetWorthDay(input);
   const pointOn = (day) => (first && day >= first ? netWorthAt(input, day) : null);
-  const yearStart = shamsiMonthRange(jy, 1).from;
+  const yearStart = shamsiMonthRange(firstYear, 1).from;
   const startDay = previousDay(yearStart);
   const months = [];
-  for (let jm = 1; jm <= Math.min(12, Math.max(1, throughMonth)); jm++) {
-    const { from, to } = shamsiMonthRange(jy, jm);
-    if (from > today) break;
-    const day = to < today ? to : today;
-    months.push({
-      key: `${jy}/${String(jm).padStart(2, '0')}`,
-      jy,
-      jm,
-      label: formatShamsiMonth(jy, jm),
-      monthLabel: PERSIAN_MONTHS[jm - 1]?.label || '',
-      point: pointOn(day),
-    });
+  for (let y = firstYear; y <= jy; y++) {
+    for (let jm = 1; jm <= (y === jy ? Math.min(12, Math.max(1, throughMonth)) : 12); jm++) {
+      const { from, to } = shamsiMonthRange(y, jm);
+      if (from > today) break;
+      const day = to < today ? to : today;
+      months.push({
+        key: `${y}/${String(jm).padStart(2, '0')}`,
+        jy: y,
+        jm,
+        label: formatShamsiMonth(y, jm),
+        monthLabel: span === 1 ? (PERSIAN_MONTHS[jm - 1]?.label || '') : (jm === 1 ? formatShamsiYear(y) : ''),
+        point: pointOn(day),
+      });
+    }
   }
   // Nothing before the year: the first month with data starts it
   const start = pointOn(startDay) || months.find((m) => m.point)?.point || null;

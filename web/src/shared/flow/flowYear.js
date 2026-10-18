@@ -39,15 +39,19 @@ export function flowWindow(jy, years = 1) {
 /**
  * The year month by month: one entry per month (through `throughMonth`, e.g. the current month
  * of this year), each with its total, count, total per category and the change from the month
- * before (Farvardin against last year's Esfand when those points are given)
+ * before (Farvardin against last year's Esfand when those points are given). With `years` > 1
+ * the series runs through that many years ending in `jy` (the multi-year report): the same
+ * entries, the axis label of a month then being its year at Farvardin and empty otherwise.
  * @param {Array<{ date: string, amount: number, category?: string }>} points
- * @param {number} jy
- * @param {{ throughMonth?: number }} [options]
+ * @param {number} jy the last year
+ * @param {{ throughMonth?: number, years?: number }} [options] throughMonth: the last month of `jy`
  * @returns {Array<{ key: string, jy: number, jm: number, label: string, monthLabel: string,
  *   total: number, count: number, byCategory: Record<string, number>, change: number|null }>}
  */
-export function buildYearSeries(points, jy, { throughMonth = 12 } = {}) {
+export function buildYearSeries(points, jy, { throughMonth = 12, years = 1 } = {}) {
   const last = Math.min(12, Math.max(1, throughMonth));
+  const span = Math.max(1, Math.floor(years) || 1);
+  const first = jy - span + 1;
   const slots = new Map();
   const slot = (y, m) => {
     const key = `${y}/${m}`;
@@ -57,7 +61,7 @@ export function buildYearSeries(points, jy, { throughMonth = 12 } = {}) {
   for (const p of points || []) {
     if (!p?.date) continue;
     const { jy: y, jm: m } = shamsiMonthOf(p.date);
-    if (!(y === jy || (y === jy - 1 && m === 12))) continue;
+    if (!(y >= first && y <= jy) && !(y === first - 1 && m === 12)) continue;
     const s = slot(y, m);
     const amount = Number(p.amount) || 0;
     const category = p.category || 'other';
@@ -66,21 +70,23 @@ export function buildYearSeries(points, jy, { throughMonth = 12 } = {}) {
     s.byCategory[category] = (s.byCategory[category] || 0) + amount;
   }
   const series = [];
-  let prevTotal = slots.get(`${jy - 1}/12`)?.total ?? 0;
-  for (let jm = 1; jm <= last; jm++) {
-    const s = slots.get(`${jy}/${jm}`) || { total: 0, count: 0, byCategory: {} };
-    series.push({
-      key: `${jy}/${String(jm).padStart(2, '0')}`,
-      jy,
-      jm,
-      label: formatShamsiMonth(jy, jm),
-      monthLabel: PERSIAN_MONTHS[jm - 1]?.label || '',
-      total: s.total,
-      count: s.count,
-      byCategory: s.byCategory,
-      change: prevTotal > 0 ? ((s.total - prevTotal) / prevTotal) * 100 : null,
-    });
-    prevTotal = s.total;
+  let prevTotal = slots.get(`${first - 1}/12`)?.total ?? 0;
+  for (let y = first; y <= jy; y++) {
+    for (let jm = 1; jm <= (y === jy ? last : 12); jm++) {
+      const s = slots.get(`${y}/${jm}`) || { total: 0, count: 0, byCategory: {} };
+      series.push({
+        key: `${y}/${String(jm).padStart(2, '0')}`,
+        jy: y,
+        jm,
+        label: formatShamsiMonth(y, jm),
+        monthLabel: span === 1 ? (PERSIAN_MONTHS[jm - 1]?.label || '') : (jm === 1 ? formatShamsiYear(y) : ''),
+        total: s.total,
+        count: s.count,
+        byCategory: s.byCategory,
+        change: prevTotal > 0 ? ((s.total - prevTotal) / prevTotal) * 100 : null,
+      });
+      prevTotal = s.total;
+    }
   }
   return series;
 }

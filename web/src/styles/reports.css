@@ -29,6 +29,7 @@
   }
 
   .report-dash > .span-12,
+  .report-dash > .span-8,
   .report-dash > .span-7,
   .report-dash > .span-5 {
     grid-column: 1 / -1;
@@ -44,6 +45,7 @@
   .report-dash > .span-5 { grid-column: span 5; }
   .report-dash > .span-6 { grid-column: span 6; }
   .report-dash > .span-7 { grid-column: span 7; }
+  .report-dash > .span-8 { grid-column: span 8; }
   .report-dash > .span-12 { grid-column: 1 / -1; }
 }
 
@@ -86,6 +88,32 @@
 
 .report-table-scroll {
   overflow-x: auto;
+}
+
+/* Every month of several years: a table of a few dozen rows scrolls on its own, header fixed */
+.report-table-scroll.is-tall {
+  max-height: 480px;
+  overflow-y: auto;
+}
+
+.report-table-scroll.is-tall thead th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-card);
+}
+
+/* The title of a group of cards (جریان نقدی، درآمدها، …) */
+.report-section-title {
+  margin: 10px 0 -4px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.report-dash > .report-section-title:first-child {
+  margin-top: 0;
 }
 
 .report-empty {
@@ -422,6 +450,7 @@ tr.is-selected td,
   html.printing-report .report-dash > .span-5 { grid-column: span 5; }
   html.printing-report .report-dash > .span-6 { grid-column: span 6; }
   html.printing-report .report-dash > .span-7 { grid-column: span 7; }
+  html.printing-report .report-dash > .span-8 { grid-column: span 8; }
   html.printing-report .report-dash > .span-12 { grid-column: 1 / -1; }
 
   html.printing-report .report-dash .report-kpis {
@@ -444,6 +473,11 @@ tr.is-selected td,
 
   html.printing-report .report-table-scroll {
     overflow: visible;
+    max-height: none;
+  }
+
+  html.printing-report .report-section-title {
+    break-after: avoid;
   }
 }
 

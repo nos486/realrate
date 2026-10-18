@@ -1,5 +1,5 @@
 /**
- * useNetWorth.js — The reports page's net worth for one Shamsi year (netWorth.js)
+ * useNetWorth.js — The reports page's net worth for a Shamsi year, or several (netWorth.js)
  *
  * Reads, once per visit (and again on the tab's refresh): every portfolio's records, every loan
  * with its schedule and every cheque — all decrypted in the browser. The portfolios are valued day
@@ -61,12 +61,13 @@ function useNetWorthRecords() {
 }
 
 /**
- * @param {number} jy the Shamsi year
+ * @param {number} jy the Shamsi year (the last one)
  * @param {number} throughMonth the last month shown
+ * @param {number} [years] how many years the report covers
  * @returns {{ loading: boolean, error: string|null, start: object|null, end: object|null,
  *   months: object[], compare: object|null, estimated: boolean, empty: boolean }}
  */
-export function useNetWorth(jy, throughMonth) {
+export function useNetWorth(jy, throughMonth, years = 1) {
   const { portfolios, loans, cheques, loading, error } = useNetWorthRecords();
   const pricing = usePricing();
   const priceMap = pricing?.priceMap;
@@ -89,8 +90,8 @@ export function useNetWorth(jy, throughMonth) {
   const portfolioToday = useMemo(() => assets.reduce((sum, a) => sum + (Number(a.itemRealVal) || 0), 0), [assets]);
 
   const year = useMemo(
-    () => buildNetWorthYear({ portfolioSeries, portfolioToday, loans, cheques, usdAt, today }, jy, { throughMonth }),
-    [portfolioSeries, portfolioToday, loans, cheques, usdAt, today, jy, throughMonth],
+    () => buildNetWorthYear({ portfolioSeries, portfolioToday, loans, cheques, usdAt, today }, jy, { throughMonth, years }),
+    [portfolioSeries, portfolioToday, loans, cheques, usdAt, today, jy, throughMonth, years],
   );
   const months = useMemo(() => changeByMonth(year), [year]);
   const compare = useMemo(() => compareWithDollar(year.start, year.end), [year]);
