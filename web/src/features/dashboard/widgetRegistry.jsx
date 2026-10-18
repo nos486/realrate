@@ -53,6 +53,9 @@ export const WIDGET_VIEWS = {
   plan: { Icon: Crown, Component: PlanWidget },
 };
 
+/** What a catalog entry's `requires` may name (null: nothing); `useWidgetAccess` decides each */
+export const WIDGET_REQUIREMENTS = ['vault', 'expenses', 'market', 'news', 'native_sms', 'free_plan'];
+
 /**
  * @returns {(type: string) => boolean} whether the user can see widgets of a type (what the
  *   catalog's `requires` names)

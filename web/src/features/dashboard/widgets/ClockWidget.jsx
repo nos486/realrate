@@ -4,7 +4,7 @@
  * on the home page.
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
+import { intlLocale, t } from '../../../utils/i18n.js';
 import React, { useEffect, useState } from 'react';
 import { calendarLocale } from '../../../shared/utils/dates.js';
 
@@ -47,7 +47,7 @@ export default function ClockWidget({ widget }) {
   const now = useMinuteClock();
   const fmt = React.useMemo(() => formats(), []);
   return (
-    <section className={`app-home-card dash-clock is-size-${widget.size}`}>
+    <section className={`app-home-card dash-clock is-size-${widget.size}`} aria-label={t('ساعت و تاریخ')}>
       <time className="dash-clock-time" dateTime={now.toISOString()} dir="ltr">{fmt.time.format(now)}</time>
       <span className="dash-clock-weekday">{fmt.weekday.format(now)}</span>
       <strong className="dash-clock-date">{fmt.shamsi.format(now)}</strong>

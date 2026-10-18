@@ -66,6 +66,7 @@ export default {
   'رویدادهای این ماه': 'This month\'s events',
   'برای دیدن رویدادهای مالی، اطلاعات را باز کنید.': 'Unlock your data to see the financial events.',
   'رویدادی در این بازه نیست.': 'Nothing is due in this period.',
+  'بارگذاری نشد.': 'Could not load.',
   'مالی من': 'My finances',
   'بازار': 'Market',
   'ابزارها': 'Tools',

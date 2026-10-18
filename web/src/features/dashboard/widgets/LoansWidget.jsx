@@ -5,7 +5,7 @@
 
 import { t } from '../../../utils/i18n.js';
 import React, { useMemo } from 'react';
-import { ChevronLeft, Landmark } from 'lucide-react';
+import { Landmark } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import { todayIso } from '../../../shared/utils/dates.js';
@@ -15,6 +15,8 @@ import { useLoans } from '../../loans/hooks/useLoans.js';
 import { isLoanCompleted, loanDueTone, daysBetween } from '../../loans/utils/loanStatus.js';
 import { useDashboardData } from '../DashboardContext.js';
 import { moneyText } from '../dashboardFormat.js';
+import WidgetCard from '../WidgetCard.jsx';
+import WidgetState from '../WidgetState.jsx';
 
 const DUE_FAR = '9999-12-31';
 
@@ -33,15 +35,10 @@ export default function LoansWidget({ widget }) {
     [loans, count],
   );
 
-  if (loadingLoans || rows.length === 0) return null;
+  if (loadingLoans) return <WidgetCard title={t('وام‌ها')} Icon={Landmark}><WidgetState state="loading" rows={2} /></WidgetCard>;
+  if (rows.length === 0) return null;
   return (
-    <section className="app-home-card">
-      <header className="app-home-card-head">
-        <h2><Landmark size={15} aria-hidden="true" /> {t('وام‌ها')}</h2>
-        <button type="button" className="app-home-link" onClick={() => open('loans')}>
-          {t('همه')} <ChevronLeft size={16} />
-        </button>
-      </header>
+    <WidgetCard title={t('وام‌ها')} Icon={Landmark} action={{ onClick: () => open('loans') }}>
       <ul className="app-home-list">
         {rows.map((loan) => {
           const due = loan.nextDueInstallment?.dueDate;
@@ -65,6 +62,6 @@ export default function LoansWidget({ widget }) {
           );
         })}
       </ul>
-    </section>
+    </WidgetCard>
   );
 }
