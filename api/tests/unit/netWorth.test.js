@@ -131,6 +131,14 @@ describe('buildNetWorthYear', () => {
     expect(year.end.usd).toBe(40);
   });
 
+  it('runs through several years, starting from the end of the year before the first', () => {
+    const year = buildNetWorthYear(input, 1405, { throughMonth: 1, years: 2 });
+    expect(year.months).toHaveLength(13);
+    expect(year.months[0]).toMatchObject({ key: '1404/01', jy: 1404 });
+    expect(year.months.filter((m) => m.monthLabel).map((m) => m.jy)).toEqual([1404, 1405]);
+    expect(year.end.day).toBe('2026-04-20');
+  });
+
   it('leaves out a month that ended before anything was recorded, and starts from the first month with data', () => {
     const later = { ...input, portfolioSeries: { days: ['2026-04-25'], toman: [1000] } };
     const year = buildNetWorthYear(later, 1405, { throughMonth: 2 });

@@ -44,6 +44,24 @@ describe('flow year', () => {
     expect(buildYearSeries(points, 1405)).toHaveLength(12);
   });
 
+  it('runs through several years, month by month, naming only the years on the axis', () => {
+    const points = [
+      { date: day(1402, 12, 5), amount: 100 }, // the month before the span: only the first change reads it
+      { date: day(1403, 1, 2), amount: 150 },
+      { date: day(1404, 2, 3), amount: 50 },
+      { date: day(1405, 1, 9), amount: 70 },
+      { date: day(1405, 6, 1), amount: 999 }, // after throughMonth: left out
+    ];
+    const series = buildYearSeries(points, 1405, { throughMonth: 3, years: 3 });
+    expect(series).toHaveLength(12 + 12 + 3);
+    expect(series[0]).toMatchObject({ key: '1403/01', jy: 1403, total: 150, change: 50 });
+    expect(series[13]).toMatchObject({ key: '1404/02', jy: 1404, total: 50 });
+    expect(series.at(-1).key).toBe('1405/03');
+    expect(series.reduce((sum, m) => sum + m.total, 0)).toBe(270);
+    expect(series.filter((m) => m.monthLabel).map((m) => m.jy)).toEqual([1403, 1404, 1405]);
+    expect(series[12].label).toBe('فروردین ۱۴۰۴');
+  });
+
   it('summarizes the year', () => {
     const series = buildYearSeries([
       { date: day(1405, 1), amount: 100, category: 'a' },

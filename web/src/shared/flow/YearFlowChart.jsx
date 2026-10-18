@@ -5,7 +5,8 @@
  * with `onOpenMonth`, a second tap on it opens that month.
  *
  * The same chart for incomes and expenses (`kind`): a rise is good news for incomes (green) and
- * bad news for expenses (red).
+ * bad news for expenses (red). Over several years (the multi-year report) the percent over each
+ * bar is left out and only the year is named on the axis (at its Farvardin).
  */
 
 import { intlLocale, t, plural } from '../../utils/i18n.js';
@@ -51,9 +52,11 @@ const stackValue = (month, stack) => stack.categories.reduce((acc, c) => acc + (
 /**
  * @param {{ series: ReturnType<import('./flowYear.js').buildYearSeries>, kind: 'income'|'expense',
  *   labelOf: (category: string) => string, categoryOrder?: string[], selectedMonth?: number|null,
- *   onOpenMonth?: (jm: number) => void, hideValues?: boolean, large?: boolean }} props
+ *   onOpenMonth?: (jm: number) => void, hideValues?: boolean, large?: boolean,
+ *   title?: string, totalLabel?: string }} props title / totalLabel: when the series is not one
+ *   year («از ابتدای سال …», «جمع سال:»)
  */
-export default function YearFlowChart({ series, kind, labelOf, categoryOrder = [], selectedMonth = null, onOpenMonth, hideValues = false, large = false }) {
+export default function YearFlowChart({ series, kind, labelOf, categoryOrder = [], selectedMonth = null, onOpenMonth, hideValues = false, large = false, title = '', totalLabel = '' }) {
   const [activeIndex, setActiveIndex] = useState(null);
   const [activeStack, setActiveStack] = useState(null);
   const meta = KIND[kind];
@@ -74,14 +77,16 @@ export default function YearFlowChart({ series, kind, labelOf, categoryOrder = [
   const tone = (change) => ((change >= 0) === (kind === 'income') ? 'is-up' : 'is-down');
   const year = series[0].jy;
   // Every month when there is room, else every other / third one (counting back from the latest)
-  const labelStep = large || series.length <= 4 ? 1 : series.length <= 8 ? 2 : 3;
+  const labelStep = large || series.length <= 4 || series.length > 24 ? 1 : series.length <= 8 ? 2 : 3;
+  // Dozens of bars have no room for a percent over each
+  const dense = series.length > 24;
   // As many columns as months shown (the current year so far fills the width)
   const columns = { gridTemplateColumns: `repeat(${series.length}, minmax(0, 1fr))` };
 
   return (
     <div className={`portfolio-stat-card monthly-income-chart flow-year-chart ${large ? 'is-large' : ''}`}>
       <div className="stat-header">
-        <span className="stat-label">{t('{noun} از ابتدای سال {year}', { noun: meta.nouns, year: formatShamsiYear(year) })}</span>
+        <span className="stat-label">{title || t('{noun} از ابتدای سال {year}', { noun: meta.nouns, year: formatShamsiYear(year) })}</span>
         <span className="monthly-income-avg-label">
           <span className="monthly-income-avg-key" aria-hidden="true" />{t('میانگین {amount}', { amount: amount(average) })}</span>
       </div>
@@ -102,7 +107,7 @@ export default function YearFlowChart({ series, kind, labelOf, categoryOrder = [
             <small>{t('نسبت به ماه قبل')}</small>
           </span>
         ) : (
-          <span className="flow-year-total">{t('جمع سال:')}{' '}<strong>{amount(total)}</strong></span>
+          <span className="flow-year-total">{totalLabel || t('جمع سال:')}{' '}<strong>{amount(total)}</strong></span>
         )}
       </div>
 
@@ -124,7 +129,7 @@ export default function YearFlowChart({ series, kind, labelOf, categoryOrder = [
               : t('{label}: {amount}', { label: m.label, amount: hideValues ? t('مبلغ پنهان') : formatCompactAmount(m.total) })}
             aria-pressed={i === index}
           >
-            {m.change !== null && m.total > 0 && (
+            {!dense && m.change !== null && m.total > 0 && (
               <span className={`flow-bar-pct ${tone(m.change)}`} style={{ bottom: `calc(${height(m.total)}% + 3px)` }} aria-hidden="true">
                 {m.change >= 0 ? '+' : '−'}{formatPct(m.change)}
               </span>

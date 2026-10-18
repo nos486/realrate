@@ -1,11 +1,12 @@
 /**
- * ReportsPage.jsx — «گزارش‌ها»: a Shamsi year across incomes, everyday expenses and the
- * portfolios, all on one page (ReportDashboard) — the year's figures, what stands out, income
- * against expenses, by source and category, what was invested and where, the net worth against the
- * dollar (useNetWorth), the year in dollars, and every month in one table — laid out in a grid of
- * cards to read (and later print) as one report.
+ * ReportsPage.jsx — «گزارش‌ها»: a Shamsi year (or the 3 / 5 years ending with it) across incomes,
+ * everyday expenses and the portfolios, all on one page (ReportDashboard) — the figures, what
+ * stands out, income against expenses, by source and category, what was invested and where, the
+ * net worth against the dollar (useNetWorth), the period in dollars, and every month in one table
+ * — in sections, laid out in a grid of cards to read (and later print) as one report. Several
+ * years are the same page, month by month, with a year-by-year table added.
  *
- * The year is loaded once (useReportData); every card reads the same figures. «خروجی PDF» prints
+ * The period is loaded once (useReportData); every card reads the same figures. «خروجی PDF» prints
  * the page on its own (printReport.js: the browser's «Save as PDF»; the website — the Android
  * app's web view can't print).
  */
@@ -24,12 +25,13 @@ import PeriodSwitcher from '../../shared/flow/PeriodSwitcher.jsx';
 import { formatShamsiYear, shamsiMonthOf } from '../../shared/flow/flowYear.js';
 import { useReportData } from './useReportData.js';
 import { useNetWorth } from './useNetWorth.js';
-import { useMultiYearReport } from './useMultiYearReport.js';
-import MultiYearDashboard from './MultiYearDashboard.jsx';
 import { reportFormatters } from './reportFormat.js';
 import ReportDashboard from './ReportDashboard.jsx';
 import { printReport } from './printReport.js';
 import { isNativeApp } from '../../shared/native/nativeApp.js';
+
+/** «۱۴۰۵», or «۱۴۰۳–۱۴۰۵» for several years ending with it */
+const spanOf = (jy, years) => (years > 1 ? `${formatShamsiYear(jy - years + 1)}–${formatShamsiYear(jy)}` : formatShamsiYear(jy));
 
 /** How many years the page covers: the year shown, or that many years ending with it */
 const SPANS = [
@@ -45,10 +47,12 @@ const HEADER = {
   subtitle: t('سال شما در یک نگاه: درآمد و هزینه، پس‌انداز، سرمایه‌گذاری، ارزش خالص و ارزش دلاری'),
 };
 
-function ReportBody({ jy, throughMonth, hideValues }) {
-  const data = useReportData(jy, throughMonth);
-  const netWorth = useNetWorth(jy, throughMonth);
+/** The year, or the years ending with it, month by month: the same page whatever the span */
+function ReportBody({ jy, years, throughMonth, hideValues }) {
+  const data = useReportData(jy, throughMonth, years);
+  const netWorth = useNetWorth(jy, throughMonth, years);
   const f = useMemo(() => reportFormatters(hideValues), [hideValues]);
+  const spanLabel = spanOf(jy, years);
   if (data.loading) {
     return (
       <div className="reports-loading" role="status" aria-label={t('در حال ساختن گزارش')}>
@@ -61,27 +65,7 @@ function ReportBody({ jy, throughMonth, hideValues }) {
   return (
     <>
       {data.errors.map((e) => <AlertBanner key={e} type="error" message={e} />)}
-      <ReportDashboard data={data} netWorth={netWorth} f={f} yearLabel={formatShamsiYear(jy)} hideValues={hideValues} />
-    </>
-  );
-}
-
-/** The years side by side (several years: the totals only, the detail stays in the one-year view) */
-function MultiYearBody({ jy, years, throughMonth, hideValues }) {
-  const data = useMultiYearReport(jy, years, throughMonth);
-  const f = useMemo(() => reportFormatters(hideValues), [hideValues]);
-  if (data.loading) {
-    return (
-      <div className="reports-loading" role="status" aria-label={t('در حال ساختن گزارش')}>
-        <Skeleton height={96} radius={16} />
-        <Skeleton height={260} radius={16} />
-      </div>
-    );
-  }
-  return (
-    <>
-      {data.errors.map((e) => <AlertBanner key={e} type="error" message={e} />)}
-      <MultiYearDashboard rows={data.rows} hasExpenses={data.hasExpenses} f={f} />
+      <ReportDashboard data={data} netWorth={netWorth} f={f} yearLabel={spanLabel} hideValues={hideValues} years={years} />
     </>
   );
 }
@@ -95,7 +79,7 @@ export default function ReportsPage() {
   const [years, setYears] = useState(1);
   const throughMonth = month.jy === thisMonth.jy ? thisMonth.jm : 12;
   const pageRef = useRef(null);
-  const yearLabel = formatShamsiYear(month.jy);
+  const yearLabel = spanOf(month.jy, years);
   const canPrint = !isNativeApp() && typeof window !== 'undefined' && typeof window.print === 'function';
 
   if (vaultStatus === 'locked') {
@@ -120,9 +104,7 @@ export default function ReportsPage() {
       <p className="report-print-meta">{t('گزارش سال {year} · ساخته‌شده در {date} · RealRate', { year: yearLabel, date: new Date().toLocaleDateString(calendarLocale()) })}</p>
       <FilterPills options={SPANS} activeValue={years} onChange={setYears} size="sm" />
       <PeriodSwitcher mode="year" month={month} thisMonth={thisMonth} onMonthChange={setMonth} />
-      {years > 1
-        ? <MultiYearBody jy={month.jy} years={years} throughMonth={throughMonth} hideValues={hideValues} />
-        : <ReportBody jy={month.jy} throughMonth={throughMonth} hideValues={hideValues} />}
+      <ReportBody jy={month.jy} years={years} throughMonth={throughMonth} hideValues={hideValues} />
     </div>
   );
 }
