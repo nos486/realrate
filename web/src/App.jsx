@@ -4,6 +4,7 @@ import { Routes, Route, Navigate, Outlet, useLocation, useNavigate } from 'react
 import FullscreenLoader from './shared/ui/FullscreenLoader.jsx';
 import ErrorBoundary from './shared/ui/ErrorBoundary.jsx';
 import { forgetChunkReload } from './shared/ui/chunkReload.js';
+import VaultLockGate from './shared/vault/VaultLockGate.jsx';
 import RequireAuth from './shared/ui/RequireAuth.jsx';
 import { useAuth } from './features/auth/context/AuthContext.jsx';
 import { useDemo } from './features/demo/index.js';
@@ -120,16 +121,18 @@ function PricingScope() {
  */
 function DueDataScope() {
   return (
-    <LoansProvider>
-      <ChequesProvider>
-        <SubscriptionsProvider>
-          <AccountsProvider>
-            <SpendingBackfill />
-            <Outlet />
-          </AccountsProvider>
-        </SubscriptionsProvider>
-      </ChequesProvider>
-    </LoansProvider>
+    <VaultLockGate>
+      <LoansProvider>
+        <ChequesProvider>
+          <SubscriptionsProvider>
+            <AccountsProvider>
+              <SpendingBackfill />
+              <Outlet />
+            </AccountsProvider>
+          </SubscriptionsProvider>
+        </ChequesProvider>
+      </LoansProvider>
+    </VaultLockGate>
   );
 }
 
