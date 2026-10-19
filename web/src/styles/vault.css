@@ -334,3 +334,30 @@
   background: rgba(255, 255, 255, 0.04);
   font-size: 12.5px;
 }
+
+/* ── The one lock screen (shared/vault/VaultLockGate) ── */
+.vault-lock-gate {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: max(24px, env(safe-area-inset-top)) 16px 32px;
+  background: var(--bg-app);
+}
+
+.vault-lock-gate-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 520px;
+  margin-block: auto;
+}
+
+button.vault-lock-forgot {
+  margin-inline: auto;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}

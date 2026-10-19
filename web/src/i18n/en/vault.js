@@ -204,4 +204,6 @@ export default {
   'داده‌ها دوباره رمزنگاری نمی‌شوند؛ فقط کلید حساب با رمز جدید قفل می‌شود.': 'Data is not re-encrypted; only the account key is locked with the new password.',
   'ذخیره رمز جدید': 'Save new password',
   'پورتفوی اصلی': 'Main portfolio',
+  'برای دیدن اطلاعات، گاوصندوق را باز کنید': 'Unlock the vault to see your data',
+  'اطلاعات مالی شما رمزنگاری شده است. با وارد کردن رمز رمزنگاری حساب، همه بخش‌های برنامه باز می‌شوند.': 'Your financial data is encrypted. Enter your account encryption passphrase to unlock every part of the app.',
 };

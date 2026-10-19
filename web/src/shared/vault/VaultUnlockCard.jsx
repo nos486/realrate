@@ -14,9 +14,10 @@ let promptedThisSession = false;
  * Unlock prompt for the account-wide vault (loans, incomes, account-protected portfolios).
  * One passphrase opens everything for this tab. In the Android app with fingerprint unlock set
  * up (app settings), a fingerprint button opens it too. "Forgot the passphrase?" leads to the
- * reset in account settings (VaultResetSection).
+ * reset in account settings (VaultResetSection), or `onForgot` when a screen shows the reset itself
+ * (VaultLockGate).
  */
-export default function VaultUnlockCard({ title = t('اطلاعات رمزنگاری شده است'), description, className = '', showForgot = true }) {
+export default function VaultUnlockCard({ title = t('اطلاعات رمزنگاری شده است'), description, className = '', showForgot = true, onForgot }) {
   const { toast } = useFeedback();
   const [biometric, setBiometric] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -73,9 +74,15 @@ export default function VaultUnlockCard({ title = t('اطلاعات رمزنگا
         </button>
       )}
       helpLink={showForgot && (
-        <Link to="/settings?vault-reset=1" className="vault-lock-forgot">
-          {t('رمز را فراموش کرده‌اید؟')}
-        </Link>
+        onForgot ? (
+          <button type="button" className="vault-lock-forgot" onClick={onForgot}>
+            {t('رمز را فراموش کرده‌اید؟')}
+          </button>
+        ) : (
+          <Link to="/settings?vault-reset=1" className="vault-lock-forgot">
+            {t('رمز را فراموش کرده‌اید؟')}
+          </Link>
+        )
       )}
     />
   );
