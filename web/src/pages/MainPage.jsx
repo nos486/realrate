@@ -9,7 +9,6 @@ import HomeDashboard from '../features/home/HomeDashboard.jsx';
 // Imported from its own file (not the loans barrel) so LoansPage stays in its lazy chunk
 import AlertStack from '../shared/alerts/AlertStack.jsx';
 import AppAlertSources from '../shared/alerts/AppAlertSources.jsx';
-import VaultLockGate from '../shared/vault/VaultLockGate.jsx';
 import VaultSetupScreen from '../shared/vault/VaultSetupScreen.jsx';
 import { useVault } from '../shared/vault/useVault.js';
 import { useMarketData } from '../features/market/hooks/useMarketData.js';
@@ -432,9 +431,6 @@ export default function MainPage() {
   const needsVaultSetup =
     Boolean(user) && !isDemo && vault.status === 'off';
 
-
-  // A locked vault blocks the whole app behind one unlock screen (sign-out and reset stay there)
-  if (Boolean(user) && !isDemo && vault.status === 'locked') return <VaultLockGate />;
 
   return (
     <AppLayout
