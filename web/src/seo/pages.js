@@ -960,6 +960,8 @@ export const STATIC_PAGES = {
     h1: 'اپ اندروید ریل‌ریت؛ دانلود و راهنمای نصب',
     intro: 'اپ اندروید ریل‌ریت همان امکانات سایت را با تجربه‌ای روان‌تر روی گوشی در اختیارتان می‌گذارد و علاوه بر آن، هزینه‌ها و واریزها را از پیامک‌های بانکی به‌طور خودکار آماده‌ی ثبت می‌کند و با اثر انگشت باز می‌شود. فایل نصبی مستقیماً از مخزن رسمی و متن‌باز پروژه دریافت می‌شود و همیشه آخرین نسخه‌ی امضاشده است.',
     downloadUrl: 'https://github.com/nos486/realrate/releases/latest/download/⁨realrate.apk⁩',
+    // Iranian store listing: shown on the Persian page only
+    bazaarUrl: 'https://cafebazaar.ir/app/ir.realrate.app',
     releasesUrl: 'https://github.com/nos486/realrate/releases',
     // SHA-256 of the signing certificate: every official build carries it
     certificateSha256: 'A7:57:AC:C9:5D:6A:1F:F2:F3:6B:63:15:0F:75:15:D0:44:E6:BC:FD:67:43:D0:7A:C7:5E:FA:4E:43:2E:26:18',

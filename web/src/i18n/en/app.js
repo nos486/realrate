@@ -42,6 +42,7 @@ export default {
   'اپ اندروید RealRate راحت‌تر و سریع‌تر است': 'The RealRate Android app is easier and faster',
   'باز شدن فوری و کار بدون اینترنت، ثبت خودکار هزینه از پیامک بانک، ورود با اثر انگشت': 'Instant start, works offline, expenses recorded automatically from bank SMS, fingerprint sign-in',
   'دانلود اپ': 'Download the app',
+  'دانلود از بازار': 'Download from Cafe Bazaar',
   'راهنمای نصب': 'Install guide',
   'بستن': 'Close',
   'نسخه‌ی {version} آماده است': 'Version {version} is ready',

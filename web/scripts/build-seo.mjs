@@ -222,6 +222,8 @@ const other = SEO_LOCALES[L.code === 'fa' ? 'en' : 'fa'];
 mkdirSync(resolve(outDir, 'features'), { recursive: true });
 /** A link into the app (sign-in, sign-up, demo): English visitors carry their language along */
 /** Links into the app carry the page's language so the app opens in it (the app's own choice is kept otherwise) */
+// Cafe Bazaar's mark (a bag with a play arrow), inline so the static pages need no asset
+const BAZAAR_ICON = '<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" style="vertical-align:middle;margin-inline-end:6px"><path fill="#1db954" d="M6 7h12l1.5 12a2 2 0 0 1-2 2.2h-11a2 2 0 0 1-2-2.2z"/><path fill="none" stroke="#1db954" stroke-width="1.8" stroke-linecap="round" d="M9 9V6.5a3 3 0 0 1 6 0V9"/><path fill="#fff" d="M10 11.5v6l5-3z"/></svg>';
 const appLink = (path) => `${path}?lang=${L.code}`;
 /** hreflang links to this page's counterpart in each language ("x-default" is Persian) */
 const alternateLinks = (altPath) =>
@@ -863,6 +865,7 @@ for (const page of [STATIC_PAGES.privacy, STATIC_PAGES.deleteAccount]) {
       <p class="seo-hero-intro">${escapeHtml(app.intro)}</p>
       <div class="seo-cta-buttons">
         <a href="${escapeHtml(app.downloadUrl)}" class="seo-btn seo-btn-primary" download>${c.download}</a>
+        ${app.bazaarUrl ? `<a href="${escapeHtml(app.bazaarUrl)}" target="_blank" rel="noopener" class="seo-btn seo-btn-ghost">${BAZAAR_ICON}${c.bazaar}</a>` : ''}
         <a href="${escapeHtml(app.releasesUrl)}" target="_blank" rel="noopener noreferrer" class="seo-btn seo-btn-ghost">${c.allReleases}</a>
       </div>
       <p class="seo-hero-note">${c.androidNote}</p>
@@ -923,6 +926,7 @@ for (const page of [STATIC_PAGES.privacy, STATIC_PAGES.deleteAccount]) {
       <p>${c.androidCtaText}</p>
       <div class="seo-cta-buttons">
         <a href="${escapeHtml(app.downloadUrl)}" class="seo-btn seo-btn-primary" download>${c.download}</a>
+        ${app.bazaarUrl ? `<a href="${escapeHtml(app.bazaarUrl)}" target="_blank" rel="noopener" class="seo-btn seo-btn-ghost">${BAZAAR_ICON}${c.bazaar}</a>` : ''}
         <a href="${appLink('/register')}" class="seo-btn seo-btn-ghost">${c.signupSite}</a>
       </div>
     </section>`;
