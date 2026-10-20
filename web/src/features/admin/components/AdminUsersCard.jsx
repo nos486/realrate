@@ -249,7 +249,7 @@ export default function AdminUsersCard({ list, filterCounts = {}, onOpenUser }) 
                     انتخاب همه‌ی {faNum(total)} نتیجه
                   </Button>
                 )}
-                <Button size="sm" icon={<UsersRound size={14} />} onClick={() => setBulkOpen(true)}>تغییر گروه</Button>
+                <Button size="sm" icon={<UsersRound size={14} />} onClick={() => setBulkOpen(true)}>تعیین گروه</Button>
                 <Button size="sm" variant="ghost" onClick={clearSelection}>لغو انتخاب</Button>
               </>
             )}

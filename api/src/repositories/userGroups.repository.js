@@ -144,10 +144,16 @@ export async function dbListGroupMembers(env, groupId, { q = "", limit = 20, off
   };
 }
 
-/** Add a member (no-op when already one); their request to the group, if any, is settled */
+/**
+ * Put the user in the group: a user is in one group only, so they leave the one they were in. Their
+ * request to this group, if any, is settled.
+ * @returns {Promise<string[]>} the ids of the groups they left
+ */
 export async function dbAddGroupMember(env, groupId, userId, addedBy = "") {
   await ensureSchema(env);
+  const { results } = await env.DB.prepare("SELECT group_id FROM user_group_members WHERE user_id = ? AND group_id <> ?").bind(userId, groupId).all();
   await env.DB.batch([
+    env.DB.prepare("DELETE FROM user_group_members WHERE user_id = ? AND group_id <> ?").bind(userId, groupId),
     env.DB.prepare(`
       INSERT INTO user_group_members (group_id, user_id, added_at, added_by) VALUES (?, ?, ?, ?)
       ON CONFLICT (group_id, user_id) DO NOTHING
@@ -155,6 +161,7 @@ export async function dbAddGroupMember(env, groupId, userId, addedBy = "") {
     env.DB.prepare("DELETE FROM user_group_requests WHERE group_id = ? AND user_id = ?").bind(groupId, userId),
   ]);
   forgetUserGroupKeys(userId);
+  return (results || []).map((r) => r.group_id);
 }
 
 export async function dbRemoveGroupMember(env, groupId, userId) {
@@ -167,11 +174,11 @@ export async function dbRemoveGroupMember(env, groupId, userId) {
 const BULK_CHUNK = 50;
 
 /**
- * Change the groups of many users at once: the users that exist join `addGroupIds` (their request,
- * if any, is settled) and leave `removeGroupIds`
+ * Set the group of many users at once: the users that exist leave whatever group they were in and
+ * join `groupId` (or just leave, with null); a joined group settles their request to it
  * @returns {Promise<{ users: number }>} how many of `userIds` exist
  */
-export async function dbBulkChangeGroupMembers(env, { userIds, addGroupIds = [], removeGroupIds = [], addedBy = "" }) {
+export async function dbBulkSetUserGroup(env, { userIds, groupId = null, addedBy = "" }) {
   await ensureSchema(env);
   const existing = [];
   for (let i = 0; i < userIds.length; i += BULK_CHUNK) {
@@ -182,15 +189,15 @@ export async function dbBulkChangeGroupMembers(env, { userIds, addGroupIds = [],
   const now = new Date().toISOString();
   const statements = [];
   for (const userId of existing) {
-    for (const groupId of addGroupIds) {
+    if (groupId) {
+      statements.push(env.DB.prepare("DELETE FROM user_group_members WHERE user_id = ? AND group_id <> ?").bind(userId, groupId));
       statements.push(env.DB.prepare(`
         INSERT INTO user_group_members (group_id, user_id, added_at, added_by) VALUES (?, ?, ?, ?)
         ON CONFLICT (group_id, user_id) DO NOTHING
       `).bind(groupId, userId, now, addedBy));
       statements.push(env.DB.prepare("DELETE FROM user_group_requests WHERE group_id = ? AND user_id = ?").bind(groupId, userId));
-    }
-    for (const groupId of removeGroupIds) {
-      statements.push(env.DB.prepare("DELETE FROM user_group_members WHERE group_id = ? AND user_id = ?").bind(groupId, userId));
+    } else {
+      statements.push(env.DB.prepare("DELETE FROM user_group_members WHERE user_id = ?").bind(userId));
     }
   }
   for (let i = 0; i < statements.length; i += BULK_CHUNK) await env.DB.batch(statements.slice(i, i + BULK_CHUNK));

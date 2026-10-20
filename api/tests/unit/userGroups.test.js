@@ -172,26 +172,41 @@ describe('groups on SQLite (D1), and the routes', () => {
     await expect(routes.handleRequestGroup(req('POST', '/x'), env, { key: 'vip' })).rejects.toMatchObject({ statusCode: 404 });
   });
 
-  it('the admin changes the groups of many users at once', async () => {
+  it('a user is in one group only: joining one replaces the other', async () => {
+    asAdmin();
+    const { group: a } = await json(routes.handleAdminCreateGroup(req('POST', '/x', { key: 'one', name: 'یک' }), env));
+    const { group: b } = await json(routes.handleAdminCreateGroup(req('POST', '/x', { key: 'two', name: 'دو' }), env));
+    await routes.handleAdminAddMember(req('POST', '/x', { userId: 'u1' }), env, { groupId: a.id });
+    const moved = await json(routes.handleAdminAddMember(req('POST', '/x', { userId: 'u1' }), env, { groupId: b.id }));
+    expect(moved.message).toContain('گروه قبلی');
+    expect(await repo.dbGetUserGroupKeys(env, 'u1')).toEqual(['two']);
+    await routes.handleAdminDeleteGroup(req('DELETE', '/x'), env, { groupId: a.id });
+    await routes.handleAdminDeleteGroup(req('DELETE', '/x'), env, { groupId: b.id });
+  });
+
+  it('the admin sets the group of many users at once', async () => {
     asAdmin();
     const { group } = await json(routes.handleAdminCreateGroup(req('POST', '/x', { key: 'bulk', name: 'گروهی' }), env));
-    const out = await json(routes.handleAdminBulkUserGroups(req('POST', '/x', { userIds: ['u1', 'u2', 'ghost'], add: ['bulk'] }), env));
+    await repo.dbAddGroupMember(env, 'grp_pro', 'u1');
+    const out = await json(routes.handleAdminBulkUserGroups(req('POST', '/x', { userIds: ['u1', 'u2', 'ghost'], group: 'bulk' }), env));
     expect(out.users).toBe(2);
-    expect(await repo.dbGetUserGroupKeys(env, 'u1')).toContain('bulk');
-    expect(await repo.dbGetUserGroupKeys(env, 'u2')).toContain('bulk');
+    // u1 left Pro for the new group
+    expect(await repo.dbGetUserGroupKeys(env, 'u1')).toEqual(['bulk']);
+    expect(await repo.dbGetUserGroupKeys(env, 'u2')).toEqual(['bulk']);
 
-    // Every user of a search, leaving the group again
-    await routes.handleAdminBulkUserGroups(req('POST', '/x', { match: { q: 'example.com', filter: 'all' }, remove: ['bulk'] }), env);
-    expect(await repo.dbGetUserGroupKeys(env, 'u1')).not.toContain('bulk');
-    expect(await repo.dbGetUserGroupKeys(env, 'u2')).not.toContain('bulk');
+    // Every user of a search, with no group
+    await routes.handleAdminBulkUserGroups(req('POST', '/x', { match: { q: 'example.com', filter: 'all' }, group: null }), env);
+    expect(await repo.dbGetUserGroupKeys(env, 'u1')).toEqual([]);
+    expect(await repo.dbGetUserGroupKeys(env, 'u2')).toEqual([]);
 
     await expect(routes.handleAdminBulkUserGroups(req('POST', '/x', { userIds: ['u1'] }), env)).rejects.toMatchObject({ statusCode: 400 });
-    await expect(routes.handleAdminBulkUserGroups(req('POST', '/x', { userIds: ['u1'], add: ['bulk'], remove: ['bulk'] }), env)).rejects.toMatchObject({ statusCode: 400 });
-    await expect(routes.handleAdminBulkUserGroups(req('POST', '/x', { userIds: ['u1'], add: ['ghost'] }), env)).rejects.toMatchObject({ statusCode: 404 });
+    await expect(routes.handleAdminBulkUserGroups(req('POST', '/x', { userIds: ['u1'], group: 'ghost' }), env)).rejects.toMatchObject({ statusCode: 404 });
     asUser();
-    await expect(routes.handleAdminBulkUserGroups(req('POST', '/x', { userIds: ['u1'], add: ['bulk'] }), env)).rejects.toMatchObject({ statusCode: 403 });
+    await expect(routes.handleAdminBulkUserGroups(req('POST', '/x', { userIds: ['u1'], group: 'bulk' }), env)).rejects.toMatchObject({ statusCode: 403 });
     asAdmin();
     await routes.handleAdminDeleteGroup(req('DELETE', '/x'), env, { groupId: group.id });
+    // The state the following tests expect: u1 is in the "vip" group
+    await repo.dbAddGroupMember(env, (await repo.dbGetGroupByKey(env, 'vip')).id, 'u1');
   });
 
   it('the admin changes who gets a feature at runtime, and resets it', async () => {
@@ -222,7 +237,8 @@ describe('groups on SQLite (D1), and the routes', () => {
     expect(await features.userOfferedFeatures(env, { userId: 'u2', role: 'user' }, [])).toContain('market');
     await routes.handleAdminDeleteGroup(req('DELETE', '/x'), env, { groupId: vip.id });
     expect(await repo.dbGetGroupByKey(env, 'vip')).toBeNull();
-    expect(await repo.dbGetUserGroupKeys(env, 'u1')).toEqual(['pro']);
+    // u1 was moved from Pro to vip (one group only), and vip is gone
+    expect(await repo.dbGetUserGroupKeys(env, 'u1')).toEqual([]);
   });
 
   it('every admin route refuses non-admins', async () => {

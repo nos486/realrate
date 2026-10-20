@@ -210,8 +210,9 @@ const USER_ACTIONS = {
     if (!group) return { note: "گروه دیگر وجود ندارد." };
     const member = (await dbGetUserGroupKeys(env, userId)).includes(group.key);
     if (member) await dbRemoveGroupMember(env, group.id, userId);
-    else await dbAddGroupMember(env, group.id, userId, by);
-    return { userId, note: member ? `➖ از «${group.name}» خارج شد.` : `➕ به «${group.name}» اضافه شد.` };
+    const left = member ? [] : await dbAddGroupMember(env, group.id, userId, by);
+    // A user is in one group only: joining one replaces the other
+    return { userId, note: member ? `➖ از «${group.name}» خارج شد.` : `➕ به «${group.name}» اضافه شد${left.length ? " (گروه قبلی برداشته شد)" : ""}.` };
   },
 };
 
