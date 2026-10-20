@@ -1,16 +1,19 @@
 /**
  * AdminUsersCard.jsx — The users list of the admin panel: search, quick filters with counts,
- * sortable dates, pagination; each user opens the detail view
+ * sortable dates, pagination; each user opens the detail view. Users can be ticked (across pages,
+ * or every match of the search and filter) and their groups changed at once.
  */
 
-import React from 'react';
-import { Users, Ban, MailWarning, ShieldCheck, Eye, Lock, Smartphone } from 'lucide-react';
+import React, { useState } from 'react';
+import { Users, Ban, MailWarning, ShieldCheck, Eye, Lock, Smartphone, UsersRound } from 'lucide-react';
 import { Button, EmptyState, FilterPills, Pagination, ResponsiveDataTable, SearchBar } from '../../../shared/ui/index.js';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 import { useIsMobile } from '../../../hooks/useMediaQuery.js';
 import { USERS_PAGE_SIZE } from '../hooks/useAdminUsers.js';
 import { faNum, faVersion, formatDateTime, formatDate, displayName } from '../utils/adminFormat.js';
 import GoogleIcon from '../../auth/components/GoogleIcon.jsx';
+import AdminBulkGroupsModal from './AdminBulkGroupsModal.jsx';
+import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 
 const USER_FILTER_OPTIONS = [
   { value: 'all', label: 'همه' },
@@ -57,6 +60,41 @@ export function UserBadges({ user }) {
 export default function AdminUsersCard({ list, filterCounts = {}, onOpenUser }) {
   const isMobile = useIsMobile();
   const { users, total, page, loading } = list;
+  const { toast } = useFeedback();
+  // The ticked users (kept across pages), or every user matching the search and filter
+  const [selected, setSelected] = useState(() => new Set());
+  const [allMatching, setAllMatching] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const count = allMatching ? total : selected.size;
+  const pageAllTicked = users.length > 0 && users.every((u) => allMatching || selected.has(u.id));
+  const clearSelection = () => {
+    setSelected(new Set());
+    setAllMatching(false);
+  };
+  const toggleUser = (id) => {
+    setAllMatching(false);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const togglePage = () => {
+    setAllMatching(false);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const u of users) {
+        if (pageAllTicked) next.delete(u.id);
+        else next.add(u.id);
+      }
+      return next;
+    });
+  };
+  // «Every match» follows the search and filter it was chosen for
+  const matchKey = `${list.query}|${list.filter}`;
+  const [matchKeyAtPick, setMatchKeyAtPick] = useState(matchKey);
+  if (allMatching && matchKeyAtPick !== matchKey) clearSelection();
 
   const columns = [
     {
@@ -64,6 +102,13 @@ export default function AdminUsersCard({ list, filterCounts = {}, onOpenUser }) 
       header: 'کاربر',
       mobile: 'title',
       render: (u) => (
+        <span className="admin-user-pick">
+        <input
+          type="checkbox"
+          checked={allMatching || selected.has(u.id)}
+          onChange={() => toggleUser(u.id)}
+          aria-label={`انتخاب ${displayName(u)}`}
+        />
         <button type="button" className="admin-user-cell" onClick={() => onOpenUser(u)}>
           {u.picture ? (
             <img src={u.picture} alt="" className="admin-user-avatar" onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }} />
@@ -75,6 +120,7 @@ export default function AdminUsersCard({ list, filterCounts = {}, onOpenUser }) 
             <small dir="ltr">{u.email}</small>
           </span>
         </button>
+        </span>
       ),
     },
     {
@@ -182,6 +228,34 @@ export default function AdminUsersCard({ list, filterCounts = {}, onOpenUser }) 
           )}
         </div>
 
+        {users.length > 0 && (
+          <div className="admin-bulk-bar" role="group" aria-label="انتخاب گروهی">
+            <label className="admin-bulk-all">
+              <input type="checkbox" checked={pageAllTicked} onChange={togglePage} />
+              انتخاب همه‌ی این صفحه
+            </label>
+            {count > 0 && (
+              <>
+                <span className="admin-bulk-count">{faNum(count)} کاربر انتخاب شده</span>
+                {!allMatching && total > count && total <= 1000 && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setAllMatching(true);
+                      setMatchKeyAtPick(matchKey);
+                    }}
+                  >
+                    انتخاب همه‌ی {faNum(total)} نتیجه
+                  </Button>
+                )}
+                <Button size="sm" icon={<UsersRound size={14} />} onClick={() => setBulkOpen(true)}>تغییر گروه</Button>
+                <Button size="sm" variant="ghost" onClick={clearSelection}>لغو انتخاب</Button>
+              </>
+            )}
+          </div>
+        )}
+
         {loading && users.length === 0 ? (
           <SkeletonRows rows={6} columns={4} label="در حال دریافت کاربران" />
         ) : (
@@ -228,6 +302,19 @@ export default function AdminUsersCard({ list, filterCounts = {}, onOpenUser }) 
           label="صفحه‌بندی کاربران"
         />
       </div>
+
+      {bulkOpen && (
+        <AdminBulkGroupsModal
+          count={count}
+          getWho={() => (allMatching ? { match: { q: list.query, filter: list.filter } } : { userIds: [...selected] })}
+          onClose={() => setBulkOpen(false)}
+          onDone={(res) => {
+            toast.success(res.message);
+            setBulkOpen(false);
+            clearSelection();
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -154,6 +154,7 @@ import {
   handleAdminGetPlanLimits,
   handleAdminSavePlanLimits,
   handleAdminResetPlanLimits,
+  handleAdminBulkUserGroups,
 } from "./handlers/groupRoutes.js";
 import { handleGetLatestAppRelease } from "./handlers/appUpdateRoutes.js";
 import {
@@ -314,6 +315,7 @@ async function handleRequest(request, env, ctx) {
     if (request.method === "DELETE") return wrap((req, e) => handleAdminResetFeatureRule(req, e, { key }))(request, env);
   }
 
+  if (normalizedPath === "/api/admin/users/groups" && request.method === "POST") return wrap(handleAdminBulkUserGroups)(request, env);
   if (normalizedPath === "/api/admin/plan-limits" && request.method === "GET") return wrap(handleAdminGetPlanLimits)(request, env);
   const adminPlanLimitsMatch = normalizedPath.match(/^\/api\/admin\/plan-limits\/([a-z0-9_-]+)$/);
   if (adminPlanLimitsMatch) {

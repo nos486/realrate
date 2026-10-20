@@ -172,6 +172,16 @@ export async function resetAdminFeatureRule(key) {
 }
 
 /**
+ * Change the groups of many users at once
+ * @param {{ userIds?: string[], match?: { q: string, filter: string } }} who the picked users, or every user of a search and filter
+ * @param {{ add?: string[], remove?: string[] }} change group keys to join and to leave
+ * @returns {Promise<{ users: number, message: string }>}
+ */
+export async function bulkChangeUserGroups(who, change) {
+  return httpClient.post('/api/admin/users/groups', { ...who, add: change.add || [], remove: change.remove || [] });
+}
+
+/**
  * The limits (counts and quotas) of the free plan and of each group
  * @returns {Promise<{ catalog: Array<{ key: string, label: string, period: string, default: number }>, free: object, groups: Record<string, object>, customized: { free: boolean, groups: string[] } }>}
  */

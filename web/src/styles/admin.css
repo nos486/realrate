@@ -1538,3 +1538,32 @@
   cursor: pointer;
   text-decoration: underline;
 }
+
+/* Users list: ticking users to change their groups at once */
+.admin-user-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.admin-bulk-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.admin-bulk-count {
+  font-weight: 700;
+  color: var(--text-primary);
+}
