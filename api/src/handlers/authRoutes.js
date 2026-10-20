@@ -34,7 +34,7 @@ import {
   SESSION_COOKIE_MAX_AGE,
   OAUTH_VERIFIER_COOKIE_MAX_AGE,
 } from "../config/constants.js";
-import { userFeatures } from "../lib/features.js";
+import { userFeatures, userOfferedFeatures } from "../lib/features.js";
 import { dbGetUserRequestedGroupKeys } from "../repositories/userGroups.repository.js";
 
 function base64UrlEncode(buffer) {
@@ -500,9 +500,9 @@ export async function handleGetMe(request, env, ctx) {
   let emailVerified = true;
   // One round of reads, side by side: the account, the user's features and their requests
   const orElse = (read, fallback) => Promise.resolve().then(read).catch(() => fallback);
-  const [account, features, requestedGroups] = await Promise.all([
+  const [account, [features, offeredFeatures], requestedGroups] = await Promise.all([
     orElse(() => dbGetUserAuthById(env, userId), null),
-    userFeatures(env, user),
+    userFeatures(env, user).then(async (enabled) => [enabled, await userOfferedFeatures(env, user, enabled)]),
     orElse(() => dbGetUserRequestedGroupKeys(env, userId), []),
   ]);
   try {
@@ -552,6 +552,8 @@ export async function handleGetMe(request, env, ctx) {
       hasPassword,
       emailVerified,
       features,
+      // Closed features the user can ask for (a group that accepts requests opens them): the only closed ones the app lists
+      offeredFeatures,
       // The groups the user is in, and those they asked to join (for the feature pages' offers)
       groups: user.groups || [],
       requestedGroups,

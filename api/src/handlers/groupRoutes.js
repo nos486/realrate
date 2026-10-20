@@ -29,7 +29,7 @@ import { getAuthenticatedUser } from "../lib/auth.js";
 import { AppError } from "../lib/AppError.js";
 import { jsonResponse } from "../lib/helpers.js";
 import { FEATURES, mergeFeatureRules, validateFeatureRule } from "../config/features.js";
-import { hasFeature, loadFeatureOverrides, loadFeatureRules, saveFeatureOverrides, withUserGroups } from "../lib/features.js";
+import { resetRequestableGroupsMemo, hasFeature, loadFeatureOverrides, loadFeatureRules, saveFeatureOverrides, withUserGroups } from "../lib/features.js";
 import { validateGroup, cleanRequestNote } from "../domain/userGroups.js";
 import { LIMIT_CATALOG, mergePlanRules, cleanLimits } from "../config/planLimits.js";
 import { loadPlanOverrides, savePlanOverrides } from "../lib/planLimits.js";
@@ -161,6 +161,7 @@ export async function handleAdminCreateGroup(request, env) {
   const { value, error } = validateGroup(await readBody(request));
   if (error) throw AppError.badRequest(error);
   const group = await dbCreateGroup(env, value);
+  resetRequestableGroupsMemo();
   return jsonResponse({ success: true, message: "گروه ساخته شد.", group }, 200, request);
 }
 
@@ -171,6 +172,7 @@ export async function handleAdminUpdateGroup(request, env, { groupId }) {
   const { value, error } = validateGroup(await readBody(request), { partial: true });
   if (error) throw AppError.badRequest(error);
   const group = await dbUpdateGroup(env, groupId, value);
+  resetRequestableGroupsMemo();
   return jsonResponse({ success: true, message: "گروه ذخیره شد.", group }, 200, request);
 }
 
@@ -185,6 +187,7 @@ export async function handleAdminDeleteGroup(request, env, { groupId }) {
     throw AppError.badRequest(`این گروه در دسترسی «${usedBy.join("، ")}» استفاده شده است؛ ابتدا آن را از دسترسی‌ها بردارید.`, "GROUP_IN_USE");
   }
   await dbDeleteGroup(env, groupId);
+  resetRequestableGroupsMemo();
   return jsonResponse({ success: true, message: "گروه حذف شد." }, 200, request);
 }
 

@@ -11,7 +11,7 @@ import { isFeatureEnabled, enabledFeatures, mergeFeatureRules } from '../config/
 import { AppError } from './AppError.js';
 import { getStateStore } from '../repositories/stateStore.repository.js';
 import { createIsolateCache } from './isolateCache.js';
-import { dbGetUserGroupKeys } from '../repositories/userGroups.repository.js';
+import { dbGetUserGroupKeys, dbListGroups } from '../repositories/userGroups.repository.js';
 import { logger } from './logger.js';
 
 export const FEATURE_RULES_KEY = 'feature_rules';
@@ -70,6 +70,38 @@ export async function userFeatures(env, user) {
   if (!user) return [];
   const [rules] = await Promise.all([loadFeatureRules(env), withUserGroups(env, user)]);
   return enabledFeatures(user, rules);
+}
+
+// Which groups accept join requests changes rarely: an isolate keeps the list for a minute
+const requestableMemo = createIsolateCache({ ttlMs: RULES_MEMO_MS, max: 1 });
+
+async function requestableGroupKeys(env, now = Date.now()) {
+  return requestableMemo.getOrLoad("requestable", async () => (await dbListGroups(env)).filter((g) => g.allowRequests).map((g) => g.key), now);
+}
+
+/** Forget the list of groups that accept requests (after a group is created, changed or deleted) */
+export function resetRequestableGroupsMemo() {
+  requestableMemo.clear();
+}
+
+/**
+ * The closed features the user can ask to open: those a group that accepts join requests opens.
+ * The app lists only these and the open ones in its navigation, so a section nobody can ask for
+ * (a group without requests, say) is not shown at all.
+ * @param {string[]} enabled the keys already open to the user (userFeatures)
+ * @returns {Promise<string[]>}
+ */
+export async function userOfferedFeatures(env, user, enabled) {
+  if (!user) return [];
+  try {
+    const [rules, requestable] = await Promise.all([loadFeatureRules(env), requestableGroupKeys(env)]);
+    return Object.keys(rules).filter((key) => !enabled.includes(key)
+      && rules[key].stage === "ga"
+      && rules[key].groups.some((g) => requestable.includes(g)));
+  } catch (err) {
+    logger.warn("Reading the offered features failed:", { error: err.message });
+    return [];
+  }
 }
 
 /** Whether one feature is open to the user */

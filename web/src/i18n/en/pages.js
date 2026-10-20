@@ -3,6 +3,8 @@
  */
 
 export default {
+  'اخبار بازار': 'Market news',
+  '{name} مخصوص اعضای «{group}» است': '{name} is for members of «{group}»',
   'بخش {name} برای حساب شما فعال نیست': 'The {name} section is not enabled for your account',
   'برای دسترسی، عضو گروه مجاز شوید یا از مدیر بخواهید.': 'To get access, join the allowed group or ask the admin.',
   'خبرهای مهم دلار، طلا، سکه، نفت و اقتصاد، گزینش‌شده با هوش مصنوعی': 'Key news on the dollar, gold, coins, oil and the economy, curated by AI',
