@@ -15,6 +15,7 @@
 
 import { enforcePortfolioLimit } from "../lib/planLimits.js";
 import { getAuthenticatedUser } from "../lib/auth.js";
+import { hasFeature } from "../lib/features.js";
 import {
   dbGetUserPortfolios,
   dbGetPortfolioById,
@@ -60,6 +61,11 @@ function portfolioJson(p) {
   };
 }
 
+/** The portfolio section is a feature (config/features.js `portfolio`): hidden like it when closed to the user */
+async function requirePortfolioFeature(env, user) {
+  if (!(await hasFeature(env, user, "portfolio"))) throw AppError.notFound("یافت نشد.");
+}
+
 /**
  * GET /api/portfolios
  * Fetch all portfolios of current authenticated user
@@ -69,6 +75,7 @@ export async function handleGetPortfolios(request, env) {
   if (!user) {
     throw AppError.unauthorized("جهت دسترسی به پورتفوها، ابتدا وارد حساب کاربری خود شوید.");
   }
+  await requirePortfolioFeature(env, user);
   const userId = user.userId || user.id || user.email;
   const portfolios = await dbGetUserPortfolios(env, userId);
   return jsonResponse({ success: true, portfolios: portfolios.map(portfolioJson) }, 200, request);
@@ -84,6 +91,7 @@ export async function handleCreatePortfolio(request, env) {
   if (!user) {
     throw AppError.unauthorized("جهت ساخت پورتفو، ابتدا وارد حساب کاربری خود شوید.");
   }
+  await requirePortfolioFeature(env, user);
 
   const body = await request.json().catch(() => ({}));
   const name = String(body.name || "").trim();
@@ -114,6 +122,7 @@ export async function handleUpdatePortfolio(request, env) {
   if (!user) {
     throw AppError.unauthorized("جهت ویرایش پورتفو، ابتدا وارد حساب کاربری خود شوید.");
   }
+  await requirePortfolioFeature(env, user);
 
   const body = await request.json().catch(() => ({}));
   const portfolioId = body.id || body.portfolioId;
@@ -154,6 +163,7 @@ export async function handleDeletePortfolioGroup(request, env) {
   if (!user) {
     throw AppError.unauthorized("جهت حذف پورتفو، ابتدا وارد حساب کاربری خود شوید.");
   }
+  await requirePortfolioFeature(env, user);
 
   const url = new URL(request.url);
   let portfolioId = url.searchParams.get("id") || url.searchParams.get("portfolioId");

@@ -58,7 +58,7 @@ describe('Feature Flags Configuration and Logic', () => {
     const user = { role: 'user' };
 
     expect(enabledFeatures(admin)).toEqual(expect.arrayContaining(['cheque_scan', 'cheque_scan_debug']));
-    expect(enabledFeatures(user)).toEqual(['expenses', 'bank_accounts']);
+    expect(enabledFeatures(user)).toEqual(['home', 'portfolio', 'incomes', 'loans', 'cheques', 'subscriptions', 'goals', 'expenses', 'bank_accounts']);
     // The Pro group opens the features closed to the free plan
     expect(enabledFeatures({ role: 'user', groups: ['pro'] })).toEqual(
       expect.arrayContaining(['market', 'cheque_scan', 'reports', 'widget', 'email_reminders']),
@@ -101,5 +101,25 @@ describe('requireFeature Server Guard', () => {
 
     const result = await requireFeature(request, env, 'cheque_scan');
     expect(result).toEqual(adminUser);
+  });
+});
+
+describe('Section features', () => {
+  it('every section of the app is a feature, open to all by default unless Pro', async () => {
+    for (const key of ['home', 'portfolio', 'incomes', 'loans', 'cheques', 'subscriptions', 'goals']) {
+      expect(FEATURES[key]).toBeTruthy();
+      expect(isFeatureEnabled(key, { role: 'user', groups: [] })).toBe(true);
+    }
+    for (const key of ['explore', 'analysis']) {
+      expect(isFeatureEnabled(key, { role: 'user', groups: [] })).toBe(false);
+      expect(isFeatureEnabled(key, { role: 'user', groups: ['pro'] })).toBe(true);
+    }
+  });
+
+  it('every vault kind gated by a feature names a declared feature', async () => {
+    const { VAULT_KIND_FEATURES } = await import('../../src/repositories/vault.repository.js');
+    for (const feature of Object.values(VAULT_KIND_FEATURES)) expect(FEATURES[feature]).toBeTruthy();
+    expect(VAULT_KIND_FEATURES.loan).toBe('loans');
+    expect(VAULT_KIND_FEATURES.holding).toBe('portfolio');
   });
 });

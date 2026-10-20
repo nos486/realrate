@@ -181,7 +181,7 @@ export const WIDGET_CATALOG = {
     title: msg("تحلیل روز با هوش مصنوعی"),
     description: msg("فقط تحلیل روز: خلاصه‌ی خبرها، مهم‌ترین رویدادها و نکته‌ها"),
     group: "news",
-    heights: [3, 4], defaultHeight: 4, unique: true, requires: "news",
+    heights: [3, 4], defaultHeight: 4, unique: true, requires: "analysis",
     options: {
       toggles: {
         drivers: { label: msg("مهم‌ترین خبرها"), default: true },

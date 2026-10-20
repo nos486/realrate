@@ -12,6 +12,7 @@ import Input from '../ui/Input.jsx';
 import AlertBanner from '../ui/AlertBanner.jsx';
 import { createVault, VAULT_MIN_PASSPHRASE_LENGTH } from './vaultStore.js';
 import { ensureDefaultPortfolio } from './defaultPortfolio.js';
+import { useFeature } from '../features/useFeature.js';
 
 const faNum = (n) => Number(n || 0).toLocaleString(intlLocale());
 
@@ -48,6 +49,7 @@ export function ProgressBar({ progress }) {
  * @param {string} [props.submitLabel]
  */
 export default function VaultEnableForm({ onDone, submitLabel = t('فعال‌سازی رمزنگاری') }) {
+  const hasPortfolio = useFeature('portfolio');
   const [pass, setPass] = useState('');
   const [passConfirm, setPassConfirm] = useState('');
   const [acknowledged, setAcknowledged] = useState(false);
@@ -73,7 +75,8 @@ export default function VaultEnableForm({ onDone, submitLabel = t('فعال‌س
     setBusy(true);
     try {
       await createVault(pass);
-      await ensureDefaultPortfolio();
+      // Users without the portfolio section have no portfolio to start with
+      if (hasPortfolio) await ensureDefaultPortfolio();
       setPass('');
       setPassConfirm('');
       setAcknowledged(false);
