@@ -182,7 +182,7 @@ describe('reminders: email and web push', () => {
   });
 
   it('push subscriptions and sealed reminders', async () => {
-    const subscription = { endpoint: 'https://push.example/abc', keys: { p256dh: 'p', auth: 'a' } };
+    const subscription = { endpoint: 'https://fcm.googleapis.com/fcm/send/abc', keys: { p256dh: 'p', auth: 'a' } };
     await dbSavePushSubscription(env, 'u1', { deviceId: 'dev_12345678', subscription });
     expect(await dbGetPushSubscriptionsForUser(env, 'u1')).toHaveLength(1);
     const sealed = JSON.stringify({ iv: 'iv', data: 'data' });

@@ -20,7 +20,7 @@ import { sqliteD1 } from '../helpers/sqliteD1.js';
 
 const NOW = Date.parse('2026-10-05T10:00:00Z');
 const news = (id, importance, minutesAgo, title = `خبر ${id}`) => ({ id: `c/${id}`, title, summary: 'خلاصه', importance, publishedAt: NOW - minutesAgo * 60000 });
-const subscription = (n) => ({ endpoint: `https://push.example/${n}`, keys: { p256dh: 'p'.repeat(20), auth: 'a'.repeat(16) } });
+const subscription = (n) => ({ endpoint: `https://fcm.googleapis.com/fcm/send/${n}`, keys: { p256dh: 'p'.repeat(20), auth: 'a'.repeat(16) } });
 
 describe('newsPushPayload', () => {
   it('only fresh important news; several make one notification', () => {

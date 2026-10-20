@@ -276,16 +276,15 @@ export async function handleGetSharedPortfolio(request, env) {
   const storedPassword = String(targetPortfolio.sharePassword || "").trim();
 
   if (storedPassword) {
+    // Before the password nothing about the owner or the portfolio is told, not even names
     const lockedResponse = (message) => jsonResponse({
       success: false,
       requirePassword: true,
       portfolio: {
         id: targetPortfolio.id,
-        name: portfolioName,
         slug: targetPortfolio.shareSlug,
       },
       user: {
-        name: ownerName,
         slug: targetPortfolio.shareSlug,
       },
       message,

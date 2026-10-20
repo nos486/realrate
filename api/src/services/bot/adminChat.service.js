@@ -3,7 +3,8 @@
  *
  * - The admin enters their Telegram username in the panel and sends /start to the bot once; the
  *   bot then knows their chat (a bot cannot write to someone who has not started it). Only that
- *   user — checked by their Telegram id, not the changeable username — can press the buttons.
+ *   user — checked by their Telegram id, not the changeable username — can press the buttons, and
+ *   a later /start from another account with that username does not take the link over.
  * - `notifyAdmin` sends the admin a message with ✅ / ❌ buttons for an action (botActions.js).
  *   The button carries only a short token; the action is kept in `app_state` for a week.
  * - The linked admin can also write commands (adminCommands.service.js): a report, users to find and
@@ -54,6 +55,10 @@ async function handleMessage(env, config, message, opts) {
   const text = String(message.text || "");
   if (/^\/start(\s|@|$)/.test(text)) {
     if (!sameUsername(message.from?.username, config.adminUsername)) return;
+    // Once linked, the admin is their Telegram id: whoever takes the username over later (after
+    // the admin renames) cannot link in their place. Linking another account: save the username
+    // again as empty, then as the new one (saveBotConfig unlinks on a change)
+    if (config.adminUserId && String(message.from?.id) !== config.adminUserId) return;
     await linkBotAdmin(env, { chatId: message.chat.id, userId: message.from.id });
     await setMyCommands(config.token, message.chat.id, BOT_COMMANDS, opts);
     await sendMessage(config.token, message.chat.id, "✅ به‌عنوان ادمین RealRate متصل شدید؛ درخواست‌های کاربران را از همین‌جا می‌بینید و با دکمه‌ها پاسخ می‌دهید.\nگزارش و مدیریت کاربران: /report ، /users ، /requests ، /help", { ...opts, plain: true });

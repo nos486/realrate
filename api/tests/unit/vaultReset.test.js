@@ -1,12 +1,13 @@
 /**
  * vaultReset.test.js — Forgotten E2EE passphrase: POST /api/vault/reset deletes the vault and every
  * financial record of the user (and nobody else's), after the confirmation and the account
- * password; records encrypted with a reset vault's key are refused afterwards
+ * password (an account without one: a sign-in minutes ago); records encrypted with a reset vault's key are refused afterwards
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const auth = vi.hoisted(() => ({ user: null, account: null }));
-vi.mock('../../src/lib/auth.js', () => ({
+vi.mock('../../src/lib/auth.js', async (importOriginal) => ({
+  ...(await importOriginal()),
   getAuthenticatedUser: vi.fn(async () => auth.user),
 }));
 vi.mock('../../src/repositories/account.repository.js', () => ({
@@ -79,7 +80,7 @@ const post = (body) => new Request('https://api.realrate.ir/api/vault/reset', {
 let env;
 beforeEach(() => {
   env = { DB: createDb(), CACHE: kv(), PRICE_CACHE: kv() };
-  auth.user = { userId: 'u1', email: 'a@x.ir' };
+  auth.user = { userId: 'u1', email: 'a@x.ir', createdAt: new Date().toISOString() };
   auth.account = { id: 'u1', passwordHash: '' };
 });
 
@@ -91,6 +92,13 @@ describe('vault reset', () => {
       expect(env.DB.rows[table].map((r) => r.user_id)).toEqual(['u2']);
     }
     expect(env.DB.vaults.has('u1')).toBe(false);
+  });
+
+  it('an account without a password must have signed in minutes ago (a stolen session cannot)', async () => {
+    auth.user = { ...auth.user, createdAt: new Date(Date.now() - 11 * 60_000).toISOString() };
+    await expect(handleResetVault(post({ confirm: VAULT_RESET_CONFIRM }), env))
+      .rejects.toMatchObject({ statusCode: 403, code: 'REAUTH_REQUIRED' });
+    expect(env.DB.vaults.has('u1')).toBe(true);
   });
 
   it('needs the confirmation', async () => {

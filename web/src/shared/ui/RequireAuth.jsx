@@ -9,7 +9,7 @@ import { LANDING_PATH, rememberPostLoginPath } from '../routes.js';
  * Renders the nested routes only for a logged-in user. Guests (including a user who just
  * logged out) are sent to the landing page; the page they asked for is remembered so signing
  * in takes them straight back to it. While the session is still being checked a
- * neutral loader is shown, so an OAuth redirect carrying `auth_token` is never bounced away
+ * neutral loader is shown, so an OAuth redirect carrying `auth_code` is never bounced away
  * before the token is picked up.
  */
 export default function RequireAuth() {

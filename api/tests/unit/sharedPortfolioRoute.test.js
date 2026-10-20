@@ -42,6 +42,9 @@ describe('handleGetSharedPortfolio (اشتراک‌گذاری عمومی پور�
     const body = await (await handleGetSharedPortfolio(req, mockEnv)).json();
 
     expect(body.requirePassword).toBe(true);
+    // Not even the names before the password
+    expect(body.portfolio.name).toBeUndefined();
+    expect(body.user.name).toBeUndefined();
     expect(body.vaultHoldings).toBeUndefined();
     expect(body.vaultTransactions).toBeUndefined();
     expect(dbListVaultRecords).not.toHaveBeenCalled();

@@ -15,6 +15,7 @@ import { useDemo } from '../../demo/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { deleteAccount } from '../api/authApi.js';
 import PasswordInput from './PasswordInput.jsx';
+import ReauthButton, { needsReauth } from './ReauthButton.jsx';
 
 /** What the user types to confirm */
 export const ACCOUNT_DELETE_PHRASE = t('حذف حساب');
@@ -31,6 +32,7 @@ export default function DeleteAccountSection() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [reauth, setReauth] = useState(false);
 
   if (!user || user.isAdmin || demo?.isDemo) return null;
 
@@ -41,6 +43,7 @@ export default function DeleteAccountSection() {
     setPhrase('');
     setPassword('');
     setError('');
+    setReauth(false);
   };
 
   const submit = async (e) => {
@@ -48,6 +51,7 @@ export default function DeleteAccountSection() {
     if (!confirmed || busy) return;
     setBusy(true);
     setError('');
+    setReauth(false);
     try {
       await deleteAccount({ password: hasPassword ? password : undefined });
       toast.success(t('حساب و همه‌ی اطلاعات آن حذف شد.'));
@@ -55,6 +59,7 @@ export default function DeleteAccountSection() {
       await logout();
     } catch (err) {
       setError(err.message || t('حذف حساب انجام نشد.'));
+      setReauth(needsReauth(err));
       setBusy(false);
     }
   };
@@ -92,7 +97,7 @@ export default function DeleteAccountSection() {
             </div>
           </div>
 
-          {error && <AlertBanner type="error" message={error} onClose={() => setError('')} />}
+          {error && <AlertBanner type="error" message={error} action={reauth ? <ReauthButton /> : null} onClose={() => setError('')} />}
 
           <Input
             id="delete-account-phrase"

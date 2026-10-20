@@ -1,6 +1,7 @@
 import { intlLocale, t } from '../utils/i18n.js';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { saveTextFile } from '../shared/utils/fileExport.js';
+import { escapeCsvField } from '../shared/utils/csv.js';
 import { useParams, Link } from 'react-router-dom';
 import { getSharedPortfolio } from '../features/portfolio/api/portfolioApi.js';
 import Header from '../components/Header.jsx';
@@ -210,11 +211,8 @@ export default function SharedPortfolioPage() {
       t('یادداشت / توضیحات')
     ];
 
-    const escapeCSV = (val) => {
-      if (val === null || val === undefined) return '""';
-      const str = String(val).replace(/"/g, '""');
-      return `"${str}"`;
-    };
+    // Text the owner wrote (asset names) must not run as a spreadsheet formula on the viewer's machine
+    const escapeCSV = escapeCsvField;
 
     const rows = portfolioMetrics.items.map((item) => {
       const assetTypeLabel = getCategoryBadge(item.category || item.assetType, t('سفارشی'));

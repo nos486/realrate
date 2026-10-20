@@ -5,6 +5,37 @@
 import { DEMO_ENABLED } from "../config/constants.js";
 import { dbGetSession } from "../repositories/session.repository.js";
 import { logger } from "./logger.js";
+import { AppError } from "./AppError.js";
+
+/**
+ * How long after signing in a session may do what cannot be undone or that would turn a stolen
+ * session into lasting access (seconds): for an account without a password, setting its first
+ * one, resetting the vault and deleting the account. A session's age is when its sign-in
+ * happened (sessions are never extended), so a session taken from a device later cannot do them.
+ */
+export const RECENT_SIGNIN_SEC = 10 * 60;
+
+/**
+ * Whether the session was created by a sign-in within RECENT_SIGNIN_SEC
+ * @param {{ createdAt?: string }|null} session
+ * @param {number} [now]
+ * @returns {boolean}
+ */
+export function isRecentSignIn(session, now = Date.now()) {
+  const signedInAt = Date.parse(session?.createdAt || "");
+  return Number.isFinite(signedInAt) && now - signedInAt <= RECENT_SIGNIN_SEC * 1000 && signedInAt <= now + 60_000;
+}
+
+/**
+ * Refuse (403 REAUTH_REQUIRED) unless the session's sign-in is recent: the client then offers to
+ * sign in with Google again
+ * @param {{ createdAt?: string }|null} session
+ */
+export function assertRecentSignIn(session) {
+  if (!isRecentSignIn(session)) {
+    throw new AppError("برای امنیت حساب، این کار فقط تا چند دقیقه پس از ورود ممکن است. دوباره با گوگل وارد شوید و همین کار را تکرار کنید.", 403, "REAUTH_REQUIRED");
+  }
+}
 
 /**
  * Check if an email belongs to an admin (supports comma-separated ADMIN_EMAIL env var)
