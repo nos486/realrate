@@ -172,6 +172,28 @@ describe('groups on SQLite (D1), and the routes', () => {
     await expect(routes.handleRequestGroup(req('POST', '/x'), env, { key: 'vip' })).rejects.toMatchObject({ statusCode: 404 });
   });
 
+  it('the admin changes the groups of many users at once', async () => {
+    asAdmin();
+    const { group } = await json(routes.handleAdminCreateGroup(req('POST', '/x', { key: 'bulk', name: 'گروهی' }), env));
+    const out = await json(routes.handleAdminBulkUserGroups(req('POST', '/x', { userIds: ['u1', 'u2', 'ghost'], add: ['bulk'] }), env));
+    expect(out.users).toBe(2);
+    expect(await repo.dbGetUserGroupKeys(env, 'u1')).toContain('bulk');
+    expect(await repo.dbGetUserGroupKeys(env, 'u2')).toContain('bulk');
+
+    // Every user of a search, leaving the group again
+    await routes.handleAdminBulkUserGroups(req('POST', '/x', { match: { q: 'example.com', filter: 'all' }, remove: ['bulk'] }), env);
+    expect(await repo.dbGetUserGroupKeys(env, 'u1')).not.toContain('bulk');
+    expect(await repo.dbGetUserGroupKeys(env, 'u2')).not.toContain('bulk');
+
+    await expect(routes.handleAdminBulkUserGroups(req('POST', '/x', { userIds: ['u1'] }), env)).rejects.toMatchObject({ statusCode: 400 });
+    await expect(routes.handleAdminBulkUserGroups(req('POST', '/x', { userIds: ['u1'], add: ['bulk'], remove: ['bulk'] }), env)).rejects.toMatchObject({ statusCode: 400 });
+    await expect(routes.handleAdminBulkUserGroups(req('POST', '/x', { userIds: ['u1'], add: ['ghost'] }), env)).rejects.toMatchObject({ statusCode: 404 });
+    asUser();
+    await expect(routes.handleAdminBulkUserGroups(req('POST', '/x', { userIds: ['u1'], add: ['bulk'] }), env)).rejects.toMatchObject({ statusCode: 403 });
+    asAdmin();
+    await routes.handleAdminDeleteGroup(req('DELETE', '/x'), env, { groupId: group.id });
+  });
+
   it('the admin changes who gets a feature at runtime, and resets it', async () => {
     asAdmin();
     // Open the market page to everyone

@@ -163,6 +163,41 @@ export async function dbRemoveGroupMember(env, groupId, userId) {
   forgetUserGroupKeys(userId);
 }
 
+/** Rows per D1 batch/query when many users change at once */
+const BULK_CHUNK = 50;
+
+/**
+ * Change the groups of many users at once: the users that exist join `addGroupIds` (their request,
+ * if any, is settled) and leave `removeGroupIds`
+ * @returns {Promise<{ users: number }>} how many of `userIds` exist
+ */
+export async function dbBulkChangeGroupMembers(env, { userIds, addGroupIds = [], removeGroupIds = [], addedBy = "" }) {
+  await ensureSchema(env);
+  const existing = [];
+  for (let i = 0; i < userIds.length; i += BULK_CHUNK) {
+    const chunk = userIds.slice(i, i + BULK_CHUNK);
+    const { results } = await env.DB.prepare(`SELECT id FROM users WHERE id IN (${chunk.map(() => "?").join(",")})`).bind(...chunk).all();
+    existing.push(...(results || []).map((r) => r.id));
+  }
+  const now = new Date().toISOString();
+  const statements = [];
+  for (const userId of existing) {
+    for (const groupId of addGroupIds) {
+      statements.push(env.DB.prepare(`
+        INSERT INTO user_group_members (group_id, user_id, added_at, added_by) VALUES (?, ?, ?, ?)
+        ON CONFLICT (group_id, user_id) DO NOTHING
+      `).bind(groupId, userId, now, addedBy));
+      statements.push(env.DB.prepare("DELETE FROM user_group_requests WHERE group_id = ? AND user_id = ?").bind(groupId, userId));
+    }
+    for (const groupId of removeGroupIds) {
+      statements.push(env.DB.prepare("DELETE FROM user_group_members WHERE group_id = ? AND user_id = ?").bind(groupId, userId));
+    }
+  }
+  for (let i = 0; i < statements.length; i += BULK_CHUNK) await env.DB.batch(statements.slice(i, i + BULK_CHUNK));
+  existing.forEach(forgetUserGroupKeys);
+  return { users: existing.length };
+}
+
 /** Pending requests (of one group, or of all), oldest first */
 export async function dbListGroupRequests(env, groupId = null) {
   await ensureSchema(env);
