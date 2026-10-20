@@ -21,7 +21,7 @@ import { createIncome } from '../incomes/api/incomeApi.js';
 import { createIncomes } from '../../shared/vault/vaultIncomes.js';
 import { getIncomeCategory } from '../incomes/constants/incomeCategories.js';
 import { getAccounts } from '../../shared/vault/vaultAccounts.js';
-import { getPendingSms, getSmsSettings, markSmsHandled, markSmsHandledMany, dropRecordedSms } from '../../shared/native/smsInbox.js';
+import { getPendingSms, getSmsSettings, markSmsHandled, markSmsHandledMany, dropRecordedSms, SMS_TWINS_KEY } from '../../shared/native/smsInbox.js';
 import { REJECTED_SMS_CATEGORY } from '../../utils/categoryDocument.js';
 import { smsExpenseDraft, smsIncomeDraft, smsProjectExpenseDraft } from './smsDrafts.js';
 import { ensureSmsAccount } from './smsAccounts.js';
@@ -147,7 +147,7 @@ async function accountsOrNone() {
   }
 }
 
-const TWINS_KEY = 'realrate_sms_twins';
+const TWINS_KEY = SMS_TWINS_KEY;
 
 /**
  * A hand-recorded twin (same day, amount and kind) accounts for ONE message: two deposits of the

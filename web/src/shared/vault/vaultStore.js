@@ -8,13 +8,19 @@
  *
  * The passphrase and every unwrapped key stay in this tab. The unwrapped data key is kept in
  * sessionStorage (like the per-portfolio passphrase was before) so a reload doesn't ask again;
- * locking or logging out clears it.
+ * locking, logging out or the idle limit (autoLock.js) clears it, and a kept key last used
+ * longer ago than that limit is not restored.
+ *
+ * KDF cost: the salt names its PBKDF2 rounds (lib/e2ee.js). A vault whose salt is from before
+ * KDF_ITERATIONS is re-wrapped with a new salt on its next passphrase unlock (the data key and
+ * the records stay the same).
  */
 
 import { intlLocale, t } from '../../utils/i18n.js';
 import {
   deriveE2eeKey,
   generateE2eeSalt,
+  isLegacyE2eeSalt,
   generateRawKey,
   importRawKey,
   wrapRawKey,
@@ -26,6 +32,7 @@ import {
   base64ToBytes,
 } from '../../lib/e2ee.js';
 import { getVault, saveVault, resetVaultData, configureVaultApi } from './vaultApi.js';
+import { armAutoLock, disarmAutoLock, isPastAutoLock } from './autoLock.js';
 import {
   configureOffline,
   startOffline,
@@ -50,6 +57,8 @@ configureVaultApi({
 
 export const VAULT_MIN_PASSPHRASE_LENGTH = 8;
 const SESSION_KEY = 'rr_vault_session';
+/** On this device, a vault re-wrapped for the KDF cost: { userId, from, to } wrapped keys */
+const REWRAP_KEY = 'rr_vault_rewrap';
 
 /**
  * @typedef {'idle'|'loading'|'off'|'locked'|'unlocked'|'error'} VaultStatus
@@ -119,8 +128,15 @@ async function setUnlocked(raw, vault) {
   dataKey = await importRawKey(raw);
   rawKeyB64 = bytesToBase64(raw);
   portfolioKeys.clear();
-  writeSession({ userId: state.userId, wrappedKey: vault.wrappedKey, key: bytesToBase64(raw) });
+  const session = { userId: state.userId, wrappedKey: vault.wrappedKey, key: bytesToBase64(raw), activeAt: Date.now() };
+  writeSession(session);
   setState({ status: 'unlocked', vault, error: null, epoch: state.epoch + 1 });
+  armAutoLock({
+    onExpire: () => lockAll(),
+    onActivity: (at) => {
+      if (rawKeyB64 === session.key) writeSession({ ...session, activeAt: at });
+    },
+  });
 }
 
 /**
@@ -157,7 +173,7 @@ export function loadVault(userId, { force = false } = {}) {
         return state;
       }
       const session = readSession();
-      if (session && session.userId === userId && session.wrappedKey === vault.wrappedKey && session.key) {
+      if (session && session.userId === userId && session.wrappedKey === vault.wrappedKey && session.key && !isPastAutoLock(session.activeAt)) {
         try {
           await setUnlocked(base64ToBytes(session.key), vault);
           return state;
@@ -194,7 +210,44 @@ export async function unlockVault(passphrase) {
   const raw = await unwrapRawKey(kek, vault.wrappedKey);
   if (!raw) return false;
   await setUnlocked(raw, vault);
+  if (isLegacyE2eeSalt(vault.salt)) await upgradeVaultKdf(String(passphrase || ''), raw, vault);
   return true;
+}
+
+/**
+ * Re-wrap the data key under a salt of today's KDF cost (the passphrase was just given). Best
+ * effort: offline, or another device got there first, it is simply tried on a later unlock.
+ */
+async function upgradeVaultKdf(passphrase, raw, vault) {
+  try {
+    const salt = generateE2eeSalt();
+    const wrappedKey = await wrapRawKey(await deriveE2eeKey(passphrase, salt), raw);
+    const res = await saveVault({ salt, wrappedKey, previousWrappedKey: vault.wrappedKey });
+    if (!res?.vault) return;
+    // The fingerprint unlock still holds the same data key under the old wrapping: let it in once
+    writeRewrap({ userId: state.userId, from: vault.wrappedKey, to: res.vault.wrappedKey });
+    await setUnlocked(raw, res.vault);
+  } catch {
+    // Kept as it was
+  }
+}
+
+function writeRewrap(value) {
+  try {
+    localStorage.setItem(REWRAP_KEY, JSON.stringify(value));
+  } catch {
+    // The fingerprint unlock then asks for the passphrase once
+  }
+}
+
+/** Whether `wrappedKey` is the old wrapping of this vault before its KDF re-wrap on this device */
+function isRewrapOf(wrappedKey, vault) {
+  try {
+    const rewrap = JSON.parse(localStorage.getItem(REWRAP_KEY) || 'null');
+    return Boolean(rewrap && rewrap.userId === state.userId && rewrap.from === wrappedKey && rewrap.to === vault.wrappedKey);
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -213,12 +266,14 @@ export function getVaultUnlockSecret() {
  */
 export async function unlockVaultWithSecret(secret) {
   const vault = state.vault;
-  if (!vault || !secret?.key || secret.userId !== state.userId || secret.wrappedKey !== vault.wrappedKey) return false;
+  if (!vault || !secret?.key || secret.userId !== state.userId) return false;
+  if (secret.wrappedKey !== vault.wrappedKey && !isRewrapOf(secret.wrappedKey, vault)) return false;
   await setUnlocked(base64ToBytes(secret.key), vault);
   return true;
 }
 
 export function lockVault() {
+  disarmAutoLock();
   rawKeyB64 = null;
   dataKey = null;
   portfolioKeys.clear();
@@ -232,6 +287,7 @@ export const LOCK_ALL_EVENT = 'realrate:vault-lock-all';
  * it. Screens holding a key listen for LOCK_ALL_EVENT.
  */
 export function lockAll() {
+  disarmAutoLock();
   rawKeyB64 = null;
   dataKey = null;
   portfolioKeys.clear();
@@ -245,6 +301,7 @@ export function lockAll() {
 
 /** Forget everything (logout), the device's copy included */
 export function resetVault() {
+  disarmAutoLock();
   stopOffline({ clear: true }).catch(() => {});
   rawKeyB64 = null;
   dataKey = null;
@@ -263,6 +320,7 @@ export function resetVault() {
 export async function resetAccountVault({ password } = {}) {
   const userId = state.userId;
   await resetVaultData({ password });
+  disarmAutoLock();
   await stopOffline({ clear: true }).catch(() => {});
   rawKeyB64 = null;
   dataKey = null;

@@ -22,6 +22,8 @@ import {
 // reads data renders — so nothing is ever fetched or saved through the wrong (plaintext) path.
 function signInUser(setUser, nextUser) {
   if (nextUser?.id) loadVault(nextUser.id);
+  // The phone's bank SMS inbox is kept per account: another account's is not shown to this one
+  if (nextUser?.id && isNativeApp()) import('../../../shared/native/smsInbox.js').then((m) => m.claimSmsInbox(nextUser.id)).catch(() => {});
   setUser(nextUser);
 }
 
@@ -195,6 +197,8 @@ export function AuthProvider({ children }) {
   const logout = useCallback(async () => {
     // The fingerprint unlock belongs to the account signing out
     if (isNativeApp()) import('../../../shared/native/biometricUnlock.js').then((m) => m.disableBiometric()).catch(() => {});
+    // So are the bank SMS waiting to be recorded, and their settings
+    if (isNativeApp()) import('../../../shared/native/smsInbox.js').then((m) => m.clearSmsInbox()).catch(() => {});
     // Due reminders belong to it too: the phone's scheduled notifications, the browser's sealed
     // pushes (removed on the server while the session still works) and what was stored
     await Promise.all([cancelDueNotifications(), signOutWebPush()]).catch(() => {});

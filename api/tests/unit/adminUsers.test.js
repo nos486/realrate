@@ -199,6 +199,6 @@ describe('admin user actions', () => {
     repo.dbGetUserAuthById.mockResolvedValue({ id: 'u3', email: 'u3@example.com', emailVerified: false, passwordHash: 'h' });
     const res = await handleAdminResendVerification(post('/api/admin/users/resend-verification', { userId: 'u3' }), {});
     expect(res.status).toBe(200);
-    expect(sendEmail).toHaveBeenCalledWith({}, expect.objectContaining({ to: 'u3@example.com' }));
+    expect(sendEmail).toHaveBeenCalledWith({}, expect.objectContaining({ to: 'u3@example.com' }), expect.anything());
   });
 });

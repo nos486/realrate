@@ -42,6 +42,8 @@ import {
   getSmsSettings,
   enableSmsReading,
   SMS_SENDERS,
+  claimSmsInbox,
+  clearSmsInbox,
 } from '../../../web/src/shared/native/smsInbox.js';
 import { enableBiometric, unlockWithBiometric, isBiometricEnabled } from '../../../web/src/shared/native/biometricUnlock.js';
 import { smsExpenseDraft, smsIncomeDraft } from '../../../web/src/features/sms-inbox/smsDrafts.js';
@@ -241,6 +243,30 @@ describe('SMS inbox', () => {
     plugin.read.mockClear();
     expect(await autoReadSms()).toBe(0);
     expect(plugin.read).not.toHaveBeenCalled();
+  });
+});
+
+describe('the inbox belongs to one account', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('another account signing in starts from an empty inbox; the same one keeps it', () => {
+    claimSmsInbox('u_a');
+    addSmsMessages([DEBIT, CREDIT]);
+    setSmsSettings({ autoRecord: true });
+    claimSmsInbox('u_a');
+    expect(getPendingSms()).toHaveLength(2);
+    claimSmsInbox('u_b');
+    expect(getPendingSms()).toHaveLength(0);
+    expect(getSmsSettings().autoRecord).toBe(false);
+  });
+
+  it('an inbox from before owners is taken by the first account; signing out clears it', () => {
+    addSmsMessages([DEBIT]);
+    claimSmsInbox('u_a');
+    expect(getPendingSms()).toHaveLength(1);
+    clearSmsInbox();
+    expect(getPendingSms()).toHaveLength(0);
+    expect(JSON.stringify({ ...localStorage })).not.toContain('realrate_sms_pending');
   });
 });
 

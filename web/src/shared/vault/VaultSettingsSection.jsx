@@ -11,6 +11,7 @@ import { intlLocale, t } from '../../utils/i18n.js';
 import React, { useState } from 'react';
 import { LockOpen, ShieldCheck, KeyRound, RefreshCw } from 'lucide-react';
 import Button from '../ui/Button.jsx';
+import FilterPills from '../ui/FilterPills.jsx';
 import AlertBanner from '../ui/AlertBanner.jsx';
 import { useFeedback } from '../ui/FeedbackProvider.jsx';
 import { useVault } from './useVault.js';
@@ -19,6 +20,7 @@ import VaultResetSection from './VaultResetSection.jsx';
 import { useDemo } from '../../features/demo/index.js';
 import VaultEnableForm, { PassphraseInput } from './VaultEnableForm.jsx';
 import { changeVaultPassphrase, lockAll, loadVault, VAULT_MIN_PASSPHRASE_LENGTH } from './vaultStore.js';
+import { AUTO_LOCK_OPTIONS, getAutoLockMinutes, setAutoLockMinutes } from './autoLock.js';
 
 const faNum = (n) => Number(n || 0).toLocaleString(intlLocale());
 
@@ -35,6 +37,15 @@ export default function VaultSettingsSection() {
   const [newPass, setNewPass] = useState('');
   const [newPassConfirm, setNewPassConfirm] = useState('');
   const [changing, setChanging] = useState(false);
+  const [autoLock, setAutoLock] = useState(getAutoLockMinutes);
+  const autoLockOptions = AUTO_LOCK_OPTIONS.map((min) => ({
+    value: min,
+    label: min ? t('{n} دقیقه', { n: faNum(min) }) : t('هرگز'),
+  }));
+  const chooseAutoLock = (min) => {
+    setAutoLockMinutes(min);
+    setAutoLock(min);
+  };
 
   const handleChangePass = async (e) => {
     e.preventDefault();
@@ -121,6 +132,12 @@ export default function VaultSettingsSection() {
             >
               {t('تغییر رمز عبور')}
             </Button>
+          </div>
+
+          <div className="vault-settings-block">
+            <h5 className="vault-settings-subtitle">{t('قفل خودکار پس از بی‌استفاده ماندن')}</h5>
+            <FilterPills variant="segmented" size="sm" options={autoLockOptions} activeValue={autoLock} onChange={chooseAutoLock} />
+            <p className="vault-settings-text">{t('اگر این مدت با برنامه کار نکنید یا آن را در پس‌زمینه بگذارید، اطلاعات رمزنگاری‌شده در این دستگاه قفل می‌شود.')}</p>
           </div>
 
           {changing && (

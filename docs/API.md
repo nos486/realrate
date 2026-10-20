@@ -16,6 +16,8 @@ RealRate Cloudflare Worker API supports versioned routing starting with **v1**.
 
 Every authenticated request from the RealRate clients carries `X-RealRate-Client`: `android/<versionName>` from the Android app (e.g. `android/1.0.50`), `web` from the website (`api/src/domain/clientInfo.js`). It is optional; `GET /api/v1/auth/me` records it for the admin's app statistics (see *Admin Endpoints*). CORS allows it.
 
+Every answer carries `X-Content-Type-Options: nosniff`; an answer to a signed-in request (Bearer token or session cookie) that sets no `Cache-Control` of its own gets `Cache-Control: private, no-store`. Credentialed CORS is allowed only for the exact frontend hosts (`realrate.ir`, `www.realrate.ir`, `realrate.geekio.org`, `realrate-5pn.pages.dev` and its preview subdomains) and localhost (the Android WebView and local development) — `api/src/lib/security.js`.
+
 ### Errors
 
 Errors share one shape: `{ success: false, message, error: { code, message } }` with a matching HTTP status (e.g. `400 BAD_REQUEST`, `401 UNAUTHORIZED`, `403 ENCRYPTION_REQUIRED`, `404 NOT_FOUND`, `409 VAULT_CHANGED`, `429 QUOTA_EXCEEDED`). Messages are in Persian.
@@ -141,7 +143,7 @@ Stateless image analysis with Gemini (`api/src/config/ai.config.js`, key in the 
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `POST` | `/api/v1/cheques/scan` | Read a cheque image with Gemini |
+| `POST` | `/api/v1/cheques/scan` | Read a cheque image with Gemini. A body declared over 2 MiB + 64 KiB is refused unread (`413`); the file must be JPEG/PNG/WebP by its bytes, not only its type (`400 INVALID_FILE_TYPE`) |
 | `GET` | `/api/v1/cheques/scan/quota` | Today's scans: `limit`, `used`, `remaining` |
 
 #### Request Format

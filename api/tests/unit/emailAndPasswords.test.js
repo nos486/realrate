@@ -1,3 +1,4 @@
+import { logger } from '../../src/lib/logger.js';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { hashPassword, verifyPassword, sha256Hex, generateUrlToken } from '../../src/lib/security.js';
 import { sendEmail, isEmailConfigured, verificationEmail } from '../../src/lib/email.js';
@@ -43,6 +44,20 @@ describe('email delivery', () => {
       .rejects.toMatchObject({ statusCode: 502 });
     await expect(sendEmail({}, { to: 'a@b.co', subject: 's', html: 'h', text: 't' })).rejects.toMatchObject({ statusCode: 503 });
     expect(isEmailConfigured({ EMAIL_DEBUG_LOG: 'true' })).toBe(true);
+  });
+
+  it('the debug log has the email text (its links) only for a local request', async () => {
+    const info = vi.spyOn(logger, 'info').mockImplementation(() => {});
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {});
+    const env = { EMAIL_DEBUG_LOG: 'true' };
+    const message = { to: 'a@b.co', subject: 's', html: 'h', text: 'https://realrate.ir/reset-password?token=secret' };
+    await sendEmail(env, message, { request: new Request('https://api.realrate.ir/api/auth/password/forgot') });
+    await sendEmail(env, message);
+    expect(JSON.stringify([info.mock.calls, warn.mock.calls])).not.toContain('secret');
+    await sendEmail(env, message, { request: new Request('http://localhost:8787/api/auth/password/forgot') });
+    expect(JSON.stringify(info.mock.calls)).toContain('token=secret');
+    info.mockRestore();
+    warn.mockRestore();
   });
 
   it('escapes what it puts into the HTML', () => {

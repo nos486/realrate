@@ -267,7 +267,8 @@ describe('Alert Email System (Part A)', () => {
         expect.objectContaining({
           to: 'user@example.com',
           subject: expect.stringContaining('آزمایشی'),
-        })
+        }),
+        expect.anything(),
       );
     });
 

@@ -2,7 +2,9 @@
  * e2ee.js — Client-side Zero-Knowledge End-to-End Encryption (E2EE) Module
  *
  * Uses the Web Crypto API (crypto.subtle) available natively in all modern browsers.
- * Derives a 256-bit AES-GCM key from a user-provided passphrase using PBKDF2 with 100,000 rounds.
+ * Derives a 256-bit AES-GCM key from a user-provided passphrase using PBKDF2-SHA256. The salt
+ * string names its cost: new salts are "pbkdf2$600000$<base64>" (KDF_ITERATIONS, the OWASP
+ * figure); a bare base64 salt is from before and means LEGACY_KDF_ITERATIONS (100,000).
  * Zero-Knowledge guarantee: The plaintext passphrase and derived key NEVER leave the user's browser.
  */
 
@@ -29,13 +31,37 @@ function base64ToBytes(b64) {
   return bytes;
 }
 
+/** PBKDF2 rounds of a new salt, and of a salt written before salts named their cost */
+export const KDF_ITERATIONS = 600000;
+export const LEGACY_KDF_ITERATIONS = 100000;
+const KDF_SALT_RE = /^pbkdf2\$(\d{5,7})\$(.+)$/;
+
 /**
- * Generate a cryptographically secure 16-byte random salt (base64)
+ * The rounds and salt bytes a salt string stands for. A cost outside 100k–5M is refused, so a
+ * tampered salt cannot make the browser hang or derive a weak key.
+ * @param {string} saltString
+ * @returns {{ iterations: number, saltBase64: string }}
+ */
+export function parseE2eeSalt(saltString) {
+  const match = KDF_SALT_RE.exec(String(saltString || ""));
+  if (!match) return { iterations: LEGACY_KDF_ITERATIONS, saltBase64: String(saltString || "") };
+  const iterations = Number(match[1]);
+  if (iterations < LEGACY_KDF_ITERATIONS || iterations > 5_000_000) throw new Error(t('پارامتر رمزنگاری نامعتبر است.'));
+  return { iterations, saltBase64: match[2] };
+}
+
+/** Whether a salt is from before KDF_ITERATIONS (its key is re-wrapped on the next unlock) */
+export function isLegacyE2eeSalt(saltString) {
+  return parseE2eeSalt(saltString).iterations < KDF_ITERATIONS;
+}
+
+/**
+ * Generate a cryptographically secure 16-byte random salt, naming its cost (KDF_ITERATIONS)
  * @returns {string}
  */
 export function generateE2eeSalt() {
   const salt = globalThis.crypto.getRandomValues(new Uint8Array(16));
-  return bytesToBase64(salt);
+  return `pbkdf2$${KDF_ITERATIONS}$${bytesToBase64(salt)}`;
 }
 
 /**
@@ -47,8 +73,9 @@ export function generateE2eeSalt() {
 export async function deriveE2eeKey(passphrase, saltBase64, { extractable = false } = {}) {
   if (!passphrase) throw new Error(t('رمز عبور گاوصندوق نمی‌تواند خالی باشد.'));
 
-  // Decode salt
-  const saltBytes = base64ToBytes(saltBase64 || "");
+  // The salt names its cost (a bare one is from before: LEGACY_KDF_ITERATIONS)
+  const { iterations, saltBase64: rawSalt } = parseE2eeSalt(saltBase64);
+  const saltBytes = base64ToBytes(rawSalt);
 
   const enc = new TextEncoder();
   const baseKey = await globalThis.crypto.subtle.importKey(
@@ -63,7 +90,7 @@ export async function deriveE2eeKey(passphrase, saltBase64, { extractable = fals
     {
       name: "PBKDF2",
       salt: saltBytes,
-      iterations: 100000,
+      iterations,
       hash: "SHA-256",
     },
     baseKey,

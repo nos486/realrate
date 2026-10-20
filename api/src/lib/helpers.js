@@ -13,9 +13,7 @@ const ALLOWED_ORIGINS = [
   "http://localhost:5173",      // Vite dev server
   "http://localhost:4173",      // Vite preview
   "https://realrate-5pn.pages.dev", // Cloudflare Pages (production)
-  "https://realrate.pages.dev",
   "https://realrate.geekio.org",
-  "https://geekio.org",
   "https://realrate.ir",
   "https://www.realrate.ir",
 ];
@@ -23,7 +21,7 @@ const ALLOWED_ORIGINS = [
 export function isOriginAllowed(origin) {
   if (!origin) return false;
   if (ALLOWED_ORIGINS.includes(origin)) return true;
-  // Subdomains of our own domains only (exact label-boundary match, https only)
+  // Our other frontend hosts and the Pages previews (security.js isTrustedOrigin, https only)
   return isTrustedOrigin(origin) && new URL(origin).origin === origin;
 }
 
@@ -62,13 +60,19 @@ export const PREFLIGHT_MAX_AGE_SEC = 86400;
 /**
  * The time the Worker spent on a request, as a Server-Timing header (DevTools → Network → Timing):
  * a long wait with a short `app` time is the network, not the server. Readable by our own sites
- * (Timing-Allow-Origin).
+ * (Timing-Allow-Origin). Also every answer's baseline security headers: no MIME sniffing, and an
+ * answer to a signed-in request that sets no caching of its own is never stored (browser or
+ * proxy) — it is that user's data.
  */
 export function withServerTiming(response, request, startedAt) {
   const headers = new Headers(response.headers);
   headers.append("Server-Timing", `app;dur=${Math.max(0, Date.now() - startedAt)}`);
   const origin = request.headers.get("Origin");
   if (origin && isOriginAllowed(origin)) headers.set("Timing-Allow-Origin", origin);
+  headers.set("X-Content-Type-Options", "nosniff");
+  const signedIn = (request.headers.get("Authorization") || "").startsWith("Bearer ")
+    || /(?:^|;\s*)realrate_session=/.test(request.headers.get("Cookie") || "");
+  if (signedIn && !headers.has("Cache-Control")) headers.set("Cache-Control", "private, no-store");
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 

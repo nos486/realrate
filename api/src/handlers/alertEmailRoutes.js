@@ -112,7 +112,7 @@ export async function handleSendTestEmailAlert(request, env) {
     subject: testDigest.subject,
     html: testDigest.html,
     text: testDigest.text,
-  });
+  }, { request });
 
   return jsonResponse({ success: true, message: 'ایمیل آزمایشی با موفقیت ارسال شد.' }, 200, request);
 }
