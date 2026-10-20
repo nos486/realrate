@@ -18,11 +18,12 @@ import { t } from '../../utils/i18n.js';
 /**
  * @param {object} props
  * @param {string} props.feature - feature key (config/features.js)
- * @param {string} props.title
+ * @param {string} [props.name] - the section's name: the title says which group it is for ("{name} is for members of «{group}»")
+ * @param {string} [props.title] - replaces the title made from `name`
  * @param {string} [props.subtitle]
  * @param {string[]} [props.benefits] - what the feature gives
  */
-export default function FeatureOffer({ feature, title, subtitle = '', benefits = [] }) {
+export default function FeatureOffer({ feature, name = '', title = '', subtitle = '', benefits = [] }) {
   const { user, refreshAccess } = useAuth();
   const { toast } = useFeedback();
   const [access, setAccess] = useState(null);
@@ -47,6 +48,10 @@ export default function FeatureOffer({ feature, title, subtitle = '', benefits =
 
   const group = access?.groups?.find((g) => g.allowRequests) || access?.groups?.[0] || null;
   const isDemo = Boolean(user?.demo);
+  // The group that opens the section is named, whatever it is called (Pro, VIP, ...)
+  const heading = title || (group
+    ? t('{name} مخصوص اعضای «{group}» است', { name, group: group.name })
+    : t('بخش {name} برای حساب شما فعال نیست', { name }));
 
   const ask = async () => {
     if (!group) return;
@@ -79,7 +84,7 @@ export default function FeatureOffer({ feature, title, subtitle = '', benefits =
     <section className="feature-offer" aria-labelledby={`feature-offer-${feature}`}>
       <span className="feature-offer-icon" aria-hidden="true"><Crown size={28} /></span>
       {group && <span className="feature-offer-badge">{group.name}</span>}
-      <h2 id={`feature-offer-${feature}`} className="feature-offer-title">{title}</h2>
+      <h2 id={`feature-offer-${feature}`} className="feature-offer-title">{heading}</h2>
       {subtitle && <p className="feature-offer-subtitle">{subtitle}</p>}
 
       {benefits.length > 0 && (

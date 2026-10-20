@@ -181,6 +181,9 @@ describe('groups on SQLite (D1), and the routes', () => {
     // Only the "vip" group, then a group that doesn't exist
     await routes.handleAdminSaveFeatureRule(req('PUT', '/x', { stage: 'ga', groups: ['vip'] }), env, { key: 'market' });
     expect(await features.hasFeature(env, { userId: 'u2', role: 'user' }, 'market')).toBe(false);
+    // A section only a group without requests opens is not offered at all
+    features.resetFeatureRulesMemo();
+    expect(await features.userOfferedFeatures(env, { userId: 'u2', role: 'user' }, [])).not.toContain('market');
     expect(await features.hasFeature(env, { userId: 'u1', role: 'user' }, 'market')).toBe(true);
     await expect(routes.handleAdminSaveFeatureRule(req('PUT', '/x', { stage: 'ga', groups: ['ghost'] }), env, { key: 'market' }))
       .rejects.toMatchObject({ statusCode: 400 });
@@ -190,8 +193,11 @@ describe('groups on SQLite (D1), and the routes', () => {
     await expect(routes.handleAdminDeleteGroup(req('DELETE', '/x'), env, { groupId: vip.id })).rejects.toMatchObject({ statusCode: 400 });
     await expect(routes.handleAdminDeleteGroup(req('DELETE', '/x'), env, { groupId: 'grp_pro' })).rejects.toMatchObject({ statusCode: 400 });
 
+    features.resetFeatureRulesMemo();
     const { features: list } = await json(routes.handleAdminResetFeatureRule(req('DELETE', '/x'), env, { key: 'market' }));
     expect(list.find((f) => f.key === 'market')).toMatchObject({ groups: ['pro'], customized: false });
+    // Back to Pro, which accepts requests: the page is offered again
+    expect(await features.userOfferedFeatures(env, { userId: 'u2', role: 'user' }, [])).toContain('market');
     await routes.handleAdminDeleteGroup(req('DELETE', '/x'), env, { groupId: vip.id });
     expect(await repo.dbGetGroupByKey(env, 'vip')).toBeNull();
     expect(await repo.dbGetUserGroupKeys(env, 'u1')).toEqual(['pro']);

@@ -85,13 +85,7 @@ const MARKET_BENEFITS = [
 
 /** Shown in place of a section the user's groups don't open (config/features.js) */
 function SectionOffer({ feature, name }) {
-  return (
-    <FeatureOffer
-      feature={feature}
-      title={t('بخش {name} برای حساب شما فعال نیست', { name })}
-      subtitle={t('برای دسترسی، عضو گروه مجاز شوید یا از مدیر بخواهید.')}
-    />
-  );
+  return <FeatureOffer feature={feature} name={name} />;
 }
 
 function TabLoader() {
@@ -130,6 +124,11 @@ export default function MainPage() {
   const hasCheques = useFeature('cheques');
   const hasSubscriptions = useFeature('subscriptions');
   const hasGoals = useFeature('goals');
+  const hasNewsFeature = useFeature('news');
+  // A closed section is listed only when the user can ask for it (a group that accepts requests
+  // opens it: GET /api/auth/me `offeredFeatures`); otherwise it is not shown at all
+  const offered = user?.offeredFeatures || [];
+  const listed = (key, has) => has || offered.includes(key);
   // The app's frame (the Android app, or the website on a phone): home is the user's dashboard and
   // the market is its own page; what only the Android app can do still asks isNativeApp()
   const appLayout = useAppLayout();
@@ -389,23 +388,23 @@ export default function MainPage() {
   const tabOptions = useMemo(() => {
     const options = [
       // «خانه» is the widget dashboard; the market (prices and bubbles) is one of the other sections
-      ...(hasHome ? [{ value: 'market', label: t('خانه'), icon: <Home size={16} strokeWidth={2} /> }] : []),
-      { value: 'rates', label: t('نرخ و حباب'), icon: <TrendingUp size={16} strokeWidth={2} /> },
-      ...(localeHasNews() ? [{ value: 'news', label: t('اخبار'), icon: <Newspaper size={16} strokeWidth={2} /> }] : []),
-      { value: 'explore', label: t('کاوش بازار'), icon: <Compass size={16} strokeWidth={2} /> },
-      ...(hasIncomes ? [{ value: 'incomes', label: t('درآمدها'), icon: <Wallet size={16} strokeWidth={2} /> }] : []),
+      ...(listed('home', hasHome) ? [{ value: 'market', label: t('خانه'), icon: <Home size={16} strokeWidth={2} /> }] : []),
+      ...(listed('market', hasMarket) ? [{ value: 'rates', label: t('نرخ و حباب'), icon: <TrendingUp size={16} strokeWidth={2} /> }] : []),
+      ...(localeHasNews() && listed('news', hasNewsFeature) ? [{ value: 'news', label: t('اخبار'), icon: <Newspaper size={16} strokeWidth={2} /> }] : []),
+      ...(listed('explore', hasExplore) ? [{ value: 'explore', label: t('کاوش بازار'), icon: <Compass size={16} strokeWidth={2} /> }] : []),
+      ...(listed('incomes', hasIncomes) ? [{ value: 'incomes', label: t('درآمدها'), icon: <Wallet size={16} strokeWidth={2} /> }] : []),
       // Beta (admins): expenses right after incomes, then the accounts they are paid from
       ...(hasExpenses ? [{ value: 'expenses', label: t('هزینه‌ها'), icon: <HandCoins size={16} strokeWidth={2} /> }] : []),
       ...(hasExpenses ? [{ value: 'projects', label: t('پروژه‌ها'), icon: <FolderKanban size={16} strokeWidth={2} /> }] : []),
       ...(hasAccounts ? [{ value: 'accounts', label: t('حساب‌ها'), icon: <WalletCards size={16} strokeWidth={2} /> }] : []),
       // Android app: the bank messages it read, next to the expenses and incomes they become
       ...(smsEnabled() && hasExpenses ? [{ value: 'sms', label: t('پیامک‌ها'), icon: <MessageSquareText size={16} strokeWidth={2} /> }] : []),
-      ...(hasPortfolio ? [{ value: 'portfolio', label: t('پورتفو'), icon: <Briefcase size={16} strokeWidth={2} /> }] : []),
-      ...(hasLoans ? [{ value: 'loans', label: t('وام و اقساط'), icon: <Landmark size={16} strokeWidth={2} /> }] : []),
-      ...(hasCheques ? [{ value: 'cheques', label: t('چک‌ها'), icon: <ReceiptText size={16} strokeWidth={2} /> }] : []),
-      ...(user && hasSubscriptions ? [{ value: 'subscriptions', label: t('اشتراک‌ها'), icon: <CalendarSync size={16} strokeWidth={2} /> }] : []),
-      ...(user && hasGoals ? [{ value: 'goals', label: t('اهداف'), icon: <Target size={16} strokeWidth={2} /> }] : []),
-      ...(user ? [{ value: 'reports', label: t('گزارش‌ها'), icon: <ChartColumn size={16} strokeWidth={2} /> }] : []),
+      ...(listed('portfolio', hasPortfolio) ? [{ value: 'portfolio', label: t('پورتفو'), icon: <Briefcase size={16} strokeWidth={2} /> }] : []),
+      ...(listed('loans', hasLoans) ? [{ value: 'loans', label: t('وام و اقساط'), icon: <Landmark size={16} strokeWidth={2} /> }] : []),
+      ...(listed('cheques', hasCheques) ? [{ value: 'cheques', label: t('چک‌ها'), icon: <ReceiptText size={16} strokeWidth={2} /> }] : []),
+      ...(user && listed('subscriptions', hasSubscriptions) ? [{ value: 'subscriptions', label: t('اشتراک‌ها'), icon: <CalendarSync size={16} strokeWidth={2} /> }] : []),
+      ...(user && listed('goals', hasGoals) ? [{ value: 'goals', label: t('اهداف'), icon: <Target size={16} strokeWidth={2} /> }] : []),
+      ...(user && listed('reports', hasReports) ? [{ value: 'reports', label: t('گزارش‌ها'), icon: <ChartColumn size={16} strokeWidth={2} /> }] : []),
       // Free users: the page comparing the plans, with the button to ask for Pro
       ...(user && !isDemo && !isPro ? [{ value: 'pro', label: 'Pro', icon: <Crown size={16} strokeWidth={2} /> }] : []),
     ];
@@ -423,7 +422,7 @@ export default function MainPage() {
       );
     }
     return options;
-  }, [user, isDemo, isPro, hasExpenses, hasAccounts, hasHome, hasPortfolio, hasIncomes, hasLoans, hasCheques, hasSubscriptions, hasGoals]);
+  }, [user, isDemo, isPro, hasExpenses, hasAccounts, hasMarket, hasNewsFeature, hasExplore, hasReports, offered.join(), hasHome, hasPortfolio, hasIncomes, hasLoans, hasCheques, hasSubscriptions, hasGoals]);
 
 
   const {
@@ -549,7 +548,7 @@ export default function MainPage() {
             ) : (
               <FeatureOffer
                 feature="market"
-                title={t('صفحه‌ی نرخ و حباب مخصوص کاربران Pro است')}
+                name={t('صفحه‌ی نرخ و حباب')}
                 subtitle={t('بازار امروز را یک‌جا ببینید و صفحه‌ی اول را برای خودتان بچینید.')}
                 benefits={MARKET_BENEFITS}
               />
@@ -602,7 +601,7 @@ export default function MainPage() {
         {activeTab === 'news' && (hasNews ? <NewsPage /> : (
           <FeatureOffer
             feature="news"
-            title={t('اخبار بازار مخصوص کاربران Pro است')}
+            name={t('اخبار بازار')}
             subtitle={t('مهم‌ترین خبرهای ارز، طلا و اقتصاد را با تحلیل روز یک‌جا بخوانید.')}
             benefits={NEWS_BENEFITS}
           />
@@ -611,7 +610,7 @@ export default function MainPage() {
         {activeTab === 'reports' && (hasReports ? <ReportsPage /> : (
           <FeatureOffer
             feature="reports"
-            title={t('گزارش‌های سالانه مخصوص کاربران Pro است')}
+            name={t('گزارش‌های سالانه')}
             subtitle={t('درآمد، هزینه و سرمایه‌گذاری یک سال را یک‌جا ببینید.')}
             benefits={REPORTS_BENEFITS}
           />
@@ -620,7 +619,7 @@ export default function MainPage() {
         {activeTab === 'explore' && (hasExplore ? <ExplorePage /> : (
           <FeatureOffer
             feature="explore"
-            title={t('کاوش بازار مخصوص کاربران Pro است')}
+            name={t('کاوش بازار')}
             subtitle={t('هر دارایی بازار را جست‌وجو کنید و قیمت، اطلاعات و نمودارش را ببینید.')}
             benefits={EXPLORE_BENEFITS}
           />
