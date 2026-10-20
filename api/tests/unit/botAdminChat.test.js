@@ -73,6 +73,14 @@ describe('the admin link', () => {
     expect(calls).toHaveLength(0);
   });
 
+  it('once linked, another account taking the username over cannot link in the admin\'s place', async () => {
+    await handleBotUpdate(env, start(), { fetchFn: fakeApi().fetchFn });
+    const { fetchFn, calls } = fakeApi();
+    await handleBotUpdate(env, start({ id: 999, username: 'sina_admin' }, { id: 998, type: 'private' }), { fetchFn });
+    expect(await getBotConfig(env)).toMatchObject({ adminChatId: '555', adminUserId: '777' });
+    expect(calls).toHaveLength(0);
+  });
+
   it('a different username unlinks the previous admin', async () => {
     await handleBotUpdate(env, start(), { fetchFn: fakeApi().fetchFn });
     await saveBotConfig(env, { adminUsername: 'someone_else' });

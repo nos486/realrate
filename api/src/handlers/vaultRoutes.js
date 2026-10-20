@@ -26,7 +26,7 @@
  * Encryption is mandatory: the vault is never turned off (see lib/encryptionGate.js).
  */
 
-import { getAuthenticatedUser } from "../lib/auth.js";
+import { getAuthenticatedUser, assertRecentSignIn } from "../lib/auth.js";
 import {
   dbGetUserVault,
   dbSaveUserVault,
@@ -97,8 +97,8 @@ const RESET_LIMIT = { limit: 5, windowSec: 15 * 60 };
 /**
  * Forgotten passphrase: start over. Nothing encrypted can be recovered without it, so every
  * financial record of the account is deleted with the vault. A stolen session alone cannot do
- * it: an account with a password must give it (rate limited); a Google-only account is proven by
- * its sign-in. Demo sessions never reach here (demoGate).
+ * it: an account with a password must give it (rate limited); a Google-only account must have
+ * signed in moments ago (assertRecentSignIn). Demo sessions never reach here (demoGate).
  */
 export async function handleResetVault(request, env) {
   const user = await requireUser(request, env);
@@ -112,7 +112,8 @@ export async function handleResetVault(request, env) {
   }
 
   const account = await dbGetUserAuthById(env, userId);
-  if (account?.passwordHash) {
+  if (!account?.passwordHash) assertRecentSignIn(user);
+  else {
     const key = `vault-reset:${userId}`;
     const { limited } = await getRateLimitState(env, key, RESET_LIMIT);
     if (limited) throw new AppError("تعداد تلاش‌ها بیش از حد مجاز است. لطفاً چند دقیقه دیگر دوباره تلاش کنید.", 429, "TOO_MANY_REQUESTS");

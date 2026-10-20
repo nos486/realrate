@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('../../src/lib/auth.js', () => ({
+vi.mock('../../src/lib/auth.js', async (importOriginal) => ({
+  ...(await importOriginal()),
   getAuthenticatedUser: vi.fn(),
   isUserAdmin: (email) => email === 'admin@example.com',
   readSessionToken: (request) => (request.headers.get('Authorization') || '').replace(/^Bearer\s+/, '').trim() || null,
@@ -214,12 +215,20 @@ describe('email/password accounts', () => {
     const authed = (body) => post('/api/auth/password', body, { Authorization: 'Bearer cur_token' });
 
     it('lets a Google account add its first password without a current one', async () => {
-      getAuthenticatedUser.mockResolvedValue({ userId: 'g_1' });
+      getAuthenticatedUser.mockResolvedValue({ userId: 'g_1', createdAt: new Date().toISOString() });
       repo.dbGetUserAuthById.mockResolvedValue(account({ id: 'g_1', passwordHash: '' }));
       const res = await handleSetPassword(authed({ newPassword: 'fresh1234' }), env);
       expect(res.status).toBe(200);
       expect(repo.dbSetUserPassword.mock.calls[0][1]).toBe('g_1');
       expect(repo.dbDeleteUserSessions).toHaveBeenCalledWith(env, 'g_1', { exceptToken: 'cur_token' });
+    });
+
+    it('a Google account adds its first password only within minutes of signing in', async () => {
+      getAuthenticatedUser.mockResolvedValue({ userId: 'g_1', createdAt: new Date(Date.now() - 3600_000).toISOString() });
+      repo.dbGetUserAuthById.mockResolvedValue(account({ id: 'g_1', passwordHash: '' }));
+      await expect(handleSetPassword(authed({ newPassword: 'fresh1234' }), env))
+        .rejects.toMatchObject({ statusCode: 403, code: 'REAUTH_REQUIRED' });
+      expect(repo.dbSetUserPassword).not.toHaveBeenCalled();
     });
 
     it('requires the current password to change an existing one', async () => {
@@ -258,9 +267,12 @@ describe('email/password accounts', () => {
       expect(repo.dbDeleteUserAccount).toHaveBeenCalledWith(env, 'usr_1');
     });
 
-    it('a Google-only account needs no password, but the confirmation', async () => {
-      getAuthenticatedUser.mockResolvedValue({ userId: 'g_1', email: 'g@example.com' });
+    it('a Google-only account needs no password, but the confirmation and a recent sign-in', async () => {
+      getAuthenticatedUser.mockResolvedValue({ userId: 'g_1', email: 'g@example.com', createdAt: new Date(Date.now() - 86400_000).toISOString() });
       repo.dbGetUserAuthById.mockResolvedValue(account({ id: 'g_1', passwordHash: '' }));
+      await expect(handleDeleteAccount(del({ confirm: ACCOUNT_DELETE_CONFIRM }), env)).rejects.toMatchObject({ code: 'REAUTH_REQUIRED' });
+      expect(repo.dbDeleteUserAccount).not.toHaveBeenCalled();
+      getAuthenticatedUser.mockResolvedValue({ userId: 'g_1', email: 'g@example.com', createdAt: new Date().toISOString() });
       await expect(handleDeleteAccount(del({}), env)).rejects.toMatchObject({ code: 'CONFIRM_REQUIRED' });
       await handleDeleteAccount(del({ confirm: ACCOUNT_DELETE_CONFIRM }), env);
       expect(repo.dbDeleteUserAccount).toHaveBeenCalledWith(env, 'g_1');

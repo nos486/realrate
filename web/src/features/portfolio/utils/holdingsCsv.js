@@ -13,6 +13,7 @@
 import { parseInputNumber, resolveAssetDisplayName } from './holdingHelpers.js';
 import { CANONICAL_ASSET_REGISTRY } from '../../../utils/financialSpecs.js';
 import { t } from '../../../utils/i18n.js';
+import { escapeCsvField, parseCsvText } from '../../../shared/utils/csv.js';
 
 // CSV files keep Persian column titles and labels: a stable interchange format that older exports and imports rely on
 const KIND_LABEL = { buy: 'خرید', holding: 'موجودی', sell: 'فروش', spend: 'پرداخت هزینه' }; // i18n-ignore
@@ -37,10 +38,6 @@ export const LEDGER_HEADERS = [
   'مقدار دارایی مرجع', // i18n-ignore
 ];
 
-const escapeCSV = (val) => {
-  if (val === null || val === undefined) return '""';
-  return `"${String(val).replace(/"/g, '""')}"`;
-};
 
 /**
  * The portfolio as CSV text (UTF-8 BOM, CRLF rows): every entry of every asset's ledger
@@ -83,10 +80,10 @@ export function buildHoldingsCsv(assets = []) {
         hasReference ? resolveAssetDisplayName(record.referenceAssetId) : '',
         hasReference ? record.referenceAssetId : '',
         hasReference ? record.referenceQuantity : '',
-      ].map(escapeCSV).join(','));
+      ].map(escapeCsvField).join(','));
     }
   }
-  return '\uFEFF' + [LEDGER_HEADERS.map(escapeCSV).join(','), ...rows].join('\r\n');
+  return '\uFEFF' + [LEDGER_HEADERS.map(escapeCsvField).join(','), ...rows].join('\r\n');
 }
 
 // Each field's column: this version's header first, then older versions'
@@ -121,63 +118,8 @@ const NAME_TO_ID = (() => {
   return map;
 })();
 
-// RFC4180-ish CSV parser: handles quoted fields, "" escaped quotes, and embedded newlines/commas.
-export function parseCsvText(text) {
-  const rows = [];
-  let row = [];
-  let field = '';
-  let inQuotes = false;
-  let i = 0;
-  const len = text.length;
-  while (i < len) {
-    const c = text[i];
-    if (inQuotes) {
-      if (c === '"') {
-        if (text[i + 1] === '"') {
-          field += '"';
-          i += 2;
-          continue;
-        }
-        inQuotes = false;
-        i += 1;
-        continue;
-      }
-      field += c;
-      i += 1;
-      continue;
-    }
-    if (c === '"') {
-      inQuotes = true;
-      i += 1;
-      continue;
-    }
-    if (c === ',') {
-      row.push(field);
-      field = '';
-      i += 1;
-      continue;
-    }
-    if (c === '\r') {
-      i += 1;
-      continue;
-    }
-    if (c === '\n') {
-      row.push(field);
-      rows.push(row);
-      row = [];
-      field = '';
-      i += 1;
-      continue;
-    }
-    field += c;
-    i += 1;
-  }
-  if (field.length > 0 || row.length > 0) {
-    row.push(field);
-    rows.push(row);
-  }
-  return rows;
-}
+// The shared parser (quoted fields, embedded commas/newlines, formula escapes undone)
+export { parseCsvText };
 
 export function buildRows(headerIndex, dataRows) {
   const get = (row, key) => {

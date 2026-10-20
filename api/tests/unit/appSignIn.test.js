@@ -21,7 +21,7 @@ vi.mock('../../src/repositories/index.js', () => ({
 
 import * as repo from '../../src/repositories/index.js';
 import { appChallengeOf, appAuthRedirect, isAppChallenge, appSignInPurpose } from '../../src/lib/appAuth.js';
-import { handleAppSignIn } from '../../src/handlers/accountRoutes.js';
+import { handleAppSignIn, handleWebSignIn, WEB_SIGNIN_PURPOSE } from '../../src/handlers/accountRoutes.js';
 import { handleGoogleLogin, handleGoogleCallback } from '../../src/handlers/authRoutes.js';
 
 // Challenge = base64url(SHA-256(verifier)), as Node's crypto computes it
@@ -112,5 +112,50 @@ describe('Android app Google sign-in', () => {
     await expect(handleAppSignIn(post({ code: 'code_123', verifier: 'x'.repeat(43) }), {})).rejects.toThrow();
     await expect(handleAppSignIn(post({ code: 'code_123', verifier: 'bad' }), {})).rejects.toThrow();
     expect(repo.dbSaveSession).not.toHaveBeenCalled();
+  });
+});
+
+describe('website Google sign-in', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('the callback redirects with a one-time code, never the session itself', async () => {
+    const state = btoa(JSON.stringify({ nonce: 'n1', returnTo: '/app', frontendOrigin: 'https://realrate.ir' }));
+    repo.dbGetUserAuthByEmail.mockResolvedValue(null);
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => (
+      String(url).includes('/token')
+        ? Response.json({ access_token: 'at' })
+        : Response.json({ sub: 'g_1', email: 'sara@example.com', email_verified: true, name: 'سارا' })
+    ));
+    try {
+      const res = await handleGoogleCallback(
+        new Request(`https://api.realrate.ir/api/auth/google/callback?code=c&state=${encodeURIComponent(state)}`, {
+          headers: { Cookie: `rr_oauth_verifier=${encodeURIComponent('verifier:n1')}` },
+        }),
+        { GOOGLE_CLIENT_ID: 'cid' },
+      );
+      expect(res.status).toBe(302);
+      const location = new URL(res.headers.get('Location'));
+      expect(location.origin).toBe('https://realrate.ir');
+      expect(location.searchParams.get('auth_code')).toBe('code_123');
+      expect(location.searchParams.has('auth_token')).toBe(false);
+      expect(res.headers.get('Set-Cookie') || '').not.toMatch(/realrate_session=/);
+      expect(res.headers.get('Referrer-Policy')).toBe('no-referrer');
+      expect(repo.dbCreateAuthToken).toHaveBeenCalledWith(expect.anything(), 'g_1', WEB_SIGNIN_PURPOSE, 120);
+      expect(repo.dbSaveSession).not.toHaveBeenCalled();
+    } finally {
+      fetchMock.mockRestore();
+    }
+  });
+
+  it('turns the code into a session once', async () => {
+    repo.dbConsumeAuthToken.mockResolvedValueOnce('usr_1').mockResolvedValue(null);
+    repo.dbGetUserAuthById.mockResolvedValue(account);
+    const res = await handleWebSignIn(post({ code: 'code_123' }), {});
+    expect(res.status).toBe(200);
+    expect((await res.json()).token).toBeTruthy();
+    expect(repo.dbConsumeAuthToken).toHaveBeenCalledWith({}, 'code_123', WEB_SIGNIN_PURPOSE);
+    await expect(handleWebSignIn(post({ code: 'code_123' }), {})).rejects.toMatchObject({ code: 'INVALID_TOKEN' });
+    await expect(handleWebSignIn(post({}), {})).rejects.toMatchObject({ code: 'INVALID_TOKEN' });
+    expect(repo.dbSaveSession).toHaveBeenCalledTimes(1);
   });
 });

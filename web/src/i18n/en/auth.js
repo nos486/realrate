@@ -95,4 +95,5 @@ export default {
   'خطا در ارتباط با سرور': 'Error contacting the server',
   'مرورگر برای ورود با گوگل باز نشد.': 'The browser could not be opened for Google sign-in.',
   'ورود با گوگل کامل نشد. دوباره تلاش کنید.': 'Google sign-in did not complete. Try again.',
+  'ورود دوباره با گوگل': 'Sign in with Google again',
 };

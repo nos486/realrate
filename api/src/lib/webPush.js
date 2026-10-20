@@ -8,6 +8,7 @@
 
 import { buildPushPayload } from '@block65/webcrypto-web-push';
 import { logger } from './logger.js';
+import { isPushServiceEndpoint } from '../domain/sealedPush.js';
 
 export function isWebPushConfigured(env) {
   return Boolean(env?.VAPID_PUBLIC_KEY && env?.VAPID_PRIVATE_KEY);
@@ -30,6 +31,11 @@ export async function sendWebPush(env, { subscription, data, ttl = 86400 }) {
   const sub = typeof subscription === 'string' ? JSON.parse(subscription) : subscription;
   if (!sub || !sub.endpoint || !sub.keys?.p256dh || !sub.keys?.auth) {
     return { success: false, error: 'Invalid subscription object' };
+  }
+  // Only a browser push service is ever posted to; a subscription saved before that check (or
+  // pointing anywhere else) is treated as gone, so the caller removes it
+  if (!isPushServiceEndpoint(sub.endpoint)) {
+    return { success: false, expired: true, error: 'Not a push service endpoint' };
   }
 
   const vapid = {

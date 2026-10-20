@@ -16,6 +16,33 @@ const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 export const DEVICE_ID_RE = /^[a-zA-Z0-9_\-.]{8,64}$/;
 const PUSH_KINDS = REMINDER_KINDS;
 const PUSH_REASONS = ['due', 'overdue'];
+/**
+ * The browsers' push services a subscription's endpoint may point at (a host or a parent domain):
+ * the server posts to that URL, so anything else (an internal address, someone's own server) is
+ * refused. Chrome / Opera / Samsung / Brave: FCM; Firefox: Mozilla autopush; Safari: Apple; Edge:
+ * Windows Push Notification Services. A new browser's service is a row here.
+ */
+export const PUSH_SERVICE_HOSTS = [
+  'fcm.googleapis.com',
+  'android.googleapis.com',
+  'push.services.mozilla.com',
+  'push.apple.com',
+  'notify.windows.com',
+];
+
+/** Whether `endpoint` is an https URL on one of PUSH_SERVICE_HOSTS (default port, no credentials) */
+export function isPushServiceEndpoint(endpoint) {
+  let url;
+  try {
+    url = new URL(endpoint);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== 'https:' || url.port || url.username || url.password) return false;
+  const host = url.hostname.toLowerCase();
+  return PUSH_SERVICE_HOSTS.some((domain) => host === domain || host.endsWith(`.${domain}`));
+}
+
 /** Each lead day has its own reason ("lead:3", "lead:1"): one row per notification */
 const LEAD_REASON_RE = /^lead:([1-9]|[12]\d|30)$/;
 
@@ -171,7 +198,7 @@ export function validatePushSubscriptionInput(input) {
   }
 
   const endpoint = String(sub.endpoint || '').trim();
-  if (!endpoint || !endpoint.startsWith('https://') || endpoint.length > 1024) {
+  if (!endpoint || endpoint.length > 1024 || !isPushServiceEndpoint(endpoint)) {
     return { error: t('آدرس اشتراک اعلان (endpoint) نامعتبر است.') };
   }
 

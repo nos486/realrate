@@ -13,6 +13,7 @@ import { AlertBanner, Button } from '../../../shared/ui/index.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { setPassword } from '../api/authApi.js';
 import PasswordInput from './PasswordInput.jsx';
+import ReauthButton, { needsReauth } from './ReauthButton.jsx';
 import { PASSWORD_HINT, checkNewPassword } from './passwordRules.js';
 
 export default function PasswordSettingsSection() {
@@ -48,7 +49,7 @@ export default function PasswordSettingsSection() {
       reset();
       setOpen(false);
     } catch (err) {
-      setMsg({ type: 'error', text: err.message || t('ذخیره رمز عبور ناموفق بود.') });
+      setMsg({ type: 'error', text: err.message || t('ذخیره رمز عبور ناموفق بود.'), reauth: needsReauth(err) });
     } finally {
       setBusy(false);
     }
@@ -71,7 +72,7 @@ export default function PasswordSettingsSection() {
         {' '}{t('این رمز با رمز «رمزنگاری سرتاسری» جداست.')}
       </p>
 
-      {msg && <AlertBanner type={msg.type} message={msg.text} onClose={() => setMsg(null)} />}
+      {msg && <AlertBanner type={msg.type} message={msg.text} action={msg.reauth ? <ReauthButton /> : null} onClose={() => setMsg(null)} />}
 
       {open ? (
         <form className="auth-form" onSubmit={submit} noValidate>

@@ -46,7 +46,7 @@ Errors share one shape: `{ success: false, message, error: { code, message } }` 
 | `GET` | `/api/news` | Market news picked from Telegram channels and international (English) RSS/Atom feeds, newest first: `{ items: [{ id, channel, channelTitle, postId, url, title, summary, text, category, importance (1–3), image, publishedAt (ms), source ('telegram'\|'world'), ai }], hasMore, categories }`. A `world` item's `title`/`summary` are the model's Persian; `text` is the English original and `url` the article. `?limit` (≤ 50, default 20), `?page=<n>` (with `total`) or `?before=<publishedAt>`, `?category=currency\|gold\|metals\|oil\|bourse\|economy\|crypto`, `?important=1` (importance ≥ 2), `?source=world\|telegram`. Cached 30 s. Filled by the minute cron (`services/news/news.service.js`) |
 | `GET` | `/api/news/today` | `{ analysis, top, week }`: the day's analysis written by Workers AI from the day's news (`{ title, summary, drivers, points, risk, at, newsCount }`, or null) and today's most important items. Cached 30 s |
 | `GET` | `/api/widget` | The Android home-screen widgets' feed: `{ updatedAt, prices: [{ id, name, unit, price, currency, priceUsd, changePct }], news (the AI-picked ones only): [{ id, title, category, categoryLabel, importance, publishedAt }], analysis: { title, summary, at }\|null, defaultIds }`. `?ids=usd,gold_18k` (≤ 6 book ids, in that order; the default favourites without it). A dollar-priced asset's `price` is its dollar price. Cached at the edge: prices 60 s, the news and analysis (the only D1 reads, shared by every list of favourites) 3 min |
-| `GET` / `POST` | `/api/v1/portfolio/shared` | Retrieve a publicly shared portfolio (`?slug=...`; a share password is accepted only in a `POST` body `{ slug, password }`) |
+| `GET` / `POST` | `/api/v1/portfolio/shared` | Retrieve a publicly shared portfolio (`?slug=...`; a share password is accepted only in a `POST` body `{ slug, password }`). Before the password the answer is only `{ requirePassword: true }` with the slug: no owner or portfolio name |
 
 #### Unified Market Items Schema (`/api/v1/market/items`)
 Returns all active assets and market rates normalized through the centralized `displayEngine`:
@@ -77,7 +77,7 @@ Returns all active assets and market rates normalized through the centralized `d
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
 | `GET` | `/api/v1/auth/google/login` | Initiate Google OAuth redirect |
-| `GET` | `/api/v1/auth/google/callback` | OAuth2 redirect callback receiver |
+| `GET` | `/api/v1/auth/google/callback` | OAuth2 redirect callback receiver. The site gets `?auth_code=` (one-time, 2 minutes), never the session; the Android app gets its own code (see below) |
 | `POST` | `/api/v1/auth/google` | Exchange Google OAuth ID token for session |
 | `GET` | `/api/v1/auth/me` | Current authenticated session details |
 | `POST` | `/api/v1/auth/logout` | Invalidate current session cookie |
@@ -85,11 +85,12 @@ Returns all active assets and market rates normalized through the centralized `d
 | `POST` | `/api/v1/auth/verify-email` | `{ token }` from the link → verifies the address and returns `{ token, user }` |
 | `POST` | `/api/v1/auth/verify-email/resend` | `{ email }` — send the verification link again |
 | `POST` | `/api/v1/auth/login` | `{ email, password }` → `{ token, user }`; `401 INVALID_CREDENTIALS`, `403 EMAIL_NOT_VERIFIED` |
+| `POST` | `/api/v1/auth/web/signin` | Site Google sign-in: `{ code }` (the callback's `auth_code`) → `{ token, user }`; `400 INVALID_TOKEN` once used or expired |
 | `POST` | `/api/v1/auth/app/signin` | Android app Google sign-in: `{ code, verifier }` → `{ token, user }`; `400 INVALID_TOKEN` (see docs/ANDROID.md) |
 | `POST` | `/api/v1/auth/password/forgot` | `{ email }` — email a reset link (also how a Google account adds a password) |
 | `POST` | `/api/v1/auth/password/reset` | `{ token, password }` → sets it, verifies the address, signs out other sessions, returns `{ token, user }` |
-| `POST` | `/api/v1/auth/password` | Signed in: `{ newPassword, currentPassword? }` — add a first password or change it (other sessions are signed out) |
-| `POST` | `/api/v1/auth/account/delete` | Signed in: deletes the account and **everything it owns** (sessions, vault and encrypted records, portfolios, reminders, push subscriptions, group memberships). `{ confirm: "DELETE_ACCOUNT", password }` — `password` required when the account has one (`400 INVALID_PASSWORD`, rate limited); not for the demo account or an admin (`403`) |
+| `POST` | `/api/v1/auth/password` | Signed in: `{ newPassword, currentPassword? }` — add a first password or change it (other sessions are signed out). A Google-only account (no password) must have signed in within the last 10 minutes, else `403 REAUTH_REQUIRED` (the client offers to sign in with Google again). |
+| `POST` | `/api/v1/auth/account/delete` | Signed in: deletes the account and **everything it owns** (sessions, vault and encrypted records, portfolios, reminders, push subscriptions, group memberships). `{ confirm: "DELETE_ACCOUNT", password }` — `password` required when the account has one (`400 INVALID_PASSWORD`, rate limited); not for the demo account or an admin (`403`). A Google-only account (no password) must have signed in within the last 10 minutes, else `403 REAUTH_REQUIRED` (the client offers to sign in with Google again). |
 | `POST` | `/api/v1/auth/demo` | Public: create a short-lived `demo_view` session (2 hours) for the unique demo account (`users.is_demo = 1`); returns `{ token, user }`. Rate-limited per IP. |
 
 Passwords: at least 8 characters with letters and digits, stored as PBKDF2-SHA256 (100,000 rounds).
@@ -208,7 +209,7 @@ custom banks, vault records) returns `403 ENCRYPTION_REQUIRED`. Portfolio data m
 | :--- | :--- | :--- |
 | `GET` | `/api/v1/vault` | The account vault `{ salt, wrappedKey, version }` or `null` (a new account, before it sets one up) |
 | `PUT` | `/api/v1/vault` | Turn on, or re-wrap after a passphrase change (`previousWrappedKey` required; `409` on mismatch) |
-| `POST` | `/api/v1/vault/reset` | Forgotten passphrase: deletes the vault and **all** the user's financial data (portfolios, custom banks, every vault record, tombstones and reminders). `{ confirm: "RESET_ALL_DATA", password }` — `password` is the account password, required when the account has one (`400 INVALID_PASSWORD`, rate limited); not for the demo account. Sign-in and the home layout stay |
+| `POST` | `/api/v1/vault/reset` | Forgotten passphrase: deletes the vault and **all** the user's financial data (portfolios, custom banks, every vault record, tombstones and reminders). `{ confirm: "RESET_ALL_DATA", password }` — `password` is the account password, required when the account has one (`400 INVALID_PASSWORD`, rate limited); not for the demo account. A Google-only account (no password) must have signed in within the last 10 minutes, else `403 REAUTH_REQUIRED` (the client offers to sign in with Google again). Sign-in and the home layout stay |
 | `GET` | `/api/v1/vault/records/:kind` | Encrypted records of `loan`, `income`, `cheque`, `recurring_income` (older records only: fixed incomes were removed), `holding`, `transaction`, `portfolio_layout`, `risk_profile`, `expense_group`, `expense`, `bank_account`, `transfer`, `category_settings`, `subscription`, `goal`, `salary_month` or `dashboard_layout` (`expense_group` and `expense` only with the `expenses` feature, `bank_account` and `transfer` only with `bank_accounts`, else `404`) — newest date first. Filters on the plaintext metadata only: `?from`, `?to` (inclusive `YYYY-MM-DD`), `?parent`, `?undated=1` (date missing or not yet Gregorian); `?order=asc\|desc`; with `?limit` (1–200) and `?offset` one page plus `total` |
 | `PUT` | `/api/v1/vault/records/:kind/:id` | Create/replace a record (`{ payload, recordDate, parentId, vaultEpoch, reminder? }` — `recordDate` (`YYYY-MM-DD`) and `parentId` (portfolio for `holding`/`transaction`/`portfolio_layout`/`risk_profile`, required; section for `expense`, required) are plaintext; optional `reminder` for `loan`, `cheque` or `subscription` upserts or deletes the plaintext reminder index row in the same batch; `vaultEpoch`, the vault's `createdAt` the record was encrypted for, is refused with `409 VAULT_CHANGED` after a reset) |
 | `DELETE` | `/api/v1/vault/records/:kind/:id` | Delete a record (also deletes its reminder row in the same batch) |
@@ -223,7 +224,7 @@ custom banks, vault records) returns `403 ENCRYPTION_REQUIRED`. Portfolio data m
 | `PUT` | `/api/alerts/email` | Update preferences (`{ enabled, sources, leadDays, sendOverdue, includeChequeDirection }`). Disabling `includeChequeDirection` immediately clears stored cheque directions |
 | `POST` | `/api/alerts/email/test` | Send a sample reminder digest email to user's verified address. Strictly rate-limited (3 per hour) |
 | `GET` | `/api/alerts/push/vapid-key` | Get public VAPID key and push provider configuration status: `{ success: true, vapidPublicKey, configured }` |
-| `POST` | `/api/alerts/push/subscription` | Register/update browser Web Push subscription: `{ deviceId, subscription: { endpoint, keys: { p256dh, auth } } }` |
+| `POST` | `/api/alerts/push/subscription` | Register/update browser Web Push subscription: `{ deviceId, subscription: { endpoint, keys: { p256dh, auth } } }`; `endpoint` must be a browser push service (`PUSH_SERVICE_HOSTS` in `domain/sealedPush.js`: FCM, Mozilla, Apple, Windows) |
 | `DELETE` | `/api/alerts/push/subscription/:deviceId` | Remove push subscription and scheduled reminders for device |
 | `PUT` | `/api/alerts/push/reminders` | Upload sealed push reminders for device: `{ deviceId, items: [{ kind, recordId, dueDate, reason, fireDate, sealed }] }` |
 | `POST` | `/api/alerts/push/test` | Send immediate test Web Push notification with opaque sealed payload. Rate-limited (5 per hour) |

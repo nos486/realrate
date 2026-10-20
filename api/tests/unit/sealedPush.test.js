@@ -273,6 +273,15 @@ describe('Sealed Web Push (Part C)', () => {
 
       // Invalid endpoint
       expect(validatePushSubscriptionInput({ ...validSub, subscription: { ...validSub.subscription, endpoint: 'http://insecure' } }).error).toBeTruthy();
+      // Only the browsers' push services: never an internal or arbitrary host the server would post to
+      for (const endpoint of ['https://evil.example/hook', 'https://169.254.169.254/latest', 'https://fcm.googleapis.com.evil.io/x',
+        'https://fcm.googleapis.com:8443/x', 'https://user:pw@fcm.googleapis.com/x']) {
+        expect(validatePushSubscriptionInput({ ...validSub, subscription: { ...validSub.subscription, endpoint } }).error).toBeTruthy();
+      }
+      for (const endpoint of ['https://updates.push.services.mozilla.com/wpush/v2/a', 'https://web.push.apple.com/Q1',
+        'https://wns2-par02p.notify.windows.com/w/?token=x']) {
+        expect(validatePushSubscriptionInput({ ...validSub, subscription: { ...validSub.subscription, endpoint } }).value).toBeTruthy();
+      }
       // Missing keys
       expect(validatePushSubscriptionInput({ ...validSub, subscription: { endpoint: 'https://fcm.googleapis.com' } }).error).toBeTruthy();
       // Bad deviceId
@@ -388,7 +397,7 @@ describe('Sealed Web Push (Part C)', () => {
       const userId = 'u_200';
       const deviceId = 'dev_22222222';
       const sub = {
-        endpoint: 'https://push.example.com/send/1',
+        endpoint: 'https://fcm.googleapis.com/fcm/send/1',
         keys: { p256dh: 'k', auth: 'a' },
       };
 
@@ -439,7 +448,7 @@ describe('Sealed Web Push (Part C)', () => {
       const userId = 'u_300';
       const deviceId = 'dev_expired_99';
       const sub = {
-        endpoint: 'https://push.example.com/expired',
+        endpoint: 'https://fcm.googleapis.com/fcm/send/expired',
         keys: { p256dh: 'k', auth: 'a' },
       };
 

@@ -19,6 +19,7 @@ import AlertBanner from '../ui/AlertBanner.jsx';
 import { useFeedback } from '../ui/FeedbackProvider.jsx';
 import { useAuth } from '../../features/auth/context/AuthContext.jsx';
 import PasswordInput from '../../features/auth/components/PasswordInput.jsx';
+import ReauthButton, { needsReauth } from '../../features/auth/components/ReauthButton.jsx';
 import { isNativeApp } from '../native/nativeApp.js';
 import { resetAccountVault } from './vaultStore.js';
 import { t } from '../../utils/i18n.js';
@@ -43,6 +44,7 @@ export default function VaultResetSection() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [reauth, setReauth] = useState(false);
 
   useEffect(() => {
     if (fromUnlock) ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -55,6 +57,7 @@ export default function VaultResetSection() {
     setPhrase('');
     setPassword('');
     setError('');
+    setReauth(false);
   };
 
   const handleReset = async (e) => {
@@ -62,6 +65,7 @@ export default function VaultResetSection() {
     if (!confirmed || busy) return;
     setBusy(true);
     setError('');
+    setReauth(false);
     try {
       await resetAccountVault({ password: hasPassword ? password : undefined });
       // The fingerprint unlock held the old key
@@ -71,6 +75,7 @@ export default function VaultResetSection() {
       setTimeout(() => window.location.replace('/'), 1500);
     } catch (err) {
       setError(err.message || t('بازنشانی انجام نشد.'));
+      setReauth(needsReauth(err));
     } finally {
       setBusy(false);
     }
@@ -105,7 +110,7 @@ export default function VaultResetSection() {
             </div>
           </div>
 
-          {error && <AlertBanner type="error" message={error} onClose={() => setError('')} />}
+          {error && <AlertBanner type="error" message={error} action={reauth ? <ReauthButton /> : null} onClose={() => setError('')} />}
 
           <Input
             id="vault-reset-phrase"

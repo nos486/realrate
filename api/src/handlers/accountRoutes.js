@@ -6,6 +6,8 @@
  *   POST /api/auth/verify-email             — Use the link's token; signs the user in
  *   POST /api/auth/verify-email/resend      — Send the verification link again
  *   POST /api/auth/login                    — Email + password (only verified addresses)
+ *   POST /api/auth/web/signin               — The site finishes Google sign-in: its one-time code
+ *                                             (from the callback's redirect) becomes a session
  *   POST /api/auth/password/forgot          — Email a password-reset link (also lets a Google
  *                                             user add a password without being signed in)
  *   POST /api/auth/password/reset           — Set a new password with the link's token
@@ -18,7 +20,7 @@
  */
 
 import { assertNotMaintenance } from "../lib/maintenance.js";
-import { getAuthenticatedUser, isUserAdmin, readSessionToken } from "../lib/auth.js";
+import { getAuthenticatedUser, isUserAdmin, readSessionToken, assertRecentSignIn } from "../lib/auth.js";
 import {
   dbGetUserAuthByEmail,
   dbGetUserAuthById,
@@ -312,6 +314,29 @@ export async function handleAppSignIn(request, env) {
   return signIn(request, env, account, "ورود موفقیت‌آمیز بود.");
 }
 
+/** The one-time code the site's Google sign-in ends with (auth_tokens purpose; lifetime in seconds) */
+export const WEB_SIGNIN_PURPOSE = "web_signin";
+export const WEB_SIGNIN_CODE_TTL = 120;
+
+/**
+ * POST /api/auth/web/signin — The site finishes Google sign-in: the one-time code the callback
+ * put in its redirect (instead of the session, which must not sit in a URL) becomes a session
+ */
+export async function handleWebSignIn(request, env) {
+  const body = await readJson(request);
+  const code = typeof body.code === "string" ? body.code : "";
+  const ip = getClientIp(request);
+  await enforceLimit(env, `login-ip:${ip}`, LIMITS.loginIp);
+
+  const userId = code ? await dbConsumeAuthToken(env, code, WEB_SIGNIN_PURPOSE) : null;
+  const account = userId ? await dbGetUserAuthById(env, userId) : null;
+  if (!account) {
+    await recordRateLimitHit(env, `login-ip:${ip}`, LIMITS.loginIp);
+    throw AppError.badRequest("ورود با گوگل کامل نشد یا منقضی شده است. دوباره تلاش کنید.", "INVALID_TOKEN");
+  }
+  return signIn(request, env, account, "ورود موفقیت‌آمیز بود.");
+}
+
 export async function handleForgotPassword(request, env) {
   const body = await readJson(request);
   const email = parseEmail(body.email);
@@ -352,8 +377,10 @@ export async function handleSetPassword(request, env) {
   const password = parseNewPassword(body.newPassword);
 
   // Changing an existing password needs the current one; a Google account adding its first
-  // password is already proven by its Google sign-in
-  if (account.passwordHash) {
+  // password must have signed in with Google moments ago (a stolen session would otherwise
+  // become a password of the thief's)
+  if (!account.passwordHash) assertRecentSignIn(user);
+  else {
     await enforceLimit(env, `pwchange:${userId}`, LIMITS.passwordChange);
     if (!(await verifyPassword(String(body.currentPassword ?? ""), account.passwordHash))) {
       await recordRateLimitHit(env, `pwchange:${userId}`, LIMITS.passwordChange);
@@ -381,8 +408,8 @@ const DELETE_LIMIT = { limit: 5, windowSec: 15 * 60 };
 
 /**
  * Delete the signed-in account and everything it owns. A stolen session alone cannot do it: an
- * account with a password must give it (rate limited); a Google-only account is proven by its
- * sign-in. The demo account and admins (who are named in the deployment's settings) cannot be
+ * account with a password must give it (rate limited); a Google-only account must have signed in
+ * moments ago (assertRecentSignIn). The demo account and admins (who are named in the deployment's settings) cannot be
  * deleted from here.
  */
 export async function handleDeleteAccount(request, env) {
@@ -402,7 +429,8 @@ export async function handleDeleteAccount(request, env) {
 
   const account = await dbGetUserAuthById(env, userId);
   if (!account) throw AppError.unauthorized();
-  if (account.passwordHash) {
+  if (!account.passwordHash) assertRecentSignIn(user);
+  else {
     const key = `account-delete:${userId}`;
     await enforceLimit(env, key, DELETE_LIMIT);
     if (!(await verifyPassword(String(body.password ?? ""), account.passwordHash))) {

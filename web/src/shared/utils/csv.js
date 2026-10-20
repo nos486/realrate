@@ -37,7 +37,7 @@ export function parseCsvText(text) {
       continue;
     }
     if (c === ',') {
-      row.push(field);
+      row.push(unescapeCsvFormula(field));
       field = '';
       i += 1;
       continue;
@@ -47,7 +47,7 @@ export function parseCsvText(text) {
       continue;
     }
     if (c === '\n') {
-      row.push(field);
+      row.push(unescapeCsvFormula(field));
       rows.push(row);
       row = [];
       field = '';
@@ -58,16 +58,32 @@ export function parseCsvText(text) {
     i += 1;
   }
   if (field.length > 0 || row.length > 0) {
-    row.push(field);
+    row.push(unescapeCsvFormula(field));
     rows.push(row);
   }
   return rows;
 }
 
+/** A text a spreadsheet would run as a formula (=, +, -, @, tab, carriage return first) */
+const FORMULA_START_RE = /^[=+\-@\t\r]/;
+/** A plain number written as text ("-12.5", "+3", "-۱۲") is data, not a formula */
+const NUMBER_TEXT_RE = /^[+-]?[\d\u06F0-\u06F9.,٫٬]+%?$/;
+
+/**
+ * One quoted CSV field. A text that Excel or Sheets would run as a formula (e.g. an asset name
+ * "=HYPERLINK(…)" in a portfolio someone shared) gets a leading apostrophe, so it shows as text;
+ * numbers stay as they are. parseCsvText takes the apostrophe off again on import.
+ */
 export function escapeCsvField(val) {
   if (val === null || val === undefined) return '""';
-  const str = String(val).replace(/"/g, '""');
-  return `"${str}"`;
+  let str = String(val);
+  if (typeof val !== 'number' && FORMULA_START_RE.test(str) && !NUMBER_TEXT_RE.test(str)) str = `'${str}`;
+  return `"${str.replace(/"/g, '""')}"`;
+}
+
+/** A field as written, without the apostrophe escapeCsvField put before a formula-like text */
+export function unescapeCsvFormula(field) {
+  return /^'[=+\-@\t\r]/.test(field) ? field.slice(1) : field;
 }
 
 /** Builds a full CSV string (with UTF-8 BOM) from a header list and array of row arrays. */

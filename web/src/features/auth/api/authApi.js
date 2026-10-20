@@ -15,6 +15,11 @@ export function appSignIn(code, verifier) {
   return httpClient.post('/api/auth/app/signin', { code, verifier });
 }
 
+/** The site finishes Google sign-in: the one-time code of the callback's redirect → `{ token, user }` */
+export function webSignIn(code) {
+  return httpClient.post('/api/auth/web/signin', { code }, { silent: true });
+}
+
 export async function getMe() {
   return httpClient.get('/api/auth/me');
 }

@@ -23,7 +23,7 @@ import {
 } from "../repositories/index.js";
 import { CLIENT_HEADER, parseClientHeader } from "../domain/clientInfo.js";
 import { getDemoVaultPassphrase, DEMO_EMAIL } from "../repositories/demo.repository.js";
-import { ACCOUNT_DISABLED_MESSAGE } from "./accountRoutes.js";
+import { ACCOUNT_DISABLED_MESSAGE, WEB_SIGNIN_PURPOSE, WEB_SIGNIN_CODE_TTL } from "./accountRoutes.js";
 import { getMaintenance } from "../lib/maintenance.js";
 import { jsonResponse, errorResponse, getCorsHeaders, safeWaitUntil } from "../lib/helpers.js";
 import { logger } from "../lib/logger.js";
@@ -343,36 +343,15 @@ export async function handleGoogleCallback(request, env) {
       return Response.redirect(appAuthRedirect({ code: appCode }, appScheme), 302);
     }
 
-    // 2. Create 30-day session
-    const sessionToken = crypto.randomUUID();
-    const sessionData = {
-      token: sessionToken,
-      userId: userData.id,
-      email: userData.email,
-      name: userData.name,
-      picture: userData.picture,
-      role: userData.role,
-      createdAt: now,
-    };
-    await dbSaveSession(env, sessionData, SESSION_TTL_SECONDS);
-
-    const sessionCookie = `realrate_session=${sessionToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${SESSION_COOKIE_MAX_AGE}`;
-    const clearVerifierCookie = `rr_oauth_verifier=; Path=/api/auth/google; HttpOnly; Secure; SameSite=Lax; Max-Age=0`;
-
-    // 3. Redirect user to frontend with auth_token in URL query param
-    const successTarget = finishTarget({
-      auth_token: sessionToken,
-    });
-
+    // 2. The site gets a one-time code (WEB_SIGNIN_CODE_TTL), never the session itself: a URL
+    // ends up in access logs and browser history. The page redeems it (POST /api/auth/web/signin)
+    const webCode = await dbCreateAuthToken(env, userData.id, WEB_SIGNIN_PURPOSE, WEB_SIGNIN_CODE_TTL);
     const headers = new Headers();
-    headers.set("Location", successTarget);
-    headers.append("Set-Cookie", sessionCookie);
-    headers.append("Set-Cookie", clearVerifierCookie);
-
-    return new Response(null, {
-      status: 302,
-      headers,
-    });
+    headers.set("Location", finishTarget({ auth_code: webCode }));
+    headers.set("Cache-Control", "no-store");
+    headers.set("Referrer-Policy", "no-referrer");
+    headers.append("Set-Cookie", `rr_oauth_verifier=; Path=/api/auth/google; HttpOnly; Secure; SameSite=Lax; Max-Age=0`);
+    return new Response(null, { status: 302, headers });
   } catch (e) {
     logger.error("Error in handleGoogleCallback:", { error: e.message, stack: e.stack });
     const errorTarget = finishTarget({

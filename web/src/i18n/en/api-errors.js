@@ -245,4 +245,5 @@ export default {
   'سورس مورد نظر یافت نشد.': 'The source was not found.',
   'ذخیره‌سازی تنظیمات سورس در دسترس نیست.': 'Source settings storage is not available.',
   'سورس‌ها در کد (sources.config.js) تعریف می‌شوند؛ سورس جدید را آنجا اضافه کنید.': 'Sources are defined in code (sources.config.js); add a new source there.',
+  'برای امنیت حساب، این کار فقط تا چند دقیقه پس از ورود ممکن است. دوباره با گوگل وارد شوید و همین کار را تکرار کنید.': 'For your account\'s security, this is only possible within a few minutes of signing in. Sign in with Google again and repeat it.',
 };

@@ -2,7 +2,7 @@ import { t } from '../../../utils/i18n.js';
 import { clearAlerts } from '../../../shared/alerts/alertStore.js';
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getMe, googleLogin, logout as apiLogout, getGoogleLoginUrl, appSignIn } from '../api/authApi.js';
+import { getMe, googleLogin, logout as apiLogout, getGoogleLoginUrl, appSignIn, webSignIn } from '../api/authApi.js';
 import { setToken, getToken, HttpError, MAINTENANCE_EVENT } from '../../../shared/api/httpClient.js';
 import { APP_BASE, LANDING_PATH, AUTH_PATHS, isAppPath, rememberPostLoginPath, takePostLoginPath } from '../../../shared/routes.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
@@ -54,21 +54,17 @@ export function AuthProvider({ children }) {
   const navigate = useNavigate();
   const { toast } = useFeedback();
 
-  // On mount: check auth_token / auth_error from Google OAuth redirect, then check session
+  // On mount: redeem the one-time auth_code (or show auth_error) of a Google OAuth redirect, then check session
   useEffect(() => {
+    let authCode = null;
     try {
       if (typeof window !== 'undefined' && window.location.search) {
         const url = new URL(window.location.href);
-        const authToken = url.searchParams.get('auth_token');
+        authCode = url.searchParams.get('auth_code');
         const authError = url.searchParams.get('auth_error');
-
-        if (authToken) {
-          setToken(authToken);
-          url.searchParams.delete('auth_token');
-          const cleanSearch = url.searchParams.toString() ? `?${url.searchParams.toString()}` : '';
-          window.history.replaceState({}, document.title, url.pathname + cleanSearch + url.hash);
-        } else if (authError) {
-          toast.error(t('خطا در ورود با گوگل: {error}', { error: authError }), { duration: 8000 });
+        if (authCode || authError) {
+          if (!authCode) toast.error(t('خطا در ورود با گوگل: {error}', { error: authError }), { duration: 8000 });
+          url.searchParams.delete('auth_code');
           url.searchParams.delete('auth_error');
           const cleanSearch = url.searchParams.toString() ? `?${url.searchParams.toString()}` : '';
           window.history.replaceState({}, document.title, url.pathname + cleanSearch + url.hash);
@@ -78,7 +74,14 @@ export function AuthProvider({ children }) {
       console.error('Error handling auth URL parameters:', e);
     }
 
-    getMe()
+    // The code is good once and for two minutes; the session it brings replaces any older one
+    const redeemed = authCode
+      ? webSignIn(authCode)
+        .then((data) => { if (data?.token) setToken(data.token); })
+        .catch((err) => toast.error(err?.message || t('ورود با گوگل کامل نشد. دوباره تلاش کنید.'), { duration: 8000 }))
+      : Promise.resolve();
+
+    redeemed.then(() => getMe())
       .then((data) => {
         if (data?.maintenance) setMaintenance({ enabled: Boolean(data.maintenance.enabled), message: data.maintenance.message || '' });
         if (data && data.authenticated && data.user) {
