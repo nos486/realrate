@@ -25,8 +25,7 @@
 
 import { intlLocale, t } from '../../utils/i18n.js';
 import { smsEnabled } from './nativeApp.js';
-import { takeSmsRead } from './smsPlan.js';
-import { FREE_SMS_READS } from '../../config/planLimits.js';
+import { takeSmsRead, smsLimits } from './smsPlan.js';
 import { BankSms } from './nativePlugins.js';
 import { parseBankSms, nativeSmsRules } from '../../utils/bankSms.js';
 import { BANK_SMS_TEMPLATES } from '../../utils/bankSmsTemplates.js';
@@ -311,7 +310,7 @@ export function addSmsMessages(messages, { recheckRecorded = false } = {}) {
     if ([tx.fingerprint, tx.key].some((id) => handled.has(id) || known.has(id))) continue;
     // The free plan reads a few messages a day and a month: the rest stay in the phone's SMS
     if (!takeSmsRead()) {
-      window.dispatchEvent(new CustomEvent('realrate:plan-limit', { detail: { message: t('پلن رایگان روزی {daily} پیامک و ماهی {monthly} پیامک بانک را می‌خواند. برای خواندن بیشتر به Pro ارتقا دهید.', { daily: FREE_SMS_READS.daily.toLocaleString(intlLocale()), monthly: FREE_SMS_READS.monthly.toLocaleString(intlLocale()) }) } }));
+      window.dispatchEvent(new CustomEvent('realrate:plan-limit', { detail: { message: t('پلن رایگان روزی {daily} پیامک و ماهی {monthly} پیامک بانک را می‌خواند. برای خواندن بیشتر به Pro ارتقا دهید.', { daily: limitText(smsLimits().daily), monthly: limitText(smsLimits().monthly) }) } }));
       break;
     }
     known.add(tx.fingerprint);
@@ -525,4 +524,9 @@ export function startSmsAutoRead({ onOpenInbox } = {}) {
     stopped = true;
     handles.splice(0).forEach((h) => h.remove());
   };
+}
+
+/** A limit as text: the count, or «نامحدود» */
+function limitText(n) {
+  return n === null ? t('نامحدود') : n.toLocaleString(intlLocale());
 }

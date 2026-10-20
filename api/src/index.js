@@ -151,6 +151,9 @@ import {
   handleAdminAnswerRequest,
   handleAdminSaveFeatureRule,
   handleAdminResetFeatureRule,
+  handleAdminGetPlanLimits,
+  handleAdminSavePlanLimits,
+  handleAdminResetPlanLimits,
 } from "./handlers/groupRoutes.js";
 import { handleGetLatestAppRelease } from "./handlers/appUpdateRoutes.js";
 import {
@@ -309,6 +312,14 @@ async function handleRequest(request, env, ctx) {
     const key = adminFeatureMatch[1];
     if (request.method === "PUT")    return wrap((req, e) => handleAdminSaveFeatureRule(req, e, { key }))(request, env);
     if (request.method === "DELETE") return wrap((req, e) => handleAdminResetFeatureRule(req, e, { key }))(request, env);
+  }
+
+  if (normalizedPath === "/api/admin/plan-limits" && request.method === "GET") return wrap(handleAdminGetPlanLimits)(request, env);
+  const adminPlanLimitsMatch = normalizedPath.match(/^\/api\/admin\/plan-limits\/([a-z0-9_-]+)$/);
+  if (adminPlanLimitsMatch) {
+    const scope = adminPlanLimitsMatch[1];
+    if (request.method === "PUT")    return wrap((req, e) => handleAdminSavePlanLimits(req, e, { scope }))(request, env);
+    if (request.method === "DELETE") return wrap((req, e) => handleAdminResetPlanLimits(req, e, { scope }))(request, env);
   }
 
   // Admin Demo Management

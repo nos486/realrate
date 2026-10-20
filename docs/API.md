@@ -250,6 +250,9 @@ A feature can be open to every user or only to the members of some groups (rules
 | `POST` | `/api/v1/admin/groups/:id/requests/:userId` | Admin: `{ approve: true }` adds the member, `{ approve: false }` rejects |
 | `PUT` | `/api/v1/admin/features/:key` | Admin: `{ stage: "off"\|"beta"\|"ga", groups: [groupKey] }` (groups only with `ga`; empty = every user) → `{ features }` |
 | `DELETE` | `/api/v1/admin/features/:key` | Admin: back to the code's default → `{ features }` |
+| `GET` | `/api/v1/admin/plan-limits` | Admin: the editable limits (counts and quotas) → `{ catalog, free, groups, customized }` |
+| `PUT` | `/api/v1/admin/plan-limits/:scope` | Admin: `{ limits: { <key>: number\|null } }` for `free` or a group key (null = unlimited; a missing key = inherited) → the same view |
+| `DELETE` | `/api/v1/admin/plan-limits/:scope` | Admin: back to the code's defaults → the same view |
 
 `GET /api/v1/admin/users/detail` also returns `groups: [{ id, key, name, member }]` — every group, and whether the user is in it.
 

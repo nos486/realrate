@@ -10,7 +10,7 @@ import { MemoryRouter } from 'react-router-dom';
 const auth = vi.hoisted(() => ({ user: { groups: [] } }));
 vi.mock('../../../web/src/features/auth/index.js', () => ({ useAuth: () => ({ user: auth.user }) }));
 vi.mock('../../../web/src/shared/api/httpClient.js', () => ({
-  httpClient: { get: vi.fn(async () => ({ usage: { entries: { used: 12, limit: 30, period: 'month' }, cheques: { used: 0, limit: 0, period: 'total' } } })) },
+  httpClient: { get: vi.fn(async () => (auth.user?.groups?.includes('pro') ? { pro: true, usage: {}, limits: {} } : { pro: false, limits: {}, usage: { entries: { used: 12, limit: 30, period: 'month' }, cheques: { used: 0, limit: 0, period: 'total' } } })) },
 }));
 vi.mock('../../../web/src/shared/features/FeatureOffer.jsx', () => ({ default: () => <div>درخواست Pro</div> }));
 

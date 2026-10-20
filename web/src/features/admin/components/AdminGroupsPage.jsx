@@ -28,6 +28,9 @@ import {
   answerAdminGroupRequest,
   saveAdminFeatureRule,
   resetAdminFeatureRule,
+  getAdminPlanLimits,
+  saveAdminPlanLimits,
+  resetAdminPlanLimits,
 } from '../api/adminApi.js';
 import { faNum, formatDateTime } from '../utils/adminFormat.js';
 
@@ -385,6 +388,107 @@ function FeaturesCard({ features, groups, onSave, onReset }) {
   );
 }
 
+// ── Limits (counts and quotas) ─────────────────────────────────────────────
+
+const PERIOD_TEXT = { total: 'در کل', month: 'در ماه', day: 'در روز' };
+
+/** One scope's limits: an empty box keeps the inherited value, «نامحدود» removes the limit */
+function LimitsEditor({ scope, catalog, saved, isFree, customized, onSave, onReset }) {
+  // key → '' (inherited), 'unlimited', or the count as text
+  const toDraft = (limits) => Object.fromEntries(catalog.map((c) => [c.key, !(c.key in limits) ? '' : limits[c.key] === null ? 'unlimited' : String(limits[c.key])]));
+  const [draft, setDraft] = useState(() => toDraft(saved));
+  const [busy, setBusy] = useState(null);
+  const dirty = JSON.stringify(draft) !== JSON.stringify(toDraft(saved));
+
+  const run = async (action, fn) => {
+    setBusy(action);
+    try {
+      await fn();
+    } finally {
+      setBusy(null);
+    }
+  };
+  const save = () => {
+    const limits = {};
+    for (const c of catalog) {
+      const v = draft[c.key];
+      if (v === 'unlimited') limits[c.key] = null;
+      else if (v !== '') limits[c.key] = Number(v);
+    }
+    return onSave(scope, limits);
+  };
+
+  return (
+    <div className="admin-limits-editor">
+      <small>
+        {isFree
+          ? 'محدودیت کاربرانی که گروهی بازتر از آن ندارند. خالی بگذارید تا پیش‌فرض کد اعمال شود.'
+          : 'کاربر این گروه برای هر مورد، بازترین مقدار میان پلن رایگان و گروه‌های خودش را دارد. خالی بگذارید تا این گروه آن مورد را تغییر ندهد.'}
+      </small>
+      <ul className="admin-group-list">
+        {catalog.map((c) => {
+          const v = draft[c.key];
+          const unlimited = v === 'unlimited';
+          return (
+            <li key={c.key} className="admin-feature-row">
+              <div className="admin-group-main">
+                <strong>{c.label}<bdi className="admin-chip admin-mono">{c.key}</bdi></strong>
+                <small>{PERIOD_TEXT[c.period]} · پیش‌فرض {faNum(c.default)}</small>
+              </div>
+              <div className="admin-feature-controls">
+                <Input
+                  type="number"
+                  min="0"
+                  step="1"
+                  dir="ltr"
+                  aria-label={`${c.label} (${scope})`}
+                  placeholder={isFree ? String(c.default) : 'بدون تغییر'}
+                  value={unlimited ? '' : v}
+                  disabled={unlimited}
+                  onChange={(e) => setDraft((d) => ({ ...d, [c.key]: e.target.value.replace(/\D/g, '') }))}
+                />
+                <label className={`admin-chip-toggle ${unlimited ? 'is-on' : ''}`}>
+                  <input type="checkbox" checked={unlimited} onChange={(e) => setDraft((d) => ({ ...d, [c.key]: e.target.checked ? 'unlimited' : '' }))} />
+                  نامحدود
+                </label>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="admin-group-actions">
+        {dirty && <Button size="sm" disabled={Boolean(busy)} loading={busy === 'save'} onClick={() => run('save', save)}>ذخیره</Button>}
+        {customized && (
+          <Button size="sm" variant="ghost" icon={<RotateCcw size={14} />} disabled={Boolean(busy)} loading={busy === 'reset'} onClick={() => run('reset', () => onReset(scope))}>
+            پیش‌فرض
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function LimitsCard({ limits, groups, onSave, onReset }) {
+  const [scope, setScope] = useState('free');
+  const isFree = scope === 'free';
+  const saved = isFree ? limits.free : limits.groups[scope] || {};
+  const customized = isFree ? limits.customized.free : limits.customized.groups.includes(scope);
+  const scopes = [{ key: 'free', name: 'پلن رایگان' }, ...groups.map((g) => ({ key: g.key, name: g.name }))];
+  return (
+    <Card padding="lg" icon={<Crown size={18} />} title="محدودیت‌ها و سهمیه‌ها" subtitle="حداکثر تعداد حساب، وام، پیامک خوانده‌شده و ... برای پلن رایگان و هر گروه؛ سرور همین را اجرا می‌کند و اپ اندروید سهمیه‌ی پیامک را از آن می‌خواند.">
+      <div className="admin-feature-groups" role="tablist" aria-label="محدوده">
+        {scopes.map((o) => (
+          <button key={o.key} type="button" role="tab" aria-selected={scope === o.key} className={`admin-chip-toggle ${scope === o.key ? 'is-on' : ''}`} onClick={() => setScope(o.key)}>
+            {o.name}
+          </button>
+        ))}
+      </div>
+      {/* Starts over from the saved limits after each save */}
+      <LimitsEditor key={`${scope}:${JSON.stringify(saved)}`} scope={scope} catalog={limits.catalog} saved={saved} isFree={isFree} customized={customized} onSave={onSave} onReset={onReset} />
+    </Card>
+  );
+}
+
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function AdminGroupsPage() {
@@ -394,10 +498,13 @@ export default function AdminGroupsPage() {
   const [editing, setEditing] = useState(null); // {} for a new group
   const [membersOf, setMembersOf] = useState(null);
   const [busy, setBusy] = useState(null);
+  const [limits, setLimits] = useState(null);
 
   const load = useCallback(async () => {
     try {
-      setData(await getAdminGroups());
+      const [groupsData, limitsData] = await Promise.all([getAdminGroups(), getAdminPlanLimits()]);
+      setData(groupsData);
+      setLimits(limitsData);
       setError('');
     } catch (err) {
       setError(err.message || 'دریافت گروه‌ها ممکن نشد.');
@@ -449,6 +556,26 @@ export default function AdminGroupsPage() {
     }
   };
 
+  const saveLimits = async (scope, values) => {
+    try {
+      const { message, ...view } = await saveAdminPlanLimits(scope, values);
+      toast.success(message);
+      setLimits(view);
+    } catch (err) {
+      toast.error(err.message || 'ذخیره ممکن نشد.');
+    }
+  };
+
+  const resetLimits = async (scope) => {
+    try {
+      const { message, ...view } = await resetAdminPlanLimits(scope);
+      toast.success(message);
+      setLimits(view);
+    } catch (err) {
+      toast.error(err.message || 'انجام نشد.');
+    }
+  };
+
   const resetRule = async (key) => {
     try {
       const res = await resetAdminFeatureRule(key);
@@ -479,6 +606,7 @@ export default function AdminGroupsPage() {
             onDelete={removeGroup}
           />
           <FeaturesCard features={data.features} groups={data.groups} onSave={saveRule} onReset={resetRule} />
+          {limits && <LimitsCard limits={limits} groups={data.groups} onSave={saveLimits} onReset={resetLimits} />}
         </div>
       )}
 

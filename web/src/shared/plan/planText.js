@@ -4,8 +4,8 @@
  */
 
 import { intlLocale, t } from '../../utils/i18n.js';
-import { PLAN_LIMITS, FREE_SMS_READS } from '../../config/planLimits.js';
-import { smsFreeUsage } from '../native/smsPlan.js';
+import { PLAN_LIMITS } from '../../config/planLimits.js';
+import { smsFreeUsage, smsLimits } from '../native/smsPlan.js';
 
 const faNum = (n) => Number(n).toLocaleString(intlLocale());
 
@@ -28,11 +28,14 @@ const LABELS = { portfolios: t('پورتفو'), sms: t('پیامک خوانده�
 export function describeLimit(key, usage) {
   if (key === 'sms') {
     const sms = smsFreeUsage();
+    const limits = smsLimits();
+    if (limits.daily === null && limits.monthly === null) return null;
+    const show = (n) => (n === null ? t('نامحدود') : faNum(n));
     return t('پیامک: {daily} از {dailyLimit} امروز · {monthly} از {monthlyLimit} این ماه', {
       daily: faNum(sms.daily),
-      dailyLimit: faNum(FREE_SMS_READS.daily),
+      dailyLimit: show(limits.daily),
       monthly: faNum(sms.monthly),
-      monthlyLimit: faNum(FREE_SMS_READS.monthly),
+      monthlyLimit: show(limits.monthly),
     });
   }
   const label = LABELS[key] || (PLAN_LIMITS[key]?.label ? t(PLAN_LIMITS[key].label) : key);

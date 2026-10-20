@@ -39,6 +39,7 @@ export function validateGroup(body, { partial = false } = {}) {
     if (!isValidGroupKey(key)) {
       return { error: t('شناسه‌ی گروه باید با حرف انگلیسی شروع شود و فقط حروف کوچک انگلیسی، رقم، - و _ داشته باشد (۲ تا ۳۲ نویسه).') };
     }
+    if (key === 'free') return { error: t('شناسه‌ی «free» برای پلن رایگان رزرو است.') };
     value.key = key;
   }
   if (!partial || input.name !== undefined) {

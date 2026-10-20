@@ -17,6 +17,9 @@
  *   POST   /api/admin/groups/:id/requests/:userId      { approve: true } adds the member; false rejects
  *   PUT    /api/admin/features/:key                    { stage, groups } — who gets the feature
  *   DELETE /api/admin/features/:key                    back to the code's default
+ *   GET    /api/admin/plan-limits                      the limits (counts and quotas) of the free plan and of each group
+ *   PUT    /api/admin/plan-limits/:scope               { limits: { <key>: number|null } } — `free` or a group key
+ *   DELETE /api/admin/plan-limits/:scope               back to the code's defaults
  *
  * A change of groups or rules takes effect on the user's next request; the app re-reads its
  * features (GET /api/auth/me) when it opens and when it comes back to the foreground.
@@ -28,6 +31,8 @@ import { jsonResponse } from "../lib/helpers.js";
 import { FEATURES, mergeFeatureRules, validateFeatureRule } from "../config/features.js";
 import { hasFeature, loadFeatureOverrides, loadFeatureRules, saveFeatureOverrides, withUserGroups } from "../lib/features.js";
 import { validateGroup, cleanRequestNote } from "../domain/userGroups.js";
+import { LIMIT_CATALOG, mergePlanRules, cleanLimits } from "../config/planLimits.js";
+import { loadPlanOverrides, savePlanOverrides } from "../lib/planLimits.js";
 import {
   dbListGroups,
   dbGetGroup,
@@ -253,4 +258,58 @@ export async function handleAdminResetFeatureRule(request, env, { key }) {
   const { [key]: _removed, ...rest } = await loadFeatureOverrides(env);
   await saveFeatureOverrides(env, rest);
   return jsonResponse({ success: true, message: "دسترسی به پیش‌فرض برگشت.", features: await featureRulesView(env) }, 200, request);
+}
+
+// ── Limits (counts and quotas) of the free plan and of each group ─────────────
+
+/** What the panel shows: the catalog with defaults, what the admin set, and the groups */
+async function planLimitsView(env) {
+  const [overrides, groups] = await Promise.all([loadPlanOverrides(env), dbListGroups(env)]);
+  const rules = mergePlanRules(overrides);
+  return {
+    catalog: Object.entries(LIMIT_CATALOG).map(([key, c]) => ({ key, label: c.label, period: c.period, default: c.default })),
+    free: rules.free,
+    groups: Object.fromEntries(groups.map((g) => [g.key, rules.groups[g.key] || {}])),
+    customized: { free: Boolean(overrides?.free), groups: Object.keys(overrides?.groups || {}) },
+  };
+}
+
+/** GET /api/admin/plan-limits */
+export async function handleAdminGetPlanLimits(request, env) {
+  await requireAdminUser(request, env);
+  return jsonResponse({ success: true, ...(await planLimitsView(env)) }, 200, request);
+}
+
+async function requirePlanScope(env, scope) {
+  if (scope === "free") return;
+  const groups = await dbListGroups(env);
+  if (!groups.some((g) => g.key === scope)) throw AppError.notFound("گروه یافت نشد.");
+}
+
+/** PUT /api/admin/plan-limits/:scope { limits } — a number is the most records/messages allowed, null is unlimited */
+export async function handleAdminSavePlanLimits(request, env, { scope }) {
+  await requireAdminUser(request, env);
+  await requirePlanScope(env, scope);
+  const input = (await readBody(request)).limits;
+  const limits = cleanLimits(input);
+  if (Object.keys(input && typeof input === "object" ? input : {}).length !== Object.keys(limits).length) {
+    throw AppError.badRequest("مقدار محدودیت باید عدد صحیح و نامنفی (یا نامحدود) باشد.");
+  }
+  const overrides = (await loadPlanOverrides(env)) || {};
+  const next = scope === "free"
+    ? { ...overrides, free: limits }
+    : { ...overrides, groups: { ...(overrides.groups || {}), [scope]: limits } };
+  await savePlanOverrides(env, next);
+  return jsonResponse({ success: true, message: "محدودیت‌ها ذخیره شد.", ...(await planLimitsView(env)) }, 200, request);
+}
+
+/** DELETE /api/admin/plan-limits/:scope — the code's defaults again */
+export async function handleAdminResetPlanLimits(request, env, { scope }) {
+  await requireAdminUser(request, env);
+  const overrides = (await loadPlanOverrides(env)) || {};
+  const next = scope === "free"
+    ? (({ free: _free, ...rest }) => rest)(overrides)
+    : { ...overrides, groups: Object.fromEntries(Object.entries(overrides.groups || {}).filter(([k]) => k !== scope)) };
+  await savePlanOverrides(env, next);
+  return jsonResponse({ success: true, message: "محدودیت‌ها به پیش‌فرض برگشت.", ...(await planLimitsView(env)) }, 200, request);
 }
