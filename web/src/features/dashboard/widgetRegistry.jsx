@@ -50,7 +50,7 @@ export const WIDGET_VIEWS = {
 };
 
 /** What a catalog entry's `requires` may name (null: nothing); `useWidgetAccess` decides each */
-export const WIDGET_REQUIREMENTS = ['vault', 'expenses', 'market', 'news', 'native_sms', 'free_plan'];
+export const WIDGET_REQUIREMENTS = ['vault', 'expenses', 'market', 'news', 'analysis', 'native_sms', 'free_plan'];
 
 /**
  * @returns {(type: string) => boolean} whether the user can see widgets of a type (what the
@@ -60,12 +60,14 @@ export function useWidgetAccess() {
   const hasExpenses = useFeature('expenses');
   const hasMarket = useFeature('market');
   const hasNewsFeature = useFeature('news');
+  const hasAnalysis = useFeature('analysis');
   const { pro } = usePlan();
   const rules = {
     expenses: hasExpenses,
     market: hasMarket,
     // The news and the daily analysis are Persian-only (their sources are)
     news: hasNewsFeature && localeHasNews(),
+    analysis: hasAnalysis && localeHasNews(),
     native_sms: smsEnabled() && hasExpenses,
     free_plan: !pro,
   };
