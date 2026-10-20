@@ -20,7 +20,7 @@ The server stores only ciphertext and the passphrase never leaves the device.
 ## 1. Key hierarchy
 
 ```text
-passphrase ──PBKDF2 (SHA-256, 100,000 rounds, random salt)──▶ KEK
+passphrase ──PBKDF2 (SHA-256, 600,000 rounds, random salt)──▶ KEK
 KEK ──unwraps──▶ account data key (random, 256-bit)           ← on the server only wrapped
 account data key ──unwraps──▶ each portfolio's key (random, 256-bit)  ← wrapped on the portfolio
 account data key ──encrypts──▶ loan, income, fixed-income, cheque, expense, expense-section, account, transfer, subscription and category records
@@ -102,7 +102,9 @@ There is no way back once enabled.
 
 ## 5. Session and lock
 
-- After unlocking, the data key is kept in the tab's `sessionStorage` so a refresh doesn't ask again; closing the tab, "lock" or signing out clears it.
+- After unlocking, the data key is kept in the tab's `sessionStorage` so a refresh doesn't ask again; closing the tab, "lock", signing out or the idle limit clears it.
+- **Auto-lock** (`shared/vault/autoLock.js`): after a per-device idle time (1, 5, 15, 60 minutes or never; default 15 on the site, 5 in the app) without input in a visible tab, the vault locks; a hidden tab or a backgrounded app counts as idle. The kept session records when it was last used and is not restored after that limit.
+- **KDF cost**: the salt names its rounds (`pbkdf2$600000$<base64>`, `lib/e2ee.js`); a bare salt is from before and means 100,000. Such a vault is re-wrapped with a new salt on its next passphrase unlock (same data key, no record re-encrypted); the fingerprint secret saved before keeps working on that device.
 - **Fingerprint (Android app)**: the unlocked data key (not the passphrase) is encrypted with an Android Keystore key that works only right after a fingerprint check (`BiometricVaultPlugin`, `shared/native/biometricUnlock.js`). Changing the passphrase, another account, or a change to the phone's fingerprints invalidates it — see [ANDROID.md](ANDROID.md#fingerprint).
 - While locked, pages show an unlock card and no data is loaded into memory.
 

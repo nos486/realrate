@@ -170,13 +170,13 @@ async function signIn(request, env, account, message) {
 export async function sendVerification(request, env, account) {
   const token = await dbCreateAuthToken(env, account.id, "verify_email", VERIFY_TOKEN_TTL);
   const url = `${resolveFrontendOrigin(request, env)}/verify-email?token=${encodeURIComponent(token)}`;
-  await sendEmail(env, { to: account.email, ...verificationEmail(url) });
+  await sendEmail(env, { to: account.email, ...verificationEmail(url) }, { request });
 }
 
 async function sendPasswordReset(request, env, account) {
   const token = await dbCreateAuthToken(env, account.id, "reset_password", RESET_TOKEN_TTL);
   const url = `${resolveFrontendOrigin(request, env)}/reset-password?token=${encodeURIComponent(token)}`;
-  await sendEmail(env, { to: account.email, ...passwordResetEmail(url) });
+  await sendEmail(env, { to: account.email, ...passwordResetEmail(url) }, { request });
 }
 
 async function sendAccountExists(request, env, account) {
@@ -185,7 +185,7 @@ async function sendAccountExists(request, env, account) {
   await sendEmail(env, {
     to: account.email,
     ...accountExistsEmail(`${origin}/login`, `${origin}/reset-password?token=${encodeURIComponent(token)}`),
-  });
+  }, { request });
 }
 
 /**

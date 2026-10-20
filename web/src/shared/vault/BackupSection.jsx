@@ -2,7 +2,8 @@
  * BackupSection.jsx — «پشتیبان کامل»: download everything the account holds in one file, and
  * restore it (here or in another account) — fullBackup.js
  *
- * The file is decrypted unless a password is given for it. Restoring replaces records with the
+ * The file is encrypted with a password of its own by default; a readable file (no password) is
+ * an explicit choice, since it takes the data out of the vault's protection. Restoring replaces records with the
  * same id and adds the others; nothing is deleted.
  */
 
@@ -16,7 +17,7 @@ import { useFeedback } from '../ui/FeedbackProvider.jsx';
 import { useVault } from './useVault.js';
 import { useDemo } from '../../features/demo/index.js';
 import { PassphraseInput, ProgressBar } from './VaultEnableForm.jsx';
-import { bumpVaultEpoch } from './vaultStore.js';
+import { bumpVaultEpoch, VAULT_MIN_PASSPHRASE_LENGTH } from './vaultStore.js';
 import { buildFullBackup, serializeBackup, parseBackup, restoreFullBackup, summarizeBackup } from './fullBackup.js';
 import { saveTextFile } from '../utils/fileExport.js';
 import { todayIso } from '../utils/dates.js';
@@ -50,16 +51,19 @@ export default function BackupSection() {
   const fileRef = useRef(null);
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
+  const [plain, setPlain] = useState(false);
   const [busy, setBusy] = useState(false);
   const [restore, setRestore] = useState(null); // { text, backup?, needsPassword?, password, error, progress, result }
 
   if (vault.status !== 'unlocked') return null;
 
+  const canExport = plain || password.length >= VAULT_MIN_PASSPHRASE_LENGTH;
+
   const handleExport = async () => {
     setBusy(true);
     try {
       const backup = await buildFullBackup();
-      const text = await serializeBackup(backup, password);
+      const text = await serializeBackup(backup, plain ? '' : password);
       await saveTextFile(`realrate-backup-${todayIso()}.json`, text, 'application/json');
       const { counts } = summarizeBackup(backup);
       toast.success(t('پشتیبان با {n} مورد آماده شد.', { n: faNum(Object.values(counts).reduce((a, b) => a + b, 0)) }));
@@ -112,18 +116,24 @@ export default function BackupSection() {
       <p className="vault-settings-text">
         {t('همه‌ی اطلاعات حساب در یک فایل: پورتفوها با همه‌ی خرید و فروش‌ها، دسته‌بندی و هدف‌ها؛ وام‌ها با اقساط پرداخت‌شده؛ درآمدها، چک‌ها، هزینه‌ها و دنگ‌ها، اشتراک‌ها، هدف‌های پس‌انداز، حساب‌ها (با کارت‌های ادغام‌شده و تاریخ مانده) و انتقال‌ها، دسته‌ها و صفحه‌ی اصلی. با «بازگردانی» همه‌چیز همان‌طور برمی‌گردد (همین حساب یا حساب دیگر).')}
       </p>
-      <PassphraseInput
-        id="backup-password"
-        label={t('رمز فایل (اختیاری)')}
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        show={showPass}
-        onToggle={() => setShowPass((v) => !v)}
-        hint={t('بدون رمز، اطلاعات در فایل خوانا است؛ آن را امن نگه دارید.')}
-        disabled={busy}
-      />
+      {!plain && (
+        <PassphraseInput
+          id="backup-password"
+          label={t('رمز فایل')}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          show={showPass}
+          onToggle={() => setShowPass((v) => !v)}
+          hint={t('فایل با این رمز رمزنگاری می‌شود (حداقل {n} کاراکتر)؛ برای بازگردانی لازم است.', { n: faNum(VAULT_MIN_PASSPHRASE_LENGTH) })}
+          disabled={busy}
+        />
+      )}
+      <label className="vault-settings-check">
+        <input type="checkbox" checked={plain} onChange={(e) => setPlain(e.target.checked)} disabled={busy} />
+        <span>{t('فایل بدون رمز (خوانا) باشد؛ هر کس یا هر برنامه‌ای که فایل را داشته باشد، همه‌ی اطلاعات را می‌بیند.')}</span>
+      </label>
       <div className="vault-settings-actions">
-        <Button variant="secondary" size="sm" icon={<Download size={14} />} loading={busy} onClick={handleExport}>
+        <Button variant="secondary" size="sm" icon={<Download size={14} />} loading={busy} disabled={!canExport} onClick={handleExport}>
           {t('دریافت پشتیبان')}
         </Button>
         <Button variant="secondary" size="sm" icon={<Upload size={14} />} disabled={busy || readOnly} onClick={() => fileRef.current?.click()}>

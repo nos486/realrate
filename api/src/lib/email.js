@@ -4,8 +4,10 @@
  * Sent through the Resend HTTP API (Workers cannot open SMTP connections):
  *   RESEND_API_KEY  secret  — `wrangler secret put RESEND_API_KEY`
  *   EMAIL_FROM      var     — e.g. "RealRate <no-reply@geekio.org>" (a domain verified in Resend)
- * For local development without a provider, EMAIL_DEBUG_LOG="true" writes each email (with
- * its link) to the worker log instead of sending it.
+ * For local development without a provider, EMAIL_DEBUG_LOG="true" writes each email to the
+ * worker log instead of sending it. Its text (with sign-in or reset links) is logged only for a
+ * request to localhost; anywhere else (a deployment where the switch was left on, the cron) only
+ * the address and subject are, so no usable link ever reaches a production log.
  */
 
 import { logger } from "./logger.js";
@@ -19,17 +21,29 @@ export function isEmailConfigured(env) {
     || String(env?.EMAIL_DEBUG_LOG || "") === "true";
 }
 
+/** Whether the request was made to the local dev server (wrangler dev) */
+function isLocalRequest(request) {
+  try {
+    const host = new URL(request?.url || "").hostname;
+    return host === "localhost" || host === "127.0.0.1";
+  } catch {
+    return false;
+  }
+}
+
 /**
  * @param {object} env
  * @param {{ to: string, subject: string, html: string, text: string }} message
+ * @param {{ request?: Request }} [opts] the request that sends it (for the local debug log)
  */
-export async function sendEmail(env, { to, subject, html, text }) {
+export async function sendEmail(env, { to, subject, html, text }, { request } = {}) {
   const apiKey = String(env?.RESEND_API_KEY || "").trim();
   const from = String(env?.EMAIL_FROM || "").trim();
 
   if (!apiKey || !from) {
     if (String(env?.EMAIL_DEBUG_LOG || "") === "true") {
-      logger.info("[email:debug] not sent (no provider configured)", { to, subject, text });
+      if (isLocalRequest(request)) logger.info("[email:debug] not sent (no provider configured)", { to, subject, text });
+      else logger.warn("[email:debug] not sent; text withheld outside local development", { to, subject });
       return;
     }
     throw new AppError("ارسال ایمیل روی سرور تنظیم نشده است. لطفاً بعداً دوباره تلاش کنید یا با گوگل وارد شوید.", 503, "EMAIL_NOT_CONFIGURED");

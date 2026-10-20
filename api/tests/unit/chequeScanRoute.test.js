@@ -68,12 +68,16 @@ describe('POST /api/cheques/scan route', () => {
 
   afterEach(() => vi.unstubAllGlobals());
 
+  /** A JPEG's first bytes (FF D8 FF), then filler */
+  const JPEG_BYTES = new Uint8Array(100);
+  JPEG_BYTES.set([0xff, 0xd8, 0xff, 0xe0]);
+
   function createScanRequest({ file } = {}) {
     const formData = new FormData();
     if (file !== undefined) {
       if (file !== null) formData.append('image', file);
     } else {
-      formData.append('image', new Blob([new Uint8Array(100)], { type: 'image/jpeg' }), 'cheque.jpg');
+      formData.append('image', new Blob([JPEG_BYTES], { type: 'image/jpeg' }), 'cheque.jpg');
     }
     return new Request('https://api.realrate.ir/api/cheques/scan', { method: 'POST', body: formData });
   }
@@ -121,6 +125,23 @@ describe('POST /api/cheques/scan route', () => {
     getAuthenticatedUser.mockResolvedValue(ADMIN);
     const big = new Blob([new Uint8Array(2 * 1024 * 1024 + 10)], { type: 'image/jpeg' });
     await expect(handleChequeScanRoute(createScanRequest({ file: big }), env)).rejects.toMatchObject({ statusCode: 413, code: 'PAYLOAD_TOO_LARGE' });
+  });
+
+  it('refuses a body declared larger than the limit before reading it', async () => {
+    getAuthenticatedUser.mockResolvedValue(USER);
+    const req = new Request('https://api.realrate.ir/api/cheques/scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'multipart/form-data; boundary=x', 'Content-Length': String(50 * 1024 * 1024) },
+      body: 'x',
+    });
+    await expect(handleChequeScanRoute(req, env)).rejects.toMatchObject({ statusCode: 413 });
+  });
+
+  it('refuses a file whose bytes are not the image type it claims', async () => {
+    getAuthenticatedUser.mockResolvedValue(USER);
+    const fake = new Blob([new TextEncoder().encode('<html>not an image</html>')], { type: 'image/jpeg' });
+    await expect(handleChequeScanRoute(createScanRequest({ file: fake }), env)).rejects.toMatchObject({ code: 'INVALID_FILE_TYPE' });
+    expect(usedToday(USER)).toBe(0);
   });
 
   it('does not count an invalid upload against the daily limit', async () => {

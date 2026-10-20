@@ -5,19 +5,27 @@
 import { getStateStore } from "../repositories/stateStore.repository.js";
 
 /**
- * Domains whose origin (or any subdomain of it) may talk to the API with credentials and
- * receive the OAuth redirect. Matching is exact on a label boundary, so "evilrealrate.ir" or
- * "someone-else.pages.dev" never match.
+ * Our frontend hosts, matched exactly: they may talk to the API with credentials and receive the
+ * OAuth redirect. Another subdomain of the same domain (geekio.org hosts other things) is not
+ * trusted, nor is a look-alike ("evilrealrate.ir").
  */
-const TRUSTED_DOMAINS = [
+const TRUSTED_HOSTS = [
   "realrate.ir",
-  "geekio.org",
-  "realrate-5pn.pages.dev", // Cloudflare Pages project + its preview deployments (<hash>.realrate-5pn.pages.dev)
-  "realrate.pages.dev",
+  "www.realrate.ir",
+  "realrate.geekio.org",
+  "realrate-5pn.pages.dev", // Cloudflare Pages project (production)
 ];
 
 /**
- * Whether a hostname is one of our own frontend hosts
+ * Domains whose subdomains are trusted: the Pages project's preview deployments
+ * (<hash or branch>.realrate-5pn.pages.dev), built only from this repository's own branches.
+ * Matching is on a label boundary, so "someone-else.pages.dev" never matches.
+ */
+const TRUSTED_PREVIEW_DOMAINS = ["realrate-5pn.pages.dev"];
+
+/**
+ * Whether a hostname is one of our own frontend hosts. localhost / 127.0.0.1 stay trusted: the
+ * Android app's WebView is https://localhost, and local development runs there.
  * @param {string} hostname
  * @returns {boolean}
  */
@@ -25,7 +33,8 @@ export function isTrustedHostname(hostname) {
   if (!hostname) return false;
   const host = String(hostname).toLowerCase().replace(/\.$/, "");
   if (host === "localhost" || host === "127.0.0.1") return true;
-  return TRUSTED_DOMAINS.some((domain) => host === domain || host.endsWith(`.${domain}`));
+  if (TRUSTED_HOSTS.includes(host)) return true;
+  return TRUSTED_PREVIEW_DOMAINS.some((domain) => host.endsWith(`.${domain}`));
 }
 
 /**

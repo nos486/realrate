@@ -35,6 +35,12 @@ const PENDING_KEY = 'realrate_sms_pending';
 /** Recorded (and, before dismissals had their own list, dismissed) */
 const HANDLED_KEY = 'realrate_sms_handled';
 const DISMISSED_KEY = 'realrate_sms_dismissed';
+/** The account the kept inbox belongs to */
+const OWNER_KEY = 'realrate_sms_owner';
+/** Hand-recorded twins already matched (features/sms-inbox/smsRecord.js) */
+export const SMS_TWINS_KEY = 'realrate_sms_twins';
+/** Everything kept for the signed-in account (cleared with it) */
+const ACCOUNT_KEYS = [SETTINGS_KEY, PENDING_KEY, HANDLED_KEY, DISMISSED_KEY, SMS_TWINS_KEY];
 const MAX_HANDLED = 3000;
 const DAY_MS = 86_400_000;
 const READ_OVERLAP_MS = 60 * 60 * 1000;
@@ -120,6 +126,38 @@ function write(key, value) {
 }
 
 const notify = () => window.dispatchEvent(new Event(SMS_INBOX_EVENT));
+
+/** Forget the inbox and its settings (signing out): the next account starts reading from then on */
+export function clearSmsInbox() {
+  try {
+    for (const key of [...ACCOUNT_KEYS, OWNER_KEY]) localStorage.removeItem(key);
+  } catch {
+    // No storage: nothing was kept
+  }
+  if (typeof window !== 'undefined') notify();
+}
+
+/**
+ * The inbox is now this account's: one kept for another account is cleared first. An inbox from
+ * before owners were kept is taken by the first account to sign in (the phone's own user).
+ * @param {string} userId
+ */
+export function claimSmsInbox(userId) {
+  if (!userId) return;
+  let owner = '';
+  try {
+    owner = localStorage.getItem(OWNER_KEY) || '';
+  } catch {
+    return;
+  }
+  if (owner === userId) return;
+  if (owner) clearSmsInbox();
+  try {
+    localStorage.setItem(OWNER_KEY, userId);
+  } catch {
+    // Not kept: claimed again next time
+  }
+}
 
 /** Withdrawals up to this many tomans get a one-tap «ثبت سریع» (no form) */
 export const QUICK_RECORD_MAX = 1_000_000;

@@ -25,12 +25,10 @@ import { handleGetSharedPortfolio } from '../../src/handlers/portfolioRoutes.js'
 import worker from '../../src/index.js';
 
 describe('isTrustedOrigin', () => {
-  it('accepts our own domains and their subdomains over https', () => {
+  it('accepts our own frontend hosts and the Pages previews over https', () => {
     expect(isTrustedOrigin('https://realrate.ir')).toBe(true);
     expect(isTrustedOrigin('https://www.realrate.ir')).toBe(true);
     expect(isTrustedOrigin('https://realrate.geekio.org')).toBe(true);
-    expect(isTrustedOrigin('https://realrate.pages.dev')).toBe(true);
-    expect(isTrustedOrigin('https://abc123.realrate.pages.dev')).toBe(true);
     expect(isTrustedOrigin('https://realrate-5pn.pages.dev')).toBe(true);
     expect(isTrustedOrigin('https://9848beec.realrate-5pn.pages.dev')).toBe(true);
     expect(isTrustedOrigin('https://claude-dazzling-goodall-wu8v.realrate-5pn.pages.dev')).toBe(true);
@@ -39,11 +37,26 @@ describe('isTrustedOrigin', () => {
 
   it('rejects look-alike and third-party hosts', () => {
     expect(isTrustedOrigin('https://evil.pages.dev')).toBe(false);
+    // Not ours: another Pages project, other subdomains of our domains
+    expect(isTrustedOrigin('https://realrate.pages.dev')).toBe(false);
+    expect(isTrustedOrigin('https://abc123.realrate.pages.dev')).toBe(false);
+    expect(isTrustedOrigin('https://audit-unrelated.geekio.org')).toBe(false);
+    expect(isTrustedOrigin('https://geekio.org')).toBe(false);
+    expect(isTrustedOrigin('https://x.realrate.ir')).toBe(false);
     expect(isTrustedOrigin('https://evilrealrate.ir')).toBe(false);
     expect(isTrustedOrigin('https://evilgeekio.org')).toBe(false);
     expect(isTrustedOrigin('https://realrate.ir.evil.com')).toBe(false);
     expect(isTrustedOrigin('http://realrate.ir')).toBe(false);
     expect(isTrustedOrigin('not a url')).toBe(false);
+  });
+});
+
+describe('API response headers', () => {
+  it('no MIME sniffing anywhere; a signed-in answer without its own caching is never stored', async () => {
+    const anon = await worker.fetch(new Request('https://api.realrate.ir/api/health'), {}, {});
+    expect(anon.headers.get('X-Content-Type-Options')).toBe('nosniff');
+    const signedIn = await worker.fetch(new Request('https://api.realrate.ir/api/portfolios', { headers: { Authorization: 'Bearer t' } }), {}, {});
+    expect(signedIn.headers.get('Cache-Control')).toBe('private, no-store');
   });
 });
 

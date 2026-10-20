@@ -32,10 +32,11 @@ describe('E2EE client crypto (web/src/lib/e2ee.js)', () => {
   });
 
   describe('salt & key derivation', () => {
-    it('generates a random 16-byte base64 salt', () => {
+    it('generates a random 16-byte base64 salt, naming its PBKDF2 cost', () => {
       const a = generateE2eeSalt();
       const b = generateE2eeSalt();
-      expect(atob(a)).toHaveLength(16);
+      expect(a).toMatch(/^pbkdf2\$600000\$/);
+      expect(atob(a.split('$')[2])).toHaveLength(16);
       expect(a).not.toBe(b);
     });
 

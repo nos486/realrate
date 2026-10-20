@@ -15,6 +15,18 @@ import { AppError } from '../lib/AppError.js';
 
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024; // 2 MB
 const ALLOWED_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+/** The whole form may be the image plus a little: a larger body is refused before it is parsed */
+const MAX_FORM_BYTES = MAX_IMAGE_BYTES + 64 * 1024;
+
+/** Whether the file's first bytes are what its declared type says (JPEG, PNG, WebP signatures) */
+async function hasImageSignature(file) {
+  const b = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+  const ascii = (from, to) => String.fromCharCode(...b.slice(from, to));
+  if (file.type === 'image/jpeg') return b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
+  if (file.type === 'image/png') return b[0] === 0x89 && ascii(1, 4) === 'PNG';
+  if (file.type === 'image/webp') return ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP';
+  return false;
+}
 
 /**
  * POST /api/cheques/scan
@@ -30,7 +42,10 @@ export async function handleChequeScanRoute(request, env) {
     throw AppError.badRequest('درخواست باید شامل فرم چندبخشی (multipart/form-data) باشد.');
   }
 
-  // 4. Parse multipart form data
+  // 4. Parse multipart form data (a declared size over the limit is refused unread)
+  if (Number(request.headers.get('content-length')) > MAX_FORM_BYTES) {
+    throw new AppError('حجم تصویر بیش از حد مجاز (حداکثر ۲ مگابایت) است.', 413, 'PAYLOAD_TOO_LARGE');
+  }
   let formData;
   try {
     formData = await request.formData();
@@ -54,8 +69,8 @@ export async function handleChequeScanRoute(request, env) {
     );
   }
 
-  // 7. Validate MIME type
-  if (!ALLOWED_MIME_TYPES.has(imageFile.type)) {
+  // 7. Validate MIME type, and that the bytes are really that kind of image
+  if (!ALLOWED_MIME_TYPES.has(imageFile.type) || !(await hasImageSignature(imageFile))) {
     throw new AppError(
       'فرمت فایل نامعتبر است. فقط فرمت‌های JPEG، PNG و WebP مجاز هستند.',
       400,

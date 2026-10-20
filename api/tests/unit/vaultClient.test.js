@@ -21,6 +21,7 @@ vi.mock('../../../web/src/shared/vault/vaultApi.js', () => ({
 
 const e2ee = await import('../../../web/src/lib/e2ee.js');
 const store = await import('../../../web/src/shared/vault/vaultStore.js');
+const autoLock = await import('../../../web/src/shared/vault/autoLock.js');
 
 describe('key wrapping helpers', () => {
   it('wraps and unwraps a raw key, and rejects the wrong wrapping key', async () => {
@@ -147,5 +148,93 @@ describe('account vault store', () => {
     expect(await store.decryptVaultRecord(cipher)).toEqual({ n: 42 });
     const key = await store.getPortfolioKey({ e2eeWrappedKey: portfolioKey.wrapped });
     expect(await e2ee.e2eeDecrypt(key, await e2ee.e2eeEncrypt(portfolioKey.key, { ok: true }))).toEqual({ ok: true });
+  });
+});
+
+describe('KDF cost (salts name their PBKDF2 rounds)', () => {
+  beforeEach(() => {
+    server.vault = null;
+    store.resetVault();
+    sessionStorage.clear();
+    localStorage.clear();
+  });
+
+  it('new salts carry 600k rounds; a bare (old) salt means 100k; a tampered cost is refused', async () => {
+    const salt = e2ee.generateE2eeSalt();
+    expect(salt).toMatch(/^pbkdf2\$600000\$/);
+    expect(e2ee.parseE2eeSalt(salt).iterations).toBe(600000);
+    expect(e2ee.isLegacyE2eeSalt(salt)).toBe(false);
+    expect(e2ee.parseE2eeSalt('c2FsdHNhbHRzYWx0c2FsdA==')).toEqual({ iterations: 100000, saltBase64: 'c2FsdHNhbHRzYWx0c2FsdA==' });
+    expect(() => e2ee.parseE2eeSalt('pbkdf2$99999$abc')).toThrow();
+    expect(() => e2ee.parseE2eeSalt('pbkdf2$9999999$abc')).toThrow();
+  });
+
+  it('an old vault opens with its passphrase and is re-wrapped at the new cost, data key unchanged', async () => {
+    // A vault as written before: bare salt (100k rounds)
+    const oldSalt = 'c2FsdHNhbHRzYWx0c2FsdA==';
+    const raw = e2ee.generateRawKey();
+    const wrappedKey = await e2ee.wrapRawKey(await e2ee.deriveE2eeKey('correct horse', oldSalt), raw);
+    server.vault = { salt: oldSalt, wrappedKey, version: 1 };
+    const cipher = await e2ee.e2eeEncrypt(await e2ee.importRawKey(raw), { amount: 5 });
+
+    await store.loadVault('u1');
+    expect(await store.unlockVault('correct horse')).toBe(true);
+    expect(server.vault.salt).toMatch(/^pbkdf2\$600000\$/);
+    expect(server.vault.wrappedKey).not.toBe(wrappedKey);
+    expect(await store.decryptVaultRecord(cipher)).toEqual({ amount: 5 });
+
+    // The fingerprint secret saved before the re-wrap still opens it on this device
+    const before = { userId: 'u1', wrappedKey, key: e2ee.bytesToBase64(raw) };
+    store.lockVault();
+    expect(await store.unlockVaultWithSecret(before)).toBe(true);
+
+    // And the passphrase works at the new cost
+    store.lockVault();
+    expect(await store.unlockVault('correct horse')).toBe(true);
+  });
+});
+
+describe('auto-lock', () => {
+
+  beforeEach(() => {
+    server.vault = null;
+    store.resetVault();
+    sessionStorage.clear();
+    localStorage.clear();
+    vi.useRealTimers();
+  });
+
+  it('locks after the chosen idle time, and a stale kept session is not restored on reload', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
+    autoLock.setAutoLockMinutes(1);
+    await store.loadVault('u1');
+    await store.createVault('correct horse');
+    expect(store.getVaultState().status).toBe('unlocked');
+    const session = sessionStorage.getItem('rr_vault_session');
+
+    vi.advanceTimersByTime(30_000);
+    expect(store.getVaultState().status).toBe('unlocked');
+    vi.advanceTimersByTime(31_000);
+    expect(store.getVaultState().status).toBe('locked');
+    expect(sessionStorage.getItem('rr_vault_session')).toBeNull();
+
+    // A reload after the limit does not bring the key back
+    store.resetVault();
+    sessionStorage.setItem('rr_vault_session', session);
+    await store.loadVault('u1');
+    expect(store.getVaultState().status).toBe('locked');
+    vi.useRealTimers();
+  });
+
+  it('"never" keeps it open; the device choice is remembered', () => {
+    autoLock.setAutoLockMinutes(0);
+    expect(autoLock.getAutoLockMinutes()).toBe(0);
+    expect(autoLock.isPastAutoLock(1)).toBe(false);
+    autoLock.setAutoLockMinutes(7);
+    expect(autoLock.getAutoLockMinutes()).toBe(0);
+    autoLock.setAutoLockMinutes(15);
+    expect(autoLock.isPastAutoLock(Date.now() - 16 * 60_000)).toBe(true);
+    expect(autoLock.isPastAutoLock(Date.now())).toBe(false);
+    expect(autoLock.isPastAutoLock(undefined)).toBe(true);
   });
 });
