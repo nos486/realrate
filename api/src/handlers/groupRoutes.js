@@ -17,7 +17,7 @@
  *   POST   /api/admin/groups/:id/requests/:userId      { approve: true } adds the member; false rejects
  *   PUT    /api/admin/features/:key                    { stage, groups } — who gets the feature
  *   DELETE /api/admin/features/:key                    back to the code's default
- *   POST   /api/admin/users/groups                     { userIds | match: { q, filter }, add: [groupKey], remove: [groupKey] } — change many users' groups at once
+ *   POST   /api/admin/users/groups                     { userIds | match: { q, filter }, group: groupKey|null } — set many users' group at once (a user is in one group only)
  *   GET    /api/admin/plan-limits                      the limits (counts and quotas) of the free plan and of each group
  *   PUT    /api/admin/plan-limits/:scope               { limits: { <key>: number|null } } — `free` or a group key
  *   DELETE /api/admin/plan-limits/:scope               back to the code's defaults
@@ -48,7 +48,7 @@ import {
   dbCreateGroupRequest,
   dbDeleteGroupRequest,
   dbGetUserRequestedGroupKeys,
-  dbBulkChangeGroupMembers,
+  dbBulkSetUserGroup,
 } from "../repositories/userGroups.repository.js";
 import { dbGetUserAuthByEmail, dbGetUserAuthById } from "../repositories/account.repository.js";
 import { answerGroupRequest } from "../services/groupRequest.service.js";
@@ -221,8 +221,10 @@ export async function handleAdminAddMember(request, env, { groupId }) {
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   const account = userId ? await dbGetUserAuthById(env, userId) : email ? await dbGetUserAuthByEmail(env, email) : null;
   if (!account) throw AppError.notFound(email ? "کاربری با این ایمیل ثبت‌نام نکرده است." : "کاربر مورد نظر یافت نشد.");
-  await dbAddGroupMember(env, group.id, account.id, admin.email || "");
-  return jsonResponse({ success: true, message: `${account.email} به «${group.name}» اضافه شد.` }, 200, request);
+  const left = await dbAddGroupMember(env, group.id, account.id, admin.email || "");
+  // A user is in one group only: the one they were in is replaced
+  const note = left.length ? " (از گروه قبلی‌اش برداشته شد)" : "";
+  return jsonResponse({ success: true, message: `${account.email} به «${group.name}» اضافه شد${note}.` }, 200, request);
 }
 
 /** DELETE /api/admin/groups/:id/members/:userId */
@@ -328,24 +330,20 @@ export const BULK_USERS_MAX = 1000;
 /**
  * POST /api/admin/users/groups
  * { userIds: [id] } or { match: { q, filter } } (every user the users list shows for that search and
- * filter), with `add` and `remove`: group keys. Users join `add` and leave `remove`.
+ * filter), with `group`: the group key they all go to (leaving the one they were in), or null to
+ * take them out of their group. A user is in one group only.
  */
 export async function handleAdminBulkUserGroups(request, env) {
   const admin = await requireAdminUser(request, env);
   const body = await readBody(request);
-  const keys = (list) => [...new Set((Array.isArray(list) ? list : []).map((k) => String(k).toLowerCase()))];
-  const addKeys = keys(body.add);
-  const removeKeys = keys(body.remove);
-  if (!addKeys.length && !removeKeys.length) throw AppError.badRequest("حداقل یک گروه برای افزودن یا برداشتن انتخاب کنید.");
-  if (addKeys.some((k) => removeKeys.includes(k))) throw AppError.badRequest("یک گروه نمی‌تواند هم افزوده و هم برداشته شود.");
-  const groups = await dbListGroups(env);
-  const idOf = (key) => {
-    const group = groups.find((g) => g.key === key);
+  if (body.group === undefined) throw AppError.badRequest("گروه مقصد را انتخاب کنید (یا «بدون گروه»).");
+  let groupId = null;
+  if (body.group !== null) {
+    const key = String(body.group).toLowerCase();
+    const group = (await dbListGroups(env)).find((g) => g.key === key);
     if (!group) throw AppError.notFound(`گروه «${key}» یافت نشد.`);
-    return group.id;
-  };
-  const addGroupIds = addKeys.map(idOf);
-  const removeGroupIds = removeKeys.map(idOf);
+    groupId = group.id;
+  }
 
   let userIds;
   if (Array.isArray(body.userIds)) {
@@ -362,6 +360,6 @@ export async function handleAdminBulkUserGroups(request, env) {
   if (!userIds.length) throw AppError.badRequest("کاربری برای تغییر نیست.");
   if (userIds.length > BULK_USERS_MAX) throw AppError.badRequest(`حداکثر ${BULK_USERS_MAX} کاربر را می‌شود یک‌جا تغییر داد.`);
 
-  const { users } = await dbBulkChangeGroupMembers(env, { userIds, addGroupIds, removeGroupIds, addedBy: admin.email || "" });
+  const { users } = await dbBulkSetUserGroup(env, { userIds, groupId, addedBy: admin.email || "" });
   return jsonResponse({ success: true, users, message: `گروه ${users.toLocaleString("fa-IR")} کاربر تغییر کرد.` }, 200, request);
 }

@@ -172,13 +172,13 @@ export async function resetAdminFeatureRule(key) {
 }
 
 /**
- * Change the groups of many users at once
+ * Set the group of many users at once (a user is in one group only)
  * @param {{ userIds?: string[], match?: { q: string, filter: string } }} who the picked users, or every user of a search and filter
- * @param {{ add?: string[], remove?: string[] }} change group keys to join and to leave
+ * @param {string|null} group the group key they all go to, or null for no group
  * @returns {Promise<{ users: number, message: string }>}
  */
-export async function bulkChangeUserGroups(who, change) {
-  return httpClient.post('/api/admin/users/groups', { ...who, add: change.add || [], remove: change.remove || [] });
+export async function bulkSetUserGroup(who, group) {
+  return httpClient.post('/api/admin/users/groups', { ...who, group });
 }
 
 /**

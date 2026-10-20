@@ -374,6 +374,15 @@ export const APP_TABLES = [
         PRIMARY KEY (group_id, user_id)
       )`,
       "CREATE INDEX IF NOT EXISTS idx_user_group_members_user ON user_group_members(user_id)",
+      // A user is in one group only: where the table still has several for a user, the latest
+      // membership (then the greater group id) stays, then the unique index keeps it so
+      `DELETE FROM user_group_members WHERE EXISTS (
+         SELECT 1 FROM user_group_members m2
+         WHERE m2.user_id = user_group_members.user_id
+           AND (m2.added_at > user_group_members.added_at
+                OR (m2.added_at = user_group_members.added_at AND m2.group_id > user_group_members.group_id))
+       )`,
+      "CREATE UNIQUE INDEX IF NOT EXISTS idx_user_group_members_one_group ON user_group_members(user_id)",
     ],
   },
   {
