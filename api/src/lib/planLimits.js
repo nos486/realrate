@@ -9,8 +9,10 @@
 import { AppError } from "./AppError.js";
 import { logger } from "./logger.js";
 import { withUserGroups } from "./features.js";
+import { getStateStore } from "../repositories/stateStore.repository.js";
+import { createIsolateCache } from "./isolateCache.js";
 import { tehranToday } from "../domain/isoDate.js";
-import { PLAN_LIMITS, FREE_PORTFOLIOS, isProUser, planLimitKeyOfKind } from "../config/planLimits.js";
+import { PLAN_LIMITS, LIMIT_CATALOG, mergePlanRules, effectiveLimits, isUnlimited, planLimitKeyOfKind } from "../config/planLimits.js";
 import {
   dbCountVaultRecords, dbExistingVaultRecordIds, dbDeleteVaultRecords, dbClaimPlanCounter, dbReleasePlanCounter, dbGetPlanCounter,
 } from "../repositories/vault.repository.js";
@@ -32,8 +34,48 @@ export function shamsiMonthStart(now = new Date()) {
   return new Date(`${iso}T00:00:00+03:30`).toISOString();
 }
 
-function limitError(rule, limit) {
-  const what = rule.monthly != null ? `${faNum(limit)} ${rule.label} در ماه` : `${faNum(limit)} ${rule.label}`;
+export const PLAN_RULES_KEY = "plan_rules";
+// The rules change only when the admin saves them: an isolate keeps them for a minute, and a save made here is seen at once
+const rulesMemo = createIsolateCache({ ttlMs: 60_000, max: 1 });
+
+/** The admin's stored limit edits, or null */
+export async function loadPlanOverrides(env) {
+  const store = getStateStore(env);
+  if (!store) return null;
+  try {
+    return (await store.get(PLAN_RULES_KEY, "json")) || null;
+  } catch (err) {
+    logger.warn("Reading the plan rules failed:", { error: err.message });
+    return null;
+  }
+}
+
+/** The effective limit rules (config/planLimits.js mergePlanRules) */
+export async function loadPlanRules(env, { now = Date.now() } = {}) {
+  return rulesMemo.getOrLoad(PLAN_RULES_KEY, async () => mergePlanRules(await loadPlanOverrides(env)), now);
+}
+
+/** Save the admin's edits (all of them) and forget this isolate's copy */
+export async function savePlanOverrides(env, overrides) {
+  const store = getStateStore(env);
+  if (!store) throw new AppError("ذخیره‌ی تنظیمات ممکن نیست.", 503, "STORE_UNAVAILABLE");
+  await store.put(PLAN_RULES_KEY, JSON.stringify(overrides));
+  rulesMemo.clear();
+}
+
+/** For tests */
+export function resetPlanRulesMemo() {
+  rulesMemo.clear();
+}
+
+/** The user's limits (null: unlimited), with their groups read */
+export async function userLimits(env, user) {
+  await withUserGroups(env, user);
+  return effectiveLimits(user, await loadPlanRules(env));
+}
+
+function limitError(rule, limit, monthlyLimit = rule.monthly != null) {
+  const what = monthlyLimit ? `${faNum(limit)} ${rule.label} در ماه` : `${faNum(limit)} ${rule.label}`;
   const msg = limit === 0
     ? `${rule.label} در پلن رایگان بسته است. برای استفاده به Pro ارتقا دهید.`
     : `پلن رایگان فقط ${what} را اجازه می‌دهد. برای ادامه به Pro ارتقا دهید.`;
@@ -60,18 +102,17 @@ export async function enforceRecordLimit(env, user, kind, ids, { now = new Date(
   if (!key) return NO_GUARD;
   let claimed = null;
   try {
-    await withUserGroups(env, user);
-    if (isProUser(user)) return NO_GUARD;
+    const limit = (await userLimits(env, user))[key];
+    if (limit === null) return NO_GUARD;
     const rule = PLAN_LIMITS[key];
     const userId = userIdOf(user);
     const existing = await dbExistingVaultRecordIds(env, userId, kind, ids);
     const newIds = ids.filter((id) => !existing.has(id));
     if (!newIds.length) return NO_GUARD;
-    const limit = rule.monthly ?? rule.total;
-    if (rule.monthly != null) {
+    if (LIMIT_CATALOG[key].period === "month") {
       const period = shamsiMonthStart(now);
       const seed = await dbCountVaultRecords(env, userId, rule.kinds, { since: period });
-      if (!(await dbClaimPlanCounter(env, userId, key, period, { seed, add: newIds.length, limit }))) throw limitError(rule, limit);
+      if (!(await dbClaimPlanCounter(env, userId, key, period, { seed, add: newIds.length, limit }))) throw limitError(rule, limit, true);
       claimed = { period, add: newIds.length };
       return { verify: async () => {}, undo: () => dbReleasePlanCounter(env, userId, key, period, newIds.length).catch(() => {}) };
     }
@@ -122,11 +163,11 @@ export async function withRecordLimit(env, user, kind, ids, store, opts) {
 /** Refuse a second portfolio on the free plan */
 export async function enforcePortfolioLimit(env, user) {
   try {
-    await withUserGroups(env, user);
-    if (isProUser(user)) return;
+    const limit = (await userLimits(env, user)).portfolios;
+    if (limit === null) return;
     const portfolios = await dbGetUserPortfolios(env, userIdOf(user));
-    if (portfolios.length >= FREE_PORTFOLIOS) {
-      throw new AppError("پلن رایگان فقط یک پورتفو را اجازه می‌دهد. برای ساخت پورتفوی بیشتر به Pro ارتقا دهید.", 403, "PLAN_LIMIT");
+    if (portfolios.length >= limit) {
+      throw new AppError(limit === 0 ? "ساخت پورتفو در پلن رایگان بسته است. برای استفاده به Pro ارتقا دهید." : `پلن رایگان فقط ${faNum(limit)} پورتفو را اجازه می‌دهد. برای ساخت پورتفوی بیشتر به Pro ارتقا دهید.`, 403, "PLAN_LIMIT");
     }
   } catch (err) {
     if (err instanceof AppError) throw err;
@@ -135,22 +176,25 @@ export async function enforcePortfolioLimit(env, user) {
 }
 
 /**
- * What the user has used of each limit (for the notes beside each section and the Pro page)
- * @returns {Promise<{ pro: boolean, usage: Record<string, { used: number, limit: number, period: 'month'|'total' }> }>}
+ * What the user has used of each limit that applies to them (for the notes beside each section and the Pro page)
+ * @returns {Promise<{ pro: boolean, usage: Record<string, { used: number, limit: number, period: 'month'|'total' }>, limits: Record<string, number|null> }>}
+ *   `pro`: nothing limits the user; `limits`: every limit (null: unlimited), which the phone reads for bank messages
  */
 export async function getPlanUsage(env, user, { now = new Date() } = {}) {
-  await withUserGroups(env, user);
-  if (isProUser(user)) return { pro: true, usage: {} };
+  const limits = await userLimits(env, user);
+  if (isUnlimited(limits)) return { pro: true, usage: {}, limits };
   const userId = userIdOf(user);
   const since = shamsiMonthStart(now);
-  const entries = await Promise.all(Object.entries(PLAN_LIMITS).map(async ([key, rule]) => {
+  const entries = await Promise.all(Object.entries(PLAN_LIMITS).filter(([key]) => limits[key] !== null).map(async ([key, rule]) => {
     const monthly = rule.monthly != null;
     const rows = await dbCountVaultRecords(env, userId, rule.kinds, monthly ? { since } : {});
     // A monthly limit also counts what was deleted this month (the counter of enforceRecordLimit)
     const used = monthly ? Math.max(rows, await dbGetPlanCounter(env, userId, key, since)) : rows;
-    return [key, { used, limit: monthly ? rule.monthly : rule.total, period: monthly ? "month" : "total" }];
+    return [key, { used, limit: limits[key], period: monthly ? "month" : "total" }];
   }));
-  const portfolios = await dbGetUserPortfolios(env, userId).catch(() => []);
-  entries.push(["portfolios", { used: portfolios.length, limit: FREE_PORTFOLIOS, period: "total" }]);
-  return { pro: false, usage: Object.fromEntries(entries) };
+  if (limits.portfolios !== null) {
+    const portfolios = await dbGetUserPortfolios(env, userId).catch(() => []);
+    entries.push(["portfolios", { used: portfolios.length, limit: limits.portfolios, period: "total" }]);
+  }
+  return { pro: false, usage: Object.fromEntries(entries), limits };
 }

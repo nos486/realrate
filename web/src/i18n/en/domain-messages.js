@@ -4,6 +4,7 @@
  */
 
 export default {
+  'شناسه‌ی «free» برای پلن رایگان رزرو است.': 'The key "free" is reserved for the free plan.',
   // Accounts, transfers, credit
   'نام حساب الزامی است.': 'The account name is required.',
   'نام حساب نباید بیشتر از {nameLength} کاراکتر باشد.': 'The account name can be at most {nameLength} characters.',

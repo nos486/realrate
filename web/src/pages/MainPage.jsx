@@ -22,8 +22,8 @@ import { useFeature } from '../shared/features/useFeature.js';
 import FeatureOffer from '../shared/features/FeatureOffer.jsx';
 import PlanNote from '../shared/plan/PlanNote.jsx';
 import PlanLimitPrompt from '../shared/plan/PlanLimitPrompt.jsx';
-import { useIsPro, PRO_PATH } from '../shared/plan/usePlan.js';
-import { setSmsPlanPro } from '../shared/native/smsPlan.js';
+import { useIsPro, usePlan, PRO_PATH } from '../shared/plan/usePlan.js';
+import { setSmsLimits } from '../shared/native/smsPlan.js';
 import { useAppLayout } from '../shared/app/appLayout.js';
 import { isNativeApp, smsEnabled } from '../shared/native/nativeApp.js';
 import { startSmsAutoRead } from '../shared/native/smsInbox.js';
@@ -111,7 +111,9 @@ export default function MainPage() {
   const { isDemo } = useDemo();
   const isPro = useIsPro();
   const hasReports = useFeature('reports');
-  useEffect(() => setSmsPlanPro(isPro), [isPro]);
+  // Bank messages are counted on the phone against the limits the server gave this user
+  const { smsLimits } = usePlan();
+  useEffect(() => setSmsLimits(smsLimits), [smsLimits.daily, smsLimits.monthly]); // eslint-disable-line react-hooks/exhaustive-deps
   const vault = useVault();
   // Expenses are in beta: only users of the `expenses` feature (admins) see the section
   const hasExpenses = useFeature('expenses');

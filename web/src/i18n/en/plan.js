@@ -8,6 +8,7 @@ export default {
   'پلن رایگان؛ مقایسه با Pro': 'Free plan; compare with Pro',
   رایگان: 'Free',
   'پلن رایگان': 'Free plan',
+  'نامحدود': 'Unlimited',
   'مقایسه با Pro': 'Compare with Pro',
   'به سقف پلن رایگان رسیده‌اید.': 'You have reached the free plan limit.',
   'سقف پلن رایگان': 'Free plan limit',

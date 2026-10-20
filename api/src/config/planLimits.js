@@ -38,6 +38,77 @@ export const FREE_PORTFOLIOS = 1;
 /** Bank messages the Android app may read for a free user (counted on the device) */
 export const FREE_SMS_READS = { daily: 3, monthly: 30 };
 
+/**
+ * Every limit the admin can edit (groups and access page): the free plan's default and how it is counted.
+ * `period`: `total` (records at once), `month` (per Shamsi month) or `day` (per Tehran day; bank
+ * messages are counted on the phone, which reads `limits` from GET /api/plan).
+ * @type {Record<string, { label: string, period: 'total'|'month'|'day', default: number }>}
+ */
+export const LIMIT_CATALOG = {
+  ...Object.fromEntries(Object.entries(PLAN_LIMITS).map(([key, rule]) => [
+    key,
+    { label: rule.label, period: rule.monthly != null ? 'month' : 'total', default: rule.monthly ?? rule.total },
+  ])),
+  portfolios: { label: 'پورتفو', period: 'total', default: FREE_PORTFOLIOS },
+  sms_daily: { label: 'پیامک بانک (در روز)', period: 'day', default: FREE_SMS_READS.daily },
+  sms_monthly: { label: 'پیامک بانک (در ماه)', period: 'month', default: FREE_SMS_READS.monthly },
+};
+
+const MAX_LIMIT = 1_000_000;
+const isAdminOrDemo = (user) => Boolean(user && (user.role === 'admin' || user.isAdmin || user.demo || user.isDemo || String(user.kind || '').startsWith('demo_')));
+
+/** A limit value the admin may set: a count, or null for unlimited */
+const validLimit = (v) => v === null || (Number.isInteger(v) && v >= 0 && v <= MAX_LIMIT);
+
+/** @returns {Record<string, number|null>} the known limits of `input` with valid values */
+export function cleanLimits(input) {
+  const out = {};
+  for (const [key, value] of Object.entries(input && typeof input === 'object' ? input : {})) {
+    if (LIMIT_CATALOG[key] && validLimit(value)) out[key] = value;
+  }
+  return out;
+}
+
+/**
+ * The effective limit rules: the admin's stored edits over the code's defaults
+ * - `free`: the limits of users in no group that changes them (a missing key = the catalog default)
+ * - `groups[key]`: limits a group sets (a missing key = the group does not change it); the Pro
+ *   group is unlimited in everything unless edited
+ * @param {{ free?: object, groups?: Record<string, object> }|null} stored
+ * @returns {{ free: Record<string, number|null>, groups: Record<string, Record<string, number|null>> }}
+ */
+export function mergePlanRules(stored) {
+  const groups = {};
+  for (const [g, limits] of Object.entries(stored?.groups && typeof stored.groups === 'object' ? stored.groups : {})) groups[g] = cleanLimits(limits);
+  const unlimited = Object.fromEntries(Object.keys(LIMIT_CATALOG).map((k) => [k, null]));
+  groups[PRO_GROUP_KEY] = { ...unlimited, ...(groups[PRO_GROUP_KEY] || {}) };
+  return { free: cleanLimits(stored?.free), groups };
+}
+
+/**
+ * The limit of each key for the user (null: unlimited): the free plan's, raised by the most
+ * generous group of theirs that sets it. Admins and the demo account are never limited.
+ * @returns {Record<string, number|null>}
+ */
+export function effectiveLimits(user, rules = mergePlanRules(null)) {
+  const mine = Array.isArray(user?.groups) ? user.groups : [];
+  const out = {};
+  for (const [key, def] of Object.entries(LIMIT_CATALOG)) {
+    if (isAdminOrDemo(user)) { out[key] = null; continue; }
+    let limit = key in rules.free ? rules.free[key] : def.default;
+    for (const g of mine) {
+      const set = rules.groups[g];
+      if (!set || !(key in set)) continue;
+      limit = limit === null || set[key] === null ? null : Math.max(limit, set[key]);
+    }
+    out[key] = limit;
+  }
+  return out;
+}
+
+/** Whether none of the limits applies */
+export const isUnlimited = (limits) => Object.values(limits).every((v) => v === null);
+
 /** Whether the user is on the Pro plan (or is never limited: an admin, the demo account) */
 export function isProUser(user) {
   if (!user) return false;

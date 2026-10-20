@@ -16,6 +16,10 @@ vi.mock('../../src/repositories/vault.repository.js', () => ({
   dbGetPlanCounter: vi.fn(async () => 0),
   dbReleasePlanCounter: vi.fn(async (_env, _user, counter, period, add) => { db.claims.push({ release: add, counter, period }); }),
 }));
+const stored = vi.hoisted(() => new Map());
+vi.mock('../../src/repositories/stateStore.repository.js', () => ({
+  getStateStore: () => ({ get: async (k) => stored.get(k) ?? null, put: async (k, v) => { stored.set(k, JSON.parse(v)); } }),
+}));
 vi.mock('../../src/repositories/portfolio.repository.js', () => ({
   dbGetUserPortfolios: vi.fn(async () => db.portfolios),
 }));
@@ -145,7 +149,7 @@ describe('Shamsi month', () => {
 
 describe('usage report', () => {
   it('is empty for Pro and lists every limit for a free user', async () => {
-    expect(await getPlanUsage({}, pro())).toEqual({ pro: true, usage: {} });
+    expect(await getPlanUsage({}, pro())).toMatchObject({ pro: true, usage: {} });
     db.used = 3;
     const { pro: isPro, usage } = await getPlanUsage({}, free());
     expect(isPro).toBe(false);
@@ -169,5 +173,39 @@ describe('free-plan SMS reads (on the phone)', () => {
     expect(smsFreeUsage(day2)).toEqual({ daily: 1, monthly: 4 });
     setSmsPlanPro(true);
     expect(takeSmsRead(day1)).toBe(true);
+  });
+});
+
+describe('limits edited per group', () => {
+  it('uses the free plan defaults, the admin\'s edits, and the most generous group', async () => {
+    const { mergePlanRules, effectiveLimits, isUnlimited } = await import('../../src/config/planLimits.js');
+    const none = mergePlanRules(null);
+    expect(effectiveLimits(free(), none)).toMatchObject({ accounts: 2, entries: 30, portfolios: 1, sms_daily: 3, sms_monthly: 30 });
+    expect(isUnlimited(effectiveLimits(pro(), none))).toBe(true);
+    expect(isUnlimited(effectiveLimits({ role: 'admin' }, none))).toBe(true);
+
+    const rules = mergePlanRules({
+      free: { accounts: 5, sms_daily: 1, bogus: 3, loans: -1 },
+      groups: { vip: { accounts: 20, sms_daily: null }, plus: { accounts: 8 } },
+    });
+    expect(rules.free).toEqual({ accounts: 5, sms_daily: 1 });
+    expect(effectiveLimits(free(), rules)).toMatchObject({ accounts: 5, sms_daily: 1, loans: 2 });
+    expect(effectiveLimits({ role: 'user', groups: ['plus'] }, rules).accounts).toBe(8);
+    expect(effectiveLimits({ role: 'user', groups: ['plus', 'vip'] }, rules)).toMatchObject({ accounts: 20, sms_daily: null, loans: 2 });
+    // The Pro group stays unlimited unless the admin limits one of its items
+    const limitedPro = mergePlanRules({ groups: { pro: { goals: 50 } } });
+    expect(effectiveLimits(pro(), limitedPro)).toMatchObject({ goals: 50, accounts: null });
+  });
+
+  it('enforces an edited limit', async () => {
+    const { savePlanOverrides, resetPlanRulesMemo } = await import('../../src/lib/planLimits.js');
+    const env = {};
+    resetPlanRulesMemo();
+    await savePlanOverrides(env, { free: { accounts: 5 } });
+    db.used = 4;
+    await expect(enforceRecordLimit(env, free(), 'bank_account', ['a1'])).resolves.toBeTruthy();
+    db.used = 5;
+    await expect(enforceRecordLimit(env, free(), 'bank_account', ['a1'])).rejects.toMatchObject({ statusCode: 403 });
+    resetPlanRulesMemo();
   });
 });

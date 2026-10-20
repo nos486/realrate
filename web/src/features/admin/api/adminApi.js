@@ -172,6 +172,23 @@ export async function resetAdminFeatureRule(key) {
 }
 
 /**
+ * The limits (counts and quotas) of the free plan and of each group
+ * @returns {Promise<{ catalog: Array<{ key: string, label: string, period: string, default: number }>, free: object, groups: Record<string, object>, customized: { free: boolean, groups: string[] } }>}
+ */
+export async function getAdminPlanLimits() {
+  return httpClient.get('/api/admin/plan-limits');
+}
+
+/** @param {string} scope `free` or a group key @param {Record<string, number|null>} limits a number, or null for unlimited */
+export async function saveAdminPlanLimits(scope, limits) {
+  return httpClient.put(`/api/admin/plan-limits/${encodeURIComponent(scope)}`, { limits });
+}
+
+export async function resetAdminPlanLimits(scope) {
+  return httpClient.delete(`/api/admin/plan-limits/${encodeURIComponent(scope)}`);
+}
+
+/**
  * The Telegram bot: settings (never the token, only `tokenSet`), last status and the feeds to choose from
  * @returns {Promise<{ config: object, status: object|null, feeds: Array<{ id: string, title: string, enabled: boolean }> }>}
  */
