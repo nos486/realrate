@@ -3,19 +3,19 @@ import { Fingerprint } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import VaultLockCard from '../../features/portfolio/components/VaultLockCard.jsx';
 import { unlockVault } from './vaultStore.js';
-import { isBiometricEnabled, unlockWithBiometric } from '../native/biometricUnlock.js';
+import { biometricLabel, isBiometricEnabled, unlockWithBiometric } from '../native/biometricUnlock.js';
 import { useFeedback } from '../ui/FeedbackProvider.jsx';
 import { t } from '../../utils/i18n.js';
 
-// The fingerprint prompt opens by itself once per app session (not on every locked screen)
+// The fingerprint/passkey prompt opens by itself once per app session (not on every locked screen)
 let promptedThisSession = false;
 
 /**
  * Unlock prompt for the account-wide vault (loans, incomes, account-protected portfolios).
- * One passphrase opens everything for this tab. In the Android app with fingerprint unlock set
- * up (app settings), a fingerprint button opens it too. "Forgot the passphrase?" leads to the
- * reset in account settings (VaultResetSection), or `onForgot` when a screen shows the reset itself
- * (VaultLockGate).
+ * One passphrase opens everything for this tab. With fingerprint unlock set up (app settings in
+ * the Android app) or a passkey (encryption settings on the website), a button opens it too.
+ * "Forgot the passphrase?" leads to the reset in account settings (VaultResetSection), or
+ * `onForgot` when a screen shows the reset itself (VaultLockGate).
  */
 export default function VaultUnlockCard({ title = t('اطلاعات رمزنگاری شده است'), description, className = '', showForgot = true, onForgot }) {
   const { toast } = useFeedback();
@@ -70,7 +70,7 @@ export default function VaultUnlockCard({ title = t('اطلاعات رمزنگا
       extraAction={biometric && (
         <button type="button" className="btn-vault-biometric" onClick={handleBiometric} disabled={busy}>
           <Fingerprint size={16} />
-          {t('اثر انگشت')}
+          {biometricLabel()}
         </button>
       )}
       helpLink={showForgot && (

@@ -65,7 +65,7 @@ const REWRAP_KEY = 'rr_vault_rewrap';
  */
 let state = { status: 'idle', vault: null, error: null, epoch: 0, userId: null };
 let dataKey = null;
-// The unwrapped data key (base64), for the Android app's fingerprint unlock (biometricUnlock.js)
+// The unwrapped data key (base64), for the fingerprint/passkey unlock (biometricUnlock.js)
 let rawKeyB64 = null;
 let loadPromise = null;
 const portfolioKeys = new Map(); // wrapped key → { key, raw }
@@ -251,8 +251,8 @@ function isRewrapOf(wrappedKey, vault) {
 }
 
 /**
- * What the fingerprint unlock keeps (Android app): the unlocked data key, tied to this account and
- * this wrapping of it (a changed passphrase asks to set the fingerprint up again)
+ * What the fingerprint/passkey unlock keeps: the unlocked data key, tied to this account and
+ * this wrapping of it (a changed passphrase asks to set it up again)
  * @returns {{ userId: string, wrappedKey: string, key: string }|null} null while locked
  */
 export function getVaultUnlockSecret() {
