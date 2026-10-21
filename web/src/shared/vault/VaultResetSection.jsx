@@ -20,7 +20,6 @@ import { useFeedback } from '../ui/FeedbackProvider.jsx';
 import { useAuth } from '../../features/auth/context/AuthContext.jsx';
 import PasswordInput from '../../features/auth/components/PasswordInput.jsx';
 import ReauthButton, { needsReauth } from '../../features/auth/components/ReauthButton.jsx';
-import { isNativeApp } from '../native/nativeApp.js';
 import { resetAccountVault } from './vaultStore.js';
 import { t } from '../../utils/i18n.js';
 
@@ -68,8 +67,8 @@ export default function VaultResetSection() {
     setReauth(false);
     try {
       await resetAccountVault({ password: hasPassword ? password : undefined });
-      // The fingerprint unlock held the old key
-      if (isNativeApp()) import('../native/biometricUnlock.js').then((m) => m.disableBiometric()).catch(() => {});
+      // The fingerprint/passkey unlock held the old key
+      import('../native/biometricUnlock.js').then((m) => m.disableBiometric()).catch(() => {});
       toast.success(t('همه اطلاعات حذف شد. حالا رمزنگاری را با رمز جدید راه‌اندازی کنید.'));
       // Screens may still hold the old data in memory: start the app over, on the setup screen
       setTimeout(() => window.location.replace('/'), 1500);

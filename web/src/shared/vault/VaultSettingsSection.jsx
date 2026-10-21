@@ -4,12 +4,14 @@
  * Mandatory for the whole account: portfolios (holdings + transactions), loans, incomes and
  * cheques are all encrypted in the browser with a key only the user's passphrase can unlock.
  * Once on it cannot be turned off — only the passphrase can be changed, or, when it is forgotten,
- * everything reset (VaultResetSection).
+ * everything reset (VaultResetSection). On the website a passkey (fingerprint, face, Windows Hello,
+ * Touch ID or a security key) can open it instead of the passphrase (PasskeyUnlockBlock); the
+ * Android app has its fingerprint in app settings.
  */
 
 import { intlLocale, t } from '../../utils/i18n.js';
-import React, { useState } from 'react';
-import { LockOpen, ShieldCheck, KeyRound, RefreshCw } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { LockOpen, ShieldCheck, KeyRound, RefreshCw, Fingerprint } from 'lucide-react';
 import Button from '../ui/Button.jsx';
 import FilterPills from '../ui/FilterPills.jsx';
 import AlertBanner from '../ui/AlertBanner.jsx';
@@ -21,8 +23,63 @@ import { useDemo } from '../../features/demo/index.js';
 import VaultEnableForm, { PassphraseInput } from './VaultEnableForm.jsx';
 import { changeVaultPassphrase, lockAll, loadVault, VAULT_MIN_PASSPHRASE_LENGTH } from './vaultStore.js';
 import { AUTO_LOCK_OPTIONS, getAutoLockMinutes, setAutoLockMinutes } from './autoLock.js';
+import { isNativeApp } from '../native/nativeApp.js';
+import { isBiometricAvailable, isBiometricEnabled, enableBiometric, disableBiometric } from '../native/biometricUnlock.js';
 
 const faNum = (n) => Number(n || 0).toLocaleString(intlLocale());
+
+/** Turn the passkey unlock of this browser on or off (the vault is unlocked) */
+function PasskeyUnlockBlock({ userId }) {
+  const { toast } = useFeedback();
+  const [bio, setBio] = useState({ available: false, enabled: false, busy: false });
+
+  useEffect(() => {
+    let alive = true;
+    Promise.all([isBiometricAvailable(), isBiometricEnabled(userId)]).then(([available, enabled]) => {
+      if (alive) setBio((b) => ({ ...b, available, enabled }));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [userId]);
+
+  const toggle = async () => {
+    const on = !bio.enabled;
+    setBio((b) => ({ ...b, busy: true }));
+    try {
+      if (on) {
+        await enableBiometric();
+        toast.success(t('از این پس اطلاعات رمزنگاری‌شده در این مرورگر با کلید عبور باز می‌شود.'));
+      } else {
+        await disableBiometric();
+      }
+      setBio((b) => ({ ...b, enabled: on }));
+    } catch (err) {
+      if (err?.code !== 'CANCELED') toast.error(err?.message || t('فعال کردن کلید عبور ممکن نشد.'));
+    } finally {
+      setBio((b) => ({ ...b, busy: false }));
+    }
+  };
+
+  if (!bio.available) return null;
+  return (
+    <div className="vault-settings-block">
+      <h5 className="vault-settings-subtitle">{t('باز کردن با اثر انگشت یا کلید عبور')}</h5>
+      <p className="vault-settings-text">
+        {t('به‌جای رمز، با اثر انگشت، چهره، Windows Hello، Touch ID، گوشی یا کلید امنیتی باز کنید. کلید فقط در همین مرورگر نگه داشته می‌شود و به سرور نمی‌رود؛ رمز همچنان کار می‌کند.')}
+      </p>
+      <Button
+        variant={bio.enabled ? 'secondary' : 'primary'}
+        size="sm"
+        icon={<Fingerprint size={14} />}
+        onClick={toggle}
+        loading={bio.busy}
+      >
+        {bio.enabled ? t('خاموش کردن کلید عبور') : t('فعال کردن کلید عبور')}
+      </Button>
+    </div>
+  );
+}
 
 export default function VaultSettingsSection() {
   const vault = useVault();
@@ -139,6 +196,8 @@ export default function VaultSettingsSection() {
             <FilterPills variant="segmented" size="sm" options={autoLockOptions} activeValue={autoLock} onChange={chooseAutoLock} />
             <p className="vault-settings-text">{t('اگر این مدت با برنامه کار نکنید یا آن را در پس‌زمینه بگذارید، اطلاعات رمزنگاری‌شده در این دستگاه قفل می‌شود.')}</p>
           </div>
+
+          {!isNativeApp() && !demo?.isDemo && <PasskeyUnlockBlock userId={vault.userId} />}
 
           {changing && (
             <form className="vault-settings-block" onSubmit={handleChangePass}>

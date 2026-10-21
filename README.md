@@ -40,7 +40,7 @@ The interface is in Persian (right-to-left, Shamsi calendar, amounts in tomans).
 - **AI day's analysis** (new): what today's news says, how the stories connect and what to watch — no price predictions; the latest analysis is also on the website's landing page
 - **Yearly report** (new): a Shamsi year on one page — income and expenses, savings rate, the share of income invested, dollar value, **net worth** month by month against the dollar's rise, and the year's highlights; PDF and CSV export
 - **Android app**: bottom navigation and quick add, automatic reading of bank withdrawal and deposit SMS (the text never leaves the phone), one-tap and automatic recording of small expenses, fingerprint unlock, offline use; each release carries `realrate.apk` plus version-named `realrate-<version>.apk`, the no-SMS build `realrate-nosms-<version>.apk` (no SMS permission) and `realrate-nosms-<version>.aab` (Google Play bundle)
-- **End-to-end encryption**: all financial data is encrypted on the user's device; the server only sees ciphertext. The website, like the app, keeps an encrypted copy of the data on the device: tabs open fast and entries can be made offline
+- **End-to-end encryption**: all financial data is encrypted on the user's device; the server only sees ciphertext. In a browser it can also be unlocked with a passkey (fingerprint, face, Windows Hello, Touch ID or a security key). The website, like the app, keeps an encrypted copy of the data on the device: tabs open fast and entries can be made offline
 - **Accounts and admin**: Google or email sign-in, a demo account, an admin panel (users, groups and feature access, Android app users and their versions, price sources)
 
 Details: [docs/en/FEATURES.md](docs/en/FEATURES.md)

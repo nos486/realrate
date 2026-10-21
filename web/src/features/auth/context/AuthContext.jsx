@@ -195,8 +195,8 @@ export function AuthProvider({ children }) {
   useEffect(() => listenForNativeAuthReturn((result) => nativeReturnRef.current?.(result)), []);
 
   const logout = useCallback(async () => {
-    // The fingerprint unlock belongs to the account signing out
-    if (isNativeApp()) import('../../../shared/native/biometricUnlock.js').then((m) => m.disableBiometric()).catch(() => {});
+    // The fingerprint/passkey unlock belongs to the account signing out
+    import('../../../shared/native/biometricUnlock.js').then((m) => m.disableBiometric()).catch(() => {});
     // So are the bank SMS waiting to be recorded, and their settings
     if (isNativeApp()) import('../../../shared/native/smsInbox.js').then((m) => m.clearSmsInbox()).catch(() => {});
     // Due reminders belong to it too: the phone's scheduled notifications, the browser's sealed

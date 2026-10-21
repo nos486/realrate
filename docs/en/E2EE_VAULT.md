@@ -106,6 +106,7 @@ There is no way back once enabled.
 - **Auto-lock** (`shared/vault/autoLock.js`): after a per-device idle time (1, 5, 15, 60 minutes or never; default 15 on the site, 5 in the app) without input in a visible tab, the vault locks; a hidden tab or a backgrounded app counts as idle. The kept session records when it was last used and is not restored after that limit.
 - **KDF cost**: the salt names its rounds (`pbkdf2$600000$<base64>`, `lib/e2ee.js`); a bare salt is from before and means 100,000. Such a vault is re-wrapped with a new salt on its next passphrase unlock (same data key, no record re-encrypted); the fingerprint secret saved before keeps working on that device.
 - **Fingerprint (Android app)**: the unlocked data key (not the passphrase) is encrypted with an Android Keystore key that works only right after a fingerprint check (`BiometricVaultPlugin`, `shared/native/biometricUnlock.js`). Changing the passphrase, another account, or a change to the phone's fingerprints invalidates it — see [ANDROID.md](ANDROID.md#fingerprint).
+- **Passkey (website)**: in a browser the same secret is kept by `shared/vault/passkeyVault.js` (same calls as `BiometricVault`; `biometricUnlock.js` picks one). Turning it on makes a WebAuthn passkey (user verification required: fingerprint, face, Windows Hello, Touch ID, a phone or a security key) with the PRF extension; the PRF output for a random salt, through HKDF-SHA-256, is the AES-GCM key of the secret. Only the ciphertext, the salt and the credential id are kept, in this browser's localStorage; nothing reaches the server and the passkey never signs in. A passkey or browser without PRF is refused. Unlocking asks for the passkey and arms the auto-lock like a passphrase unlock. A changed passphrase or a passkey that no longer gives the same output turns it off; signing out and a vault reset forget it.
 - While locked, pages show an unlock card and no data is loaded into memory.
 
 ### Forgotten passphrase: reset
@@ -114,7 +115,7 @@ The encryption passphrase is stored nowhere and can't be recovered. Someone who 
 
 - The list of what will be deleted is shown; the user types «حذف همه اطلاعات» ("delete all data") and, if the account has a sign-in password, enters it too (checked by the server as well, rate limited).
 - `POST /api/vault/reset` deletes the vault and **all** of the user's financial data in one batch: portfolios, custom banks, every encrypted record, tombstones and reminders. The account, sign-in and home layout stay. Not allowed for the demo account.
-- The browser clears the key, the phone's offline copy and the fingerprint, and starts again at the encryption setup screen with a new passphrase.
+- The browser clears the key, the phone's offline copy and the fingerprint or passkey, and starts again at the encryption setup screen with a new passphrase.
 - Other devices: each record is saved with `vaultEpoch` (the creation time of the vault whose key encrypted it); after a reset, a save with the old key is refused (`409 VAULT_CHANGED`, or `VAULT_DISABLED` until a new vault exists) and that tab reloads the vault. Devices rebuild their offline copy from the new `epoch`.
 
 ## 6. Sharing an encrypted portfolio
