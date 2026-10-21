@@ -20,9 +20,13 @@ import { toAsset } from '../../../web/src/features/market/priceBookAssets.js';
 
 const source = PRICE_SOURCES_CONFIG.find((s) => s.id === 'src_def_tgju');
 
-/** tgju's summary table: the newest day first, prices in rials */
-const tgju = (bySlug) => async (url) => {
-  const slug = new URL(url).pathname.split('/').pop();
+/** tgju: its summary table (the newest day first) and, when given, its live feed; prices in rials */
+const tgju = (bySlug, current = null) => async (url) => {
+  const { hostname, pathname } = new URL(url);
+  if (hostname === 'call1.tgju.org') {
+    return current ? new Response(JSON.stringify({ current })) : new Response('', { status: 503 });
+  }
+  const slug = pathname.split('/').pop();
   if (!bySlug[slug]) return new Response('', { status: 404 });
   return new Response(JSON.stringify({ data: [[...bySlug[slug], '2026/10/06']] }));
 };
@@ -30,7 +34,7 @@ const tgju = (bySlug) => async (url) => {
 describe('the tgju source', () => {
   it('is one multi-output source of tgju series in rials: gold and coins, no bubble', () => {
     expect(source).toMatchObject({ sourceType: 'tgju_indicators', quote: 'rial', outputs: 'multi', isActive: true, isPrimary: true });
-    expect(source.fetchIntervalSec).toBe(600);
+    expect(source.fetchIntervalSec).toBe(300);
     const ids = source.series.map((s) => s.id);
     expect(ids).toEqual(['gold_18k', 'mesghal', 'full_coin', 'half_coin', 'quarter_coin', 'gerami_coin']);
     // A bubble is the price book's own, never read from tgju
@@ -42,7 +46,34 @@ describe('the tgju source', () => {
     }
   });
 
-  it('reads each series\' latest close; a series that fails is left out, the rest still update', async () => {
+  it('reads every series\' current price from the live feed, in one request', async () => {
+    const urls = [];
+    const feed = tgju({}, {
+      geram18: { p: '105,000,000', h: '106,000,000', l: '104,000,000', ts: '2026-10-21 15:30:00' },
+      sekee: { p: '1,120,000,000' }, nim: { p: '600,000,000' }, rob: { p: '350,000,000' },
+      gerami: { p: '180,000,000' }, mesghal: { p: '455,000,000' }, price_dollar_rl: { p: '1,000,000' },
+    });
+    const raw = await adapter.fetchRaw(source, null, async (url, init) => { urls.push(url); return feed(url, init); });
+    expect(urls).toHaveLength(1);
+    expect(urls[0]).toMatch(/^https:\/\/call1\.tgju\.org\/ajax\.json\?rev=\d+$/);
+    const { items } = adapter.parse(raw);
+    expect(items.map((i) => i.id)).toEqual(['gold_18k', 'mesghal', 'full_coin', 'half_coin', 'quarter_coin', 'gerami_coin']);
+    expect(items[0]).toEqual({ id: 'gold_18k', name: 'طلای ۱۸ عیار', price: 105000000 });
+  });
+
+  it('a series the live feed lacks is read from its daily table', async () => {
+    const raw = await adapter.fetchRaw(source, null, tgju(
+      { nim: ['500,000,000', '495,000,000', '505,000,000', '502,000,000'] },
+      { sekee: { p: '1,120,000,000' }, nim: { p: '' } },
+    ));
+    const { items } = adapter.parse(raw);
+    expect(items).toEqual([
+      { id: 'full_coin', name: 'سکه امامی', price: 1120000000 },
+      { id: 'half_coin', name: 'نیم سکه', price: 502000000 },
+    ]);
+  });
+
+  it('without the live feed, reads each series\' latest close; a series that fails is left out, the rest still update', async () => {
     const raw = await adapter.fetchRaw(source, null, tgju({
       sekee: ['1,000,000,000', '990,000,000', '1,010,000,000', '1,005,000,000'],
       nim: ['500,000,000', '495,000,000', '505,000,000', '502,000,000'],
@@ -61,8 +92,9 @@ describe('the tgju source', () => {
       signals.push(init?.signal);
       return new Response(JSON.stringify({ data: [['1', '1', '1', '1', '2026/10/06']] }));
     });
-    expect(signals).toHaveLength(1);
-    expect(signals[0]).toBeInstanceOf(AbortSignal);
+    // The live feed (unreadable here), then the series' daily table
+    expect(signals).toHaveLength(2);
+    for (const signal of signals) expect(signal).toBeInstanceOf(AbortSignal);
   });
 
   it('fails only when no series answered', async () => {

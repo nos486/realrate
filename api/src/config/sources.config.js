@@ -36,8 +36,9 @@ export const PRICE_SOURCES_CONFIG = [
     displayConfig: { showOnHomePage: true },
   },
   // ── Gold and coins (tgju.org): one multi-output source ──
-  // Each series is a tgju indicator (tgju.org/profile/<slug>), in rials, read from its daily table
-  // (its newest row is today's: the close is the latest price). The item's name, category and unit
+  // Each series is a tgju indicator (tgju.org/profile/<slug>), in rials, read from tgju's live feed
+  // (one request for all), or from its daily table when the feed lacks it (that table only has
+  // closed days, so its newest close is yesterday's). The item's name, category and unit
   // come from its spec. A coin's bubble is not read from tgju: the price book computes it (the
   // coin's price less its gold value, bubble.spec.js), so every bubble in the app is one bubble.
   {
@@ -56,7 +57,7 @@ export const PRICE_SOURCES_CONFIG = [
       { slug: "rob", id: "quarter_coin", name: "ربع سکه" },
       { slug: "gerami", id: "gerami_coin", name: "سکه گرمی" },
     ],
-    fetchIntervalSec: 600, // every 10 minutes: six requests a run, kept light on tgju
+    fetchIntervalSec: 300, // every 5 minutes: one request to the live feed a run
     isActive: true,
     isPrimary: true,
     displayConfig: { showOnHomePage: true },

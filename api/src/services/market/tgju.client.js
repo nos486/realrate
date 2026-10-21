@@ -1,10 +1,12 @@
 /**
- * tgju.client.js — Read tgju.org's daily series (its summary table: one candle per day, newest
- * first), shared by the history backfill (historyBackfill.service.js: years of past days) and the
- * live tgju source (sources/tgjuIndicators.source.adapter.js: each series' latest value)
+ * tgju.client.js — Read tgju.org: its daily series (the summary table: one candle per day, newest
+ * first), for the history backfill (historyBackfill.service.js: years of past days), and its live
+ * feed (the one the site's own pages poll: every series' current price), for the live tgju source
+ * (sources/tgjuIndicators.source.adapter.js), which falls back to a series' summary table.
  *
- * A series is named by its slug, the last part of its page address (tgju.org/profile/<slug>).
- * Numbers come in the series' own unit (rial for most); callers convert.
+ * A series is named by its slug, the last part of its page address (tgju.org/profile/<slug>); the
+ * live feed keys its series by the same slug. Numbers come in the series' own unit (rial for most);
+ * callers convert.
  */
 
 import { AppError } from "../../lib/AppError.js";
@@ -12,6 +14,9 @@ import { logger } from "../../lib/logger.js";
 import { jalaliToGregorian } from "../../domain/loanCalculator.js";
 
 export const TGJU_URL = "https://api.tgju.org/v1/market/indicator/summary-table-data/";
+/** tgju's live feed: `{ current: { [slug]: { p, h, l, ts, ... } } }`. The summary table only
+ *  gains a day's row once that day has closed, so its newest close lags the market; this is not. */
+export const TGJU_LIVE_URL = "https://call1.tgju.org/ajax.json";
 const PAGE = 500;
 /** How long one tgju request may take: the live source is read every minute, with every other
  *  source, so a slow tgju must never hold the sync up */
@@ -108,4 +113,45 @@ export async function fetchTgjuLatest(slug, fetchImpl = fetch) {
   const [latest] = parseTgjuRows(await fetchTgjuPage(slug, 0, 1, fetchImpl), 1);
   if (!latest) throw new AppError(`سری «${slug}» در tgju مقداری نداشت`, 502, "UPSTREAM_ERROR");
   return latest;
+}
+
+/**
+ * Every series' current price from tgju's live feed, as tgju gives it (its own unit)
+ *
+ * The feed sits behind a CDN that caches it for minutes; a query that changes every minute asks
+ * past it (the source is read every few minutes, so this is still one request per read).
+ * @param {typeof fetch} [fetchImpl]
+ * @param {number} [nowMs]
+ * @returns {Promise<Record<string, { price: number, high?: number, low?: number, ts?: string }>>} by slug
+ */
+export async function fetchTgjuCurrent(fetchImpl = fetch, nowMs = Date.now()) {
+  const res = await fetchImpl(`${TGJU_LIVE_URL}?rev=${Math.floor(nowMs / 60_000)}`, {
+    signal: AbortSignal.timeout(TGJU_TIMEOUT_MS),
+    headers: { Accept: "application/json", "User-Agent": "Mozilla/5.0 (RealRate live prices)" },
+  });
+  if (!res.ok) throw new AppError(`tgju پاسخ ${res.status} داد`, 502, "UPSTREAM_ERROR");
+  const body = await res.json().catch(() => null);
+  return parseTgjuCurrent(body?.current);
+}
+
+/**
+ * The live feed's `current` object → each series' price (a series without a positive price is left out)
+ * @param {Record<string, object>} current
+ */
+export function parseTgjuCurrent(current) {
+  if (!current || typeof current !== "object") throw new AppError("پاسخ زنده‌ی tgju قابل خواندن نبود", 502, "UPSTREAM_ERROR");
+  const out = {};
+  for (const [slug, row] of Object.entries(current)) {
+    const price = cellNumber(row?.p);
+    if (!(price > 0)) continue;
+    const high = cellNumber(row?.h);
+    const low = cellNumber(row?.l);
+    out[slug] = {
+      price,
+      ...(high > 0 ? { high } : {}),
+      ...(low > 0 ? { low } : {}),
+      ...(row?.ts ? { ts: String(row.ts) } : {}),
+    };
+  }
+  return out;
 }
