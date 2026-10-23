@@ -140,7 +140,7 @@
   gap: 8px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border-control, rgba(255, 255, 255, 0.08));
-  padding: 3px 6px 3px 8px;
+  padding: 3px;
   border-radius: var(--radius-full);
   transition: var(--transition-fast);
 }
@@ -165,27 +165,6 @@
   color: var(--accent-color);
   font-size: 12px;
   font-weight: 800;
-}
-
-.btn-header-logout {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: var(--transition-fast);
-  padding: 0;
-}
-
-.btn-header-logout:hover {
-  background: rgba(244, 63, 94, 0.15);
-  color: var(--accent-rose, var(--color-negative-text));
-  transform: scale(1.05);
 }
 
 .admin-badge {

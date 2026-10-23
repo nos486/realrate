@@ -96,4 +96,7 @@ export default {
   'مرورگر برای ورود با گوگل باز نشد.': 'The browser could not be opened for Google sign-in.',
   'ورود با گوگل کامل نشد. دوباره تلاش کنید.': 'Google sign-in did not complete. Try again.',
   'ورود دوباره با گوگل': 'Sign in with Google again',
+  'از حساب کاربری خارج می‌شوید؟ برای استفاده‌ی دوباره باید دوباره وارد شوید.': 'Sign out of your account? You will need to sign in again to use it.',
+  'با خروج، حساب روی این دستگاه بسته می‌شود؛ اطلاعات شما روی سرور می‌ماند.': 'Signing out closes the account on this device; your data stays on the server.',
+  'تنظیمات حساب': 'Account settings',
 };
