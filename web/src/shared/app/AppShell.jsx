@@ -16,7 +16,7 @@ import { intlLocale, t } from '../../utils/i18n.js';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Home, HandCoins, Wallet, Briefcase, LayoutGrid, Plus, Eye, EyeOff, Lock, LogOut,
+  Home, HandCoins, Wallet, Briefcase, LayoutGrid, Plus, Eye, EyeOff, Lock,
   MessageSquareText, ChevronLeft, ArrowLeftRight,
 } from 'lucide-react';
 import { useAuth } from '../../features/auth/index.js';
@@ -105,7 +105,7 @@ export function AppTopBar({ activeTab, navItems = [] }) {
 
 export function AppBottomNav({ activeTab, navItems = [], onSelect }) {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const hideValues = usePrivacyMode();
   const vault = useVault();
   const pendingSms = usePendingSmsCount();
@@ -228,10 +228,6 @@ export function AppBottomNav({ activeTab, navItems = [], onSelect }) {
                 <span>{t('قفل کردن اطلاعات رمزنگاری‌شده')}</span>
               </button>
             )}
-            <button type="button" className="app-sheet-row is-danger" onClick={() => { setSheet(null); logout(); }}>
-              <LogOut size={20} />
-              <span>{t('خروج از حساب')}</span>
-            </button>
           </div>
         )}
       </AppSheet>

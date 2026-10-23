@@ -8,11 +8,13 @@ import { ShieldCheck, LogOut } from 'lucide-react';
 import Button from '../ui/Button.jsx';
 import { useFeedback } from '../ui/FeedbackProvider.jsx';
 import { useAuth } from '../../features/auth/index.js';
+import { useConfirmedLogout } from '../../features/auth/useConfirmedLogout.js';
 import VaultEnableForm from './VaultEnableForm.jsx';
 import { t } from '../../utils/i18n.js';
 
 export default function VaultSetupScreen() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
+  const logout = useConfirmedLogout();
   const { toast } = useFeedback();
 
   return (
