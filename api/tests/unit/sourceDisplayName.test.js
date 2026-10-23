@@ -31,7 +31,7 @@ describe('SourceRegistry – display name & unit resolution', () => {
 
   test('resolves canonical USDT unit to تتر', () => {
     expect(resolveAssetUnit('USDT')).toBe('تتر');
-    expect(resolveAssetUnit('src_brs_usdt')).toBe('تتر');
+    expect(resolveAssetUnit('src_def_usdt')).toBe('تتر');
   });
 });
 

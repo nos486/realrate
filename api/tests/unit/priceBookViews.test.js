@@ -12,7 +12,7 @@ const source = (id, priceType, items, extra = {}) => ({ id, priceType, items, is
 
 const book = buildPriceBook([
   source('src_def_usd', 'usd', [{ id: 'src_def_usd', price: 95000 }]),
-  source('src_brs_usdt', 'USDT', [{ id: 'src_brs_usdt', price: 95200 }], { displayConfig: { showOnHomePage: true } }),
+  source('src_def_usdt', 'USDT', [{ id: 'src_def_usdt', price: 95200 }], { displayConfig: { showOnHomePage: true } }),
   source('src_hidden', 'hidden_coin', [{ id: 'src_hidden', price: 12000 }], { displayConfig: { showOnHomePage: false } }),
   source('src_def_ons_gold', 'ons_gold', [{ id: 'src_def_ons_gold', price: 2400 }], { quote: 'usd' }),
   source('src_def_ons_silver', 'ons_silver', [{ id: 'src_def_ons_silver', price: 30 }], { quote: 'usd' }),
