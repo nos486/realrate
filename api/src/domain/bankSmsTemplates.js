@@ -90,11 +90,13 @@ export const BANK_SMS_TEMPLATES = [
         // ۱۰:۴۷
         // ۱۴۰۵.۰۷.۰۶
         // (a deposit: «واریز پول» … «ریال به حساب شما نشست.»; the space before «ریال» may be
-        // missing: «3,000,000ریال»)
+        // missing: «3,000,000ریال». A round-up withdrawal, «برداشت رُند», adds a line
+        // «و 20,000 ریال هم رند شد.»: that change goes to the user's own Blu savings, so the
+        // amount recorded is the withdrawal alone)
         id: 'blu-balance',
         unit: 'rial',
         direction: { debit: ['برداشت', 'خرید', 'پرداخت', 'انتقال'], credit: ['واریز'] }, // i18n-ignore
-        pattern: re(String.raw`^بلو\n(?<kind>[^\n]+)\n[^\n]*?(?<amount>${P.amount})\s?ریال[^\n]*\nموجودی\s?:\s?(?<balance>${P.balance})\s?ریال\n(?<time>${P.time})\n(?<date>${P.date})$`), // i18n-ignore
+        pattern: re(String.raw`^بلو\n(?<kind>[^\n]+)\n[^\n]*?(?<amount>${P.amount})\s?ریال[^\n]*(?:\nو\s?${P.amount}\s?ریال[^\n]*رند[^\n]*)?\nموجودی\s?:\s?(?<balance>${P.balance})\s?ریال\n(?<time>${P.time})\n(?<date>${P.date})$`), // i18n-ignore
       },
       {
         // بلو
