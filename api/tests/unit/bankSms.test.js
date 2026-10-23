@@ -75,6 +75,13 @@ const SAMPLES = [
   },
   {
     bank: 'blu',
+    // A round-up withdrawal: the rounded-off change (to the user's Blu savings) isn't the expense
+    options: { sender: '+989999987641', today: new Date(2026, 9, 23) },
+    text: 'بلو\nبرداشت رُند\nسینا عزیز، 880,000 ریال از حساب شما پرید.\nو 20,000 ریال هم رند شد.\nموجودی: 127,370,170 ریال\n۱۰:۳۱\n۱۴۰۵.۰۸.۰۱',
+    expect: { templateId: 'blu-balance', direction: 'debit', amount: 88000, balance: 12737017, date: '2026-10-23', time: '10:31' },
+  },
+  {
+    bank: 'blu',
     // A loan repayment: no title line, the purpose follows «بابت»
     options: { sender: '+989999987641', today: new Date(2026, 9, 17) },
     text: 'بلو\nسینا عزیز 27,272,727 ریال بابت بازپرداخت بدهی وام قرض الحسنه ازدواج، از حساب شما پرید.\nموجودی: 13,781,170 ریال\n۱۴:۲۰\n۱۴۰۵.۰۷.۲۵',
