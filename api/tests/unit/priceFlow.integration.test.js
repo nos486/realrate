@@ -52,7 +52,7 @@ describe('a price from its source to every screen', () => {
       'gold-api.com/price/XAU': { price: 3700 },
       'gold-api.com/price/XAG': { price: 42 },
       'open.er-api.com': { rates: { USD: 1, EUR: 0.8, TRY: 40 } },
-      'Gold_Currency.php': { currency: [{ symbol: 'USDT_IRT', price: 236000 }] },
+      'call1.tgju.org/ajax.json': { current: { 'crypto-tether-irr': { p: '2,360,000' } } }, // rials
     };
     stubNetwork();
   });

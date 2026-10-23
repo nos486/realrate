@@ -138,14 +138,17 @@ export const PRICE_SOURCES_CONFIG = [
       return price;
     },
   })),
-  // ── سورس تتر با فانکشن پارسر اختصاصی ──
+  // ── Tether (tgju.org): the USDT/IRR series, in rials ──
+  // Read like gold and coins: tgju's live feed, else the series' daily table (which lags a day).
+  // tgju answers Workers abroad; the Iranian exchanges' and BrsApi's endpoints do not.
   {
-    id: "src_brs_usdt",
-    name: "دلار تتر",
+    id: "src_def_usdt",
+    name: "دلار تتر (tgju)",
     brand: "تتر",
     priceType: "USDT",
-    sourceType: "api_url",
-    endpoint: "https://api.brsapi.ir/Market/Gold_Currency.php?key=${BRS_API_KEY}",
+    quote: "rial",
+    sourceType: "tgju_indicators",
+    series: [{ slug: "crypto-tether-irr", id: "USDT", name: "دلار تتر" }],
     category: "currency",
     unit: "تتر",
     fetchIntervalSec: 300,
@@ -158,13 +161,6 @@ export const PRICE_SOURCES_CONFIG = [
     referencePulseColor: "cyan",
     referenceOrder: 2,
     displayConfig: { showOnHomePage: true },
-    customParser: (data) => {
-      const tetherItem = data?.currency?.find((item) => item.symbol === "USDT_IRT");
-      if (!tetherItem || !tetherItem.price) {
-        throw new Error("آیتم تتر در پاسخ وب‌سرویس یافت نشد.");
-      }
-      return Number(tetherItem.price);
-    },
   },
 
   // ── Multi-Output Feeds (Forex Currencies & Bourse Symbols) ─────────

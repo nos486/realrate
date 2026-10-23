@@ -66,6 +66,7 @@ export const TGJU_CATALOG = [
   // Crypto and oil (dollars)
   { slug: "crypto-bitcoin", label: "بیت‌کوین", group: "رمزارز", unit: "usd", suggest: "btc" },
   { slug: "crypto-ethereum", label: "اتریوم", group: "رمزارز", unit: "usd", suggest: "eth" },
+  { slug: "crypto-tether-irr", label: "تتر", group: "رمزارز", unit: "rial", suggest: "usdt" },
   { slug: "oil_brent", label: "نفت برنت", group: "نفت", unit: "usd" },
 ];
 
