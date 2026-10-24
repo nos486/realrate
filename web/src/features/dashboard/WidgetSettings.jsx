@@ -3,7 +3,8 @@
  * (how it looks), how many rows, which market assets, on/off switches and which parts to show
  *
  * Nothing here is specific to a widget: a new widget gets its settings sheet by declaring options
- * in the catalog (utils/dashboardLayout.js). Every change is saved as it is made.
+ * in the catalog (utils/dashboardLayout.js). Every change is saved as it is made. A value or switch
+ * tied to a section the user cannot open (its `requires`) is not offered; what is saved for it is kept.
  */
 
 import { intlLocale, t } from '../../utils/i18n.js';
@@ -15,7 +16,7 @@ import Modal from '../../shared/ui/Modal.jsx';
 import AssetPickerModal from '../home/AssetPickerModal.jsx';
 import { usePricing } from '../market/context/PricingContext.jsx';
 import { assetOf } from '../market/priceBookAssets.js';
-import { DASHBOARD_LIMITS, WIDGET_APPEARANCE, WIDGET_CATALOG } from '../../utils/dashboardLayout.js';
+import { DASHBOARD_LIMITS, WIDGET_APPEARANCE, WIDGET_CATALOG, allowedValues } from '../../utils/dashboardLayout.js';
 
 /** An icon for each style value of the catalog (a style without one is drawn with its name only) */
 const STYLE_ICONS = {
@@ -87,10 +88,11 @@ function AssetsGroup({ title, ids, max, onPick, onRemove }) {
 }
 
 /**
- * @param {{ widget: object|null, onClose: () => void, onChange: (config: object) => void }} props
- *   widget: the widget being set (null: closed)
+ * @param {{ widget: object|null, can?: (requirement: string) => boolean, onClose: () => void,
+ *   onChange: (config: object) => void }} props
+ *   widget: the widget being set (null: closed); can: whether a section or condition holds (useWidgetAccess)
  */
-export default function WidgetSettings({ widget, onClose, onChange }) {
+export default function WidgetSettings({ widget, can = () => true, onClose, onChange }) {
   // A widget that needs an asset opens straight onto the picker while it has none
   const [picking, setPicking] = useState(() => {
     const o = widget ? WIDGET_CATALOG[widget.type].options || {} : {};
@@ -111,8 +113,10 @@ export default function WidgetSettings({ widget, onClose, onChange }) {
   const toggleMulti = (key, def, value) => {
     const current = config[key] || def.default;
     const next = current.includes(value) ? current.filter((v) => v !== value) : [...current, value];
-    if (next.length >= (def.min || 0)) onChange({ [key]: next });
+    const allowed = allowedValues(def, can);
+    if (next.filter((v) => allowed.includes(v)).length >= (def.min || 0)) onChange({ [key]: next });
   };
+  const toggles = Object.fromEntries(Object.entries(options.toggles || {}).filter(([, def]) => !def.requires || can(def.requires)));
 
   if (picking) {
     return (
@@ -169,10 +173,10 @@ export default function WidgetSettings({ widget, onClose, onChange }) {
           />
         </Group>
       )}
-      {Object.entries(options.multi || {}).map(([key, def]) => (
+      {Object.entries(options.multi || {}).map(([key, def]) => ({ key, def, values: allowedValues(def, can) })).filter(({ values }) => values.length > 0).map(({ key, def, values }) => (
         <Group key={key} title={t(def.label)}>
           <div className="dash-chip-set" role="group" aria-label={t(def.label)}>
-            {def.values.map((value) => {
+            {values.map((value) => {
               const on = (config[key] || def.default).includes(value);
               return (
                 <button key={value} type="button" className={`dash-chip${on ? ' is-on' : ''}`} aria-pressed={on} onClick={() => toggleMulti(key, def, value)}>
@@ -183,7 +187,7 @@ export default function WidgetSettings({ widget, onClose, onChange }) {
           </div>
         </Group>
       ))}
-      {Object.keys(options.toggles || {}).length > 0 && <SwitchGroup title={t('گزینه‌ها')} defs={options.toggles} config={config} onChange={onChange} />}
+      {Object.keys(toggles).length > 0 && <SwitchGroup title={t('گزینه‌ها')} defs={toggles} config={config} onChange={onChange} />}
       <SwitchGroup title={t('ظاهر کارت')} defs={WIDGET_APPEARANCE} config={config} onChange={onChange} />
     </Modal>
   );

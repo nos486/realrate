@@ -32,9 +32,11 @@ vi.mock('../../../web/src/features/dashboard/widgetRegistry.jsx', async () => {
   const View = ({ widget }) => <p>widget:{widget.type}</p>;
   return {
     WIDGET_VIEWS: Object.fromEntries(WIDGET_TYPES.map((type) => [type, { Icon: () => <i />, Component: View }])),
-    useWidgetAccess: () => (type) => type !== 'sms',
+    useWidgetAccess: () => access,
   };
 });
+
+const access = { can: () => true, canSee: (type) => type !== 'sms', configOf: (widget) => widget.config };
 
 import Dashboard from '../../../web/src/features/dashboard/Dashboard.jsx';
 import { DEFAULT_DASHBOARD } from '../../src/domain/dashboardLayout.js';
@@ -94,6 +96,20 @@ describe('the home page', () => {
     expect(screen.queryByRole('button', { name: /شخصی‌سازی/ })).toBeNull();
     expect(screen.getByText('unlock')).toBeTruthy();
     expect(shownTypes().length).toBeGreaterThan(0);
+  });
+
+  it('hides a widget the user cannot see while arranging, and keeps it in the saved list', async () => {
+    localStorage.setItem('realrate_dashboard_u1', JSON.stringify({
+      version: 1,
+      tablet: [{ id: 'w_1', type: 'sms', height: 1 }, { id: 'w_2', type: 'clock', height: 1 }, { id: 'w_3', type: 'goals', height: 1 }],
+    }));
+    render(<Dashboard onOpen={open} />);
+    fireEvent.click(screen.getByRole('button', { name: /شخصی‌سازی/ }));
+    expect(shownTypes().sort()).toEqual(['clock', 'goals']);
+    fireEvent.click(screen.getByRole('button', { name: 'حذف ساعت و تاریخ' }));
+    await waitFor(() => expect(shownTypes()).toEqual(['goals']));
+    await waitFor(() => expect(putRecord).toHaveBeenCalled(), { timeout: 3000 });
+    expect(putRecord.mock.calls.at(-1)[3].tablet.map((w) => w.type)).toEqual(['goals', 'sms']);
   });
 
   it('opens with the arrangement kept in this browser', () => {

@@ -20,7 +20,6 @@ export default {
   'تنظیم {title}': 'Set up {title}',
   'تنظیم': 'Set up',
   'حذف {title}': 'Remove {title}',
-  'این ویجت برای حساب شما فعال نیست و نمایش داده نمی‌شود.': 'This widget is not available for your account and is not shown.',
   'هر ویجت را می‌توانید جابه‌جا کنید، اندازه‌اش را عوض کنید یا بعداً بردارید.': 'You can move each widget, resize it or remove it later.',
   'اضافه شده': 'Added',
   'تنظیم «{title}»': 'Set up “{title}”',

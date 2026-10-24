@@ -23,7 +23,8 @@ import VaultUnlockCard from '../../shared/vault/VaultUnlockCard.jsx';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { useDemo } from '../demo/index.js';
 import {
-  addWidget, configureWidget, layoutColumns, placeWidget, removeWidget, setWidgetHeight, screenOfColumns, WIDGET_CATALOG,
+  addWidget, canAddWidget, configureWidget, layoutColumns, placeWidget, removeWidget, setWidgetHeight, screenOfColumns,
+  withHiddenWidgets, WIDGET_CATALOG,
 } from '../../utils/dashboardLayout.js';
 import { DashboardContext } from './DashboardContext.js';
 import { useDashboardLayout } from './useDashboardLayout.js';
@@ -70,7 +71,8 @@ export default function Dashboard({ usdToman = 0, analysis = [], currencies = []
   const vault = useVault();
   const { confirm } = useFeedback();
   const { readOnly } = useDemo();
-  const canSee = useWidgetAccess();
+  const access = useWidgetAccess();
+  const { canSee } = access;
   const [editing, setEditing] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [settingsId, setSettingsId] = useState(null);
@@ -91,24 +93,28 @@ export default function Dashboard({ usdToman = 0, analysis = [], currencies = []
     () => ({ usdToman, analysis, currencies, recommendation, marketLoading, open: onOpen }),
     [usdToman, analysis, currencies, recommendation, marketLoading, onOpen],
   );
-  const settingsWidget = widgets.find((w) => w.id === settingsId) || null;
-  const shown = isEditing ? widgets : widgets.filter((w) => canSee(w.type));
+  // Only what the user can see is drawn and arranged, also while editing (widgets of sections
+  // their group does not open stay in the saved list, out of sight, for when it does)
+  const shown = useMemo(() => widgets.filter((w) => canSee(w.type)), [widgets, canSee]);
+  const setShown = (next) => setWidgets(withHiddenWidgets(next, widgets, canSee));
+  const settingsWidget = shown.find((w) => w.id === settingsId) || null;
   const columns = useMemo(() => layoutColumns(shown, columnCount), [shown, columnCount]);
 
   const handleDragEnd = ({ active, over }) => {
     if (!over || active.id === over.id) return;
     const overId = String(over.id);
     if (overId.startsWith(COLUMN_PREFIX)) {
-      setWidgets(placeWidget(widgets, columnCount, active.id, Number(overId.slice(COLUMN_PREFIX.length))));
+      setShown(placeWidget(shown, columnCount, active.id, Number(overId.slice(COLUMN_PREFIX.length))));
       return;
     }
     const column = columns.findIndex((list) => list.some((w) => w.id === over.id));
-    if (column >= 0) setWidgets(placeWidget(widgets, columnCount, active.id, column, over.id));
+    if (column >= 0) setShown(placeWidget(shown, columnCount, active.id, column, over.id));
   };
 
   const handleAdd = (type) => {
-    const next = addWidget(widgets, type);
-    setWidgets(next);
+    if (!canAddWidget(widgets, type)) return;
+    const next = addWidget(shown, type);
+    setShown(next);
     setPickerOpen(false);
     // A widget that needs a choice asks for it right away
     if (WIDGET_CATALOG[type].options?.assets) setSettingsId(next[next.length - 1].id);
@@ -133,7 +139,7 @@ export default function Dashboard({ usdToman = 0, analysis = [], currencies = []
       confirmLabel: t('حذف'),
       danger: true,
     });
-    if (ok) setWidgets(removeWidget(widgets, widget.id));
+    if (ok) setShown(removeWidget(shown, widget.id));
   };
 
   return (
@@ -190,12 +196,12 @@ export default function Dashboard({ usdToman = 0, analysis = [], currencies = []
                       key={widget.id}
                       widget={widget}
                       editing={isEditing}
-                      available={canSee(widget.type)}
+                      config={access.configOf(widget)}
                       sizable={!appLayout}
                       first={i === 0}
                       last={i === list.length - 1}
-                      onHeight={(height) => setWidgets(setWidgetHeight(widgets, widget.id, height))}
-                      onMove={(step) => list[i + step] && setWidgets(placeWidget(widgets, columnCount, widget.id, c, list[i + step].id))}
+                      onHeight={(height) => setShown(setWidgetHeight(shown, widget.id, height))}
+                      onMove={(step) => list[i + step] && setShown(placeWidget(shown, columnCount, widget.id, c, list[i + step].id))}
                       onSettings={() => setSettingsId(widget.id)}
                       onRemove={() => handleRemove(widget)}
                     />
@@ -210,8 +216,9 @@ export default function Dashboard({ usdToman = 0, analysis = [], currencies = []
         <WidgetSettings
           key={settingsWidget?.id || 'none'}
           widget={settingsWidget}
+          can={access.can}
           onClose={() => setSettingsId(null)}
-          onChange={(config) => setWidgets(configureWidget(widgets, settingsWidget.id, config))}
+          onChange={(config) => setShown(configureWidget(shown, settingsWidget.id, config))}
         />
       </div>
     </DashboardContext.Provider>
