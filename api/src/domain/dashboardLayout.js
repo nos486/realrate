@@ -47,8 +47,14 @@ export const WIDGET_HEIGHT_PX = { 1: 150, 2: 300, 3: 450, 4: 600 };
 export const WIDGET_HEIGHTS = Object.keys(WIDGET_HEIGHT_PX).map(Number);
 
 /**
- * The widgets a user can add. `requires` names what the user needs to see it (checked by the
- * client: a feature, `news`, `native`); `unique` widgets can be added once. `options` declares the
+ * The widgets a user can add. `requires` lists what the user needs to see one, all of it (an
+ * inner list: any one of it); each entry is a section's feature key (config/features.js: the
+ * admin opens it to some groups) or a condition of WIDGET_CONDITIONS, checked by the client
+ * (widgetAllowed). A setting can be tied to a section too: a `multi` value through its
+ * `requires` map (the value is not offered nor shown without it; an `essential` list hides the
+ * widget when none of its values is left) and a toggle through its own `requires` (off
+ * without it). A widget the user cannot see is not offered nor drawn, but stays in a saved
+ * layout for when they can. `unique` widgets can be added once. `options` declares the
  * widget's settings, all of them saved in its `config` and nothing else. Every widget also has the
  * two appearance switches of WIDGET_APPEARANCE (its title, its card). `heights` lists the height
  * classes (WIDGET_HEIGHT_PX) the widget can be drawn at, `defaultHeight` is the one a new widget gets:
@@ -64,13 +70,13 @@ export const WIDGET_CATALOG = {
     title: msg("خلاصه‌ی ماه"),
     description: msg("خرج، درآمد و باقی‌مانده‌ی ماه، با مقایسه با ماه قبل"),
     group: "money",
-    heights: [1, 2, 3], defaultHeight: 2, unique: true, requires: "vault",
+    heights: [1, 2, 3], defaultHeight: 2, unique: true, requires: ["expenses"],
     options: {
       style: { values: ["full", "compact"], labels: { full: msg("کامل"), compact: msg("فشرده") }, default: "full" },
       toggles: {
         comparison: { label: msg("مقایسه با ماه قبل"), default: true },
-        breakdown: { label: msg("جدا کردن اقساط وام"), default: true },
-        stats: { label: msg("نمایش درآمد و باقی‌مانده"), default: true },
+        breakdown: { label: msg("جدا کردن اقساط وام"), default: true, requires: "loans" },
+        stats: { label: msg("نمایش درآمد و باقی‌مانده"), default: true, requires: "incomes" },
       },
     },
   },
@@ -78,7 +84,7 @@ export const WIDGET_CATALOG = {
     title: msg("آخرین هزینه‌ها"),
     description: msg("هزینه‌هایی که تازه ثبت شده است"),
     group: "money",
-    heights: [1, 2, 3, 4], defaultHeight: 2, requires: "expenses",
+    heights: [1, 2, 3, 4], defaultHeight: 2, requires: ["expenses"],
     options: {
       count: [3, 5, 8, 10],
       choices: {
@@ -97,7 +103,7 @@ export const WIDGET_CATALOG = {
     title: msg("وام‌ها"),
     description: msg("قسط بعدی وام‌ها و مانده‌ی هر کدام"),
     group: "money",
-    heights: [2, 3, 4], defaultHeight: 2, unique: true, requires: "vault",
+    heights: [2, 3, 4], defaultHeight: 2, unique: true, requires: ["loans"],
     options: {
       count: [3, 5, 8, 12],
       choices: {
@@ -116,14 +122,14 @@ export const WIDGET_CATALOG = {
     title: msg("اهداف پس‌انداز"),
     description: msg("نزدیک‌ترین هدف‌ها و پیشرفت هر کدام"),
     group: "money",
-    heights: [1, 2, 3], defaultHeight: 1, unique: true, requires: "vault",
+    heights: [1, 2, 3], defaultHeight: 1, unique: true, requires: ["goals"],
     options: { count: [3, 5, 8, 12] }, defaults: { count: 12 },
   },
   alerts: {
     title: msg("یادآورها"),
     description: msg("اقساط، چک‌ها و اشتراک‌هایی که سررسیدشان نزدیک است"),
     group: "money",
-    heights: [1, 2, 3], defaultHeight: 1, unique: true, requires: "vault",
+    heights: [1, 2, 3], defaultHeight: 1, unique: true, requires: [],
     options: {
       multi: {
         sources: {
@@ -132,6 +138,8 @@ export const WIDGET_CATALOG = {
           labels: { loan: msg("اقساط وام"), cheque: msg("چک‌ها"), subscription: msg("اشتراک‌ها") },
           default: ["loan", "cheque", "subscription"],
           min: 1,
+          requires: { loan: "loans", cheque: "cheques", subscription: "subscriptions" },
+          essential: true,
         },
       },
     },
@@ -140,7 +148,7 @@ export const WIDGET_CATALOG = {
     title: msg("نرخ‌های امروز"),
     description: msg("دلار، طلای ۱۸ و سکه با تغییر امروز"),
     group: "market",
-    heights: [1, 2, 3], defaultHeight: 1, unique: true, requires: "market",
+    heights: [1, 2, 3], defaultHeight: 1, unique: true, requires: ["market"],
     options: {
       style: { values: ["tiles", "list"], labels: { tiles: msg("کاشی"), list: msg("فهرست") }, default: "tiles" },
       multi: {
@@ -159,7 +167,7 @@ export const WIDGET_CATALOG = {
     title: msg("نرخ‌های دلخواه"),
     description: msg("چند نرخ دلخواه از بازار، هرکدام با آیکون، قیمت، تغییر و بازه‌ی امروز"),
     group: "market",
-    heights: [1, 2, 3], defaultHeight: 2, requires: "market",
+    heights: [1, 2, 3], defaultHeight: 2, requires: ["market"],
     options: {
       assets: true,
       style: { values: ["grid", "list"], labels: { grid: msg("شبکه‌ای"), list: msg("فهرست") }, default: "grid" },
@@ -170,10 +178,10 @@ export const WIDGET_CATALOG = {
     title: msg("آخرین اخبار"),
     description: msg("تازه‌ترین خبرهای بازار"),
     group: "news",
-    heights: [2, 3, 4], defaultHeight: 2, unique: true, requires: "news",
+    heights: [2, 3, 4], defaultHeight: 2, unique: true, requires: ["news", "news_locale"],
     options: {
       count: [3, 5, 8, 10],
-      toggles: { analysis: { label: msg("نمایش خلاصه‌ی تحلیل روز"), default: true } },
+      toggles: { analysis: { label: msg("نمایش خلاصه‌ی تحلیل روز"), default: true, requires: "analysis" } },
     },
     defaults: { count: 10 },
   },
@@ -181,7 +189,7 @@ export const WIDGET_CATALOG = {
     title: msg("تحلیل روز با هوش مصنوعی"),
     description: msg("فقط تحلیل روز: خلاصه‌ی خبرها، مهم‌ترین رویدادها و نکته‌ها"),
     group: "news",
-    heights: [3, 4], defaultHeight: 4, unique: true, requires: "analysis",
+    heights: [3, 4], defaultHeight: 4, unique: true, requires: ["analysis", "news_locale"],
     options: {
       toggles: {
         drivers: { label: msg("مهم‌ترین خبرها"), default: true },
@@ -194,13 +202,13 @@ export const WIDGET_CATALOG = {
     title: msg("پیامک‌های بانکی"),
     description: msg("پیامک‌هایی که منتظر ثبت هستند"),
     group: "tools",
-    heights: [1, 2, 3], defaultHeight: 1, unique: true, requires: "native_sms",
+    heights: [1, 2, 3], defaultHeight: 1, unique: true, requires: ["native_sms", "expenses"],
   },
   clock: {
     title: msg("ساعت و تاریخ"),
     description: msg("ساعت و تاریخ امروز به وقت تهران، با تاریخ شمسی و میلادی"),
     group: "tools",
-    heights: [1, 2], defaultHeight: 1, unique: true, requires: null,
+    heights: [1, 2], defaultHeight: 1, unique: true, requires: [],
     options: {
       style: { values: ["digital", "analog", "compact"], labels: { digital: msg("دیجیتال"), analog: msg("عقربه‌ای"), compact: msg("فشرده") }, default: "digital" },
       toggles: {
@@ -214,7 +222,7 @@ export const WIDGET_CATALOG = {
     title: msg("تقویم"),
     description: msg("تقویم شمسی با نشان اقساط، سررسید چک‌ها، تمدید اشتراک‌ها و تاریخ هدف‌ها"),
     group: "tools",
-    heights: [2, 4], defaultHeight: 2, unique: true, requires: null,
+    heights: [2, 4], defaultHeight: 2, unique: true, requires: [],
     options: {
       toggles: { list: { label: msg("فهرست رویدادها زیر تقویم"), default: true }, total: { label: msg("جمع پرداختی و دریافتی ماه"), default: true } },
       style: { values: ["month", "agenda"], labels: { month: msg("ماه"), agenda: msg("برنامه") }, default: "month" },
@@ -225,6 +233,8 @@ export const WIDGET_CATALOG = {
           labels: { loan: msg("قسط وام"), cheque: msg("سررسید چک"), subscription: msg("تمدید اشتراک"), goal: msg("تاریخ هدف") },
           default: ["loan", "cheque", "subscription", "goal"],
           min: 1,
+          // Without any of them it is still a calendar
+          requires: { loan: "loans", cheque: "cheques", subscription: "subscriptions", goal: "goals" },
         },
       },
     },
@@ -233,7 +243,7 @@ export const WIDGET_CATALOG = {
     title: msg("میان‌بُرها"),
     description: msg("ثبت سریع هزینه و رفتن به بخش‌های پرکاربرد"),
     group: "tools",
-    heights: [1, 2, 3], defaultHeight: 1, unique: true, requires: null,
+    heights: [1, 2, 3], defaultHeight: 1, unique: true, requires: [],
     options: {
       style: { values: ["grid", "list"], labels: { grid: msg("شبکه‌ای"), list: msg("فهرست") }, default: "grid" },
       multi: {
@@ -246,6 +256,11 @@ export const WIDGET_CATALOG = {
           },
           default: ["add-expense", "incomes", "expenses", "portfolio", "loans", "reports"],
           min: 1,
+          requires: {
+            "add-expense": "expenses", incomes: "incomes", expenses: "expenses",
+            portfolio: "portfolio", loans: "loans", reports: "reports",
+          },
+          essential: true,
         },
       },
     },
@@ -254,9 +269,72 @@ export const WIDGET_CATALOG = {
     title: msg("پلن"),
     description: msg("محدودیت‌های پلن رایگان و میزان استفاده"),
     group: "tools",
-    heights: [1, 2], defaultHeight: 1, unique: true, requires: "free_plan",
+    heights: [1, 2], defaultHeight: 1, unique: true, requires: ["free_plan"],
   },
 };
+
+/**
+ * What a `requires` entry may name besides a feature key: conditions of the device and the
+ * account, checked by the client (web/src/features/dashboard/widgetRegistry.jsx)
+ *   native_sms   the Android app that reads bank messages
+ *   free_plan    a user without Pro
+ *   news_locale  a language the news are written in (they are Persian only)
+ */
+export const WIDGET_CONDITIONS = ["native_sms", "free_plan", "news_locale"];
+
+/** Whether one `requires` entry holds: a key, or a list of which any one will do */
+const meets = (need, can) => (Array.isArray(need) ? need.some((n) => can(n)) : can(need));
+
+/**
+ * The values of a `multi` setting the user can have (all of them when none is tied to a section)
+ * @param {{ values: string[], requires?: Record<string, string> }} def
+ * @param {(requirement: string) => boolean} can
+ */
+export const allowedValues = (def, can) => def.values.filter((v) => !def.requires?.[v] || can(def.requires[v]));
+
+/**
+ * Whether the user can see widgets of a type: everything its `requires` lists holds, and an
+ * `essential` setting has a value left
+ * @param {string} type
+ * @param {(requirement: string) => boolean} can - whether a feature key or condition holds
+ */
+export function widgetAllowed(type, can) {
+  const spec = WIDGET_CATALOG[type];
+  if (!spec) return false;
+  if (!(spec.requires || []).every((need) => meets(need, can))) return false;
+  return Object.values(spec.options?.multi || {}).every((def) => !def.essential || allowedValues(def, can).length > 0);
+}
+
+/**
+ * A widget's settings as it is drawn for this user: the values of sections they cannot open
+ * left out, the switches tied to one turned off. The stored settings are not changed, so they
+ * come back when the section opens.
+ * @param {{ type: string, config?: object }} widget
+ * @param {(requirement: string) => boolean} can
+ * @returns {object}
+ */
+export function effectiveConfig(widget, can) {
+  const options = WIDGET_CATALOG[widget.type]?.options || {};
+  const config = { ...(widget.config || {}) };
+  for (const [key, def] of Object.entries(options.multi || {})) {
+    if (!def.requires) continue;
+    const allowed = allowedValues(def, can);
+    config[key] = (config[key] || def.default).filter((v) => allowed.includes(v));
+  }
+  for (const [key, def] of Object.entries(options.toggles || {})) {
+    if (def.requires && !can(def.requires)) config[key] = false;
+  }
+  return config;
+}
+
+/**
+ * Put a visible list back with the widgets the user cannot see (they keep their place in the
+ * saved layout's tail): an edit made on what is shown keeps the rest
+ * @param {object[]} visible - the edited list of the widgets shown
+ * @param {object[]} all - the whole saved list before the edit
+ * @param {(type: string) => boolean} canSee
+ */
+export const withHiddenWidgets = (visible, all, canSee) => [...visible, ...all.filter((w) => !canSee(w.type))];
 
 /** The appearance switches every widget has, whatever its type: its title and its card (background) */
 export const WIDGET_APPEARANCE = {
