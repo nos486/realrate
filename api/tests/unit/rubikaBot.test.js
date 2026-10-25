@@ -130,6 +130,22 @@ describe('the channel', () => {
     expect(await runRubikaBot(env, { now: NOW, fetchFn })).toMatchObject({ sent: 0 });
   });
 
+  it('posts the domestic news only when turned on, from the chosen channels, never linking to Telegram', async () => {
+    const domestic = (n, channel = 'tasnimnews') => article(n, { source: 'telegram', channel, channelTitle: 'تسنیم', url: `https://t.me/${channel}/${n}` });
+    await saveRubikaConfig(env, { token: TOKEN, channel: CHANNEL, enabled: true });
+    expect(await enqueueRubikaNews(env, [domestic(1)], NOW)).toBe(0);
+    await saveRubikaConfig(env, { domestic: true, domesticChannels: ['@TasnimNews'] });
+    expect((await getRubikaConfig(env)).domesticChannels).toEqual(['tasnimnews']);
+    expect(await enqueueRubikaNews(env, [domestic(2), domestic(3, 'other_channel'), article(4)], NOW)).toBe(2);
+    const { fetchFn, calls } = fakeApi();
+    await runRubikaBot(env, { now: NOW, fetchFn });
+    const post = calls.find((c) => c.params.text.includes('تیتر 2')).params;
+    expect(post.text).toContain('منبع: تسنیم');
+    expect(JSON.stringify(post)).not.toContain('t.me');
+    await saveRubikaConfig(env, { domesticChannels: null });
+    expect(await enqueueRubikaNews(env, [domestic(5, 'other_channel')], NOW)).toBe(1);
+  });
+
   it('a Telegram failure never holds Rubika\'s queue', async () => {
     await saveBotConfig(env, { token: '123456789:AAFakeTokenFakeTokenFakeTokenFake_12', channel: '@realrate_news', enabled: true });
     await saveRubikaConfig(env, { token: TOKEN, channel: CHANNEL, enabled: true });

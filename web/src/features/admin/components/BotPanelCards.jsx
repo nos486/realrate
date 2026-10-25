@@ -27,10 +27,11 @@ const fa = (n) => Number(n || 0).toLocaleString(intlLocale());
 
 /**
  * @param {{ messenger: Messenger, bot: ReturnType<typeof import('../hooks/useBotSettings.js').useBotSettings>,
- *   account: import('react').ReactNode }} props
- *   account: the card that links the admin's own account to the bot
+ *   account: import('react').ReactNode, news?: import('react').ReactNode }} props
+ *   account: the card that links the admin's own account to the bot; news: the messenger's own
+ *   choice of what else it posts (Rubika: the domestic news), under the feeds
  */
-export function BotPage({ messenger, bot, account }) {
+export function BotPage({ messenger, bot, account, news = null }) {
   const { data, config, form, error, load, busy, dirty, save, test, run, setField } = bot;
   return (
     <AdminPage
@@ -65,6 +66,7 @@ export function BotPage({ messenger, bot, account }) {
                 feedIds={form.feedIds}
                 onFeedIds={(ids) => setField('feedIds', ids)}
               />
+              {news}
               <BotStatusCard status={data.status} messenger={messenger.name} busy={busy === 'run'} disabled={Boolean(busy)} onRun={run} />
             </div>
           </div>

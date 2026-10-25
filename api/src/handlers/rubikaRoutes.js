@@ -1,8 +1,8 @@
 /**
  * rubikaRoutes.js — Admin API of the Rubika bot (admin panel → ربات روبیکا)
  *
- *   GET  /api/admin/rubika       settings (never the token), last status, the feeds to choose from
- *   PUT  /api/admin/rubika       save { enabled?, channel?, feeds?, token?, dailyReport?, unlinkAdmin? }
+ *   GET  /api/admin/rubika       settings (never the token), last status, the feeds and domestic channels to choose from
+ *   PUT  /api/admin/rubika       save { enabled?, channel?, feeds?, domestic?, domesticChannels?, token?, dailyReport?, unlinkAdmin? }
  *   POST /api/admin/rubika/test  check the token and the channel, and post a test message
  *   POST /api/admin/rubika/run   post the waiting news now
  *   POST /api/admin/rubika/link  a one-time code the admin sends to the bot to link their account
@@ -14,7 +14,7 @@ import { jsonResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
 import { logger } from "../lib/logger.js";
 import { requireAdmin } from "./botRoutes.js";
-import { getNewsFeeds } from "../services/news/news.service.js";
+import { getNewsFeeds, getNewsChannels } from "../services/news/news.service.js";
 import { safeEqual } from "../services/bot/webhook.js";
 import { getRubikaConfig, publicRubikaConfig, saveRubikaConfig, getRubikaStatus, newRubikaLinkCode } from "../services/bot/rubika/rubikaConfig.service.js";
 import { runRubikaBot, syncRubikaWebhook, rubikaWebhookSecret } from "../services/bot/rubika/rubikaBot.service.js";
@@ -25,11 +25,13 @@ import { getMe, getChat, sendMessage } from "../services/bot/rubika/rubikaApi.js
 export const RUBIKA_WEBHOOK_ROUTE = /^\/api\/bot\/rubika\/webhook\/([a-f0-9]{64})(?:\/(receiveUpdate|receiveInlineMessage))?$/;
 
 async function overview(env) {
-  const [config, status, feeds] = await Promise.all([getRubikaConfig(env), getRubikaStatus(env), getNewsFeeds(env)]);
+  const [config, status, feeds, channels] = await Promise.all([getRubikaConfig(env), getRubikaStatus(env), getNewsFeeds(env), getNewsChannels(env)]);
   return {
     config: publicRubikaConfig(config),
     status,
     feeds: feeds.map(({ id, title, enabled }) => ({ id, title, enabled })),
+    // The news section's domestic channels, for choosing which ones' posts go to the channel
+    channels: channels.map(({ username, enabled }) => ({ id: String(username).toLowerCase(), title: username, enabled })),
   };
 }
 
@@ -46,6 +48,8 @@ export async function handleAdminSaveRubika(request, env, { fetchFn } = {}) {
     enabled: body.enabled,
     channel: body.channel,
     feeds: body.feeds,
+    domestic: body.domestic,
+    domesticChannels: body.domesticChannels,
     token: body.token,
     dailyReport: body.dailyReport,
     unlinkAdmin: body.unlinkAdmin === true,

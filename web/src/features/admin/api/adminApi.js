@@ -223,8 +223,9 @@ export async function runBotNow() {
 
 /**
  * The Rubika bot: settings (never the token, only `tokenSet`; the link code while it is valid),
- * last status and the feeds to choose from
- * @returns {Promise<{ config: object, status: object|null, feeds: Array<{ id: string, title: string, enabled: boolean }> }>}
+ * last status, and the feeds and domestic channels to choose from
+ * @returns {Promise<{ config: object, status: object|null, feeds: Array<{ id: string, title: string, enabled: boolean }>,
+ *   channels: Array<{ id: string, title: string, enabled: boolean }> }>}
  */
 export async function getRubikaSettings() {
   return httpClient.get('/api/admin/rubika');
