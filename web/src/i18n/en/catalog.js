@@ -188,6 +188,7 @@ export default {
   // ── Price sources (sources.config.js): name, brand, reference labels ──
   'دلار تهران سبزه میدان': 'Tehran dollar (Sabzeh Meydan)',
   'طلا و سکه (tgju)': 'Gold and coins (tgju)',
+  'دلار تتر (tgju)': 'Tether (tgju)',
   'انس طلا جهانی (XAU)': 'Global gold ounce (XAU)',
   'انس پلاتین جهانی (XPT)': 'Global platinum ounce (XPT)',
   'انس پالادیوم جهانی (XPD)': 'Global palladium ounce (XPD)',

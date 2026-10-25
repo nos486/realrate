@@ -49,8 +49,8 @@ describe('Phase 2 — Central Display Engine (موتور مرکزی نمایش)'
         itemKey: 'usd',
       });
 
-      expect(parseItemId('src_brs_usdt')).toEqual({
-        sourceId: 'src_brs_usdt',
+      expect(parseItemId('src_def_usdt')).toEqual({
+        sourceId: 'src_def_usdt',
         itemKey: 'USDT',
       });
     });
@@ -110,7 +110,7 @@ describe('Phase 2 — Central Display Engine (موتور مرکزی نمایش)'
       expect(getItemUnit('src_def_gold_18k')).toBe('گرم');
       expect(getItemUnit('src_def_full_coin')).toBe('عدد');
       expect(getItemUnit('src_def_usd')).toBe('دلار');
-      expect(getItemUnit('src_brs_usdt')).toBe('تتر');
+      expect(getItemUnit('src_def_usdt')).toBe('تتر');
     });
 
     it('preserves raw unit for custom manual holdings', () => {
