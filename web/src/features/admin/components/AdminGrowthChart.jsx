@@ -9,16 +9,19 @@
 
 import { intlLocale } from '../../../utils/i18n.js';
 import React, { useEffect, useMemo, useState } from 'react';
+import { TrendingUp } from 'lucide-react';
 import { ChartToggle } from '../../../shared/ui/DonutChart.jsx';
+import { CHART_COLORS } from '../../../shared/ui/chartColors.js';
 import { getAdminGrowth } from '../api/adminApi.js';
 import { faNum } from '../utils/adminFormat.js';
+import { AdminCard } from './AdminPage.jsx';
 
 const DAYS = 30;
 
 const SERIES = [
-  { id: 'active', label: 'کاربران فعال', unit: 'کاربر فعال', color: '#3987e5' },
-  { id: 'appActive', label: 'فعال در اپ', unit: 'کاربر فعال در اپ', color: '#8b5cf6' },
-  { id: 'signups', label: 'ثبت‌نام', unit: 'ثبت‌نام', color: '#199e70' },
+  { id: 'active', label: 'کاربران فعال', unit: 'کاربر فعال', color: CHART_COLORS[0] },
+  { id: 'appActive', label: 'فعال در اپ', unit: 'کاربر فعال در اپ', color: CHART_COLORS[3] },
+  { id: 'signups', label: 'ثبت‌نام', unit: 'ثبت‌نام', color: CHART_COLORS[2] },
 ];
 
 /** «۴ مهر» for a YYYY-MM-DD day (read as UTC, the server's day boundary) */
@@ -58,9 +61,11 @@ export default function AdminGrowthChart({ reloadToken = 0 }) {
   const day = series?.[index];
 
   return (
-    <div className="portfolio-stat-card admin-growth-card">
-      <div className="stat-header">
-        <span className="stat-label">روند ۳۰ روز اخیر</span>
+    <AdminCard
+      className="admin-growth-card"
+      icon={<TrendingUp size={18} />}
+      title="روند ۳۰ روز اخیر"
+      actions={
         <ChartToggle
           label="نمودار"
           options={SERIES.map((s) => ({ id: s.id, label: s.label }))}
@@ -70,7 +75,8 @@ export default function AdminGrowthChart({ reloadToken = 0 }) {
             setActiveIndex(null);
           }}
         />
-      </div>
+      }
+    >
 
       {error ? (
         <div className="stat-sub">{error}</div>
@@ -113,6 +119,6 @@ export default function AdminGrowthChart({ reloadToken = 0 }) {
           </div>
         </>
       )}
-    </div>
+    </AdminCard>
   );
 }

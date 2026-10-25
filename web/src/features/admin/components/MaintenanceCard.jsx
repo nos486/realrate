@@ -8,6 +8,7 @@
 import React, { useState } from 'react';
 import { Wrench, Save } from 'lucide-react';
 import { Button, Input } from '../../../shared/ui/index.js';
+import { AdminCard, AdminSwitch } from './AdminPage.jsx';
 
 export default function MaintenanceCard({ settings, onSave }) {
   const enabled = Number(settings?.maintenance_mode) === 1;
@@ -32,23 +33,19 @@ export default function MaintenanceCard({ settings, onSave }) {
   };
 
   return (
-    <div className={`portfolio-stat-card admin-maintenance-card ${enabled ? 'is-on' : ''}`}>
-      <div className="stat-header">
-        <span className="stat-label">
-          <Wrench size={14} /> حالت توسعه (تعمیر و نگهداری)
-        </span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={enabled}
-          aria-label="حالت توسعه"
-          className={`admin-switch ${enabled ? 'is-on' : ''}`}
+    <AdminCard
+      className={`admin-maintenance-card ${enabled ? 'is-on' : ''}`}
+      icon={<Wrench size={18} />}
+      title="حالت توسعه (تعمیر و نگهداری)"
+      actions={
+        <AdminSwitch
+          checked={enabled}
+          label="حالت توسعه"
           disabled={Boolean(busy) || !settings}
-          onClick={() => save('toggle', { maintenance_mode: !enabled, maintenance_message: message })}
-        >
-          <span className="admin-switch-thumb" />
-        </button>
-      </div>
+          onChange={(on) => save('toggle', { maintenance_mode: on, maintenance_message: message })}
+        />
+      }
+    >
       <p className="admin-card-hint">
         {enabled
           ? 'فعال است: فقط مدیران وارد سایت می‌شوند و بقیه پیام زیر را می‌بینند.'
@@ -74,6 +71,6 @@ export default function MaintenanceCard({ settings, onSave }) {
       >
         ذخیره پیام
       </Button>
-    </div>
+    </AdminCard>
   );
 }

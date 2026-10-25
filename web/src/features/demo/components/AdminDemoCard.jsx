@@ -16,7 +16,7 @@ import {
   Wallet,
   ReceiptText,
 } from 'lucide-react';
-import { Button, Modal } from '../../../shared/ui/index.js';
+import { Button, Card, Modal } from '../../../shared/ui/index.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { useAuth } from '../../auth/index.js';
 import { getToken } from '../../../shared/api/httpClient.js';
@@ -113,11 +113,13 @@ export default function AdminDemoCard() {
 
 
   return (
-    <div className="portfolio-stat-card admin-demo-card">
-      <div className="stat-header">
-        <span className="stat-label">
-          <Sparkles size={15} /> {t('حساب نمایشی (دمو)')}
-        </span>
+    <Card
+      as="section"
+      padding="md"
+      className="admin-card admin-demo-card"
+      icon={<Sparkles size={18} />}
+      title={t('حساب نمایشی (دمو)')}
+      actions={
         <span className={`status-indicator ${exists ? 'is-active' : 'is-inactive'}`}>
           {exists ? (
             <span className="flex-center gap-1 text-emerald">
@@ -129,7 +131,8 @@ export default function AdminDemoCard() {
             </span>
           )}
         </span>
-      </div>
+      }
+    >
 
       <p className="admin-card-hint">
         {t('بازدیدکنندگان بدون ثبت‌نام با یک کلیک حساب دمو را فقط برای مشاهده می‌بینند.')}
@@ -226,6 +229,6 @@ export default function AdminDemoCard() {
           </div>
         </Modal>
       )}
-    </div>
+    </Card>
   );
 }

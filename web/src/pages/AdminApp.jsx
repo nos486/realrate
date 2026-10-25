@@ -1,14 +1,17 @@
 /**
  * AdminApp.jsx — The admin area, at /admin: its own page with its own navigation, apart from the
- * app's sections
+ * app's sections. A top bar (back to the app) and a sidebar of the sections in their groups
+ * (features/admin/adminSections.js); on a phone the sidebar is a sideways-scrolling strip.
  *
- *   /admin          users, stats and site settings (AdminPanel)
- *   /admin/sources  price sources
- *   /admin/history  the price history and its tgju backfill
- *   /admin/groups   groups of users, join requests, and who gets which feature
- *   /admin/news     the news section's channels and feeds
- *   /admin/bot      the Telegram bot (token, channel, which feeds)
- *   /admin/rubika   the Rubika bot (the same, and the admin's link code)
+ *   نمای کلی        /admin           headline numbers, the 30-day chart, the app's versions
+ *   کاربران         /admin/users     the users list and each user's detail
+ *                   /admin/groups    groups, join requests, feature access and quotas
+ *   بازار و قیمت    /admin/sources   price sources
+ *                   /admin/history   the price history and its tgju backfill
+ *   محتوا و ربات‌ها /admin/news      the news section's channels and feeds
+ *                   /admin/bot       the Telegram bot
+ *                   /admin/rubika    the Rubika bot
+ *   سیستم           /admin/settings  maintenance mode, the site's announcement, the demo account
  *
  * Only admins get in; anyone else sees a short notice with a way back to the app.
  */
@@ -16,13 +19,16 @@
 import React, { Suspense, lazy, useEffect, useRef } from 'react';
 import { NavLink, Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import ErrorBoundary from '../shared/ui/ErrorBoundary.jsx';
-import { ShieldCheck, Users, Radio, History, ArrowRight, Ban, UsersRound, Newspaper, Send, MessageCircle } from 'lucide-react';
+import { ShieldCheck, ArrowRight, Ban } from 'lucide-react';
 import { useAuth } from '../features/auth/index.js';
 import { EmptyState } from '../shared/ui/index.js';
 import { APP_BASE } from '../shared/routes.js';
 import { useDocumentTitle } from '../shared/hooks/useDocumentTitle.js';
+import { ADMIN_GROUPS } from '../features/admin/adminSections.js';
 
-const AdminPanel = lazy(() => import('../features/admin/components/AdminPanel.jsx'));
+const AdminDashboardPage = lazy(() => import('../features/admin/components/AdminDashboardPage.jsx'));
+const AdminUsersPage = lazy(() => import('../features/admin/components/AdminUsersPage.jsx'));
+const AdminSettingsPage = lazy(() => import('../features/admin/components/AdminSettingsPage.jsx'));
 const AdminPriceSourcesPage = lazy(() => import('../features/admin/components/AdminPriceSourcesPage.jsx'));
 const PriceHistoryAdmin = lazy(() => import('../features/admin/components/PriceHistoryAdmin.jsx'));
 const AdminGroupsPage = lazy(() => import('../features/admin/components/AdminGroupsPage.jsx'));
@@ -30,34 +36,45 @@ const AdminBotPage = lazy(() => import('../features/admin/components/AdminBotPag
 const AdminRubikaPage = lazy(() => import('../features/admin/components/AdminRubikaPage.jsx'));
 const AdminNewsPage = lazy(() => import('../features/admin/components/AdminNewsPage.jsx'));
 
-const SECTIONS = [
-  { path: '/admin', label: 'کاربران و تنظیمات', icon: Users, end: true },
-  { path: '/admin/groups', label: 'گروه‌ها و دسترسی‌ها', icon: UsersRound },
-  { path: '/admin/sources', label: 'سورس‌های قیمت', icon: Radio },
-  { path: '/admin/history', label: 'تاریخچه‌ی قیمت', icon: History },
-  { path: '/admin/news', label: 'اخبار', icon: Newspaper },
-  { path: '/admin/bot', label: 'ربات تلگرام', icon: Send },
-  { path: '/admin/rubika', label: 'ربات روبیکا', icon: MessageCircle },
-];
-
 function SectionLoader() {
   return (
-    <div className="require-auth-loading">
+    <div className="require-auth-loading" role="status" aria-label="در حال بارگذاری">
       <div className="spinner-glow" />
     </div>
   );
 }
 
-export default function AdminApp() {
+/** The sections in their groups: a sidebar on a wide screen, a strip on a phone */
+function AdminNav() {
   const { pathname } = useLocation();
-  const { user } = useAuth();
-  useDocumentTitle('مدیریت | RealRate');
-
-  // The section bar scrolls sideways on a phone: keep the open section in view
+  // The strip scrolls sideways on a phone: keep the open section in view
   const navRef = useRef(null);
   useEffect(() => {
-    navRef.current?.querySelector('.is-active')?.scrollIntoView({ inline: 'center', block: 'nearest' });
-  }, [pathname, user?.role]);
+    navRef.current?.querySelector('.is-active')?.scrollIntoView?.({ inline: 'center', block: 'nearest' });
+  }, [pathname]);
+
+  return (
+    <nav ref={navRef} className="admin-sidebar" aria-label="بخش‌های مدیریت">
+      {ADMIN_GROUPS.map((group) => (
+        <div key={group.key} className="admin-nav-group" role="group" aria-labelledby={`admin-nav-${group.key}`}>
+          <span id={`admin-nav-${group.key}`} className="admin-nav-group-title">{group.label}</span>
+          {group.sections.map(({ key, path, label, icon: Icon, end }) => (
+            <NavLink key={key} to={path} end={end} className={({ isActive }) => `admin-nav-item ${isActive ? 'is-active' : ''}`}>
+              <Icon size={16} aria-hidden="true" />
+              <span>{label}</span>
+            </NavLink>
+          ))}
+        </div>
+      ))}
+    </nav>
+  );
+}
+
+export default function AdminApp() {
+  const { pathname } = useLocation();
+  const { user, loading } = useAuth();
+  useDocumentTitle('مدیریت | RealRate');
+  const isAdmin = user?.role === 'admin';
 
   return (
     <div className="admin-shell">
@@ -73,43 +90,42 @@ export default function AdminApp() {
             <span>بازگشت به اپ</span>
           </Link>
         </div>
-        {user?.role === 'admin' && (
-          <nav ref={navRef} className="admin-nav" aria-label="بخش‌های مدیریت">
-            {SECTIONS.map(({ path, label, icon: Icon, end }) => (
-              <NavLink key={path} to={path} end={end} className={({ isActive }) => `admin-nav-item ${isActive ? 'is-active' : ''}`}>
-                <Icon size={16} />
-                <span>{label}</span>
-              </NavLink>
-            ))}
-          </nav>
-        )}
       </header>
 
-      <main className="admin-main">
-        {user?.role !== 'admin' ? (
+      {loading && !user ? (
+        <SectionLoader />
+      ) : !isAdmin ? (
+        <main className="admin-main">
           <EmptyState
             icon={<Ban size={44} strokeWidth={1.5} />}
             title="دسترسی مدیریت ندارید"
             description={`حساب ${user?.email || ''} به عنوان مدیر سیستم ثبت نشده است.`}
           />
-        ) : (
-          <ErrorBoundary resetKey={pathname}>
-          <Suspense fallback={<SectionLoader />}>
-            <Routes>
-              <Route index element={<AdminPanel />} />
-              <Route path="sources" element={<AdminPriceSourcesPage />} />
-              <Route path="derived" element={<Navigate to="/admin/sources" replace />} />
-              <Route path="history" element={<PriceHistoryAdmin />} />
-              <Route path="groups" element={<AdminGroupsPage />} />
-              <Route path="news" element={<AdminNewsPage />} />
-              <Route path="bot" element={<AdminBotPage />} />
-              <Route path="rubika" element={<AdminRubikaPage />} />
-              <Route path="*" element={<Navigate to="/admin" replace />} />
-            </Routes>
-          </Suspense>
-          </ErrorBoundary>
-        )}
-      </main>
+        </main>
+      ) : (
+        <div className="admin-body">
+          <AdminNav />
+          <main className="admin-main">
+            <ErrorBoundary resetKey={pathname}>
+              <Suspense fallback={<SectionLoader />}>
+                <Routes>
+                  <Route index element={<AdminDashboardPage />} />
+                  <Route path="users" element={<AdminUsersPage />} />
+                  <Route path="groups" element={<AdminGroupsPage />} />
+                  <Route path="sources" element={<AdminPriceSourcesPage />} />
+                  <Route path="derived" element={<Navigate to="/admin/sources" replace />} />
+                  <Route path="history" element={<PriceHistoryAdmin />} />
+                  <Route path="news" element={<AdminNewsPage />} />
+                  <Route path="bot" element={<AdminBotPage />} />
+                  <Route path="rubika" element={<AdminRubikaPage />} />
+                  <Route path="settings" element={<AdminSettingsPage />} />
+                  <Route path="*" element={<Navigate to="/admin" replace />} />
+                </Routes>
+              </Suspense>
+            </ErrorBoundary>
+          </main>
+        </div>
+      )}
     </div>
   );
 }

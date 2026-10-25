@@ -16,9 +16,10 @@
 import { intlLocale } from '../../../utils/i18n.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Radio, Sliders, Layers, RefreshCw, Zap, FlaskConical, ListTree, Star, AlertTriangle, CheckCircle2, X,
+  Sliders, Layers, RefreshCw, Zap, FlaskConical, ListTree, Star, AlertTriangle, CheckCircle2, X, Activity,
 } from 'lucide-react';
 import { Button, AlertBanner, EmptyState, Modal, SearchBar } from '../../../shared/ui/index.js';
+import AdminPage, { AdminCard, AdminSwitch } from './AdminPage.jsx';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import {
   getPriceSources, getPriceSourceItems, setPriceSourceActive, setPrimarySource,
@@ -94,17 +95,7 @@ function SourceCard({ src, nowMs, busy, canSetPrimary, testResult, onToggle, onT
   return (
     <li className={`ps-source ${src.isActive ? '' : 'is-off'}`}>
       <div className="ps-source-head">
-        <button
-          type="button"
-          role="switch"
-          aria-checked={src.isActive}
-          aria-label={`فعال بودن ${src.name}`}
-          className={`admin-switch ${src.isActive ? 'is-on' : ''}`}
-          disabled={Boolean(busy)}
-          onClick={() => onToggle(src)}
-        >
-          <span className="admin-switch-thumb" />
-        </button>
+        <AdminSwitch checked={src.isActive} label={`فعال بودن ${src.name}`} disabled={Boolean(busy)} onChange={() => onToggle(src)} />
         <div className="ps-source-title">
           <strong>{src.name}</strong>
           <small dir="ltr">{src.id}</small>
@@ -315,78 +306,81 @@ export default function AdminPriceSourcesPage() {
   const shared = useMemo(() => sharedPriceTypes(sources), [sources]);
   const visible = useMemo(() => sources.filter((s) => sourceMatches(s, query)), [sources, query]);
 
-  if (error && !data) return <AlertBanner type="error" message={error} />;
-  if (!data) return <div className="require-auth-loading"><div className="spinner-glow" /></div>;
+  const actions = data && (
+    <>
+      <Button variant="ghost" icon={<RefreshCw size={16} />} disabled={Boolean(busy)} onClick={() => act('reload', async () => {})}>
+        تازه کردن
+      </Button>
+      <Button variant="secondary" icon={<Zap size={16} />} loading={busy === 'sync-all'} disabled={Boolean(busy)} onClick={syncAll}>
+        دریافت همه الان
+      </Button>
+    </>
+  );
 
   return (
-    <div className="ps-page">
-      <div className="portfolio-stat-card">
-        <div className="stat-header">
-          <span className="stat-label"><Radio size={14} /> سورس‌های قیمت</span>
-          <span className="ps-head-actions">
-            <Button size="sm" variant="ghost" icon={<RefreshCw size={14} />} disabled={Boolean(busy)} onClick={() => act('reload', async () => {})}>
-              تازه کردن
-            </Button>
-            <Button size="sm" variant="secondary" icon={<Zap size={14} />} loading={busy === 'sync-all'} disabled={Boolean(busy)} onClick={syncAll}>
-              دریافت همه الان
-            </Button>
-          </span>
-        </div>
-        <p className="admin-card-hint">
-          زمان‌بند هر {durationText(data.tickSec)} اجرا می‌شود و هر سورسی را که دوره‌اش از آخرین تلاش (موفق یا ناموفق) گذشته باشد
-          دریافت می‌کند؛ پس سورسی که خطا بدهد هم تا دوره‌ی بعدش دوباره امتحان نمی‌شود. قیمتی که بیش از حد محافظ جهش تغییر کند،
-          تا چند دریافت پشت‌سرهم تأیید نشود جایگزین نمی‌شود. سورس‌ها در کد تعریف شده‌اند؛ اینجا فقط روشن/خاموش و سورس مرجع
-          انتخاب می‌شود. «تست» سورس را همین حالا می‌خواند و چیزی ذخیره نمی‌کند؛ «دریافت الان» مثل زمان‌بند ذخیره می‌کند.
-        </p>
-        <div className="ps-summary" aria-label="خلاصه‌ی وضعیت">
-          <div><strong>{fa(data.summary.total)}</strong><small>کل سورس‌ها</small></div>
-          {SOURCE_STATUS_ORDER.map((k) => (
-            <div key={k} className={data.summary[k] ? SOURCE_STATUS[k].tone : ''}>
-              <strong>{fa(data.summary[k])}</strong>
-              <small>{SOURCE_STATUS[k].label}</small>
+    <AdminPage section="sources" className="ps-page" loading={!data} error={data ? '' : error} onRetry={load} actions={actions}>
+      {data && (
+        <>
+          <AdminCard icon={<Activity size={18} />} title="وضعیت کلی">
+            <div className="ps-summary" aria-label="خلاصه‌ی وضعیت">
+              <div><strong>{fa(data.summary.total)}</strong><small>کل سورس‌ها</small></div>
+              {SOURCE_STATUS_ORDER.map((k) => (
+                <div key={k} className={data.summary[k] ? SOURCE_STATUS[k].tone : ''}>
+                  <strong>{fa(data.summary[k])}</strong>
+                  <small>{SOURCE_STATUS[k].label}</small>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-        <SearchBar value={query} onChange={(e) => setQuery(e.target.value)} placeholder="جستجوی نام، شناسه، دسته یا آدرس…" />
-      </div>
+            <p className="admin-card-hint">
+              زمان‌بند هر {durationText(data.tickSec)} اجرا می‌شود و هر سورسی را که دوره‌اش از آخرین تلاش (موفق یا ناموفق) گذشته باشد
+              دریافت می‌کند؛ پس سورسی که خطا بدهد هم تا دوره‌ی بعدش دوباره امتحان نمی‌شود. قیمتی که بیش از حد محافظ جهش تغییر کند،
+              تا چند دریافت پشت‌سرهم تأیید نشود جایگزین نمی‌شود. سورس‌ها در کد تعریف شده‌اند؛ اینجا فقط روشن/خاموش و سورس مرجع
+              انتخاب می‌شود. «تست» سورس را همین حالا می‌خواند و چیزی ذخیره نمی‌کند؛ «دریافت الان» مثل زمان‌بند ذخیره می‌کند.
+            </p>
+            <SearchBar value={query} onChange={(e) => setQuery(e.target.value)} placeholder="جستجوی نام، شناسه، دسته یا آدرس…" />
+          </AdminCard>
 
-      {GROUPS.map((g) => {
-        const list = visible.filter((s) => g.kinds.includes(s.kind));
-        const Icon = g.icon;
-        return (
-          <section key={g.key} className="portfolio-stat-card ps-group" aria-labelledby={`ps-${g.key}`}>
-            <div className="stat-header">
-              <h2 id={`ps-${g.key}`} className="stat-label"><Icon size={14} /> {g.title}</h2>
-              <span className="ps-count">{fa(list.length)} سورس</span>
-            </div>
-            <p className="admin-card-hint">{g.hint}</p>
-            {list.length === 0 ? (
-              <EmptyState title="سورسی نیست" description={query ? 'با این جستجو سورسی پیدا نشد.' : undefined} />
-            ) : (
-              <ul className="ps-list">
-                {list.map((src) => (
-                  <SourceCard
-                    key={src.id}
-                    src={src}
-                    nowMs={nowMs}
-                    busy={busy}
-                    canSetPrimary={src.kind === 'single' && !src.isPrimary && shared.has(src.priceType)}
-                    testResult={tests[src.id]}
-                    onToggle={toggle}
-                    onTest={test}
-                    onSync={sync}
-                    onPrimary={primary}
-                    onItems={setItemsOf}
-                    onCloseTest={() => setTests(({ [src.id]: _drop, ...rest }) => rest)}
-                  />
-                ))}
-              </ul>
-            )}
-          </section>
-        );
-      })}
+          {GROUPS.map((g) => {
+            const list = visible.filter((s) => g.kinds.includes(s.kind));
+            const Icon = g.icon;
+            return (
+              <AdminCard
+                key={g.key}
+                className="ps-group"
+                icon={<Icon size={18} />}
+                title={g.title}
+                subtitle={g.hint}
+                actions={<span className="ps-count">{fa(list.length)} سورس</span>}
+              >
+                {list.length === 0 ? (
+                  <EmptyState title="سورسی نیست" description={query ? 'با این جستجو سورسی پیدا نشد.' : undefined} />
+                ) : (
+                  <ul className="ps-list">
+                    {list.map((src) => (
+                      <SourceCard
+                        key={src.id}
+                        src={src}
+                        nowMs={nowMs}
+                        busy={busy}
+                        canSetPrimary={src.kind === 'single' && !src.isPrimary && shared.has(src.priceType)}
+                        testResult={tests[src.id]}
+                        onToggle={toggle}
+                        onTest={test}
+                        onSync={sync}
+                        onPrimary={primary}
+                        onItems={setItemsOf}
+                        onCloseTest={() => setTests(({ [src.id]: _drop, ...rest }) => rest)}
+                      />
+                    ))}
+                  </ul>
+                )}
+              </AdminCard>
+            );
+          })}
 
-      <SourceItemsModal key={itemsOf?.id || 'none'} src={itemsOf} onClose={() => setItemsOf(null)} />
-    </div>
+          <SourceItemsModal key={itemsOf?.id || 'none'} src={itemsOf} onClose={() => setItemsOf(null)} />
+        </>
+      )}
+    </AdminPage>
   );
 }

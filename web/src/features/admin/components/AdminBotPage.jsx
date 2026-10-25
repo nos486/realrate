@@ -1,202 +1,73 @@
 /**
- * AdminBotPage.jsx — The Telegram bot in the admin panel (ربات تلگرام):
- *  - the connection: token (never shown back, only whether one is set), channel, and the on/off switch
- *  - «تست اتصال»: checks the token and the channel step by step and posts a test message
- *  - which international feeds are posted to the channel (all by default)
- *  - the last run: what was sent, what waits, the last error; «ارسال الان» posts the waiting news
- * - the admin's Telegram username: the bot tells the admin about users' requests (joining the pro
- *   group) in a private chat with buttons to approve or reject; the admin sends /start to the bot once,
- *   then manages users there with commands (report, users, user, requests) and gets an optional daily report
- * The bot's features are listed here as they are added (today: the international news the site publishes, in Persian).
+ * AdminBotPage.jsx — The Telegram bot in the admin panel (/admin/bot, ربات تلگرام), laid out like
+ * every messenger's page (BotPanelCards.jsx):
+ *  - the connection: token, channel and the on/off switch; «تست اتصال» checks the token and the
+ *    channel step by step and posts a test message
+ *  - the admin's Telegram username: the bot tells the admin about users' requests (joining the pro
+ *    group) in a private chat with buttons to approve or reject; the admin sends /start to the bot once,
+ *    then manages users there with commands (report, users, user, requests) and gets an optional daily report
+ *  - which international feeds are posted to the channel, and the last run with «ارسال الان»
  */
 
-import { intlLocale } from '../../../utils/i18n.js';
-import React, { useEffect, useState } from 'react';
-import { Send, Save, PlugZap, CheckCircle2, AlertTriangle, KeyRound } from 'lucide-react';
-import { Button, Input, AlertBanner } from '../../../shared/ui/index.js';
-import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
+import React from 'react';
+import { Send, CheckCircle2, AlertTriangle, UserCheck } from 'lucide-react';
+import { Input } from '../../../shared/ui/index.js';
 import { getBotSettings, saveBotSettings, testBot, runBotNow } from '../api/adminApi.js';
-import { BotFeedsCard, BotStatusCard } from './BotPanelCards.jsx';
+import { useBotSettings } from '../hooks/useBotSettings.js';
+import { AdminCard } from './AdminPage.jsx';
+import { BotPage } from './BotPanelCards.jsx';
 
-const fa = (n) => Number(n || 0).toLocaleString(intlLocale());
-const SOURCES = { env: 'متغیر محیطی (TELEGRAM_BOT_TOKEN)', admin: 'ذخیره‌شده از همین صفحه' };
+const TELEGRAM = {
+  key: 'bot',
+  name: 'تلگرام',
+  icon: Send,
+  intro: 'ربات هر خبر بین‌المللی (RSS) را که سایت منتشر می‌کند، یک بار در کانال می‌گذارد: همان تیتر و خلاصه‌ی فارسی سایت (یک بار با هوش مصنوعی ترجمه می‌شود) و لینک خبر اصلی. خبرهای غیربازاری و تکراری که سایت منتشر نمی‌کند در کانال هم نمی‌روند. ربات باید در کانال ادمین باشد و اجازه‌ی ارسال پیام داشته باشد.',
+  tokenLabel: 'توکن ربات (از BotFather)',
+  tokenPlaceholder: '123456789:ABC…',
+  tokenEnv: 'TELEGRAM_BOT_TOKEN',
+  channelLabel: 'کانال',
+  channelPlaceholder: '@mychannel',
+};
+
+/** The admin's username: a field of its own on top of every bot's form */
+const ADMIN_USERNAME = {
+  fromConfig: (config) => ({ adminUsername: config.adminUsername || '' }),
+  isDirty: (form, config) => form.adminUsername.trim().replace(/^@/, '') !== (config.adminUsername || ''),
+  toPayload: (form) => ({ adminUsername: form.adminUsername.trim() }),
+};
+
+const API = { get: getBotSettings, save: saveBotSettings, test: testBot, run: runBotNow };
+
+function TelegramAdminCard({ bot }) {
+  const { config, form, setField } = bot;
+  return (
+    <AdminCard icon={<UserCheck size={18} />} title="حساب تلگرام ادمین" subtitle="درخواست‌های کاربران، دستورهای مدیر و گزارش روزانه">
+      <Input
+        id="adminBotAdmin"
+        label="یوزرنیم تلگرام ادمین (برای دریافت درخواست‌ها)"
+        placeholder="@myname"
+        value={form.adminUsername}
+        onChange={(e) => setField('adminUsername', e.target.value)}
+        dir="ltr"
+      />
+      <small className="admin-news-muted">
+        {!config.adminUsername ? 'اگر وارد شود، ربات درخواست کاربران (مثل درخواست پرو) را در تلگرام به همین حساب می‌فرستد و با دکمه‌های تأیید و رد پاسخ می‌دهید.'
+          : config.adminLinked ? <><CheckCircle2 size={12} className="is-ok" /> متصل است؛ درخواست‌ها به @{config.adminUsername} می‌رسد.</>
+            : <><AlertTriangle size={12} className="is-warn" /> هنوز متصل نیست: با حساب @{config.adminUsername} در تلگرام ربات را باز کنید و /start بزنید (ربات باید روشن و ذخیره‌شده باشد).</>}
+      </small>
+      <label className="admin-bot-row">
+        <input type="checkbox" checked={form.dailyReport} onChange={(e) => setField('dailyReport', e.target.checked)} />
+        <span>گزارش روزانه‌ی کاربران هر شب ساعت ۲۱ در تلگرام ادمین</span>
+      </label>
+      <p className="admin-card-hint">
+        مدیر با حساب متصل می‌تواند در ربات دستور بدهد: <bdi dir="ltr">/report</bdi> گزارش کاربران و رشد، <bdi dir="ltr">/users</bdi> جست‌وجو و فهرست کاربران،
+        <bdi dir="ltr"> /user</bdi> کارت کاربر با دکمه‌های مسدود کردن، خروج از دستگاه‌ها و گروه‌ها، <bdi dir="ltr">/requests</bdi> درخواست‌های در انتظار.
+      </p>
+    </AdminCard>
+  );
+}
 
 export default function AdminBotPage() {
-  const { toast } = useFeedback();
-  const [data, setData] = useState(null);
-  const [error, setError] = useState('');
-  const [enabled, setEnabled] = useState(false);
-  const [channel, setChannel] = useState('');
-  const [token, setToken] = useState('');
-  const [adminUsername, setAdminUsername] = useState('');
-  const [dailyReport, setDailyReport] = useState(false);
-  const [allFeeds, setAllFeeds] = useState(true);
-  const [feedIds, setFeedIds] = useState([]);
-  const [busy, setBusy] = useState(null);
-  const [check, setCheck] = useState(null);
-
-  const apply = (res) => {
-    setData(res);
-    setEnabled(res.config.enabled);
-    setChannel(res.config.channel);
-    setAdminUsername(res.config.adminUsername || '');
-    setDailyReport(res.config.dailyReport === true);
-    setAllFeeds(!res.config.feeds);
-    setFeedIds(res.config.feeds || res.feeds.map((f) => f.id));
-    setToken('');
-  };
-
-  useEffect(() => {
-    getBotSettings().then(apply).catch((err) => setError(err?.message || 'خوانده نشد.'));
-  }, []);
-
-  const guard = (kind, fn) => async () => {
-    setBusy(kind);
-    try {
-      await fn();
-    } catch (err) {
-      toast.error(err?.message || 'انجام نشد.');
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const config = data?.config;
-  const savedFeeds = config?.feeds || null;
-  const dirty = Boolean(data) && (
-    enabled !== config.enabled
-    || channel.trim() !== config.channel
-    || adminUsername.trim().replace(/^@/, '') !== (config.adminUsername || '')
-    || dailyReport !== (config.dailyReport === true)
-    || token.trim() !== ''
-    || allFeeds !== !savedFeeds
-    || (!allFeeds && JSON.stringify([...feedIds].sort()) !== JSON.stringify([...(savedFeeds || [])].sort()))
-  );
-
-  const save = guard('save', async () => {
-    const res = await saveBotSettings({
-      enabled,
-      channel: channel.trim(),
-      adminUsername: adminUsername.trim(),
-      dailyReport,
-      feeds: allFeeds ? null : feedIds,
-      ...(token.trim() ? { token: token.trim() } : {}),
-    });
-    apply(res);
-    setCheck(null);
-    if (res.webhook && !res.webhook.ok) toast.warning(`تنظیمات ذخیره شد، ولی اتصال تلگرام به سرور برقرار نشد: ${res.webhook.error}`);
-    else toast.success('تنظیمات ربات ذخیره شد.');
-  });
-
-  const test = guard('test', async () => {
-    const res = await testBot();
-    setCheck(res);
-    if (res.ok) toast.success('اتصال برقرار است و پیام آزمایشی در کانال فرستاده شد.');
-    else toast.error(res.error);
-  });
-
-  const run = guard('run', async () => {
-    const res = await runBotNow();
-    setData((d) => ({ ...d, status: res.status, config: res.config }));
-    if (res.result?.skipped) toast.warning('ربات خاموش است.');
-    else toast.success(`${fa(res.result?.sent)} خبر فرستاده شد، ${fa(res.result?.waiting)} در صف.`);
-  });
-
-  if (error && !data) return <AlertBanner type="error" message={error} />;
-  if (!data) return <div className="require-auth-loading"><div className="spinner-glow" /></div>;
-
-  return (
-    <div className="admin-news">
-      <div className="portfolio-stat-card">
-        <div className="stat-header">
-          <span className="stat-label"><Send size={14} /> ربات تلگرام</span>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={enabled}
-            aria-label="فعال بودن ربات"
-            className={`admin-switch ${enabled ? 'is-on' : ''}`}
-            onClick={() => setEnabled(!enabled)}
-          >
-            <span className="admin-switch-thumb" />
-          </button>
-        </div>
-        <p className="admin-card-hint">
-          ربات هر خبر بین‌المللی (RSS) را که سایت منتشر می‌کند، یک بار در کانال می‌گذارد: همان تیتر و خلاصه‌ی فارسی سایت
-          (یک بار با هوش مصنوعی ترجمه می‌شود) و لینک خبر اصلی. خبرهای غیربازاری و تکراری که سایت منتشر نمی‌کند در کانال هم نمی‌روند. ربات باید در کانال ادمین باشد و اجازه‌ی ارسال پیام داشته باشد.
-        </p>
-
-        <Input
-          id="adminBotToken"
-          type="password"
-          label="توکن ربات (از BotFather)"
-          placeholder={config.tokenSet ? 'ذخیره شده است؛ برای تغییر، توکن تازه را وارد کنید' : '123456789:ABC…'}
-          value={token}
-          onChange={(e) => setToken(e.target.value)}
-          autoComplete="off"
-          dir="ltr"
-        />
-        <small className="admin-news-muted">
-          <KeyRound size={12} />{' '}
-          {config.tokenSet ? `توکن تنظیم است: ${SOURCES[config.tokenSource]}` : 'توکن تنظیم نشده است.'}
-          {config.tokenSet && config.tokenSource === 'admin' && (
-            <>{' '}<button type="button" className="admin-bot-link" onClick={guard('remove', async () => { apply(await saveBotSettings({ token: null, enabled: false })); toast.success('توکن پاک شد.'); })}>پاک کردن</button></>
-          )}
-        </small>
-
-        <Input
-          id="adminBotChannel"
-          label="کانال"
-          placeholder="@mychannel"
-          value={channel}
-          onChange={(e) => setChannel(e.target.value)}
-          dir="ltr"
-        />
-
-        <Input
-          id="adminBotAdmin"
-          label="یوزرنیم تلگرام ادمین (برای دریافت درخواست‌ها)"
-          placeholder="@myname"
-          value={adminUsername}
-          onChange={(e) => setAdminUsername(e.target.value)}
-          dir="ltr"
-        />
-        <small className="admin-news-muted">
-          {!config.adminUsername ? 'اگر وارد شود، ربات درخواست کاربران (مثل درخواست پرو) را در تلگرام به همین حساب می‌فرستد و با دکمه‌های تأیید و رد پاسخ می‌دهید.'
-            : config.adminLinked ? <><CheckCircle2 size={12} className="is-ok" /> متصل است؛ درخواست‌ها به @{config.adminUsername} می‌رسد.</>
-              : <><AlertTriangle size={12} className="is-warn" /> هنوز متصل نیست: با حساب @{config.adminUsername} در تلگرام ربات را باز کنید و /start بزنید (ربات باید روشن و ذخیره‌شده باشد).</>}
-        </small>
-        <label className="admin-bot-row">
-          <input type="checkbox" checked={dailyReport} onChange={(e) => setDailyReport(e.target.checked)} />
-          <span>گزارش روزانه‌ی کاربران هر شب ساعت ۲۱ در تلگرام ادمین</span>
-        </label>
-        <p className="admin-card-hint">
-          مدیر با حساب متصل می‌تواند در ربات دستور بدهد: <bdi dir="ltr">/report</bdi> گزارش کاربران و رشد، <bdi dir="ltr">/users</bdi> جست‌وجو و فهرست کاربران،
-          <bdi dir="ltr"> /user</bdi> کارت کاربر با دکمه‌های مسدود کردن، خروج از دستگاه‌ها و گروه‌ها، <bdi dir="ltr">/requests</bdi> درخواست‌های در انتظار.
-        </p>
-
-        <div className="admin-news-save">
-          <Button size="sm" icon={<Save size={14} />} loading={busy === 'save'} disabled={!dirty || Boolean(busy)} onClick={save}>
-            ذخیره
-          </Button>
-          <Button size="sm" variant="secondary" icon={<PlugZap size={14} />} loading={busy === 'test'} disabled={Boolean(busy) || dirty || !config.tokenSet || !config.channel} onClick={test}>
-            تست اتصال
-          </Button>
-        </div>
-        {dirty && <small className="admin-news-muted">برای تست اتصال، اول ذخیره کنید.</small>}
-        {check && (
-          <p className={check.ok ? 'admin-news-ai is-ok' : 'admin-news-error'}>
-            {check.ok ? <CheckCircle2 size={14} aria-hidden="true" /> : <AlertTriangle size={14} aria-hidden="true" />}
-            <span>
-              {check.ok ? `متصل است: ربات @${check.bot.username} در «${check.chat.title}»` : check.error}
-              {check.bot?.username && !check.ok && <small> ربات شناخته‌شده: @{check.bot.username}</small>}
-            </span>
-          </p>
-        )}
-      </div>
-
-      <BotFeedsCard feeds={data.feeds} allFeeds={allFeeds} onAllFeeds={setAllFeeds} feedIds={feedIds} onFeedIds={setFeedIds} />
-      <BotStatusCard status={data.status} messenger="تلگرام" busy={busy === 'run'} disabled={Boolean(busy)} onRun={run} />
-    </div>
-  );
+  const bot = useBotSettings({ api: API, name: TELEGRAM.name, extra: ADMIN_USERNAME });
+  return <BotPage messenger={TELEGRAM} bot={bot} account={bot.data && <TelegramAdminCard bot={bot} />} />;
 }

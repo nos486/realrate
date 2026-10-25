@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId } from 'react';
 
 /**
  * Standard Unified Card / Surface Component
@@ -7,6 +7,8 @@ import React from 'react';
  * - admin-container
  * - admin-profile-bar
  * - all general .ui-card containers
+ *
+ * As a <section> with a title, the title names the section (a landmark screen readers list).
  */
 export default function Card({
   children,
@@ -24,6 +26,8 @@ export default function Card({
   ...rest
 }) {
   const isClickable = typeof onClick === 'function';
+  const titleId = useId();
+  const labelled = Boolean(title) && Component === 'section' && !rest['aria-label'] && !rest['aria-labelledby'];
   const paddingClass = padding ? `p-${padding}` : '';
 
   return (
@@ -31,6 +35,7 @@ export default function Card({
       className={`ui-card variant-${variant} ${paddingClass} ${isClickable ? 'is-clickable' : ''} ${className}`.replace(/\s+/g, ' ').trim()}
       onClick={onClick}
       style={style}
+      aria-labelledby={labelled ? titleId : undefined}
       {...rest}
     >
       {(title || icon || actions) && (
@@ -38,7 +43,7 @@ export default function Card({
           <div className="ui-card-header-lead">
             {icon && <span className="ui-card-icon">{icon}</span>}
             <div>
-              {title && <h3 className="ui-card-title">{title}</h3>}
+              {title && <h3 id={labelled ? titleId : undefined} className="ui-card-title">{title}</h3>}
               {subtitle && <p className="ui-card-subtitle">{subtitle}</p>}
             </div>
           </div>

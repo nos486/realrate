@@ -1,12 +1,13 @@
 /**
  * PriceHistoryAdmin.jsx — Admin page for the daily price history and its tgju backfill
+ * (/admin/history), in three tabs:
  *
- * - Mappings: which tgju series fills which price book item, in which unit (rial ÷ 10, toman, or
+ * - «نگاشت tgju»: which tgju series fills which price book item, in which unit (rial ÷ 10, toman, or
  *   dollar × that day's dollar). Added from the catalog (searchable, or all the suggested ones at
  *   once) or by any tgju page address; saved as they change. Each can be previewed (its latest
  *   days and the unit that matches the item's live price) and run; "run all" goes through the
  *   ones with a target, the dollar first (dollar series are converted with its history).
- * - The history: every id with its days; an id the price book doesn't know is read by no card and
+ * - «تاریخچه‌ی ذخیره‌شده»: every id with its days; an id the price book doesn't know is read by no card and
  *   can be moved to the right item or deleted, one by one or all at once.
  * - «محاسبه‌ی دوباره»: what is computed from the history — the coin bubbles' past days (from the
  *   coins', the ounce's and the dollar's), every average and so the coins' standard price — computed
@@ -15,16 +16,11 @@
 
 import { intlLocale } from '../../../utils/i18n.js';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { History, Play, Eye, Trash2, Plus, ArrowLeftRight, RefreshCw, ExternalLink, Sparkles, Calculator } from 'lucide-react';
-import { Button, FeaturePageHeader, SearchBar } from '../../../shared/ui/index.js';
+import { Play, Eye, Trash2, Plus, ArrowLeftRight, RefreshCw, ExternalLink, Sparkles, Calculator, Link2, Database } from 'lucide-react';
+import { Button, SearchBar } from '../../../shared/ui/index.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
+import AdminPage, { AdminCard, AdminTabs } from './AdminPage.jsx';
 import { getHistoryAdmin, saveHistoryMappings, previewHistorySeries, runHistoryBackfill, editHistoryKeys, recomputeDerivedHistory } from '../api/adminApi.js';
-
-const HEADER = {
-  icon: <History size={24} />,
-  title: 'تاریخچه‌ی قیمت',
-  subtitle: 'بارگذاری سابقه‌ی روزانه از tgju و مدیریت تاریخچه‌ی ذخیره‌شده',
-};
 
 const UNITS = [
   { value: 'rial', label: 'ریال' },
@@ -382,165 +378,180 @@ export default function PriceHistoryAdmin() {
 
   const ready = mappings.filter((m) => m.target);
 
-  return (
-    <div className="incomes-page-container admin-page history-page">
-      <FeaturePageHeader
-        {...HEADER}
-        actions={<Button variant="secondary" icon={<RefreshCw size={16} />} onClick={load} loading={loading}>به‌روزرسانی</Button>}
-      />
+  const mappingsCard = (
+    <AdminCard
+      className="history-section"
+      icon={<Link2 size={18} />}
+      title="نگاشت سری‌های tgju"
+      actions={
+        <span className={`history-save is-${saveState}`}>
+          {saveState === 'pending' ? 'در حال ذخیره…' : saveState === 'error' ? 'ذخیره نشد' : 'ذخیره شده'}
+        </span>
+      }
+    >
+      <p className="history-hint">
+        هر سری tgju را به موردی از دفتر قیمت وصل کنید. قبل از نوشتن، آخرین قیمت tgju با قیمت فعلی مقصد سنجیده می‌شود
+        (بیش از دو برابر اختلاف = چیزی نوشته نمی‌شود). امروز هیچ‌وقت نوشته نمی‌شود.
+      </p>
 
-      <section className="fintech-card history-section">
-        <div className="history-section-head">
-          <h3>نگاشت سری‌های tgju</h3>
-          <span className={`history-save is-${saveState}`}>
-            {saveState === 'pending' ? 'در حال ذخیره…' : saveState === 'error' ? 'ذخیره نشد' : 'ذخیره شده'}
-          </span>
-        </div>
-        <p className="history-hint">
-          هر سری tgju را به موردی از دفتر قیمت وصل کنید. قبل از نوشتن، آخرین قیمت tgju با قیمت فعلی مقصد سنجیده می‌شود
-          (بیش از دو برابر اختلاف = چیزی نوشته نمی‌شود). امروز هیچ‌وقت نوشته نمی‌شود.
-        </p>
-
-        <div className="history-add">
-          <div className="history-add-catalog">
-            <SearchBar value={catalogQuery} onChange={(e) => setCatalogQuery(e.target.value)} placeholder="جستجو در سری‌های tgju (دلار، سکه، انس…)" />
-            {catalogQuery && (
-              <div className="history-catalog-results">
-                {catalogResults.length === 0 && <div className="history-hint">موردی پیدا نشد؛ آدرس صفحه‌اش را پایین وارد کنید.</div>}
-                {catalogResults.slice(0, 30).map((c) => (
-                  <button key={c.slug} type="button" className="history-catalog-item" onClick={() => addFromCatalog(c)}>
-                    <Plus size={14} />
-                    <span>{c.label}</span>
-                    <small>{c.group} · {unitLabel(c.unit)} · <span dir="ltr">{c.slug}</span></small>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="history-add-custom">
-            <input
-              className="history-input"
-              dir="ltr"
-              value={customSlug}
-              onChange={(e) => setCustomSlug(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && addCustom()}
-              placeholder="https://www.tgju.org/profile/geram18"
-              aria-label="آدرس صفحه‌ی tgju"
-            />
-            <Button size="sm" variant="secondary" icon={<Plus size={14} />} onClick={addCustom}>افزودن</Button>
-            <Button size="sm" variant="secondary" icon={<Sparkles size={14} />} onClick={addSuggested} disabled={loading}>
-              افزودن موارد پیشنهادی
-            </Button>
-          </div>
-        </div>
-
-        <div className="history-toolbar">
-          <label>
-            بازه
-            <select className="history-select" value={days} onChange={(e) => setDays(Number(e.target.value))} disabled={busy}>
-              {RANGES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-            </select>
-          </label>
-          <label className="history-check">
-            <input type="checkbox" checked={overwrite} onChange={(e) => setOverwrite(e.target.checked)} disabled={busy} />
-            روزهایی که قبلاً ثبت شده‌اند هم جایگزین شوند
-          </label>
-          <Button icon={<Play size={16} />} loading={busy} disabled={busy || !ready.length} onClick={() => run(mappings)}>
-            بارگذاری همه ({fa(ready.length)})
-          </Button>
-        </div>
-
-        {mappings.length === 0 && !loading && (
-          <div className="history-empty">هنوز نگاشتی نیست. از جستجو یا «افزودن موارد پیشنهادی» شروع کنید.</div>
-        )}
-
-        <div className="history-mappings">
-          {mappings.map((m) => (
-            <div key={m.slug} className="history-mapping">
-              <div className="history-mapping-row">
-                <div className="history-mapping-name">
-                  <strong>{m.label}</strong>
-                  <a href={`https://www.tgju.org/profile/${m.slug}`} target="_blank" rel="noreferrer" dir="ltr">
-                    {m.slug} <ExternalLink size={11} />
-                  </a>
-                </div>
-                <select className="history-select is-unit" value={m.unit} onChange={(e) => setField(m.slug, { unit: e.target.value })} disabled={busy} aria-label="واحد">
-                  {UNITS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
-                </select>
-                <ItemSelect items={data.items} value={m.target} onChange={(v) => setField(m.slug, { target: v })} disabled={busy} label={`مقصد ${m.label}`} />
-                <RunStatus run={runs[m.slug]} lastRun={m.lastRun} />
-                <div className="history-mapping-actions">
-                  <Button size="sm" variant="secondary" icon={<Eye size={14} />} onClick={() => preview(m)}>پیش‌نمایش</Button>
-                  <Button size="sm" variant="secondary" icon={<Play size={14} />} disabled={busy || !m.target} onClick={() => run([m])}>بارگذاری</Button>
-                  <button type="button" className="history-icon-btn" title="حذف نگاشت" onClick={() => removeMapping(m.slug)} disabled={busy}>
-                    <Trash2 size={15} />
-                  </button>
-                </div>
-              </div>
-              {previews[m.slug] && (
-                <Preview preview={previews[m.slug]} unit={m.unit} onApplyUnit={(u) => setField(m.slug, { unit: u })} />
-              )}
+      <div className="history-add">
+        <div className="history-add-catalog">
+          <SearchBar value={catalogQuery} onChange={(e) => setCatalogQuery(e.target.value)} placeholder="جستجو در سری‌های tgju (دلار، سکه، انس…)" />
+          {catalogQuery && (
+            <div className="history-catalog-results">
+              {catalogResults.length === 0 && <div className="history-hint">موردی پیدا نشد؛ آدرس صفحه‌اش را پایین وارد کنید.</div>}
+              {catalogResults.slice(0, 30).map((c) => (
+                <button key={c.slug} type="button" className="history-catalog-item" onClick={() => addFromCatalog(c)}>
+                  <Plus size={14} />
+                  <span>{c.label}</span>
+                  <small>{c.group} · {unitLabel(c.unit)} · <span dir="ltr">{c.slug}</span></small>
+                </button>
+              ))}
             </div>
-          ))}
+          )}
         </div>
-      </section>
-
-      <section className="fintech-card history-section">
-        <div className="history-section-head">
-          <h3>محاسبه‌ی دوباره</h3>
-        </div>
-        <p className="history-hint">
-          حباب سکه‌ها از تاریخچه‌ی خود سکه، انس و دلار ساخته می‌شود و میانگین‌ها (و میانگین حباب یک‌ساله، یعنی قیمت استاندارد سکه‌ها) از تاریخچه‌ی همه‌ی قیمت‌ها. بعد از پر کردن تاریخچه این‌ها خودکار در ساعت بعد دوباره حساب می‌شوند؛ این دکمه همین حالا حسابشان می‌کند و گزارش می‌دهد.
-        </p>
-        <div className="history-toolbar">
-          <Button icon={<Calculator size={16} />} loading={recomputing} disabled={recomputing} onClick={recompute}>
-            محاسبه‌ی دوباره‌ی همه
+        <div className="history-add-custom">
+          <input
+            className="history-input"
+            dir="ltr"
+            value={customSlug}
+            onChange={(e) => setCustomSlug(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && addCustom()}
+            placeholder="https://www.tgju.org/profile/geram18"
+            aria-label="آدرس صفحه‌ی tgju"
+          />
+          <Button size="sm" variant="secondary" icon={<Plus size={14} />} onClick={addCustom}>افزودن</Button>
+          <Button size="sm" variant="secondary" icon={<Sparkles size={14} />} onClick={addSuggested} disabled={loading}>
+            افزودن موارد پیشنهادی
           </Button>
         </div>
-        {report && <RecomputeReport report={report} />}
-      </section>
+      </div>
 
-      <section className="fintech-card history-section">
-        <div className="history-section-head">
-          <h3>تاریخچه‌ی ذخیره‌شده</h3>
-          <span className="history-hint">{fa(data.history.length)} شناسه · {fa(orphans.length)} بی‌استفاده</span>
-        </div>
-        <p className="history-hint">شناسه‌ای که در دفتر قیمت نیست را هیچ کارت و نموداری نمی‌خواند: به مورد درست منتقلش کنید یا حذفش کنید.</p>
-        <div className="history-toolbar">
-          <SearchBar value={historyQuery} onChange={(e) => setHistoryQuery(e.target.value)} placeholder="جستجوی شناسه یا نام" />
-          <label className="history-check">
-            <input type="checkbox" checked={onlyOrphans} onChange={(e) => setOnlyOrphans(e.target.checked)} />
-            فقط بی‌استفاده‌ها
-          </label>
-          <Button variant="secondary" icon={<Trash2 size={16} />} disabled={!orphans.length} onClick={deleteOrphans}>
-            حذف همه‌ی بی‌استفاده‌ها ({fa(orphans.length)})
-          </Button>
-        </div>
-        <div className="history-keys">
-          {historyRows.map((h) => (
-            <div key={h.key} className={`history-key ${h.inBook ? '' : 'is-orphan'}`}>
+      <div className="history-toolbar">
+        <label>
+          بازه
+          <select className="history-select" value={days} onChange={(e) => setDays(Number(e.target.value))} disabled={busy}>
+            {RANGES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+          </select>
+        </label>
+        <label className="history-check">
+          <input type="checkbox" checked={overwrite} onChange={(e) => setOverwrite(e.target.checked)} disabled={busy} />
+          روزهایی که قبلاً ثبت شده‌اند هم جایگزین شوند
+        </label>
+        <Button icon={<Play size={16} />} loading={busy} disabled={busy || !ready.length} onClick={() => run(mappings)}>
+          بارگذاری همه ({fa(ready.length)})
+        </Button>
+      </div>
+
+      {mappings.length === 0 && !loading && (
+        <div className="history-empty">هنوز نگاشتی نیست. از جستجو یا «افزودن موارد پیشنهادی» شروع کنید.</div>
+      )}
+
+      <div className="history-mappings">
+        {mappings.map((m) => (
+          <div key={m.slug} className="history-mapping">
+            <div className="history-mapping-row">
               <div className="history-mapping-name">
-                <strong>{h.name || h.key}</strong>
-                <small dir="ltr">{h.key}</small>
+                <strong>{m.label}</strong>
+                <a href={`https://www.tgju.org/profile/${m.slug}`} target="_blank" rel="noreferrer" dir="ltr">
+                  {m.slug} <ExternalLink size={11} />
+                </a>
               </div>
-              <span className="history-status">{fa(h.days)} روز · {faDate(h.first)} تا {faDate(h.last)}</span>
-              {!h.inBook && <span className="history-status is-error">در دفتر قیمت نیست</span>}
+              <select className="history-select is-unit" value={m.unit} onChange={(e) => setField(m.slug, { unit: e.target.value })} disabled={busy} aria-label="واحد">
+                {UNITS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
+              </select>
+              <ItemSelect items={data.items} value={m.target} onChange={(v) => setField(m.slug, { target: v })} disabled={busy} label={`مقصد ${m.label}`} />
+              <RunStatus run={runs[m.slug]} lastRun={m.lastRun} />
               <div className="history-mapping-actions">
-                {!h.inBook && (
-                  <>
-                    <ItemSelect items={data.items} value={moveTo[h.key] || ''} onChange={(v) => setMoveTo((p) => ({ ...p, [h.key]: v }))} label={`انتقال ${h.key}`} />
-                    <Button size="sm" variant="secondary" icon={<ArrowLeftRight size={14} />} disabled={!moveTo[h.key]} onClick={() => moveKey(h)}>انتقال</Button>
-                  </>
-                )}
-                <button type="button" className="history-icon-btn" title="حذف تاریخچه" onClick={() => deleteKey(h)}>
+                <Button size="sm" variant="secondary" icon={<Eye size={14} />} onClick={() => preview(m)}>پیش‌نمایش</Button>
+                <Button size="sm" variant="secondary" icon={<Play size={14} />} disabled={busy || !m.target} onClick={() => run([m])}>بارگذاری</Button>
+                <button type="button" className="history-icon-btn" title="حذف نگاشت" onClick={() => removeMapping(m.slug)} disabled={busy}>
                   <Trash2 size={15} />
                 </button>
               </div>
             </div>
-          ))}
-          {!historyRows.length && !loading && <div className="history-empty">موردی نیست.</div>}
-        </div>
-      </section>
-    </div>
+            {previews[m.slug] && (
+              <Preview preview={previews[m.slug]} unit={m.unit} onApplyUnit={(u) => setField(m.slug, { unit: u })} />
+            )}
+          </div>
+        ))}
+      </div>
+    </AdminCard>
+  );
+
+  const storedCard = (
+    <AdminCard
+      className="history-section"
+      icon={<Database size={18} />}
+      title="تاریخچه‌ی ذخیره‌شده"
+      actions={<span className="history-hint">{fa(data.history.length)} شناسه · {fa(orphans.length)} بی‌استفاده</span>}
+    >
+      <p className="history-hint">شناسه‌ای که در دفتر قیمت نیست را هیچ کارت و نموداری نمی‌خواند: به مورد درست منتقلش کنید یا حذفش کنید.</p>
+      <div className="history-toolbar">
+        <SearchBar value={historyQuery} onChange={(e) => setHistoryQuery(e.target.value)} placeholder="جستجوی شناسه یا نام" />
+        <label className="history-check">
+          <input type="checkbox" checked={onlyOrphans} onChange={(e) => setOnlyOrphans(e.target.checked)} />
+          فقط بی‌استفاده‌ها
+        </label>
+        <Button variant="secondary" icon={<Trash2 size={16} />} disabled={!orphans.length} onClick={deleteOrphans}>
+          حذف همه‌ی بی‌استفاده‌ها ({fa(orphans.length)})
+        </Button>
+      </div>
+      <div className="history-keys">
+        {historyRows.map((h) => (
+          <div key={h.key} className={`history-key ${h.inBook ? '' : 'is-orphan'}`}>
+            <div className="history-mapping-name">
+              <strong>{h.name || h.key}</strong>
+              <small dir="ltr">{h.key}</small>
+            </div>
+            <span className="history-status">{fa(h.days)} روز · {faDate(h.first)} تا {faDate(h.last)}</span>
+            {!h.inBook && <span className="history-status is-error">در دفتر قیمت نیست</span>}
+            <div className="history-mapping-actions">
+              {!h.inBook && (
+                <>
+                  <ItemSelect items={data.items} value={moveTo[h.key] || ''} onChange={(v) => setMoveTo((p) => ({ ...p, [h.key]: v }))} label={`انتقال ${h.key}`} />
+                  <Button size="sm" variant="secondary" icon={<ArrowLeftRight size={14} />} disabled={!moveTo[h.key]} onClick={() => moveKey(h)}>انتقال</Button>
+                </>
+              )}
+              <button type="button" className="history-icon-btn" title="حذف تاریخچه" onClick={() => deleteKey(h)}>
+                <Trash2 size={15} />
+              </button>
+            </div>
+          </div>
+        ))}
+        {!historyRows.length && !loading && <div className="history-empty">موردی نیست.</div>}
+      </div>
+    </AdminCard>
+  );
+
+  const recomputeCard = (
+    <AdminCard className="history-section" icon={<Calculator size={18} />} title="محاسبه‌ی دوباره">
+      <p className="history-hint">
+        حباب سکه‌ها از تاریخچه‌ی خود سکه، انس و دلار ساخته می‌شود و میانگین‌ها (و میانگین حباب یک‌ساله، یعنی قیمت استاندارد سکه‌ها) از تاریخچه‌ی همه‌ی قیمت‌ها. بعد از پر کردن تاریخچه این‌ها خودکار در ساعت بعد دوباره حساب می‌شوند؛ این دکمه همین حالا حسابشان می‌کند و گزارش می‌دهد.
+      </p>
+      <div className="history-toolbar">
+        <Button icon={<Calculator size={16} />} loading={recomputing} disabled={recomputing} onClick={recompute}>
+          محاسبه‌ی دوباره‌ی همه
+        </Button>
+      </div>
+      {report && <RecomputeReport report={report} />}
+    </AdminCard>
+  );
+
+  return (
+    <AdminPage
+      section="history"
+      className="history-page"
+      actions={<Button variant="secondary" icon={<RefreshCw size={16} />} onClick={load} loading={loading}>به‌روزرسانی</Button>}
+    >
+      <AdminTabs
+        label="بخش‌های تاریخچه"
+        tabs={[
+          { id: 'mappings', label: 'نگاشت tgju', icon: <Link2 size={14} />, badge: mappings.length, content: mappingsCard },
+          { id: 'stored', label: 'تاریخچه‌ی ذخیره‌شده', icon: <Database size={14} />, badge: orphans.length, content: storedCard },
+          { id: 'recompute', label: 'محاسبه‌ی دوباره', icon: <Calculator size={14} />, content: recomputeCard },
+        ]}
+      />
+    </AdminPage>
   );
 }
