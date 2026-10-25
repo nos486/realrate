@@ -53,7 +53,7 @@ import {
 import { dbGetUserAuthByEmail, dbGetUserAuthById } from "../repositories/account.repository.js";
 import { answerGroupRequest } from "../services/groupRequest.service.js";
 import { dbGetUsersPage, USER_FILTERS } from "../repositories/admin.repository.js";
-import { notifyAdmin } from "../services/bot/adminChat.service.js";
+import { notifyAdmins } from "../services/bot/messengers.js";
 
 const MEMBERS_PAGE_SIZE = 20;
 const userIdOf = (user) => user?.userId || user?.id || "";
@@ -131,8 +131,8 @@ export async function handleRequestGroup(request, env, { key }, ctx) {
   const body = await readBody(request);
   const note = cleanRequestNote(body.note);
   await dbCreateGroupRequest(env, group.id, userIdOf(user), note);
-  // The admin hears of it in Telegram, with buttons to answer (best effort, off the user's request)
-  const notified = notifyAdmin(env, {
+  // The admin hears of it in Telegram and Rubika, with buttons to answer (best effort, off the user's request)
+  const notified = notifyAdmins(env, {
     text: `درخواست عضویت در «${group.name}»\nکاربر: ${user.email || userIdOf(user)}${user.name ? ` (${user.name})` : ""}${note ? `\nیادداشت: ${note}` : ""}`,
     action: { type: "group-request", groupId: group.id, userId: userIdOf(user) },
   }).catch(() => {});

@@ -12,11 +12,11 @@
 
 import { intlLocale } from '../../../utils/i18n.js';
 import React, { useEffect, useState } from 'react';
-import { Send, Save, PlugZap, RefreshCw, CheckCircle2, AlertTriangle, KeyRound } from 'lucide-react';
+import { Send, Save, PlugZap, CheckCircle2, AlertTriangle, KeyRound } from 'lucide-react';
 import { Button, Input, AlertBanner } from '../../../shared/ui/index.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { getBotSettings, saveBotSettings, testBot, runBotNow } from '../api/adminApi.js';
-import { newsTimeAgo } from '../../news/newsFormat.js';
+import { BotFeedsCard, BotStatusCard } from './BotPanelCards.jsx';
 
 const fa = (n) => Number(n || 0).toLocaleString(intlLocale());
 const SOURCES = { env: 'متغیر محیطی (TELEGRAM_BOT_TOKEN)', admin: 'ذخیره‌شده از همین صفحه' };
@@ -104,9 +104,6 @@ export default function AdminBotPage() {
 
   if (error && !data) return <AlertBanner type="error" message={error} />;
   if (!data) return <div className="require-auth-loading"><div className="spinner-glow" /></div>;
-
-  const status = data.status;
-  const toggleFeed = (id) => setFeedIds(feedIds.includes(id) ? feedIds.filter((x) => x !== id) : [...feedIds, id]);
 
   return (
     <div className="admin-news">
@@ -198,47 +195,8 @@ export default function AdminBotPage() {
         )}
       </div>
 
-      <div className="portfolio-stat-card">
-        <div className="stat-header">
-          <span className="stat-label">خبرگزاری‌هایی که در کانال می‌روند</span>
-        </div>
-        <label className="admin-bot-row">
-          <input type="checkbox" checked={allFeeds} onChange={(e) => setAllFeeds(e.target.checked)} />
-          <span>همه‌ی خبرگزاری‌ها (فهرست صفحه‌ی اخبار)</span>
-        </label>
-        {!allFeeds && data.feeds.map((f) => (
-          <label key={f.id} className="admin-bot-row">
-            <input type="checkbox" checked={feedIds.includes(f.id)} onChange={() => toggleFeed(f.id)} />
-            <span><bdi>{f.title}</bdi> <small dir="ltr">{f.id}</small>{f.enabled ? '' : ' (در اخبار غیرفعال است)'}</span>
-          </label>
-        ))}
-        <p className="admin-card-hint">خبرگزاری‌ها را در بخش «اخبار» اضافه یا کم کنید. خبری که پیش از روشن شدن ربات آمده باشد فرستاده نمی‌شود.</p>
-      </div>
-
-      <div className="portfolio-stat-card">
-        <div className="stat-header">
-          <span className="stat-label">آخرین ارسال</span>
-          <Button size="sm" variant="secondary" icon={<RefreshCw size={14} />} loading={busy === 'run'} disabled={Boolean(busy)} onClick={run}>
-            ارسال الان
-          </Button>
-        </div>
-        {status ? (
-          <>
-            <p className="admin-card-hint">
-              {status.lastSentAt ? `آخرین خبر ${newsTimeAgo(status.lastSentAt)} فرستاده شد` : 'هنوز خبری فرستاده نشده'}
-              {' · '}{fa(status.sentTotal)} خبر در مجموع · {fa(status.waiting)} در صف
-            </p>
-            {status.error && (
-              <p className="admin-news-error">
-                <AlertTriangle size={14} aria-hidden="true" />
-                <span><strong>خطای تلگرام:</strong> <bdi dir="ltr">{status.error}</bdi></span>
-              </p>
-            )}
-          </>
-        ) : (
-          <p className="admin-card-hint">هنوز اجرایی نبوده است.</p>
-        )}
-      </div>
+      <BotFeedsCard feeds={data.feeds} allFeeds={allFeeds} onAllFeeds={setAllFeeds} feedIds={feedIds} onFeedIds={setFeedIds} />
+      <BotStatusCard status={data.status} messenger="تلگرام" busy={busy === 'run'} disabled={Boolean(busy)} onRun={run} />
     </div>
   );
 }

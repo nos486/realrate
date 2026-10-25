@@ -168,6 +168,10 @@ import {
   handleAdminRunNewsAnalysis,
 } from "./handlers/newsRoutes.js";
 import { handleBotWebhook, handleAdminGetBot, handleAdminSaveBot, handleAdminTestBot, handleAdminRunBot } from "./handlers/botRoutes.js";
+import {
+  RUBIKA_WEBHOOK_ROUTE, handleRubikaWebhook, handleAdminGetRubika, handleAdminSaveRubika, handleAdminTestRubika,
+  handleAdminRunRubika, handleAdminRubikaLinkCode,
+} from "./handlers/rubikaRoutes.js";
 import { fetchAllPrices } from "./services/market/priceAggregator.service.js";
 import {
   searchCatalogItems,
@@ -363,6 +367,17 @@ async function handleRequest(request, env, ctx) {
   }
   if (normalizedPath === "/api/admin/bot/test" && request.method === "POST") return wrap(handleAdminTestBot)(request, env);
   if (normalizedPath === "/api/admin/bot/run" && request.method === "POST") return wrap(handleAdminRunBot)(request, env);
+  // The Rubika bot: Rubika posts its updates here (checked by the secret in the path, not a session)
+  const rubikaWebhookMatch = normalizedPath.match(RUBIKA_WEBHOOK_ROUTE);
+  if (rubikaWebhookMatch && request.method === "POST") return wrap((req, e) => handleRubikaWebhook(req, e, { secret: rubikaWebhookMatch[1] }))(request, env);
+  // Admin: the Rubika bot's settings
+  if (normalizedPath === "/api/admin/rubika") {
+    if (request.method === "GET") return wrap(handleAdminGetRubika)(request, env);
+    if (request.method === "PUT") return wrap(handleAdminSaveRubika)(request, env);
+  }
+  if (normalizedPath === "/api/admin/rubika/test" && request.method === "POST") return wrap(handleAdminTestRubika)(request, env);
+  if (normalizedPath === "/api/admin/rubika/run" && request.method === "POST") return wrap(handleAdminRunRubika)(request, env);
+  if (normalizedPath === "/api/admin/rubika/link" && request.method === "POST") return wrap(handleAdminRubikaLinkCode)(request, env);
   // Admin: the news section's channels
   if (normalizedPath === "/api/admin/news/channels") {
     if (request.method === "GET") return wrap(handleAdminGetNewsChannels)(request, env);

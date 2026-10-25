@@ -26,6 +26,41 @@ const actionKey = (id) => `bot:action:${id}`;
 const randomId = () => crypto.randomUUID().replace(/-/g, "").slice(0, 12);
 
 /**
+ * Keep an action for its ✅ / ❌ buttons (`a:<id>` / `r:<id>`), for a week; shared by every messenger
+ * @returns {Promise<string>} the action's id
+ */
+export async function saveBotAction(store, action) {
+  const id = randomId();
+  await store.put(actionKey(id), JSON.stringify(action), { expirationTtl: ACTION_TTL_SEC });
+  return id;
+}
+
+/** Whether button data is an action's ✅ / ❌ */
+export const isActionButton = (data) => /^[ar]:/.test(String(data || ""));
+
+/**
+ * Do a pressed action once (taken first, so a double press answers once)
+ * @param {object} env
+ * @param {string} data - the button's data, `a:<id>` or `r:<id>`
+ * @param {string} by - who answered, for the record (e.g. `telegram:<username>`)
+ * @returns {Promise<string>} the note shown under the message
+ */
+export async function runBotAction(env, data, by) {
+  const [verb, id] = String(data || "").split(":");
+  const store = getStateStore(env);
+  const action = verb === "a" || verb === "r" ? await store?.get(actionKey(id), "json") : null;
+  const handler = BOT_ACTIONS[action?.type];
+  if (!handler) return "این درخواست منقضی شده است.";
+  await store.delete(actionKey(id));
+  try {
+    return (await handler[verb === "a" ? "approve" : "reject"](env, action, by)).text;
+  } catch (err) {
+    logger.error("[Bot] the admin's action failed", { type: action.type, error: err?.message });
+    return `⚠️ انجام نشد: ${String(err?.message || "خطا").slice(0, 120)}`;
+  }
+}
+
+/**
  * Tell the admin about something and let them answer with a button
  * @param {object} env
  * @param {{ text: string, action: { type: string } }} message - action: see botActions.js
@@ -36,8 +71,7 @@ export async function notifyAdmin(env, { text, action }, opts = {}) {
   const config = await getBotConfig(env);
   const store = getStateStore(env);
   if (!config.enabled || !config.token || !config.adminChatId || !store || !BOT_ACTIONS[action?.type]) return false;
-  const id = randomId();
-  await store.put(actionKey(id), JSON.stringify(action), { expirationTtl: ACTION_TTL_SEC });
+  const id = await saveBotAction(store, action);
   const res = await sendMessage(config.token, config.adminChatId, text, {
     ...opts,
     plain: true,
@@ -92,25 +126,11 @@ async function handleCallback(env, config, query, opts) {
     }
     return;
   }
-  const [verb, id] = String(query.data || "").split(":");
-  const store = getStateStore(env);
-  const action = verb === "a" || verb === "r" ? await store?.get(actionKey(id), "json") : null;
-  const handler = BOT_ACTIONS[action?.type];
-  const done = (text) => Promise.all([
+  const text = await runBotAction(env, query.data, `telegram:${config.adminUsername}`);
+  await Promise.all([
     answerCallbackQuery(config.token, query.id, text, opts),
     query.message ? editMessageText(config.token, query.message.chat.id, query.message.message_id, `${query.message.text || ""}\n\n${text}`, opts) : null,
   ]);
-  if (!handler) return void (await done("این درخواست منقضی شده است."));
-  // Taken first, so a double press answers once
-  await store.delete(actionKey(id));
-  let result;
-  try {
-    result = await handler[verb === "a" ? "approve" : "reject"](env, action, `telegram:${config.adminUsername}`);
-  } catch (err) {
-    logger.error("[Bot] the admin's action failed", { type: action.type, error: err?.message });
-    result = { text: `⚠️ انجام نشد: ${String(err?.message || "خطا").slice(0, 120)}` };
-  }
-  await done(result.text);
 }
 
 /**

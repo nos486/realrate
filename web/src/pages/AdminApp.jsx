@@ -8,6 +8,7 @@
  *   /admin/groups   groups of users, join requests, and who gets which feature
  *   /admin/news     the news section's channels and feeds
  *   /admin/bot      the Telegram bot (token, channel, which feeds)
+ *   /admin/rubika   the Rubika bot (the same, and the admin's link code)
  *
  * Only admins get in; anyone else sees a short notice with a way back to the app.
  */
@@ -15,7 +16,7 @@
 import React, { Suspense, lazy, useEffect, useRef } from 'react';
 import { NavLink, Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import ErrorBoundary from '../shared/ui/ErrorBoundary.jsx';
-import { ShieldCheck, Users, Radio, History, ArrowRight, Ban, UsersRound, Newspaper, Send } from 'lucide-react';
+import { ShieldCheck, Users, Radio, History, ArrowRight, Ban, UsersRound, Newspaper, Send, MessageCircle } from 'lucide-react';
 import { useAuth } from '../features/auth/index.js';
 import { EmptyState } from '../shared/ui/index.js';
 import { APP_BASE } from '../shared/routes.js';
@@ -26,6 +27,7 @@ const AdminPriceSourcesPage = lazy(() => import('../features/admin/components/Ad
 const PriceHistoryAdmin = lazy(() => import('../features/admin/components/PriceHistoryAdmin.jsx'));
 const AdminGroupsPage = lazy(() => import('../features/admin/components/AdminGroupsPage.jsx'));
 const AdminBotPage = lazy(() => import('../features/admin/components/AdminBotPage.jsx'));
+const AdminRubikaPage = lazy(() => import('../features/admin/components/AdminRubikaPage.jsx'));
 const AdminNewsPage = lazy(() => import('../features/admin/components/AdminNewsPage.jsx'));
 
 const SECTIONS = [
@@ -35,6 +37,7 @@ const SECTIONS = [
   { path: '/admin/history', label: 'تاریخچه‌ی قیمت', icon: History },
   { path: '/admin/news', label: 'اخبار', icon: Newspaper },
   { path: '/admin/bot', label: 'ربات تلگرام', icon: Send },
+  { path: '/admin/rubika', label: 'ربات روبیکا', icon: MessageCircle },
 ];
 
 function SectionLoader() {
@@ -100,6 +103,7 @@ export default function AdminApp() {
               <Route path="groups" element={<AdminGroupsPage />} />
               <Route path="news" element={<AdminNewsPage />} />
               <Route path="bot" element={<AdminBotPage />} />
+              <Route path="rubika" element={<AdminRubikaPage />} />
               <Route path="*" element={<Navigate to="/admin" replace />} />
             </Routes>
           </Suspense>

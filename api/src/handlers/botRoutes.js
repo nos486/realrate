@@ -20,7 +20,8 @@ import { handleBotUpdate } from "../services/bot/adminChat.service.js";
 import { syncWebhook, webhookSecret, safeEqual } from "../services/bot/webhook.js";
 import { getMe, getChat, sendMessage } from "../services/bot/telegramApi.js";
 
-async function requireAdmin(request, env) {
+/** Throws unless the request is from an admin (shared with rubikaRoutes.js) */
+export async function requireAdmin(request, env) {
   const user = await getAuthenticatedUser(request, env);
   if (!user || user.role !== "admin") throw AppError.forbidden("دسترسی غیرمجاز. فقط مدیر سیستم مجاز است.");
 }
