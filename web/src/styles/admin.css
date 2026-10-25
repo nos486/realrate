@@ -964,6 +964,10 @@
   .admin-sidebar {
     top: calc(52px + env(safe-area-inset-top, 0px));
     z-index: 40;
+    /* As wide as the screen (not its content), so its sections scroll inside it */
+    align-self: stretch;
+    min-width: 0;
+    max-width: 100%;
     flex-direction: row;
     gap: 4px;
     max-height: none;
@@ -1047,7 +1051,7 @@
   gap: 16px;
   min-width: 0;
 }
-.admin-tabs-bar { min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.admin-tabs-bar { min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
 .admin-tabs-bar::-webkit-scrollbar { display: none; }
 .admin-tabs-bar .ui-filter-pills { width: max-content; max-width: none; }
 .admin-tab-panel { min-width: 0; }
