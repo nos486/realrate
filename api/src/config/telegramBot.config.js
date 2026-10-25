@@ -38,5 +38,13 @@ export const BOT_COMMANDS = [
 /** The daily report goes out at the first run after this Tehran hour */
 export const REPORT_HOUR_TEHRAN = 21;
 
+/**
+ * The day's AI analysis goes to the channels at the first run after this Tehran hour (00:00: the
+ * day that just ended), and only within ANALYSIS_POST_WINDOW_HOURS of it: a bot turned on at noon
+ * does not post yesterday's analysis
+ */
+export const ANALYSIS_POST_HOUR_TEHRAN = 0;
+export const ANALYSIS_POST_WINDOW_HOURS = 3;
+
 /** Users shown by one /users command */
 export const USERS_LIST_SIZE = 8;

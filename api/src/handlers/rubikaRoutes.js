@@ -2,7 +2,7 @@
  * rubikaRoutes.js — Admin API of the Rubika bot (admin panel → ربات روبیکا)
  *
  *   GET  /api/admin/rubika       settings (never the token), last status, the feeds and domestic channels to choose from
- *   PUT  /api/admin/rubika       save { enabled?, channel?, feeds?, domestic?, domesticChannels?, token?, dailyReport?, unlinkAdmin? }
+ *   PUT  /api/admin/rubika       save { enabled?, channel?, feeds?, domestic?, domesticChannels?, token?, dailyReport?, dailyAnalysis?, unlinkAdmin? }
  *   POST /api/admin/rubika/test  check the token and the channel, and post a test message
  *   POST /api/admin/rubika/run   post the waiting news now
  *   POST /api/admin/rubika/link  a one-time code the admin sends to the bot to link their account
@@ -52,6 +52,7 @@ export async function handleAdminSaveRubika(request, env, { fetchFn } = {}) {
     domesticChannels: body.domesticChannels,
     token: body.token,
     dailyReport: body.dailyReport,
+    dailyAnalysis: body.dailyAnalysis,
     unlinkAdmin: body.unlinkAdmin === true,
   });
   // Rubika posts the admin's messages and button presses to the webhook while the bot is on

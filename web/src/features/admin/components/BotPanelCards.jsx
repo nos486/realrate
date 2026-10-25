@@ -4,7 +4,7 @@
  *  - BotPage: the page itself: «ذخیره» and «تست اتصال» in the header, the connection and the
  *    admin's account on one side, the feeds and the last run on the other
  *  - BotConnectionCard: the on/off switch, token (never shown back, only whether one is set),
- *    channel, and what «تست اتصال» found
+ *    channel, the nightly AI analysis in the channel, and what «تست اتصال» found
  *  - BotFeedsCard: which international sources (feeds, translated channels) the bot posts to its
  *    channel (all by default)
  *  - BotStatusCard: the last run (what was sent, what waits, the last error) and «ارسال الان»
@@ -116,6 +116,9 @@ export function BotConnectionCard({ messenger, bot }) {
         dir="ltr"
       />
       {messenger.channelHint && <AdminStatus>{messenger.channelHint}</AdminStatus>}
+      <AdminCheck checked={form.dailyAnalysis} onChange={(on) => setField('dailyAnalysis', on)}>
+        تحلیل روز با هوش مصنوعی هر شب ساعت ۰۰:۰۰ در کانال
+      </AdminCheck>
 
       {check && (
         <AdminNotice tone={check.ok ? 'ok' : 'error'}>

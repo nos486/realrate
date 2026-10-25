@@ -35,7 +35,7 @@ const readSaved = async (store) => (await store?.get(CONFIG_KEY, "json").catch((
  * The saved settings with the token resolved
  * @returns {Promise<{ enabled: boolean, channel: string, feeds: string[]|null, domestic: boolean,
  *   domesticChannels: string[]|null, adminChatId: string,
- *   adminUserId: string, dailyReport: boolean, linkCode: string, linkCodeExpiresAt: number,
+ *   adminUserId: string, dailyReport: boolean, dailyAnalysis: boolean, linkCode: string, linkCodeExpiresAt: number,
  *   token: string, tokenSource: "env"|"admin"|"" }>}
  *   feeds: the feed ids whose articles are posted; null means every feed. domestic: the domestic
  *   news (the news section's channels) is posted too; domesticChannels: which channels' posts
@@ -55,6 +55,7 @@ export async function getRubikaConfig(env) {
     adminChatId: saved.adminChatId ? String(saved.adminChatId) : "",
     adminUserId: saved.adminUserId ? String(saved.adminUserId) : "",
     dailyReport: saved.dailyReport === true,
+    dailyAnalysis: saved.dailyAnalysis === true,
     linkCode: typeof saved.linkCode === "string" ? saved.linkCode : "",
     linkCodeExpiresAt: Number(saved.linkCodeExpiresAt) || 0,
     token,
@@ -82,7 +83,7 @@ export function publicRubikaConfig({ token, adminChatId, adminUserId, linkCode, 
  * Save the admin's changes; only the fields sent change
  * @param {object} env
  * @param {{ enabled?: boolean, channel?: string, feeds?: string[]|null, domestic?: boolean, domesticChannels?: string[]|null,
- *   token?: string|null, dailyReport?: boolean, unlinkAdmin?: boolean }} patch
+ *   token?: string|null, dailyReport?: boolean, dailyAnalysis?: boolean, unlinkAdmin?: boolean }} patch
  *   token: a new token, or null to remove the saved one. unlinkAdmin: forget the linked account
  */
 export async function saveRubikaConfig(env, patch = {}) {
@@ -99,6 +100,7 @@ export async function saveRubikaConfig(env, patch = {}) {
     adminChatId: saved.adminChatId || "",
     adminUserId: saved.adminUserId || "",
     dailyReport: saved.dailyReport === true,
+    dailyAnalysis: saved.dailyAnalysis === true,
     linkCode: saved.linkCode || "",
     linkCodeExpiresAt: Number(saved.linkCodeExpiresAt) || 0,
     linkCodeMisses: Number(saved.linkCodeMisses) || 0,
@@ -111,6 +113,7 @@ export async function saveRubikaConfig(env, patch = {}) {
     next.channel = channel;
   }
   if (patch.dailyReport !== undefined) next.dailyReport = patch.dailyReport === true;
+  if (patch.dailyAnalysis !== undefined) next.dailyAnalysis = patch.dailyAnalysis === true;
   if (patch.domestic !== undefined) next.domestic = patch.domestic === true;
   if (patch.domesticChannels !== undefined) {
     next.domesticChannels = Array.isArray(patch.domesticChannels)

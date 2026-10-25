@@ -27,7 +27,7 @@ export function normalizeChannel(input) {
 /**
  * The saved settings with the token resolved
  * @returns {Promise<{ enabled: boolean, channel: string, feeds: string[]|null, adminUsername: string,
- *   adminChatId: string, adminUserId: string, dailyReport: boolean, token: string, tokenSource: "env"|"admin"|"" }>}
+ *   adminChatId: string, adminUserId: string, dailyReport: boolean, dailyAnalysis: boolean, token: string, tokenSource: "env"|"admin"|"" }>}
  *   feeds: the feed ids whose articles are posted; null means every feed. adminUsername: the
  *   admin's Telegram username; adminChatId / adminUserId: set when that user has sent /start to
  *   the bot (the bot can only write to someone who started it)
@@ -44,6 +44,7 @@ export async function getBotConfig(env) {
     adminChatId: saved.adminChatId ? String(saved.adminChatId) : "",
     adminUserId: saved.adminUserId ? String(saved.adminUserId) : "",
     dailyReport: saved.dailyReport === true,
+    dailyAnalysis: saved.dailyAnalysis === true,
     token,
     tokenSource: envToken ? "env" : token ? "admin" : "",
   };
@@ -63,7 +64,7 @@ export function normalizeUsername(input) {
 /**
  * Save the admin's changes; only the fields sent change
  * @param {object} env
- * @param {{ enabled?: boolean, channel?: string, feeds?: string[]|null, token?: string|null, adminUsername?: string, dailyReport?: boolean }} patch
+ * @param {{ enabled?: boolean, channel?: string, feeds?: string[]|null, token?: string|null, adminUsername?: string, dailyReport?: boolean, dailyAnalysis?: boolean }} patch
  *   token: a new token, or null to remove the saved one. adminUsername: another username unlinks
  *   the previous admin (the new one links by sending /start to the bot)
  */
@@ -80,6 +81,7 @@ export async function saveBotConfig(env, patch = {}) {
     adminChatId: saved.adminChatId || "",
     adminUserId: saved.adminUserId || "",
     dailyReport: saved.dailyReport === true,
+    dailyAnalysis: saved.dailyAnalysis === true,
   };
 
   if (patch.enabled !== undefined) next.enabled = patch.enabled === true;
@@ -89,6 +91,7 @@ export async function saveBotConfig(env, patch = {}) {
     next.channel = channel;
   }
   if (patch.dailyReport !== undefined) next.dailyReport = patch.dailyReport === true;
+  if (patch.dailyAnalysis !== undefined) next.dailyAnalysis = patch.dailyAnalysis === true;
   if (patch.feeds !== undefined) {
     next.feeds = Array.isArray(patch.feeds) ? [...new Set(patch.feeds.filter((id) => typeof id === "string"))] : null;
   }

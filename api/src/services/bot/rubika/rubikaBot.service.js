@@ -15,9 +15,10 @@ import { logger } from "../../../lib/logger.js";
 import { RUBIKA_ENDPOINTS } from "../../../config/rubikaBot.config.js";
 import { webhookSecret } from "../webhook.js";
 import { sendDailyReportOnce } from "../dailyReport.service.js";
+import { postDailyAnalysisOnce } from "../dailyAnalysis.service.js";
 import { getRubikaConfig, getRubikaStatus, saveRubikaStatus } from "./rubikaConfig.service.js";
 import { flushRubikaNews } from "./rubikaChannel.service.js";
-import { sendMessage, updateBotEndpoints } from "./rubikaApi.js";
+import { sendMessage, updateBotEndpoints, richText } from "./rubikaApi.js";
 
 export const RUBIKA_WEBHOOK_PATH = "/api/bot/rubika/webhook";
 
@@ -32,9 +33,20 @@ async function sendRubikaDailyReport(env, { now = Date.now(), fetchFn } = {}) {
   return { sent: 0 };
 }
 
+/** The day's AI analysis in the channel every night (dailyAnalysis.service.js decides when) */
+async function postRubikaDailyAnalysis(env, { now = Date.now(), fetchFn } = {}) {
+  const config = await getRubikaConfig(env);
+  return postDailyAnalysisOnce(env, {
+    on: config.dailyAnalysis,
+    dayKey: "rubika:analysis:day",
+    send: (segments) => sendMessage(config.token, config.channel, richText(segments), { fetchFn }),
+  }, now);
+}
+
 /** The bot's features, run in this order */
 export const RUBIKA_FEATURES = [
   { id: "news-channel", run: flushRubikaNews },
+  { id: "daily-analysis", run: postRubikaDailyAnalysis },
   { id: "daily-report", run: sendRubikaDailyReport },
 ];
 
