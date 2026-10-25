@@ -819,15 +819,6 @@
 }
 
 /* Admin: channels */
-.admin-news {
-  max-width: 720px;
-}
-
-.admin-news-actions {
-  display: inline-flex;
-  gap: 8px;
-}
-
 .admin-news-ai {
   display: flex;
   flex-direction: column;

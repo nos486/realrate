@@ -1,11 +1,12 @@
 /**
- * AdminGroupsPage.jsx — Groups of users and who gets which feature (/admin/groups)
+ * AdminGroupsPage.jsx — Groups of users and who gets which feature (/admin/groups), in four tabs:
  *
- * - Join requests waiting for an answer (approve adds the member, reject drops the request)
- * - Groups: create, edit, delete (not a system group, not one a feature uses), and each group's
+ * - «درخواست‌ها»: join requests waiting for an answer (approve adds the member, reject drops the request)
+ * - «گروه‌ها»: create, edit, delete (not a system group, not one a feature uses), and each group's
  *   members (search, add by email, remove)
- * - Feature access: for each feature, off / admins only / signed-in users — all of them, or only
- *   the members of some groups; back to the code's default
+ * - «دسترسی به ویژگی‌ها»: for each feature, off / admins only / signed-in users — all of them, or
+ *   only the members of some groups; back to the code's default
+ * - «محدودیت‌ها»: the counts and quotas of the free plan and of each group
  *
  * Changes take effect on the user's next request; the app re-reads its features when it opens and
  * when it comes back to the foreground.
@@ -13,9 +14,10 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { UsersRound, Plus, Pencil, Trash2, Check, X, Crown, KeyRound, RotateCcw, UserPlus, Inbox } from 'lucide-react';
-import { AlertBanner, Button, Card, EmptyState, FeaturePageHeader, Input, Modal, Pagination, SearchBar } from '../../../shared/ui/index.js';
+import { AlertBanner, Button, EmptyState, Input, Modal, Pagination, SearchBar } from '../../../shared/ui/index.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
+import AdminPage, { AdminCard, AdminTabs } from './AdminPage.jsx';
 import { GROUP_LIMITS } from '../../../utils/userGroups.js';
 import {
   getAdminGroups,
@@ -45,10 +47,10 @@ const personName = (p) => p.name || p.email;
 // ── Join requests ──────────────────────────────────────────────────────────
 
 function RequestsCard({ requests, groups, onAnswer, busy }) {
-  if (!requests.length) return null;
   const groupName = (id) => groups.find((g) => g.id === id)?.name || id;
   return (
-    <Card padding="lg" icon={<Inbox size={18} />} title="درخواست‌های عضویت" subtitle="کاربرانی که از صفحه‌ی ویژگی، عضویت در گروه را خواسته‌اند">
+    <AdminCard icon={<Inbox size={18} />} title="درخواست‌های عضویت" subtitle="کاربرانی که از صفحه‌ی ویژگی، عضویت در گروه را خواسته‌اند">
+      {!requests.length && <EmptyState title="درخواستی در انتظار نیست" />}
       <ul className="admin-group-list">
         {requests.map((r) => {
           const key = `${r.groupId}:${r.userId}`;
@@ -71,7 +73,7 @@ function RequestsCard({ requests, groups, onAnswer, busy }) {
           );
         })}
       </ul>
-    </Card>
+    </AdminCard>
   );
 }
 
@@ -254,8 +256,7 @@ function MembersModal({ group, onClose, onChanged }) {
 function GroupsCard({ groups, features, onCreate, onEdit, onMembers, onDelete }) {
   const usedBy = (key) => features.filter((f) => f.groups.includes(key)).map((f) => f.label);
   return (
-    <Card
-      padding="lg"
+    <AdminCard
       icon={<UsersRound size={18} />}
       title="گروه‌ها"
       subtitle="کاربران را در گروه‌ها قرار دهید؛ هر ویژگی می‌تواند فقط برای اعضای گروه‌هایی باز باشد."
@@ -292,7 +293,7 @@ function GroupsCard({ groups, features, onCreate, onEdit, onMembers, onDelete })
           );
         })}
       </ul>
-    </Card>
+    </AdminCard>
   );
 }
 
@@ -377,14 +378,14 @@ function FeatureRuleRow({ feature, groups, onSave, onReset }) {
 
 function FeaturesCard({ features, groups, onSave, onReset }) {
   return (
-    <Card padding="lg" icon={<KeyRound size={18} />} title="دسترسی به ویژگی‌ها" subtitle="هر ویژگی برای چه کسانی باز باشد؛ سرور همین را اجرا می‌کند و تغییر بلافاصله اعمال می‌شود.">
+    <AdminCard icon={<KeyRound size={18} />} title="دسترسی به ویژگی‌ها" subtitle="هر ویژگی برای چه کسانی باز باشد؛ سرور همین را اجرا می‌کند و تغییر بلافاصله اعمال می‌شود.">
       <ul className="admin-group-list">
         {features.map((f) => (
           // A row starts over from the saved rule after each save (its key changes with it)
           <FeatureRuleRow key={`${f.key}:${f.stage}:${f.groups.join()}`} feature={f} groups={groups} onSave={onSave} onReset={onReset} />
         ))}
       </ul>
-    </Card>
+    </AdminCard>
   );
 }
 
@@ -475,7 +476,7 @@ function LimitsCard({ limits, groups, onSave, onReset }) {
   const customized = isFree ? limits.customized.free : limits.customized.groups.includes(scope);
   const scopes = [{ key: 'free', name: 'پلن رایگان' }, ...groups.map((g) => ({ key: g.key, name: g.name }))];
   return (
-    <Card padding="lg" icon={<Crown size={18} />} title="محدودیت‌ها و سهمیه‌ها" subtitle="حداکثر تعداد حساب، وام، پیامک خوانده‌شده و ... برای پلن رایگان و هر گروه؛ سرور همین را اجرا می‌کند و اپ اندروید سهمیه‌ی پیامک را از آن می‌خواند.">
+    <AdminCard icon={<Crown size={18} />} title="محدودیت‌ها و سهمیه‌ها" subtitle="حداکثر تعداد حساب، وام، پیامک خوانده‌شده و ... برای پلن رایگان و هر گروه؛ سرور همین را اجرا می‌کند و اپ اندروید سهمیه‌ی پیامک را از آن می‌خواند.">
       <div className="admin-feature-groups" role="tablist" aria-label="محدوده">
         {scopes.map((o) => (
           <button key={o.key} type="button" role="tab" aria-selected={scope === o.key} className={`admin-chip-toggle ${scope === o.key ? 'is-on' : ''}`} onClick={() => setScope(o.key)}>
@@ -485,7 +486,7 @@ function LimitsCard({ limits, groups, onSave, onReset }) {
       </div>
       {/* Starts over from the saved limits after each save */}
       <LimitsEditor key={`${scope}:${JSON.stringify(saved)}`} scope={scope} catalog={limits.catalog} saved={saved} isFree={isFree} customized={customized} onSave={onSave} onReset={onReset} />
-    </Card>
+    </AdminCard>
   );
 }
 
@@ -587,27 +588,54 @@ export default function AdminGroupsPage() {
   };
 
   return (
-    <div className="incomes-page-container admin-page">
-      <FeaturePageHeader icon={<UsersRound size={24} />} title="گروه‌ها و دسترسی‌ها" subtitle="گروه‌های کاربران، اعضا، درخواست‌ها و اینکه هر ویژگی برای چه کسانی باز است" />
-
-      {error ? (
-        <EmptyState title="دریافت اطلاعات ممکن نشد" description={error} action={<Button onClick={load}>تلاش دوباره</Button>} />
-      ) : !data ? (
-        <SkeletonRows rows={6} columns={2} label="در حال دریافت گروه‌ها" />
-      ) : (
-        <div className="admin-groups-layout">
-          <RequestsCard requests={data.requests} groups={data.groups} onAnswer={answer} busy={busy} />
-          <GroupsCard
-            groups={data.groups}
-            features={data.features}
-            onCreate={() => setEditing({})}
-            onEdit={setEditing}
-            onMembers={setMembersOf}
-            onDelete={removeGroup}
-          />
-          <FeaturesCard features={data.features} groups={data.groups} onSave={saveRule} onReset={resetRule} />
-          {limits && <LimitsCard limits={limits} groups={data.groups} onSave={saveLimits} onReset={resetLimits} />}
-        </div>
+    <AdminPage
+      section="groups"
+      loading={!data}
+      error={data ? '' : error}
+      onRetry={load}
+    >
+      {data && (
+        <AdminTabs
+          label="بخش‌های گروه‌ها"
+          initial={data.requests.length ? 'requests' : 'groups'}
+          tabs={[
+            {
+              id: 'requests',
+              label: 'درخواست‌ها',
+              icon: <Inbox size={14} />,
+              badge: data.requests.length,
+              content: <RequestsCard requests={data.requests} groups={data.groups} onAnswer={answer} busy={busy} />,
+            },
+            {
+              id: 'groups',
+              label: 'گروه‌ها',
+              icon: <UsersRound size={14} />,
+              badge: data.groups.length,
+              content: (
+                <GroupsCard
+                  groups={data.groups}
+                  features={data.features}
+                  onCreate={() => setEditing({})}
+                  onEdit={setEditing}
+                  onMembers={setMembersOf}
+                  onDelete={removeGroup}
+                />
+              ),
+            },
+            {
+              id: 'features',
+              label: 'دسترسی به ویژگی‌ها',
+              icon: <KeyRound size={14} />,
+              content: <FeaturesCard features={data.features} groups={data.groups} onSave={saveRule} onReset={resetRule} />,
+            },
+            {
+              id: 'limits',
+              label: 'محدودیت‌ها',
+              icon: <Crown size={14} />,
+              content: limits && <LimitsCard limits={limits} groups={data.groups} onSave={saveLimits} onReset={resetLimits} />,
+            },
+          ]}
+        />
       )}
 
       {editing && (
@@ -621,6 +649,6 @@ export default function AdminGroupsPage() {
         />
       )}
       {membersOf && <MembersModal group={membersOf} onClose={() => setMembersOf(null)} onChanged={load} />}
-    </div>
+    </AdminPage>
   );
 }

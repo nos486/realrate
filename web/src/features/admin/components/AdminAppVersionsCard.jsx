@@ -5,18 +5,18 @@
 
 import React from 'react';
 import { Smartphone } from 'lucide-react';
+import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 import { faNum, faVersion } from '../utils/adminFormat.js';
+import { AdminCard } from './AdminPage.jsx';
 
-export default function AdminAppVersionsCard({ versions = [] }) {
+/** @param {{ versions?: Array<{ version: string|null, users: number }>, loading?: boolean }} props */
+export default function AdminAppVersionsCard({ versions = [], loading = false }) {
   const total = versions.reduce((sum, v) => sum + v.users, 0);
   return (
-    <div className="portfolio-stat-card admin-app-versions">
-      <div className="stat-header">
-        <span className="stat-label">
-          <Smartphone size={14} /> نسخه‌های اپ (۳۰ روز اخیر)
-        </span>
-      </div>
-      {total === 0 ? (
+    <AdminCard className="admin-app-versions" icon={<Smartphone size={18} />} title="نسخه‌های اپ" subtitle="کاربران هر نسخه در ۳۰ روز اخیر">
+      {loading ? (
+        <SkeletonRows rows={3} columns={2} label="در حال دریافت نسخه‌ها" />
+      ) : total === 0 ? (
         <p className="admin-detail-note">هنوز کسی با اپ اندروید وارد نشده است.</p>
       ) : (
         <ul className="admin-app-version-list">
@@ -39,6 +39,6 @@ export default function AdminAppVersionsCard({ versions = [] }) {
           })}
         </ul>
       )}
-    </div>
+    </AdminCard>
   );
 }

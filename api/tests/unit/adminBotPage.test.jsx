@@ -40,7 +40,7 @@ describe('AdminBotPage', () => {
     const tokenInput = await screen.findByLabelText(/توکن ربات/);
     fireEvent.change(tokenInput, { target: { value: '123456789:AAFakeTokenFakeTokenFakeTokenFake_12' } });
     fireEvent.change(screen.getByLabelText('کانال'), { target: { value: '@realrate_news' } });
-    fireEvent.click(screen.getByRole('switch', { name: 'فعال بودن ربات' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'فعال بودن ربات تلگرام' }));
     fireEvent.click(screen.getByRole('button', { name: /ذخیره/ }));
     await waitFor(() => expect(api.saveBotSettings).toHaveBeenCalled());
     expect(api.saveBotSettings.mock.calls[0][0]).toMatchObject({ enabled: true, channel: '@realrate_news', feeds: null });

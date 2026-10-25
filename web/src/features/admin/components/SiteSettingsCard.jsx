@@ -6,8 +6,9 @@
  */
 
 import React, { useState } from 'react';
-import { Save } from 'lucide-react';
+import { Save, Megaphone } from 'lucide-react';
 import { Button, Input } from '../../../shared/ui/index.js';
+import { AdminCard } from './AdminPage.jsx';
 
 const fromSettings = (s) => ({
   announcement: s?.announcement || '',
@@ -37,16 +38,13 @@ export default function SiteSettingsCard({ settings, onSave }) {
   };
 
   return (
-    <form className="portfolio-stat-card admin-settings-card" onSubmit={handleSubmit}>
-      <div className="stat-header">
-        <span className="stat-label">تنظیمات سایت</span>
-      </div>
+    <AdminCard as="form" className="admin-settings-card" icon={<Megaphone size={18} />} title="اطلاعیه‌ی سایت" subtitle="نواری بالای همه‌ی صفحه‌ها؛ خالی = نمایش داده نمی‌شود" onSubmit={handleSubmit}>
 
       <Input
         as="textarea"
         id="adminAnnouncement"
         rows={2}
-        label="اطلاعیه بالای سایت (خالی = نمایش داده نمی‌شود)"
+        label="متن اطلاعیه"
         placeholder="متن اطلاعیه..."
         value={form.announcement}
         maxLength={500}
@@ -54,8 +52,8 @@ export default function SiteSettingsCard({ settings, onSave }) {
       />
 
       <Button type="submit" size="sm" icon={<Save size={14} />} loading={saving} disabled={!settings}>
-        ذخیره تنظیمات
+        ذخیره اطلاعیه
       </Button>
-    </form>
+    </AdminCard>
   );
 }
