@@ -18,13 +18,14 @@ export default function SpendingBackfill() {
   useEffect(() => {
     if (!userId || readOnly || status !== 'unlocked') return;
     import('./spendingBackfill.js')
-      .then(async ({ runChequeCategoryMigration, runLoanDuplicateCleanup, runOrphanLoanExpenseCleanup, runSpendingBackfill, runStoredRateCleanup }) => {
+      .then(async ({ runChequeCategoryMigration, runLoanDuplicateCleanup, runOrphanLoanExpenseCleanup, runSpendingBackfill, runStoredRateCleanup, runSubscriptionDuplicateCleanup }) => {
         // Retired cheque categories first: the backfill's own cheque records take the cheque's
         await runChequeCategoryMigration({ userId, expenses });
         await runSpendingBackfill({ userId, expenses });
         await runStoredRateCleanup({ userId, expenses });
         await runLoanDuplicateCleanup({ userId, expenses });
         await runOrphanLoanExpenseCleanup({ userId, expenses });
+        await runSubscriptionDuplicateCleanup({ userId, expenses });
       })
       .catch(() => {});
   }, [userId, readOnly, status, expenses]);

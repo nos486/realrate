@@ -5,7 +5,10 @@
  *
  * - A subscription: each payment it is due (subscriptionDocument.js duePayments) — a new one's
  *   first payment as soon as it is saved, one that renews by itself every renewal as its day
- *   comes («اینترنت و اشتراک‌ها», in its currency, from its account, naming it)
+ *   comes («اینترنت و اشتراک‌ها», in its currency, from its account, naming it). A payment some
+ *   expense naming it already pays (paysPayment: recorded under another day, before its start
+ *   date was edited) is not recorded again; an edit moves its payments with it
+ *   (followSubscriptionEdit)
  * - A loan installment marked paid on the loans page (and the earlier ones paid with it), and an
  *   extra payment («پرداخت قسط», naming the installment); marking it unpaid removes its expense
  * - A cleared cheque: its expense (issued) or income (received) — recordLinks.js settleCheque
@@ -23,7 +26,9 @@
  */
 
 import { intlLocale, t } from '../../utils/i18n.js';
-import { SUBSCRIPTION_EXPENSE_CATEGORY, duePayments } from '../../utils/subscriptionDocument.js';
+import {
+  SUBSCRIPTION_EXPENSE_CATEGORY, duePayments, paysPayment, paymentSearchRange, rescheduledDay,
+} from '../../utils/subscriptionDocument.js';
 import { sameLinkValue } from '../../utils/categoryLinks.js';
 import { BASE_CURRENCY, normalizeCurrency } from '../../utils/currencies.js';
 import { SPENDING_ID_PREFIX, recordOwnerOf } from '../../utils/recordOwners.js';
@@ -107,18 +112,29 @@ export async function recordIncome(income, { owner } = {}) {
   return (await createIncome({ notes: '', ...income, recordedBy: owner })).income;
 }
 
+/** The expenses naming a subscription in [from, to] */
+async function subscriptionExpenses(subId, range = {}) {
+  const { getExpenses } = await store();
+  const { expenses = [] } = await getExpenses(range);
+  return expenses.filter((e) => e.subscriptionId === subId);
+}
+
 /**
- * Record the payments a subscription is due (none when it has them all)
+ * Record the payments a subscription is due (none when it has them all). A payment an expense
+ * naming it already pays — the subscription's own, recorded under another day, or the user's —
+ * is not recorded again, whatever its `lastPaidOn` says (a stale copy, another device).
  * @param {object} sub
  * @param {string} today
  * @param {{ saveSubscription: (input: object, existing: object) => Promise<object> }} subscriptions
- *   how the subscription is saved (its `lastPaidOn` moves to the last one recorded)
+ *   how the subscription is saved (its `lastPaidOn` moves to the last one due)
  * @returns {Promise<object|null>} the subscription saved with its new `lastPaidOn`, or null
  */
 export async function recordSubscriptionPayments(sub, today, { saveSubscription }) {
   const days = duePayments(sub, today);
   if (days.length === 0) return null;
+  const recorded = await subscriptionExpenses(sub.id, paymentSearchRange(sub, days));
   for (const day of days) {
+    if (recorded.some((e) => paysPayment(sub, day, e.date))) continue;
     await recordSpending(`sub:${sub.id}:${day}`, {
       title: sub.name,
       amount: sub.amount,
@@ -130,6 +146,42 @@ export async function recordSubscriptionPayments(sub, today, { saveSubscription 
     }, { owner: 'subscription' });
   }
   return saveSubscription({ lastPaidOn: days[days.length - 1] }, sub);
+}
+
+/**
+ * A subscription just edited: the payments it recorded follow it — its name, the renewal day of
+ * each (rescheduledDay: a start date moved moves them; never past `today`), and the latest one
+ * its amount, currency and account (older payments were made at what they were then). The
+ * user's own payments naming it are theirs and stay.
+ * @param {object} sub the subscription as saved
+ * @param {object} before its stored copy before the edit
+ * @param {string} today
+ * @returns {Promise<number>} how many payments changed
+ */
+export async function followSubscriptionEdit(sub, before, today) {
+  if (!sub || !before) return 0;
+  const scheduleMoved = sub.startDate !== before.startDate || sub.cycleMonths !== before.cycleMonths;
+  const priced = sub.amount !== before.amount || normalizeCurrency(sub.currency) !== normalizeCurrency(before.currency)
+    || (sub.accountId || '') !== (before.accountId || '');
+  if (!scheduleMoved && !priced && sub.name === before.name) return 0;
+  const { saveExpense } = await store();
+  const from = [sub.startDate, before.startDate].sort()[0];
+  const own = (await subscriptionExpenses(sub.id, { from })).filter((e) => recordOwnerOf(e) === 'subscription');
+  const latest = own.reduce((last, e) => (!last || e.date > last.date ? e : last), null);
+  let changed = 0;
+  for (const e of own) {
+    const patch = {};
+    if (sub.name !== before.name && e.title === before.name) patch.title = sub.name;
+    const day = rescheduledDay(before, sub, e.date);
+    if (day !== e.date && day <= today) patch.date = day;
+    if (e === latest && priced) {
+      Object.assign(patch, { amount: sub.amount, currency: normalizeCurrency(sub.currency), accountId: sub.accountId || '' });
+    }
+    if (Object.keys(patch).length === 0) continue;
+    await saveExpense(patch, e, { syncLinks: false, asOwner: true });
+    changed++;
+  }
+  return changed;
 }
 
 /**

@@ -30,7 +30,7 @@ vi.mock('../../../web/src/shared/vault/vaultExpenses.js', () => ({
 }));
 
 const {
-  spendingExpenseId, recordSpending, recordSubscriptionPayments, recordInstallmentPayments, removeInstallmentPayment, recordExtraPayment, installmentNumberOf, removeLoanPayments, renameLoanPayments, dropDuplicateInstallmentPayments, sameInstallment,
+  spendingExpenseId, recordSpending, recordSubscriptionPayments, followSubscriptionEdit, recordInstallmentPayments, removeInstallmentPayment, recordExtraPayment, installmentNumberOf, removeLoanPayments, renameLoanPayments, dropDuplicateInstallmentPayments, sameInstallment,
 } = await import('../../../web/src/shared/vault/spendingRecords.js');
 
 beforeEach(() => {
@@ -69,6 +69,58 @@ describe('subscriptions', () => {
 
   it('records nothing when it has every payment', async () => {
     expect(await recordSubscriptionPayments({ ...sub, lastPaidOn: '2026-03-13' }, '2026-04-01', { saveSubscription })).toBeNull();
+    expect(m.saveExpense).not.toHaveBeenCalled();
+  });
+});
+
+describe('a subscription payment already recorded under another day', () => {
+  // Yearly, its start date moved from 1405/07/28 to 1405/07/27 after the first payment was recorded
+  const sub = {
+    id: 'sub_2', name: 'Suno', amount: 100, currency: 'USD', cycleMonths: 12, startDate: '2026-10-19',
+    autoRenew: true, status: 'active', accountId: 'acc_1', lastPaidOn: '',
+  };
+  const saveSubscription = vi.fn(async (input, existing) => ({ ...existing, ...input }));
+
+  it('is not recorded again, even when its last payment was lost (a stale copy)', async () => {
+    m.dayExpenses = [{ id: spendingExpenseId('sub:sub_2:2026-10-20'), date: '2026-10-20', subscriptionId: 'sub_2', recordedBy: 'subscription' }];
+    const saved = await recordSubscriptionPayments(sub, '2026-10-25', { saveSubscription });
+    expect(m.saveExpense).not.toHaveBeenCalled();
+    expect(saved.lastPaidOn).toBe('2026-10-19');
+  });
+
+  it('another subscription\'s expense doesn\'t count', async () => {
+    m.dayExpenses = [{ id: 'exp_x', date: '2026-10-19', subscriptionId: 'sub_9' }];
+    await recordSubscriptionPayments(sub, '2026-10-25', { saveSubscription });
+    expect(m.saveExpense).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('a subscription edited', () => {
+  const before = {
+    id: 'sub_2', name: 'Suno', amount: 100, currency: 'USD', cycleMonths: 12, startDate: '2026-10-20',
+    autoRenew: true, status: 'active', accountId: 'acc_1', lastPaidOn: '2026-10-20', category: 'software',
+  };
+  const own = { id: 'exp_s1', title: 'Suno', amount: 100, currency: 'USD', date: '2026-10-20', subscriptionId: 'sub_2', recordedBy: 'subscription', accountId: 'acc_1' };
+  const users = { id: 'exp_u', title: 'Suno', amount: 100, currency: 'USD', date: '2026-10-20', subscriptionId: 'sub_2', accountId: 'acc_1' };
+
+  it('its payments move with its start date and take its new name; the user\'s own stay', async () => {
+    m.dayExpenses = [own, users];
+    const changed = await followSubscriptionEdit({ ...before, startDate: '2026-10-19', name: 'Suno Pro', category: 'music' }, before, '2026-10-25');
+    expect(changed).toBe(1);
+    expect(m.saveExpense).toHaveBeenCalledWith({ title: 'Suno Pro', date: '2026-10-19' }, own, { syncLinks: false, asOwner: true });
+  });
+
+  it('the latest payment takes its new price and account', async () => {
+    const older = { ...own, id: 'exp_s0', date: '2025-10-20' };
+    m.dayExpenses = [older, own];
+    await followSubscriptionEdit({ ...before, amount: 120, accountId: 'acc_2' }, before, '2026-10-25');
+    expect(m.saveExpense).toHaveBeenCalledTimes(1);
+    expect(m.saveExpense).toHaveBeenCalledWith({ amount: 120, currency: 'USD', accountId: 'acc_2' }, own, { syncLinks: false, asOwner: true });
+  });
+
+  it('nothing for a change its payments don\'t carry (its category)', async () => {
+    m.dayExpenses = [own];
+    expect(await followSubscriptionEdit({ ...before, category: 'music' }, before, '2026-10-25')).toBe(0);
     expect(m.saveExpense).not.toHaveBeenCalled();
   });
 });

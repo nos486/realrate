@@ -175,20 +175,29 @@ export async function releaseRecordLinks(side, record) {
  * A cheque just cleared on the cheques page: record its money — an income for a received cheque,
  * an expense for an issued one (of the cheque's own category, from its account, paid with it —
  * `chequeId`; saving it links the cheque
- * back). Nothing when it already has one, or for an issued cheque without the expenses feature.
+ * back). Nothing when it already has one, or for an issued cheque without the expenses feature;
+ * a record paid with it already (its pointer lost) is pointed at again instead of a second one.
  * @param {object} cheque the cleared cheque
  * @param {{ date: string, expenses?: boolean }} options the day it cleared; whether expenses are on
  * @returns {Promise<'income'|'expense'|null>} what was recorded
  */
 export async function settleCheque(cheque, { date, expenses = true }) {
   if (!cheque || cheque.status !== CHEQUE_CLEARED || cheque.settlement) return null;
+  const side = cheque.direction === 'received' ? 'income' : 'expense';
+  if (side === 'expense' && !expenses) return null;
+  // Already recorded (paid with it, its pointer lost — another device, a run cut short): it
+  // points at that one again, never at a second record
+  const existing = await findChequeRecord(cheque, side);
+  if (existing) {
+    await (await cheques()).updateCheque(cheque.id, chequeInput({ ...cheque, settlement: { side, id: existing.id } }));
+    return side;
+  }
   const title = chequeRecordTitle(cheque);
   const spending = await import('./spendingRecords.js');
   if (cheque.direction === 'received') {
     await spending.recordIncome({ title, amount: cheque.amount, incomeDate: date, category: cheque.category || 'other', chequeId: cheque.id }, { owner: 'cheque' });
     return 'income';
   }
-  if (!expenses) return null;
   await spending.recordSpending(`cheque:${cheque.id}`, {
     title, amount: cheque.amount, currency: 'IRT', date, category: cheque.category || 'other', chequeId: cheque.id, accountId: cheque.accountId || '',
   }, { owner: 'cheque', syncLinks: true });
