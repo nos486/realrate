@@ -42,8 +42,18 @@ export const DEFAULT_NEWS_FEEDS = [
   { id: "middle_east_eye", title: "Middle East Eye", url: "https://www.middleeasteye.net/rss" },
   { id: "cointelegraph", title: "Cointelegraph", url: "https://cointelegraph.com/rss" },
   { id: "axios", title: "Axios", url: "https://api.axios.com/feed/" },
-  { id: "wapo_world", title: "The Washington Post", url: "https://feeds.washingtonpost.com/rss/world" },
-  { id: "wapo_business", title: "The Washington Post", url: "https://feeds.washingtonpost.com/rss/business" },
+  // The Post's own feeds (feeds.washingtonpost.com) refuse the Worker (502, timeouts): its
+  // articles of the last day through Google News
+  {
+    id: "wapo",
+    title: "The Washington Post",
+    url: "https://news.google.com/rss/search?q=site:washingtonpost.com+when:1d&hl=en-US&gl=US&ceid=US:en",
+  },
+  { id: "bloomberg_markets", title: "Bloomberg", url: "https://feeds.bloomberg.com/markets/news.rss" },
+  { id: "investing_commodities", title: "Investing.com", url: "https://www.investing.com/rss/news_11.rss" },
+  { id: "investing_forex", title: "Investing.com", url: "https://www.investing.com/rss/news_1.rss" },
+  { id: "al_monitor", title: "Al-Monitor", url: "https://www.al-monitor.com/rss" },
+  { id: "ft_economy", title: "Financial Times", url: "https://www.ft.com/global-economy?format=rss" },
 ];
 
 /**
@@ -65,7 +75,7 @@ export const NEWS_LIMITS = {
   /** Channels in the list (each one is a fetch every minute) */
   maxChannels: 30,
   /** Feeds in the list (each one is a fetch every minute) */
-  maxFeeds: 25,
+  maxFeeds: 30,
   /** A feed's article older than this is never sent (a feed read for the first time, a late item) */
   feedMaxAgeHours: 12,
   /** A feed's items remembered as seen (the feed's own window; an item is decided once) */
