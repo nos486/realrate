@@ -11,10 +11,12 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Wrench, LogIn, LogOut } from 'lucide-react';
 import { useAuth } from '../features/auth/context/AuthContext.jsx';
+import { useConfirmedLogout } from '../features/auth/useConfirmedLogout.js';
 import { AUTH_PATHS } from '../shared/routes.js';
 
 export default function MaintenancePage() {
-  const { user, maintenance, logout } = useAuth();
+  const { user, maintenance } = useAuth();
+  const logout = useConfirmedLogout();
 
   return (
     <div className="auth-page" dir={getDir()}>

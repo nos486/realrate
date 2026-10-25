@@ -42,6 +42,21 @@ describe('the settings sheet', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it('offers no value or switch of a section the user cannot open, and keeps what is saved for it', () => {
+    const onChange = vi.fn();
+    const can = (need) => need !== 'cheques';
+    render(<WidgetSettings widget={widgetOf('alerts', { sources: ['loan', 'cheque'] })} can={can} onClose={() => {}} onChange={onChange} />);
+    expect(screen.queryByRole('button', { name: /چک‌ها/ })).toBeNull();
+    // The only open value left cannot be turned off
+    fireEvent.click(screen.getByRole('button', { name: /اقساط وام/ }));
+    expect(onChange).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /اشتراک‌ها/ }));
+    expect(onChange).toHaveBeenCalledWith({ sources: ['loan', 'cheque', 'subscription'] });
+    cleanup();
+    render(<WidgetSettings widget={widgetOf('news')} can={(need) => need !== 'analysis'} onClose={() => {}} onChange={onChange} />);
+    expect(screen.queryByLabelText('نمایش خلاصه‌ی تحلیل روز')).toBeNull();
+  });
+
   it('offers the title and card switches on every widget', () => {
     const onChange = vi.fn();
     render(<WidgetSettings widget={widgetOf('plan')} onClose={() => {}} onChange={onChange} />);

@@ -13,9 +13,13 @@ import ErrorBoundary from '../../shared/ui/ErrorBoundary.jsx';
 import { WIDGET_CATALOG, WIDGET_HEIGHT_PX } from '../../utils/dashboardLayout.js';
 import { WIDGET_VIEWS } from './widgetRegistry.jsx';
 
-
+/**
+ * @param {{ widget: object, config: object, editing: boolean, sizable: boolean, first: boolean, last: boolean,
+ *   onHeight: (height: number) => void, onMove: (step: number) => void, onSettings: () => void, onRemove: () => void }} props
+ *   config: the widget's settings as drawn for this user (useWidgetAccess configOf)
+ */
 export default function WidgetFrame({
-  widget, editing, available, sizable, first, last, onHeight, onMove, onSettings, onRemove,
+  widget, config, editing, sizable, first, last, onHeight, onMove, onSettings, onRemove,
 }) {
   const spec = WIDGET_CATALOG[widget.type];
   const { Icon, Component } = WIDGET_VIEWS[widget.type];
@@ -70,13 +74,9 @@ export default function WidgetFrame({
         </div>
       )}
       <div className="dash-widget-body">
-        {available ? (
-          <ErrorBoundary resetKey={widget.id}>
-            <Component widget={widget} editing={editing} onConfigure={editing ? onSettings : undefined} />
-          </ErrorBoundary>
-        ) : editing ? (
-          <p className="dash-widget-unavailable">{t('این ویجت برای حساب شما فعال نیست و نمایش داده نمی‌شود.')}</p>
-        ) : null}
+        <ErrorBoundary resetKey={widget.id}>
+          <Component widget={config ? { ...widget, config } : widget} editing={editing} onConfigure={editing ? onSettings : undefined} />
+        </ErrorBoundary>
       </div>
     </div>
   );

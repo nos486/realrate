@@ -11,6 +11,7 @@ import VaultSettingsSection from '../shared/vault/VaultSettingsSection.jsx';
 import BackupSection from '../shared/vault/BackupSection.jsx';
 import PasswordSettingsSection from '../features/auth/components/PasswordSettingsSection.jsx';
 import DeleteAccountSection from '../features/auth/components/DeleteAccountSection.jsx';
+import SignOutSection from '../features/auth/components/SignOutSection.jsx';
 import { useFeature } from '../shared/features/useFeature.js';
 import ProLockedCard from '../shared/plan/ProLockedCard.jsx';
 import LanguageSwitch from '../shared/i18n/LanguageSwitch.jsx';
@@ -205,6 +206,8 @@ export default function AccountSettingsView() {
       <WebPushRemindersSection />
 
       <BackupSection />
+
+      <SignOutSection />
 
       <DeleteAccountSection />
       </div>

@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 const logout = vi.fn();
@@ -41,13 +41,18 @@ describe('VaultLockGate', () => {
   });
 
 
-  it('shows the reset only after "forgot" and keeps sign-out reachable', () => {
+  it('shows the reset only after "forgot" and keeps sign-out reachable', async () => {
     status = 'locked';
     render(<MemoryRouter><VaultLockGate><p>app</p></VaultLockGate></MemoryRouter>);
     expect(screen.queryByText('reset-section')).toBeNull();
     fireEvent.click(screen.getByText('forgot'));
     expect(screen.getByText('reset-section')).toBeTruthy();
+    // Signing out asks first (outside the feedback provider that is window.confirm)
+    const ask = vi.fn(() => true);
+    vi.stubGlobal('confirm', ask);
     fireEvent.click(screen.getByText('خروج از حساب'));
-    expect(logout).toHaveBeenCalled();
+    expect(ask).toHaveBeenCalled();
+    await waitFor(() => expect(logout).toHaveBeenCalled());
+    vi.unstubAllGlobals();
   });
 });

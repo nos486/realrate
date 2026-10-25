@@ -113,7 +113,7 @@ export const SMS_DESCRIPTION_CATEGORIES = [
 | Bank | Templates |
 |---|---|
 | Parsian | Sender `PARSIANBANK`; `parsian-balance` — account number, signed amount, balance, date `MM/DD`, time |
-| Blu | Sender `+989999987641`; `blu-balance` — «برداشت پول / واریز پول» (direction from the word), amount and balance in rials, time, date `YYYY.MM.DD` |
+| Blu | Sender `+989999987641`; one `blu-transaction` template for every message — optional title («برداشت پول», «واریز پول», «برداشت رُند», «رندباکس», ...), direction from «پرید / نشست», description from «بابت ...», an optional round-up line (the rounded change goes to the Blu savings box and is not recorded), amount and balance in rials, time, date `YYYY.MM.DD` |
 | Pasargad | Sender `B.Pasargad`; `pasargad-balance` — dotted account number, signed amount (rials), `MM/DD_HH:MM`, «مانده» |
 | Shahr | Sender `Bank Shahr` (or `Shahr Bank`, in any spacing); `shahr-balance` — «*بانک شهر*», an optional description (e.g. «سود»), «واریز به / برداشت از:» account, amount and balance in rials, `YYYY/MM/D HH:MM:SS` |
 | Mellat | Sender `Bank Mellat`; `mellat-balance` — «حساب…», «واریز/برداشت…» amount (rials), «مانده…», `YY/MM/DD-HH:MM` |

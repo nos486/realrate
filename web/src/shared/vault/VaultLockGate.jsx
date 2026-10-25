@@ -8,6 +8,7 @@ import React, { useState } from 'react';
 import { LogOut } from 'lucide-react';
 import Button from '../ui/Button.jsx';
 import { useAuth } from '../../features/auth/index.js';
+import { useConfirmedLogout } from '../../features/auth/useConfirmedLogout.js';
 import { useDemo } from '../../features/demo/index.js';
 import { useVault } from './useVault.js';
 import VaultUnlockCard from './VaultUnlockCard.jsx';
@@ -35,7 +36,8 @@ export default function VaultLockGate({ children }) {
 }
 
 function VaultLockScreen() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
+  const logout = useConfirmedLogout();
   const [forgot, setForgot] = useState(false);
 
   return (

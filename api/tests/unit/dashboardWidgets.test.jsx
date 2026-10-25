@@ -12,7 +12,7 @@ import { SortableContext } from '@dnd-kit/sortable';
 
 vi.mock('../../../web/src/features/dashboard/widgetRegistry.jsx', async () => {
   const { WIDGET_TYPES } = await import('../../src/domain/dashboardLayout.js');
-  const View = ({ widget }) => <p>content {widget.type}</p>;
+  const View = ({ widget }) => <p data-config={JSON.stringify(widget.config)}>content {widget.type}</p>;
   return { WIDGET_VIEWS: Object.fromEntries(WIDGET_TYPES.map((type) => [type, { Icon: () => <i />, Component: View }])) };
 });
 
@@ -26,7 +26,7 @@ const [news] = sanitizeWidgets([{ type: 'news' }]);
 const frame = (props) => render(
   <DndContext>
     <SortableContext items={[news.id]}>
-      <WidgetFrame widget={news} editing={false} available sizable first last onHeight={() => {}} onMove={() => {}} onSettings={() => {}} onRemove={() => {}} {...props} />
+      <WidgetFrame widget={news} editing={false} sizable first last onHeight={() => {}} onMove={() => {}} onSettings={() => {}} onRemove={() => {}} {...props} />
     </SortableContext>
   </DndContext>,
 );
@@ -46,9 +46,9 @@ describe('a widget on the page', () => {
     expect(root.classList.contains('is-plain')).toBe(true);
   });
 
-  it('shows nothing for a widget the user cannot see', () => {
-    frame({ available: false });
-    expect(screen.queryByText('content news')).toBeNull();
+  it('draws the widget with the settings it is given for this user', () => {
+    frame({ config: { ...news.config, analysis: false } });
+    expect(JSON.parse(screen.getByText('content news').dataset.config).analysis).toBe(false);
   });
 
   it('gets a bar to set its height, set up and remove it while arranging', () => {

@@ -83,33 +83,30 @@ export const BANK_SMS_TEMPLATES = [
     senders: ['+989999987641'],
     templates: [
       {
-        // بلو
-        // برداشت پول
-        // سینا عزیز، 20,000,000 ریال از حساب شما پرید.
-        // موجودی: 77,436,726 ریال
-        // ۱۰:۴۷
-        // ۱۴۰۵.۰۷.۰۶
-        // (a deposit: «واریز پول» … «ریال به حساب شما نشست.»; the space before «ریال» may be
-        // missing: «3,000,000ریال». A round-up withdrawal, «برداشت رُند», adds a line
-        // «و 20,000 ریال هم رند شد.»: that change goes to the user's own Blu savings, so the
-        // amount recorded is the withdrawal alone)
-        id: 'blu-balance',
-        unit: 'rial',
-        direction: { debit: ['برداشت', 'خرید', 'پرداخت', 'انتقال'], credit: ['واریز'] }, // i18n-ignore
-        pattern: re(String.raw`^بلو\n(?<kind>[^\n]+)\n[^\n]*?(?<amount>${P.amount})\s?ریال[^\n]*(?:\nو\s?${P.amount}\s?ریال[^\n]*رند[^\n]*)?\nموجودی\s?:\s?(?<balance>${P.balance})\s?ریال\n(?<time>${P.time})\n(?<date>${P.date})$`), // i18n-ignore
-      },
-      {
-        // بلو
-        // سینا عزیز 27,272,727 ریال بابت بازپرداخت بدهی وام قرض الحسنه ازدواج، از حساب شما پرید.
-        // موجودی: 13,781,170 ریال
-        // ۱۴:۲۰
-        // ۱۴۰۵.۰۷.۲۵
-        // (a payment with a purpose and no title line: the purpose after «بابت» is the description;
-        // «پرید» / «نشست» at the end gives the direction)
-        id: 'blu-purpose',
+        // One shape for every Blu transaction:
+        //   بلو
+        //   <title>                                  (optional: «برداشت پول», «واریز پول»,
+        //                                             «برداشت رُند», «رندباکس», ...)
+        //   سینا عزیز، <amount> ریال [بابت <purpose>]، از حساب شما پرید.   (or «به حساب شما نشست.»)
+        //   [<round-up line>]                         (optional, mentions «رند»)
+        //   موجودی: <balance> ریال
+        //   <time>
+        //   <date YYYY.MM.DD>
+        // e.g.
+        //   بلو
+        //   رندباکس
+        //   سینا عزیز، 5,396,000 ریال بابت قبض برق از حساب شما پرید.
+        //   البته 4,000 ریال هم رند شده و در باکس پسانداز نشست.
+        //   موجودی: 125,670,170 ریال
+        //   ۱۹:۰۱
+        //   ۱۴۰۵.۰۸.۰۲
+        // «پرید» / «نشست» gives the direction, whatever the title says; the purpose after «بابت» is
+        // the description. A round-up moves the change to the user's own Blu savings box, so only
+        // the transaction's own amount is recorded. The space before «ریال» may be missing.
+        id: 'blu-transaction',
         unit: 'rial',
         direction: { debit: ['پرید'], credit: ['نشست'] }, // i18n-ignore
-        pattern: re(String.raw`^بلو\n[^\n\d]*?(?<amount>${P.amount})\s?ریال\s?بابت\s?(?<desc>[^\n]+?)[،,]?\s?(?:از|به)\s?حساب شما\s?(?<kind>پرید|نشست)\.?\nموجودی\s?:\s?(?<balance>${P.balance})\s?ریال\n(?<time>${P.time})\n(?<date>${P.date})$`), // i18n-ignore
+        pattern: re(String.raw`^بلو\n(?:[^\n\d]+\n)?[^\n\d]*?(?<amount>${P.amount})\s?ریال(?:\s?بابت\s?(?<desc>[^\n]+?))?[،,]?\s?(?:از|به)\s?حساب شما\s?(?<kind>پرید|نشست)\.?(?:\n[^\n]*رند[^\n]*)?\nموجودی\s?:\s?(?<balance>${P.balance})\s?ریال\n(?<time>${P.time})\n(?<date>${P.date})$`), // i18n-ignore
       },
     ],
   },

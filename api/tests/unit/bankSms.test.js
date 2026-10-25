@@ -58,34 +58,41 @@ const SAMPLES = [
   {
     bank: 'blu',
     text: 'بلو\nبرداشت پول\nسینا عزیز، 20,000,000 ریال از حساب شما پرید.\nموجودی: 77,436,726 ریال\n۱۰:۴۷\n۱۴۰۵.۰۷.۰۶',
-    expect: { templateId: 'blu-balance', direction: 'debit', amount: 2000000, balance: 7743672.6, date: '2026-09-28', time: '10:47' },
+    expect: { templateId: 'blu-transaction', direction: 'debit', amount: 2000000, balance: 7743672.6, date: '2026-09-28', time: '10:47' },
   },
   {
     bank: 'blu',
     // As delivered: a space starting some lines
     text: 'بلو\nواریز پول\n سینا عزیز، 2,500,000 ریال به حساب شما نشست.\n موجودی: 104,451,226 ریال\n۱۸:۲۳\n۱۴۰۵.۰۷.۰۳',
-    expect: { templateId: 'blu-balance', direction: 'credit', amount: 250000, balance: 10445122.6, date: '2026-09-25', time: '18:23' },
+    expect: { templateId: 'blu-transaction', direction: 'credit', amount: 250000, balance: 10445122.6, date: '2026-09-25', time: '18:23' },
   },
   {
     bank: 'blu',
     // As delivered: no space between the amount and «ریال»
     options: { sender: '+989999987641', today: LATER },
     text: 'بلو\nبرداشت پول\nسینا عزیز، 3,000,000ریال از حساب شما پرید.\nموجودی: 63,475,726 ریال\n۱۶:۰۰\n۱۴۰۵.۰۷.۱۲',
-    expect: { templateId: 'blu-balance', direction: 'debit', amount: 300000, balance: 6347572.6, date: '2026-10-04', time: '16:00' },
+    expect: { templateId: 'blu-transaction', direction: 'debit', amount: 300000, balance: 6347572.6, date: '2026-10-04', time: '16:00' },
   },
   {
     bank: 'blu',
     // A round-up withdrawal: the rounded-off change (to the user's Blu savings) isn't the expense
     options: { sender: '+989999987641', today: new Date(2026, 9, 23) },
     text: 'بلو\nبرداشت رُند\nسینا عزیز، 880,000 ریال از حساب شما پرید.\nو 20,000 ریال هم رند شد.\nموجودی: 127,370,170 ریال\n۱۰:۳۱\n۱۴۰۵.۰۸.۰۱',
-    expect: { templateId: 'blu-balance', direction: 'debit', amount: 88000, balance: 12737017, date: '2026-10-23', time: '10:31' },
+    expect: { templateId: 'blu-transaction', direction: 'debit', amount: 88000, balance: 12737017, date: '2026-10-23', time: '10:31' },
+  },
+  {
+    bank: 'blu',
+    // «رندباکس»: a bill paid with a purpose, its round-up into the savings box on a line of its own
+    options: { sender: '+989999987641', today: new Date(2026, 9, 24) },
+    text: 'بلو\nرندباکس\nسینا عزیز، 5,396,000 ریال بابت قبض برق از حساب شما پرید.\nالبته 4,000 ریال هم رند شده و در باکس پسانداز نشست.\nموجودی: 125,670,170 ریال\n۱۹:۰۱\n۱۴۰۵.۰۸.۰۲',
+    expect: { templateId: 'blu-transaction', direction: 'debit', amount: 539600, balance: 12567017, date: '2026-10-24', time: '19:01', description: 'قبض برق' },
   },
   {
     bank: 'blu',
     // A loan repayment: no title line, the purpose follows «بابت»
     options: { sender: '+989999987641', today: new Date(2026, 9, 17) },
     text: 'بلو\nسینا عزیز 27,272,727 ریال بابت بازپرداخت بدهی وام قرض الحسنه ازدواج، از حساب شما پرید.\nموجودی: 13,781,170 ریال\n۱۴:۲۰\n۱۴۰۵.۰۷.۲۵',
-    expect: { templateId: 'blu-purpose', direction: 'debit', amount: 2727272.7, balance: 1378117, date: '2026-10-17', time: '14:20', description: 'بازپرداخت بدهی وام قرض الحسنه ازدواج' },
+    expect: { templateId: 'blu-transaction', direction: 'debit', amount: 2727272.7, balance: 1378117, date: '2026-10-17', time: '14:20', description: 'بازپرداخت بدهی وام قرض الحسنه ازدواج' },
   },
   {
     bank: 'pasargad',

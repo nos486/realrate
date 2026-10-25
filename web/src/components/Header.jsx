@@ -5,13 +5,12 @@ import { Link } from 'react-router-dom';
 import {
   Eye,
   EyeOff,
-  LogOut,
   Lock,
   LogIn,
 } from 'lucide-react';
 import { useAuth } from '../features/auth/index.js';
 import { usePrivacyMode, setPrivacyMode } from '../hooks/usePrivacyMode.js';
-import { APP_BASE, LANDING_PATH } from '../shared/routes.js';
+import { APP_BASE, LANDING_PATH, appPath } from '../shared/routes.js';
 import { useVault } from '../shared/vault/useVault.js';
 import { lockAll } from '../shared/vault/vaultStore.js';
 import PlanBadge from '../shared/plan/PlanBadge.jsx';
@@ -33,8 +32,14 @@ const LogoMark = () => (
   </svg>
 );
 
+/** The avatar: a link to account settings, or just the picture when there is nowhere to go */
+function ProfileLink({ to, children, ...rest }) {
+  if (!to) return <span {...rest}>{children}</span>;
+  return <Link to={to} aria-label={t('تنظیمات حساب')} {...rest}>{children}</Link>;
+}
+
 export default function Header({ activeTab, navItems = null }) {
-  const { user, triggerLogin, logout } = useAuth();
+  const { user, triggerLogin } = useAuth();
 
   const hideValues = usePrivacyMode();
 
@@ -99,33 +104,26 @@ export default function Header({ activeTab, navItems = null }) {
           {/* User Auth / Profile */}
           <div className="auth-widget">
             {user ? (
-              <div className="header-user-profile-direct">
+              // Opens account settings; signing out lives there, behind a confirmation (the demo
+              // account has no settings and leaves from its banner)
+              <ProfileLink
+                to={user.demo ? null : appPath('/settings')}
+                className="header-user-profile-direct"
+                title={`${user.customName || user.name} (${user.email})`}
+              >
                 {user.picture ? (
                   <img
                     src={user.picture}
-                    alt={user.name || t('کاربر')}
+                    alt=""
                     className="user-avatar header-avatar-direct"
-                    title={`${user.customName || user.name} (${user.email})`}
                     onError={(e) => { e.target.style.display = 'none'; }}
                   />
                 ) : (
-                  <span
-                    className="user-avatar header-avatar-direct header-avatar-fallback"
-                    title={`${user.customName || user.name} (${user.email})`}
-                  >
+                  <span className="user-avatar header-avatar-direct header-avatar-fallback">
                     {(user.customName || user.name || user.email || 'U')[0]}
                   </span>
                 )}
-                <button
-                  type="button"
-                  className="btn-header-logout"
-                  onClick={logout}
-                  title={t('خروج از حساب کاربری')}
-                  aria-label={t('خروج')}
-                >
-                  <LogOut size={16} strokeWidth={2.2} />
-                </button>
-              </div>
+              </ProfileLink>
             ) : (
               <button className="btn-google-login" onClick={triggerLogin}>
                 <LogIn size={15} />

@@ -11,8 +11,9 @@ import React from 'react';
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, cleanup, screen, fireEvent } from '@testing-library/react';
 import { Target } from 'lucide-react';
-import { WIDGET_CATALOG, WIDGET_GROUPS, WIDGET_TYPES, sanitizeWidgets } from '../../src/domain/dashboardLayout.js';
-import { WIDGET_VIEWS, WIDGET_REQUIREMENTS } from '../../../web/src/features/dashboard/widgetRegistry.jsx';
+import { WIDGET_CATALOG, WIDGET_CONDITIONS, WIDGET_GROUPS, WIDGET_TYPES, sanitizeWidgets } from '../../src/domain/dashboardLayout.js';
+import { FEATURES } from '../../src/config/features.js';
+import { WIDGET_VIEWS } from '../../../web/src/features/dashboard/widgetRegistry.jsx';
 import WidgetCard from '../../../web/src/features/dashboard/WidgetCard.jsx';
 import WidgetState from '../../../web/src/features/dashboard/WidgetState.jsx';
 
@@ -31,10 +32,21 @@ describe('every widget of the catalog', () => {
     }
   });
 
-  it('names only a requirement the page knows how to check', () => {
+  it('names only sections (features) and conditions the page knows how to check', () => {
+    const known = (key) => Boolean(FEATURES[key]) || WIDGET_CONDITIONS.includes(key);
     for (const type of WIDGET_TYPES) {
-      const need = WIDGET_CATALOG[type].requires;
-      expect(need === null || WIDGET_REQUIREMENTS.includes(need), `${type}: ${need}`).toBe(true);
+      const spec = WIDGET_CATALOG[type];
+      expect(Array.isArray(spec.requires), type).toBe(true);
+      for (const need of spec.requires.flat()) expect(known(need), `${type}: ${need}`).toBe(true);
+      for (const [key, def] of Object.entries(spec.options?.multi || {})) {
+        for (const [value, need] of Object.entries(def.requires || {})) {
+          expect(def.values, `${type}.${key}`).toContain(value);
+          expect(known(need), `${type}.${key}.${value}: ${need}`).toBe(true);
+        }
+      }
+      for (const [key, def] of Object.entries(spec.options?.toggles || {})) {
+        if (def.requires) expect(known(def.requires), `${type}.${key}: ${def.requires}`).toBe(true);
+      }
     }
   });
 

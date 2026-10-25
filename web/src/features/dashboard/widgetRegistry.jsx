@@ -3,8 +3,10 @@
  * component, and who can see it
  *
  * The catalog (titles, sizes, options) is shared domain data; this file adds what only the web
- * knows. A widget the user cannot see (no market page, no news, not the Android app) is not
- * shown and not offered; one already in the layout stays there for when they can.
+ * knows, and who can see each: the catalog ties every widget (and some of its settings) to the
+ * sections it shows (config/features.js, opened per group by the admin). A widget the user cannot
+ * see (a section their group does not open, no news in English, not the Android app) is not shown
+ * nor offered, also while arranging; one already in the layout stays there for when they can.
  */
 
 import { hasNews as localeHasNews } from '../../utils/i18n.js';
@@ -12,10 +14,11 @@ import {
   Bell, CalendarDays, CalendarRange, Clock, Crown, List, Landmark, MessageSquareText, Newspaper,
   Receipt, Sparkles, Target, TrendingUp, Zap,
 } from 'lucide-react';
-import { useFeature } from '../../shared/features/useFeature.js';
+import { useMemo } from 'react';
+import { useAuth } from '../auth/index.js';
 import { usePlan } from '../../shared/plan/usePlan.js';
 import { smsEnabled } from '../../shared/native/nativeApp.js';
-import { WIDGET_CATALOG } from '../../utils/dashboardLayout.js';
+import { effectiveConfig, widgetAllowed } from '../../utils/dashboardLayout.js';
 import MonthWidget from './widgets/MonthWidget.jsx';
 import ExpensesLatestWidget from './widgets/ExpensesLatestWidget.jsx';
 import LoansWidget from './widgets/LoansWidget.jsx';
@@ -49,30 +52,29 @@ export const WIDGET_VIEWS = {
   plan: { Icon: Crown, Component: PlanWidget },
 };
 
-/** What a catalog entry's `requires` may name (null: nothing); `useWidgetAccess` decides each */
-export const WIDGET_REQUIREMENTS = ['vault', 'expenses', 'market', 'news', 'analysis', 'native_sms', 'free_plan'];
-
 /**
- * @returns {(type: string) => boolean} whether the user can see widgets of a type (what the
- *   catalog's `requires` names)
+ * Who can see what on the home page: whether a widget type is shown and offered (its catalog
+ * `requires`: sections' features and WIDGET_CONDITIONS), and each widget's settings as drawn
+ * (values and switches of sections the user cannot open left out)
+ * @returns {{ can: (requirement: string) => boolean, canSee: (type: string) => boolean,
+ *   configOf: (widget: object) => object }}
  */
 export function useWidgetAccess() {
-  const hasExpenses = useFeature('expenses');
-  const hasMarket = useFeature('market');
-  const hasNewsFeature = useFeature('news');
-  const hasAnalysis = useFeature('analysis');
+  const { user } = useAuth() || {};
   const { pro } = usePlan();
-  const rules = {
-    expenses: hasExpenses,
-    market: hasMarket,
-    // The news and the daily analysis are Persian-only (their sources are)
-    news: hasNewsFeature && localeHasNews(),
-    analysis: hasAnalysis && localeHasNews(),
-    native_sms: smsEnabled() && hasExpenses,
-    free_plan: !pro,
-  };
-  return (type) => {
-    const need = WIDGET_CATALOG[type]?.requires;
-    return !need || need === 'vault' || rules[need] === true;
-  };
+  return useMemo(() => {
+    const features = new Set(Array.isArray(user?.features) ? user.features : []);
+    const conditions = {
+      native_sms: smsEnabled(),
+      free_plan: !pro,
+      // The news and the daily analysis are Persian-only (their sources are)
+      news_locale: localeHasNews(),
+    };
+    const can = (need) => (need in conditions ? conditions[need] === true : features.has(need));
+    return {
+      can,
+      canSee: (type) => widgetAllowed(type, can),
+      configOf: (widget) => effectiveConfig(widget, can),
+    };
+  }, [user, pro]);
 }
