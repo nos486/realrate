@@ -3,7 +3,7 @@
  * server saved, the form being edited, whether it differs (save first, then test), and the page's
  * actions (save, test the connection, send now, forget the saved token).
  *
- * Every bot has the same base form (on/off, token, channel, daily report, which feeds); a page adds
+ * Every bot has the same base form (on/off, token, channel, the nightly analysis, daily report, which feeds); a page adds
  * its own fields with `extra` (the Telegram page: the admin's username).
  */
 
@@ -18,6 +18,7 @@ const baseForm = (res) => ({
   enabled: res.config.enabled,
   channel: res.config.channel,
   dailyReport: res.config.dailyReport === true,
+  dailyAnalysis: res.config.dailyAnalysis === true,
   allFeeds: !res.config.feeds,
   feedIds: res.config.feeds || res.feeds.map((f) => f.id),
   token: '',
@@ -72,6 +73,7 @@ export function useBotSettings({ api, name, extra = null }) {
     form.enabled !== config.enabled
     || form.channel.trim() !== config.channel
     || form.dailyReport !== (config.dailyReport === true)
+    || form.dailyAnalysis !== (config.dailyAnalysis === true)
     || form.token.trim() !== ''
     || form.allFeeds !== !savedFeeds
     || (!form.allFeeds && !sameIds(form.feedIds, savedFeeds || []))
@@ -83,6 +85,7 @@ export function useBotSettings({ api, name, extra = null }) {
       enabled: form.enabled,
       channel: form.channel.trim(),
       dailyReport: form.dailyReport,
+      dailyAnalysis: form.dailyAnalysis,
       feeds: form.allFeeds ? null : form.feedIds,
       ...(extra ? extra.toPayload(form) : {}),
       ...(form.token.trim() ? { token: form.token.trim() } : {}),
