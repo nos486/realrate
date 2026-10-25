@@ -5,16 +5,17 @@
  *    admin's account on one side, the feeds and the last run on the other
  *  - BotConnectionCard: the on/off switch, token (never shown back, only whether one is set),
  *    channel, and what «تست اتصال» found
- *  - BotFeedsCard: which international feeds the bot posts to its channel (all by default)
+ *  - BotFeedsCard: which international sources (feeds, translated channels) the bot posts to its
+ *    channel (all by default)
  *  - BotStatusCard: the last run (what was sent, what waits, the last error) and «ارسال الان»
  */
 
 import { intlLocale } from '../../../utils/i18n.js';
 import React from 'react';
-import { RefreshCw, AlertTriangle, CheckCircle2, KeyRound, PlugZap, Save, Rss, History } from 'lucide-react';
+import { RefreshCw, PlugZap, Save, Rss, History } from 'lucide-react';
 import { Button, Input } from '../../../shared/ui/index.js';
 import { newsTimeAgo } from '../../news/newsFormat.js';
-import AdminPage, { AdminCard, AdminSwitch } from './AdminPage.jsx';
+import AdminPage, { AdminCard, AdminSwitch, AdminNotice, AdminStatus, AdminCheck } from './AdminPage.jsx';
 
 const fa = (n) => Number(n || 0).toLocaleString(intlLocale());
 
@@ -52,7 +53,7 @@ export function BotPage({ messenger, bot, account, news = null }) {
     >
       {data && (
         <>
-          {dirty && <p className="admin-unsaved" role="status">تغییرات ذخیره نشده‌اند؛ برای تست اتصال، اول ذخیره کنید.</p>}
+          {dirty && <AdminNotice tone="warn">تغییرات ذخیره نشده‌اند؛ برای تست اتصال، اول ذخیره کنید.</AdminNotice>}
           <div className="admin-columns">
             <div className="admin-stack">
               <BotConnectionCard messenger={messenger} bot={bot} />
@@ -99,13 +100,12 @@ export function BotConnectionCard({ messenger, bot }) {
         autoComplete="off"
         dir="ltr"
       />
-      <small className="admin-news-muted">
-        <KeyRound size={12} />{' '}
+      <AdminStatus tone={config.tokenSet ? 'ok' : 'warn'}>
         {config.tokenSet ? `توکن تنظیم است: ${sources[config.tokenSource] || ''}` : 'توکن تنظیم نشده است.'}
         {config.tokenSet && config.tokenSource === 'admin' && (
           <>{' '}<button type="button" className="admin-bot-link" onClick={removeToken}>پاک کردن</button></>
         )}
-      </small>
+      </AdminStatus>
 
       <Input
         id={`admin-${messenger.key}-channel`}
@@ -115,16 +115,13 @@ export function BotConnectionCard({ messenger, bot }) {
         onChange={(e) => setField('channel', e.target.value)}
         dir="ltr"
       />
-      {messenger.channelHint && <small className="admin-news-muted">{messenger.channelHint}</small>}
+      {messenger.channelHint && <AdminStatus>{messenger.channelHint}</AdminStatus>}
 
       {check && (
-        <p className={check.ok ? 'admin-news-ai is-ok' : 'admin-news-error'}>
-          {check.ok ? <CheckCircle2 size={14} aria-hidden="true" /> : <AlertTriangle size={14} aria-hidden="true" />}
-          <span>
-            {check.ok ? `متصل است: ربات ${check.bot.username ? `@${check.bot.username}` : check.bot.name} در «${check.chat.title}»` : check.error}
-            {check.bot?.username && !check.ok && <small> ربات شناخته‌شده: @{check.bot.username}</small>}
-          </span>
-        </p>
+        <AdminNotice tone={check.ok ? 'ok' : 'error'}>
+          {check.ok ? `متصل است: ربات ${check.bot.username ? `@${check.bot.username}` : check.bot.name} در «${check.chat.title}»` : check.error}
+          {check.bot?.username && !check.ok && <small>ربات شناخته‌شده: @{check.bot.username}</small>}
+        </AdminNotice>
       )}
     </AdminCard>
   );
@@ -138,17 +135,15 @@ export function BotFeedsCard({ feeds, allFeeds, onAllFeeds, feedIds, onFeedIds }
   const toggleFeed = (id) => onFeedIds(feedIds.includes(id) ? feedIds.filter((x) => x !== id) : [...feedIds, id]);
   return (
     <AdminCard icon={<Rss size={18} />} title="خبرگزاری‌های کانال" subtitle="کدام خبرها در کانال فرستاده شوند">
-      <label className="admin-bot-row">
-        <input type="checkbox" checked={allFeeds} onChange={(e) => onAllFeeds(e.target.checked)} />
-        <span>همه‌ی خبرگزاری‌ها (فهرست صفحه‌ی اخبار)</span>
-      </label>
+      <AdminCheck checked={allFeeds} onChange={onAllFeeds}>همه‌ی خبرگزاری‌ها (فهرست صفحه‌ی اخبار)</AdminCheck>
       {!allFeeds && feeds.map((f) => (
-        <label key={f.id} className="admin-bot-row">
-          <input type="checkbox" checked={feedIds.includes(f.id)} onChange={() => toggleFeed(f.id)} />
-          <span><bdi>{f.title}</bdi> <small dir="ltr">{f.id}</small>{f.enabled ? '' : ' (در اخبار غیرفعال است)'}</span>
-        </label>
+        <AdminCheck key={f.id} checked={feedIds.includes(f.id)} onChange={() => toggleFeed(f.id)}>
+          <bdi>{f.title}</bdi> <small dir="ltr">{f.id}</small>{f.enabled ? '' : ' (در اخبار غیرفعال است)'}
+        </AdminCheck>
       ))}
-      <p className="admin-card-hint">خبرگزاری‌ها را در بخش «اخبار» اضافه یا کم کنید. خبری که پیش از روشن شدن ربات آمده باشد فرستاده نمی‌شود.</p>
+      <p className="admin-card-hint">
+        خبرگزاری‌ها و کانال‌های انگلیسی (با «ترجمه») را در بخش «اخبار» اضافه یا کم کنید. خبری که پیش از روشن شدن ربات آمده باشد فرستاده نمی‌شود.
+      </p>
     </AdminCard>
   );
 }
@@ -175,10 +170,9 @@ export function BotStatusCard({ status, messenger, busy, disabled, onRun }) {
             {' · '}{fa(status.sentTotal)} خبر در مجموع · {fa(status.waiting)} در صف
           </p>
           {status.error && (
-            <p className="admin-news-error">
-              <AlertTriangle size={14} aria-hidden="true" />
-              <span><strong>خطای {messenger}:</strong> <bdi dir="ltr">{status.error}</bdi></span>
-            </p>
+            <AdminNotice tone="error">
+              <strong>خطای {messenger}:</strong> <bdi dir="ltr">{status.error}</bdi>
+            </AdminNotice>
           )}
         </>
       ) : (

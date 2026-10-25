@@ -8,6 +8,7 @@
  *      Every international feed (RSS/Atom, English) is read too; an article not seen on an earlier
  *      read is new, unless older than NEWS_LIMITS.feedMaxAgeHours (a feed read for the first time
  *      gives its latest NEWS_LIMITS.firstReadPosts). Its items are `source: "world"`.
+ *      A channel marked `translate` (English) gives `source: "world"` posts too.
  *   2. keywords drop what is clearly not market news (political or security words alone are not
  *      enough: an economic word is needed too), and a vulgar word drops a post (no model tokens
  *      spent on either)
@@ -27,6 +28,7 @@ import {
   DEFAULT_NEWS_CHANNELS,
   DEFAULT_NEWS_FEEDS,
   LEGACY_DEFAULT_FEED_IDS,
+  LEGACY_DEFAULT_CHANNELS,
   NEWS_LIMITS,
   NEWS_AI_MODEL,
 } from "../../config/news.config.js";
@@ -67,17 +69,34 @@ const aiDayKey = (now) => `news:ai:${tehranDayStart(now)}`;
 const FETCH_TIMEOUT_MS = 10000;
 const FETCH_CONCURRENCY = 6;
 
-/** The channels read (the admin's list, or the default one) */
+/** A channel as the list keeps it: on or paused, and whether its (English) posts are translated */
+const channelEntry = (username, entry) => ({
+  username,
+  enabled: typeof entry === "string" ? true : entry?.enabled !== false,
+  translate: typeof entry === "string" ? false : entry?.translate === true,
+});
+
+/**
+ * The channels read: the admin's list, or the default one. A default channel added to the code
+ * after the admin saved their list is added to it (enabled), once: the saved list remembers which
+ * defaults it has seen (`known`), so a default the admin removed does not come back.
+ * @returns {Promise<Array<{ username: string, enabled: boolean, translate: boolean }>>}
+ */
 export async function getNewsChannels(env) {
   const saved = await getStateStore(env)?.get(CHANNELS_KEY, "json").catch(() => null);
-  if (Array.isArray(saved?.channels)) return saved.channels;
-  return DEFAULT_NEWS_CHANNELS.map((username) => ({ username, enabled: true }));
+  const defaults = DEFAULT_NEWS_CHANNELS.map((c) => channelEntry(c.username, c));
+  if (!Array.isArray(saved?.channels)) return defaults;
+  const channels = saved.channels.map((c) => channelEntry(c.username, c));
+  const known = new Set(Array.isArray(saved.known) ? saved.known : LEGACY_DEFAULT_CHANNELS);
+  const names = new Set(channels.map((c) => c.username));
+  const added = defaults.filter((c) => !known.has(c.username) && !names.has(c.username));
+  return added.length ? [...channels, ...added].slice(0, NEWS_LIMITS.maxChannels) : channels;
 }
 
 /**
  * Save the admin's list of channels
- * @param {Array<string|{ username: string, enabled?: boolean }>} list
- * @returns {Promise<Array<{ username: string, enabled: boolean }>>}
+ * @param {Array<string|{ username: string, enabled?: boolean, translate?: boolean }>} list
+ * @returns {Promise<Array<{ username: string, enabled: boolean, translate: boolean }>>}
  */
 export async function saveNewsChannels(env, list) {
   const seen = new Set();
@@ -86,11 +105,25 @@ export async function saveNewsChannels(env, list) {
     const username = normalizeChannel(typeof entry === "string" ? entry : entry?.username);
     if (!username || seen.has(username)) continue;
     seen.add(username);
-    channels.push({ username, enabled: typeof entry === "string" ? true : entry?.enabled !== false });
+    channels.push(channelEntry(username, entry));
   }
   if (channels.length > NEWS_LIMITS.maxChannels) channels.length = NEWS_LIMITS.maxChannels;
-  await getStateStore(env)?.put(CHANNELS_KEY, JSON.stringify({ channels }));
+  // Every default now in the code counts as seen: what is not in the list was removed on purpose
+  await getStateStore(env)?.put(CHANNELS_KEY, JSON.stringify({ channels, known: DEFAULT_NEWS_CHANNELS.map((c) => c.username) }));
   return channels;
+}
+
+/**
+ * Everything whose news is international, for the bots' choice of what they post: the feeds, and
+ * the channels whose posts are translated (their id is the channel's name)
+ * @returns {Promise<Array<{ id: string, title: string, enabled: boolean }>>}
+ */
+export async function getWorldSources(env) {
+  const [feeds, channels] = await Promise.all([getNewsFeeds(env), getNewsChannels(env)]);
+  return [
+    ...feeds.map(({ id, title, enabled }) => ({ id, title, enabled })),
+    ...channels.filter((c) => c.translate).map((c) => ({ id: c.username, title: `@${c.username}`, enabled: c.enabled })),
+  ];
 }
 
 /**
@@ -301,7 +334,10 @@ async function readFeeds(feeds, cursors, previous, status, now, fetchFeed) {
 }
 
 async function pollChannels(env, store, now, fetchPage, fetchFeed) {
-  const channels = (await getNewsChannels(env)).filter((c) => c.enabled !== false).map((c) => c.username);
+  const listed = (await getNewsChannels(env)).filter((c) => c.enabled !== false);
+  const channels = listed.map((c) => c.username);
+  // An English channel's posts go the international way: translated, under «بین‌الملل»
+  const translated = new Set(listed.filter((c) => c.translate).map((c) => c.username));
   const feeds = (await getNewsFeeds(env)).filter((f) => f.enabled !== false);
   const cursors = await store.getMany([...channels.map(cursorKey), ...feeds.map((f) => feedSeenKey(f.id)), PENDING_KEY]);
   // Candidates left undecided by earlier runs (newest-first cap; stale ones dropped)
@@ -328,7 +364,8 @@ async function pollChannels(env, store, now, fetchPage, fetchFeed) {
     const cursor = parseInt(cursors.get(cursorKey(page.channel)) || "0", 10) || 0;
     // A post of another channel (a forward shown on this page) belongs to that channel
     const own = page.posts.filter((p) => p.channel === page.channel);
-    const newer = cursor ? own.filter((p) => p.postId > cursor) : own.slice(-NEWS_LIMITS.firstReadPosts);
+    const newer = (cursor ? own.filter((p) => p.postId > cursor) : own.slice(-NEWS_LIMITS.firstReadPosts))
+      .map((p) => (translated.has(page.channel) ? { ...p, source: "world" } : p));
     titles[page.channel] = page.title || previous.channels?.[page.channel]?.title || page.channel;
     nextCursor[page.channel] = Math.max(cursor, ...own.map((p) => p.postId));
     status.channels[page.channel] = {
@@ -483,7 +520,8 @@ async function pollChannels(env, store, now, fetchPage, fetchFeed) {
     });
   }
   for (const item of published) {
-    const counted = item.source === "world" ? status.feeds[item.channel] : status.channels[item.channel];
+    // An English channel's item is international, but counted with the channels
+    const counted = (item.source === "world" && status.feeds[item.channel]) || status.channels[item.channel];
     if (counted) counted.published++;
   }
   status.published = published.length;

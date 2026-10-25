@@ -8,12 +8,20 @@
  *    one tab survives a look at another.
  *  - AdminCard: one card of a page (the shared Card, as a labelled section)
  *  - AdminSwitch: the on/off switch of a card or a row
+ *  - AdminNotice: a message in a card or over a page (an error, a warning, unsaved edits, a check
+ *    that passed): the shared AlertBanner
+ *  - AdminStatus: one short status line (ok, warning, or plain) under a field or in a row
+ *  - AdminCheck: a checkbox with its text (a choice in a list)
+ *  - AdminList / AdminListRow: a list of rows (a switch, the name and a status line, then the
+ *    row's controls); a paused row is dimmed
+ *  - AdminRemoveButton: a row's delete button
+ *  - AdminSaveBar: «ذخیره» and «انصراف» under a list edited in place, with a note while unsaved
  */
 
 import React, { useState } from 'react';
 import { intlLocale } from '../../../utils/i18n.js';
-import { AlertTriangle } from 'lucide-react';
-import { Button, Card, EmptyState, FeaturePageHeader, FilterPills } from '../../../shared/ui/index.js';
+import { AlertTriangle, CheckCircle2, Save, Trash2 } from 'lucide-react';
+import { AlertBanner, Button, Card, EmptyState, FeaturePageHeader, FilterPills } from '../../../shared/ui/index.js';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 import { ADMIN_SECTIONS } from '../adminSections.js';
 
@@ -128,5 +136,92 @@ export function AdminSwitch({ checked, onChange, label, disabled = false }) {
     >
       <span className="admin-switch-thumb" />
     </button>
+  );
+}
+
+const NOTICE_TYPES = { ok: 'success', warn: 'warning', error: 'error', info: 'info' };
+
+/**
+ * The shared AlertBanner in the admin's words
+ * @param {{ tone?: 'ok'|'warn'|'error'|'info', onClose?: () => void, children: import('react').ReactNode }} props
+ *   children: the message; a <strong> leads it and a <small> under it explains it; onClose: a
+ *   close button (a result the admin dismisses)
+ */
+export function AdminNotice({ tone = 'warn', onClose, children }) {
+  return <AlertBanner type={NOTICE_TYPES[tone] || 'warning'} className="admin-notice" onClose={onClose || null}>{children}</AlertBanner>;
+}
+
+/**
+ * @param {{ tone?: 'ok'|'warn'|null, children: import('react').ReactNode }} props
+ *   tone: an icon and its color before the text (none: a plain muted line)
+ */
+export function AdminStatus({ tone = null, children }) {
+  const Icon = tone === 'ok' ? CheckCircle2 : tone === 'warn' ? AlertTriangle : null;
+  return (
+    <small className={`admin-status ${tone ? `is-${tone}` : ''}`.trim()}>
+      {Icon && <Icon size={12} aria-hidden="true" />}
+      <span>{children}</span>
+    </small>
+  );
+}
+
+/** @param {{ checked: boolean, onChange: (on: boolean) => void, disabled?: boolean, children: import('react').ReactNode }} props */
+export function AdminCheck({ checked, onChange, disabled = false, children }) {
+  return (
+    <label className={`admin-check ${disabled ? 'is-disabled' : ''}`.trim()}>
+      <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
+      <span>{children}</span>
+    </label>
+  );
+}
+
+/** @param {{ label?: string, children: import('react').ReactNode }} props */
+export function AdminList({ label, children }) {
+  return <ul className="admin-list" aria-label={label}>{children}</ul>;
+}
+
+/**
+ * @param {{ leading?: import('react').ReactNode, title: import('react').ReactNode,
+ *   meta?: import('react').ReactNode, actions?: import('react').ReactNode, off?: boolean }} props
+ *   leading: the row's switch; meta: its status line; actions: its controls (at the end)
+ */
+export function AdminListRow({ leading = null, title, meta = null, actions = null, off = false }) {
+  return (
+    <li className={`admin-list-row ${off ? 'is-off' : ''}`.trim()}>
+      {leading}
+      <div className="admin-list-main">
+        <div className="admin-list-title">{title}</div>
+        {meta}
+      </div>
+      {actions && <div className="admin-list-actions">{actions}</div>}
+    </li>
+  );
+}
+
+/** @param {{ label: string, onClick: () => void }} props label: what is deleted, for screen readers */
+export function AdminRemoveButton({ label, onClick }) {
+  return (
+    <button type="button" className="admin-remove" aria-label={label} title={label} onClick={onClick}>
+      <Trash2 size={16} />
+    </button>
+  );
+}
+
+/**
+ * @param {{ dirty: boolean, busy?: boolean, disabled?: boolean, onSave: () => void, onCancel: () => void, label?: string }} props
+ */
+export function AdminSaveBar({ dirty, busy = false, disabled = false, onSave, onCancel, label = 'ذخیره' }) {
+  return (
+    <div className="admin-save-bar">
+      <Button size="sm" icon={<Save size={14} />} loading={busy} disabled={!dirty || busy || disabled} onClick={onSave}>
+        {label}
+      </Button>
+      {dirty && (
+        <>
+          <Button size="sm" variant="ghost" disabled={busy} onClick={onCancel}>انصراف</Button>
+          <small className="admin-status is-warn">تغییرات ذخیره نشده‌اند</small>
+        </>
+      )}
+    </div>
   );
 }

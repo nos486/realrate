@@ -11,12 +11,12 @@
  */
 
 import React from 'react';
-import { MessageCircle, CheckCircle2, AlertTriangle, Link2, Newspaper } from 'lucide-react';
+import { MessageCircle, Link2, Newspaper } from 'lucide-react';
 import { Button } from '../../../shared/ui/index.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { getRubikaSettings, saveRubikaSettings, testRubika, runRubikaNow, newRubikaLinkCode } from '../api/adminApi.js';
 import { useBotSettings } from '../hooks/useBotSettings.js';
-import { AdminCard, AdminSwitch } from './AdminPage.jsx';
+import { AdminCard, AdminSwitch, AdminStatus, AdminCheck } from './AdminPage.jsx';
 import { BotPage } from './BotPanelCards.jsx';
 
 const RUBIKA = {
@@ -72,15 +72,11 @@ function DomesticNewsCard({ bot }) {
       </p>
       {form.domestic && (
         <>
-          <label className="admin-bot-row">
-            <input type="checkbox" checked={form.allChannels} onChange={(e) => setAll(e.target.checked)} />
-            <span>همه‌ی کانال‌ها (فهرست بخش اخبار)</span>
-          </label>
+          <AdminCheck checked={form.allChannels} onChange={setAll}>همه‌ی کانال‌ها (فهرست بخش اخبار)</AdminCheck>
           {!form.allChannels && channels.map((c) => (
-            <label key={c.id} className="admin-bot-row">
-              <input type="checkbox" checked={form.channelIds.includes(c.id)} onChange={() => toggle(c.id)} />
-              <span><bdi dir="ltr">@{c.title}</bdi>{c.enabled ? '' : ' (در اخبار غیرفعال است)'}</span>
-            </label>
+            <AdminCheck key={c.id} checked={form.channelIds.includes(c.id)} onChange={() => toggle(c.id)}>
+              <bdi dir="ltr">@{c.title}</bdi>{c.enabled ? '' : ' (در اخبار غیرفعال است)'}
+            </AdminCheck>
           ))}
         </>
       )}
@@ -115,14 +111,12 @@ function RubikaAdminCard({ bot }) {
       }
     >
       {config.adminLinked ? (
-        <small className="admin-news-muted">
-          <CheckCircle2 size={12} className="is-ok" /> متصل است؛ درخواست‌ها و گزارش‌ها به همین حساب می‌رسد.{' '}
+        <AdminStatus tone="ok">
+          متصل است؛ درخواست‌ها و گزارش‌ها به همین حساب می‌رسد.{' '}
           <button type="button" className="admin-bot-link" onClick={unlink}>قطع اتصال</button>
-        </small>
+        </AdminStatus>
       ) : (
-        <small className="admin-news-muted">
-          <AlertTriangle size={12} className="is-warn" /> هنوز حسابی متصل نیست.
-        </small>
+        <AdminStatus tone="warn">هنوز حسابی متصل نیست.</AdminStatus>
       )}
       {config.linkCode ? (
         <p className="admin-card-hint">
@@ -135,11 +129,8 @@ function RubikaAdminCard({ bot }) {
           و می‌توانید دستور بدهید: <bdi dir="ltr">/report</bdi>، <bdi dir="ltr">/users</bdi>، <bdi dir="ltr">/user</bdi>، <bdi dir="ltr">/requests</bdi>، <bdi dir="ltr">/help</bdi>.
         </p>
       )}
-      {!config.enabled && <small className="admin-news-muted">برای اتصال حساب، اول ربات را روشن و ذخیره کنید (ربات خاموش پیامی نمی‌خواند).</small>}
-      <label className="admin-bot-row">
-        <input type="checkbox" checked={form.dailyReport} onChange={(e) => setField('dailyReport', e.target.checked)} />
-        <span>گزارش روزانه‌ی کاربران هر شب ساعت ۲۱ در روبیکای ادمین</span>
-      </label>
+      {!config.enabled && <AdminStatus>برای اتصال حساب، اول ربات را روشن و ذخیره کنید (ربات خاموش پیامی نمی‌خواند).</AdminStatus>}
+      <AdminCheck checked={form.dailyReport} onChange={(on) => setField('dailyReport', on)}>گزارش روزانه‌ی کاربران هر شب ساعت ۲۱ در روبیکای ادمین</AdminCheck>
     </AdminCard>
   );
 }

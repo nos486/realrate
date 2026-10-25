@@ -10,11 +10,11 @@
  */
 
 import React from 'react';
-import { Send, CheckCircle2, AlertTriangle, UserCheck } from 'lucide-react';
+import { Send, UserCheck } from 'lucide-react';
 import { Input } from '../../../shared/ui/index.js';
 import { getBotSettings, saveBotSettings, testBot, runBotNow } from '../api/adminApi.js';
 import { useBotSettings } from '../hooks/useBotSettings.js';
-import { AdminCard } from './AdminPage.jsx';
+import { AdminCard, AdminStatus, AdminCheck } from './AdminPage.jsx';
 import { BotPage } from './BotPanelCards.jsx';
 
 const TELEGRAM = {
@@ -50,15 +50,14 @@ function TelegramAdminCard({ bot }) {
         onChange={(e) => setField('adminUsername', e.target.value)}
         dir="ltr"
       />
-      <small className="admin-news-muted">
-        {!config.adminUsername ? 'اگر وارد شود، ربات درخواست کاربران (مثل درخواست پرو) را در تلگرام به همین حساب می‌فرستد و با دکمه‌های تأیید و رد پاسخ می‌دهید.'
-          : config.adminLinked ? <><CheckCircle2 size={12} className="is-ok" /> متصل است؛ درخواست‌ها به @{config.adminUsername} می‌رسد.</>
-            : <><AlertTriangle size={12} className="is-warn" /> هنوز متصل نیست: با حساب @{config.adminUsername} در تلگرام ربات را باز کنید و /start بزنید (ربات باید روشن و ذخیره‌شده باشد).</>}
-      </small>
-      <label className="admin-bot-row">
-        <input type="checkbox" checked={form.dailyReport} onChange={(e) => setField('dailyReport', e.target.checked)} />
-        <span>گزارش روزانه‌ی کاربران هر شب ساعت ۲۱ در تلگرام ادمین</span>
-      </label>
+      {!config.adminUsername ? (
+        <AdminStatus>اگر وارد شود، ربات درخواست کاربران (مثل درخواست پرو) را در تلگرام به همین حساب می‌فرستد و با دکمه‌های تأیید و رد پاسخ می‌دهید.</AdminStatus>
+      ) : config.adminLinked ? (
+        <AdminStatus tone="ok">متصل است؛ درخواست‌ها به @{config.adminUsername} می‌رسد.</AdminStatus>
+      ) : (
+        <AdminStatus tone="warn">هنوز متصل نیست: با حساب @{config.adminUsername} در تلگرام ربات را باز کنید و /start بزنید (ربات باید روشن و ذخیره‌شده باشد).</AdminStatus>
+      )}
+      <AdminCheck checked={form.dailyReport} onChange={(on) => setField('dailyReport', on)}>گزارش روزانه‌ی کاربران هر شب ساعت ۲۱ در تلگرام ادمین</AdminCheck>
       <p className="admin-card-hint">
         مدیر با حساب متصل می‌تواند در ربات دستور بدهد: <bdi dir="ltr">/report</bdi> گزارش کاربران و رشد، <bdi dir="ltr">/users</bdi> جست‌وجو و فهرست کاربران،
         <bdi dir="ltr"> /user</bdi> کارت کاربر با دکمه‌های مسدود کردن، خروج از دستگاه‌ها و گروه‌ها، <bdi dir="ltr">/requests</bdi> درخواست‌های در انتظار.

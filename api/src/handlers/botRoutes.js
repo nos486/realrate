@@ -1,7 +1,7 @@
 /**
  * botRoutes.js — Admin API of the Telegram bot (admin panel → ربات تلگرام)
  *
- *   GET  /api/admin/bot       settings (never the token), last status, the feeds to choose from
+ *   GET  /api/admin/bot       settings (never the token), last status, the international sources (feeds, translated channels) to choose from
  *   PUT  /api/admin/bot       save { enabled?, channel?, feeds?, token?, adminUsername?, dailyReport? }
  *   POST /api/admin/bot/test  check the token and the channel, and post a test message
  *   POST /api/admin/bot/run   post the waiting news now
@@ -13,7 +13,7 @@ import { getAuthenticatedUser } from "../lib/auth.js";
 import { jsonResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
 import { logger } from "../lib/logger.js";
-import { getNewsFeeds } from "../services/news/news.service.js";
+import { getWorldSources } from "../services/news/news.service.js";
 import { getBotConfig, publicBotConfig, saveBotConfig, getBotStatus } from "../services/bot/botConfig.service.js";
 import { runBot } from "../services/bot/bot.service.js";
 import { handleBotUpdate } from "../services/bot/adminChat.service.js";
@@ -27,11 +27,11 @@ export async function requireAdmin(request, env) {
 }
 
 async function overview(env) {
-  const [config, status, feeds] = await Promise.all([getBotConfig(env), getBotStatus(env), getNewsFeeds(env)]);
+  const [config, status, feeds] = await Promise.all([getBotConfig(env), getBotStatus(env), getWorldSources(env)]);
   return {
     config: publicBotConfig(config),
     status,
-    feeds: feeds.map(({ id, title, enabled }) => ({ id, title, enabled })),
+    feeds,
   };
 }
 

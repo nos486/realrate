@@ -17,7 +17,7 @@
 
 .admin-role-badge {
   background: var(--primary-gradient);
-  color: var(--primary-text, #ffffff);
+  color: var(--primary-text);
   font-size: 11px;
   font-weight: 800;
   padding: 2px 8px;
@@ -71,11 +71,6 @@
 /* ── USD Dynamic Source Settings ────────────────────────────────────────── */
 
 /* ── Unified Price Sources Management Styles ────────────────────────────── */
-
-@keyframes pulse-border {
-  0%, 100% { border-color: rgba(234, 179, 8, 0.3); }
-  50% { border-color: rgba(234, 179, 8, 0.6); }
-}
 
 /* Modal Backdrop & Dialog */
 /* Modal styles are now unified and centralized in modals.css */
@@ -220,7 +215,7 @@
 .admin-chip.is-blue { background: var(--primary-soft-bg); color: var(--accent-blue); }
 .admin-chip.is-green { background: var(--green-soft); color: var(--green-emerald); }
 .admin-chip.is-red { background: var(--rose-soft); color: var(--rose-red); }
-.admin-chip.is-amber { background: rgba(245, 158, 11, 0.12); color: var(--accent-amber); }
+.admin-chip.is-amber { background: var(--color-warning-soft); color: var(--color-warning-text); }
 
 .admin-users-table .portfolio-table-row.is-blocked td {
   opacity: 0.6;
@@ -468,7 +463,7 @@
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--primary-text);
   transition: inset-inline-start 0.2s ease;
 }
 
@@ -588,7 +583,7 @@
 .admin-app-version-bar {
   height: 6px;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--bg-control);
   overflow: hidden;
 }
 
@@ -596,7 +591,7 @@
   display: block;
   height: 100%;
   border-radius: 6px;
-  background: #8b5cf6;
+  background: var(--color-primary);
 }
 
 .admin-app-version-count small {
@@ -827,7 +822,7 @@
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  background: var(--bg-app, var(--bg-base, #06080d));
+  background: var(--bg-app);
   color: var(--text-primary);
 }
 
@@ -836,8 +831,8 @@
   top: 0;
   z-index: 50;
   padding: calc(10px + env(safe-area-inset-top, 0px)) 20px 10px;
-  background: var(--bg-surface, rgba(14, 18, 28, 0.95));
-  border-bottom: 1px solid var(--border-medium, rgba(255, 255, 255, 0.06));
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-medium);
 }
 
 .admin-topbar-row {
@@ -1058,15 +1053,111 @@
 .admin-tab-panel { min-width: 0; }
 .admin-tab-panel > .admin-card + .admin-card { margin-top: 16px; }
 
-/* Edits not saved yet (a bot page) */
-.admin-unsaved {
+/* The shared parts of every admin page (AdminPage.jsx): a status's color, notices, status lines,
+   checkboxes, lists of rows and the save bar under a list edited in place */
+.admin-page .is-ok { color: var(--color-positive-text); }
+.admin-page .is-warn { color: var(--color-warning-text); }
+.admin-page .is-error { color: var(--color-negative-text); }
+
+/* AdminNotice (the shared AlertBanner): a line under the message explains it */
+.admin-notice small { display: block; color: var(--text-muted); font-size: 12px; }
+.admin-card .admin-notice, .admin-stack > .admin-notice { margin-bottom: 0; }
+.admin-notice bdi { word-break: break-word; }
+
+.admin-status {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.admin-status > svg { flex-shrink: 0; align-self: center; }
+.admin-status > span { min-width: 0; overflow-wrap: anywhere; }
+
+.admin-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-block: 6px;
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+.admin-check input { flex-shrink: 0; accent-color: var(--color-primary); }
+.admin-check small { color: var(--text-muted); }
+.admin-check.is-disabled { opacity: 0.5; cursor: default; }
+
+.admin-list {
+  display: flex;
+  flex-direction: column;
   margin: 0;
-  padding: 8px 12px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--accent-amber);
-  background: var(--color-warning-soft);
-  color: var(--color-warning-text, var(--accent-amber));
-  font-size: 0.82rem;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-list-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.admin-list-row:last-child { border-bottom: 0; }
+.admin-list-row.is-off .admin-list-main { opacity: 0.5; }
+
+.admin-list-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-list-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-primary);
+  font-weight: 700;
+}
+.admin-list-title a { color: inherit; text-decoration: none; }
+.admin-list-title a:hover { text-decoration: underline; }
+
+.admin-list-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
+.admin-remove {
+  padding: 6px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.admin-remove:hover { color: var(--color-negative-text); background: var(--color-negative-soft); }
+
+/* A row's add form: the fields grow, the button keeps its size */
+.admin-add-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+.admin-add-form > .ui-input-group { flex: 1 1 180px; min-width: 0; }
+
+.admin-save-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
 /* Groups of users and feature access (AdminGroupsPage.jsx) */
@@ -1195,7 +1286,7 @@
 
 .admin-segmented button.is-active {
   background: var(--color-primary);
-  color: #fff;
+  color: var(--primary-text);
 }
 
 .admin-feature-groups {
@@ -1521,49 +1612,6 @@
   white-space: nowrap;
 }
 
-.ps-test {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  padding: 8px 10px;
-  border-radius: var(--radius-md);
-  font-size: 12.5px;
-  line-height: 1.7;
-}
-
-.ps-test > span {
-  flex: 1;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.ps-test svg {
-  flex-shrink: 0;
-  margin-top: 4px;
-}
-
-.ps-test.is-ok {
-  background: var(--color-positive-soft);
-  color: var(--color-positive-text);
-}
-
-.ps-test.is-error {
-  background: var(--color-negative-soft);
-  color: var(--color-negative-text);
-}
-
-.ps-test-ms {
-  opacity: 0.8;
-}
-
-.ps-test-close {
-  padding: 0;
-  border: none;
-  background: none;
-  color: inherit;
-  cursor: pointer;
-}
-
 .ps-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1624,16 +1672,7 @@
   color: var(--text-secondary);
 }
 
-/* The Telegram bot page: a checkbox per feed, and the small inline action under the token */
-.admin-bot-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding-block: 6px;
-  cursor: pointer;
-  font-size: 0.88rem;
-}
-
+/* The bot pages: the small inline action under the token */
 .admin-bot-link {
   background: none;
   border: 0;

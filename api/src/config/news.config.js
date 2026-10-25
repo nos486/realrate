@@ -5,18 +5,48 @@
  *
  * Only news that can move the dollar, gold, coins, precious metals or the economy as a whole is
  * published; a single exchange symbol's or company's news is not. The admin can change both lists
- * (admin panel → اخبار); until then DEFAULT_NEWS_CHANNELS and DEFAULT_NEWS_FEEDS are read.
+ * (admin panel → اخبار); until then DEFAULT_NEWS_CHANNELS and DEFAULT_NEWS_FEEDS are read (a default
+ * added later reaches a saved list once).
  */
 
-/** Read when the admin has not saved a list of their own */
+/**
+ * The Telegram channels read when the admin has not saved a list of their own: `username` is the
+ * channel's public name (t.me/s/<username>); `translate` marks a channel that posts in English —
+ * its posts go the international feeds' way (English keywords, the model translates the headline
+ * and summary, the «بین‌الملل» filter)
+ */
 export const DEFAULT_NEWS_CHANNELS = [
-  "khabari",
-  "bourse24ir",
-  "digital_khabar",
-  "twitter_bourse",
-  "eghtesadonline",
-  "jaryane_eghtesad",
+  // Domestic economy and market news
+  { username: "khabari" },
+  { username: "bourse24ir" },
+  { username: "digital_khabar" },
+  { username: "twitter_bourse" },
+  { username: "eghtesadonline" },
+  { username: "jaryane_eghtesad" },
+  { username: "donyaeeqtesad" },
+  { username: "tejaratnews" },
+  // Domestic agencies (breaking news, official decisions)
+  { username: "akhbarefori" },
+  { username: "irna_1313" },
+  { username: "tasnimnews" },
+  { username: "farsna" },
+  // Foreign agencies' Persian services
+  { username: "bbcpersian" },
+  { username: "radiofarda" },
+  { username: "indypersian" },
+  { username: "euronewspersian" },
+  { username: "iranintltv" },
+  // Foreign agencies in English
+  { username: "bloomberg", translate: true },
+  { username: "insiderpaper", translate: true },
 ];
+
+/**
+ * The default channels that existed before the admin's saved list started to remember which
+ * defaults it has seen (see getNewsChannels): a saved list without that memory has seen exactly
+ * these, so a channel added to the defaults since then reaches it
+ */
+export const LEGACY_DEFAULT_CHANNELS = ["khabari", "bourse24ir", "digital_khabar", "twitter_bourse", "eghtesadonline", "jaryane_eghtesad"];
 
 /**
  * International news feeds (RSS 2.0 or Atom), read when the admin has not saved a list of their
