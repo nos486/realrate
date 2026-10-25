@@ -121,6 +121,20 @@ describe('cheque links', () => {
   });
 });
 
+describe('a cheque cleared again whose record is already there', () => {
+  it('points at that record instead of recording a second one', async () => {
+    mocks.incomes = [{ id: 'inc_old', chequeId: 'chq_in', incomeDate: '2026-02-04', amount: 5_000_000 }];
+    expect(await settleCheque({ ...received, status: 'cleared' }, { date: '2026-02-04' })).toBe('income');
+    expect(mocks.createIncome).not.toHaveBeenCalled();
+    expect(mocks.updateCheque.mock.calls[0][1]).toMatchObject({ settlement: { side: 'income', id: 'inc_old' } });
+
+    mocks.expenses = [{ id: 'exp_old', chequeId: 'chq_out', date: '2026-02-04', amount: 5_000_000 }];
+    expect(await settleCheque({ ...issued, status: 'cleared' }, { date: '2026-02-04' })).toBe('expense');
+    expect(mocks.saveExpense).not.toHaveBeenCalled();
+    expect(mocks.updateCheque.mock.calls[1][1]).toMatchObject({ settlement: { side: 'expense', id: 'exp_old' } });
+  });
+});
+
 describe('loan installment links', () => {
   it('pays the installment on the expense\'s day, and unpays it when the expense goes', async () => {
     const expense = { id: 'exp_2', category: 'installments', loanInstallment: { loanId: 'loan_1', installmentId: 'inst_3' }, date: '2026-02-05', amount: 2_000_000 };

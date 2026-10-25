@@ -250,6 +250,97 @@ export function duePayments(sub, today) {
   return out;
 }
 
+/** Days apart within which two recorded payments of the same renewal are one payment twice */
+const SAME_PAYMENT_DAYS = 15;
+
+/**
+ * Whether a payment recorded on `paidOn` is the payment due on `day` (duePayments) — so one
+ * recorded under another day (the start date edited since, a renewal paid a few days early or
+ * late) is never recorded again
+ *  - one that renews by itself: when it pays that renewal (renewalPaidBy, the nearest one)
+ *  - one renewed by hand: when it falls within a cycle of the day either way
+ * @param {object} sub
+ * @param {string} day the payment due
+ * @param {string} paidOn the day of a payment recorded for it
+ */
+export function paysPayment(sub, day, paidOn) {
+  if (!day || !paidOn) return false;
+  if (sub.autoRenew) return renewalPaidBy(sub, paidOn) === day;
+  const before = computeClampedDueDate(parseDateParts(day), -1, sub.cycleMonths);
+  return paidOn > before && paidOn < renewalAt(day, sub.cycleMonths, 1);
+}
+
+/**
+ * The days to look through for payments already recorded for `days` (paysPayment): a cycle
+ * either side of them
+ * @param {object} sub
+ * @param {string[]} days payment days, oldest first
+ * @returns {{ from: string, to: string }}
+ */
+export function paymentSearchRange(sub, days) {
+  return {
+    from: computeClampedDueDate(parseDateParts(days[0]), -1, sub.cycleMonths),
+    to: renewalAt(days[days.length - 1], sub.cycleMonths, 1),
+  };
+}
+
+/**
+ * Where a payment day of a subscription falls after its schedule was edited: the same renewal
+ * (its k-th) of the new schedule — the first payment always moves with the start date; later
+ * ones only when the cycle is unchanged. A day that was no renewal stays.
+ * @param {object} before the subscription before the edit
+ * @param {object} after the subscription as saved
+ * @param {string} day a payment day of `before`
+ * @returns {string} the day in the new schedule
+ */
+export function rescheduledDay(before, after, day) {
+  if (!day || !before?.startDate || !after?.startDate) return day;
+  if (before.startDate === after.startDate && before.cycleMonths === after.cycleMonths) return day;
+  for (let k = 0; k < 2400; k++) {
+    const old = renewalAt(before.startDate, before.cycleMonths, k);
+    if (old > day) break;
+    if (old === day) return k === 0 || before.cycleMonths === after.cycleMonths ? renewalAt(after.startDate, after.cycleMonths, k) : day;
+  }
+  return day;
+}
+
+/**
+ * Payments recorded twice for one subscription: of the payments it recorded by itself, two that
+ * pay the same renewal (paysPayment) within SAME_PAYMENT_DAYS of each other are the same payment
+ * — e.g. its start date was edited after the first payment was recorded. Of each such set, the
+ * one closest to the renewal day is kept; payments further apart (a cycle changed since: each
+ * one was a real payment) are all kept.
+ * @param {object} sub
+ * @param {{ id: string, date: string }[]} payments the expenses it recorded by itself
+ * @returns {{ keep: object, renewal: string, drop: object[] }[]} each set recorded twice
+ */
+export function duplicatePayments(sub, payments) {
+  const byRenewal = new Map();
+  for (const p of payments) {
+    const renewal = sub.autoRenew ? renewalPaidBy(sub, p.date) : sub.startDate;
+    if (!byRenewal.has(renewal)) byRenewal.set(renewal, []);
+    byRenewal.get(renewal).push(p);
+  }
+  const out = [];
+  for (const [renewal, list] of byRenewal) {
+    const sorted = [...list].sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    let run = [];
+    const close = () => {
+      if (run.length > 1) {
+        const distance = (p) => Math.abs(daysBetween(renewal, p.date));
+        const keep = run.reduce((best, p) => (distance(p) < distance(best) ? p : best));
+        out.push({ keep, renewal, drop: run.filter((p) => p !== keep) });
+      }
+      run = [];
+    };
+    for (const p of sorted) {
+      if (run.length && daysBetween(run[run.length - 1].date, p.date) >= SAME_PAYMENT_DAYS) close();
+      run.push(p);
+    }
+    close();
+  }
+  return out;
+}
 
 /**
  * Where a subscription stands on `today`

@@ -10,6 +10,8 @@
  * - (v3) the rates older expenses stored are dropped (every rate is the price history's)
  * - (v4) an installment recorded more than once (its id changed between payments) keeps one expense
  * - (v5) the installment expenses of a loan that was deleted are removed
+ * - (v6) a subscription payment recorded twice (its start date edited after the first one was
+ *   recorded) keeps one expense
  * Each goes through spendingRecords.js: its own id makes a second run (another device, a run
  * cut short) rewrite the same records — so it is safe to run more than once.
  *
@@ -18,6 +20,7 @@
  */
 
 import { CHEQUE_CLEARED } from '../../utils/chequeDocument.js';
+import { duplicatePayments } from '../../utils/subscriptionDocument.js';
 import { todayIso } from '../utils/dates.js';
 import { recordInstallmentPayments, recordExtraPayment, recordSubscriptionPayments, spendingExpenseId, installmentSpendingKey } from './spendingRecords.js';
 import { recordOwnerOf, SPENDING_ID_PREFIX } from '../../utils/recordOwners.js';
@@ -28,6 +31,7 @@ const CHEQUE_CATEGORY_KEY = 'realrate_cheque_category_v1';
 const STORED_RATES_KEY = 'realrate_stored_rates_v1';
 const LOAN_DUPLICATES_KEY = 'realrate_loan_duplicates_v2';
 const ORPHAN_LOAN_KEY = 'realrate_orphan_loan_expenses_v1';
+const SUBSCRIPTION_DUPLICATES_KEY = 'realrate_subscription_duplicates_v1';
 /** The categories a cheque's record had before cheques became a way of paying */
 const RETIRED_CHEQUE_CATEGORY = 'cheques';
 
@@ -290,5 +294,55 @@ export async function runOrphanLoanExpenseCleanup({ userId, expenses }) {
     }
   });
   if (ok) markDone(userId, ORPHAN_LOAN_KEY);
+  return ok;
+}
+
+/**
+ * Of the expenses subscriptions recorded by themselves, the second copies of one payment
+ * (duplicatePayments: the same renewal, days apart) — only for subscriptions that exist, and
+ * only expenses the app made (an id made by spendingExpenseId); the user's own stay. The copy
+ * kept is moved to the renewal's day when it isn't on it (and that day has come).
+ * @param {object[]} expenses all the expenses
+ * @param {object[]} subscriptions all the subscriptions
+ * @param {string} today
+ * @returns {{ drop: object[], move: { expense: object, date: string }[] }}
+ */
+export function findDuplicateSubscriptionExpenses(expenses, subscriptions, today) {
+  const bySub = new Map();
+  for (const e of expenses) {
+    if (!e.subscriptionId || recordOwnerOf(e) !== 'subscription' || !String(e.id).startsWith(SPENDING_ID_PREFIX)) continue;
+    if (!bySub.has(e.subscriptionId)) bySub.set(e.subscriptionId, []);
+    bySub.get(e.subscriptionId).push(e);
+  }
+  const drop = [];
+  const move = [];
+  for (const sub of subscriptions) {
+    for (const { keep, renewal, drop: copies } of duplicatePayments(sub, bySub.get(sub.id) || [])) {
+      drop.push(...copies);
+      if (sub.autoRenew && keep.date !== renewal && renewal <= today) move.push({ expense: keep, date: renewal });
+    }
+  }
+  return { drop, move };
+}
+
+/**
+ * (v6) A subscription payment recorded as an expense more than once keeps one — once per user on
+ * this device (findDuplicateSubscriptionExpenses says which go)
+ * @param {{ userId: string, expenses: boolean }} options
+ * @returns {Promise<boolean>} whether it ran to the end
+ */
+export async function runSubscriptionDuplicateCleanup({ userId, expenses }) {
+  if (!userId || !expenses || done(userId, SUBSCRIPTION_DUPLICATES_KEY)) return false;
+  const ok = await step('subscription duplicates', async () => {
+    const store = await import('./vaultExpenses.js');
+    const subs = await import('./vaultSubscriptions.js');
+    const { subscriptions } = await subs.getSubscriptions();
+    if (!Array.isArray(subscriptions)) throw new Error('subscriptions not readable');
+    const { expenses: all = [] } = await store.getExpenses();
+    const { drop, move } = findDuplicateSubscriptionExpenses(all, subscriptions, todayIso());
+    for (const e of drop) await store.deleteExpense(e.id, e, { syncLinks: false, asOwner: true });
+    for (const { expense, date } of move) await store.saveExpense({ date }, expense, { syncLinks: false, asOwner: true });
+  });
+  if (ok) markDone(userId, SUBSCRIPTION_DUPLICATES_KEY);
   return ok;
 }

@@ -6,7 +6,9 @@
  *
  * Every subscription has its spending in the expenses: when one is saved, and whenever the list
  * is read, the payments it is due are recorded as expenses (a new one's first payment; each
- * renewal of one that renews by itself as its day comes — shared/vault/spendingRecords.js).
+ * renewal of one that renews by itself as its day comes — shared/vault/spendingRecords.js). An
+ * edit moves the payments it recorded with it (its name, its start date, the latest one's price),
+ * so a payment is never recorded a second time under its new day.
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -18,7 +20,7 @@ import * as api from '../../../shared/vault/vaultSubscriptions.js';
 import { useFeature } from '../../../shared/features/useFeature.js';
 import { isDemoReadOnly } from '../../demo/index.js';
 import { todayIso } from '../../../shared/utils/dates.js';
-import { recordSubscriptionPayments } from '../../../shared/vault/spendingRecords.js';
+import { followSubscriptionEdit, recordSubscriptionPayments } from '../../../shared/vault/spendingRecords.js';
 
 const saveStored = async (input, existing) => (await api.saveSubscription(input, existing)).subscription;
 
@@ -88,6 +90,11 @@ export function useSubscriptions() {
     setSubmitting(true);
     try {
       const { subscription: saved } = await api.saveSubscription(input, existing);
+      // Its payments follow the edit first: the renewal they pay is then already recorded
+      if (existing && recordsSpending) {
+        await followSubscriptionEdit(saved, existing, todayIso())
+          .catch((err) => console.warn('[subscriptions] its payments could not follow the edit:', err?.message || err));
+      }
       // A new one's first payment (or a renewal its edit made due) goes into the expenses
       const [subscription] = await recordDue([saved]);
       setSubscriptions((prev) => [...prev.filter((s) => s.id !== subscription.id), subscription]);
@@ -95,7 +102,7 @@ export function useSubscriptions() {
     } finally {
       setSubmitting(false);
     }
-  }, [recordDue]);
+  }, [recordDue, recordsSpending]);
 
   const deleteSubscription = useCallback(async (id) => {
     await api.deleteSubscription(id);

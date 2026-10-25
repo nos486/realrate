@@ -8,6 +8,7 @@ import { describe, it, expect } from 'vitest';
 import {
   validateSubscription, renewalAt, renewalsBetween, renewalOnOrAfter, renewedAfter,
   subscriptionView, renewalPaidBy, subscriptionTotals, compareSubscriptions, subscriptionPeriod, duePayments,
+  paysPayment, paymentSearchRange, rescheduledDay, duplicatePayments,
 } from '../../src/domain/subscriptionDocument.js';
 import { reminderOf, reminderCanBeOverdue, occurrencesBetween, REMINDER_KINDS } from '../../src/domain/reminders.js';
 
@@ -211,5 +212,64 @@ describe('an auto-renewing subscription paid ahead', () => {
     const paid = { ...sub, lastPaidOn: renewalPaidBy(sub, today) };
     expect(subscriptionView(paid, today).nextRenewal).toBe(after);
     expect(duePayments(paid, coming)).toEqual([]);
+  });
+});
+
+describe('a payment recorded under another day', () => {
+  const yearly = sub({ cycleMonths: 12, startDate: '2026-10-19' });
+
+  it('pays the renewal nearest to it (one that renews by itself)', () => {
+    // Its start date moved a day back after the first payment was recorded
+    expect(paysPayment(yearly, '2026-10-19', '2026-10-20')).toBe(true);
+    expect(paysPayment(yearly, '2026-10-19', '2026-10-19')).toBe(true);
+    const monthly = sub();
+    expect(paysPayment(monthly, '2026-02-11', '2026-01-12')).toBe(false);
+    expect(paysPayment(monthly, '2026-02-11', '2026-02-09')).toBe(true);
+  });
+
+  it('within a cycle either way (one renewed by hand)', () => {
+    const hand = sub({ autoRenew: false });
+    expect(paysPayment(hand, '2026-01-12', '2026-01-30')).toBe(true);
+    expect(paysPayment(hand, '2026-01-12', '2026-03-01')).toBe(false);
+  });
+
+  it('is looked for a cycle either side of the payments due', () => {
+    expect(paymentSearchRange(sub(), ['2026-02-11', '2026-03-13'])).toEqual({ from: '2026-01-12', to: '2026-04-11' });
+  });
+});
+
+describe('rescheduledDay', () => {
+  const before = sub({ startDate: '2026-01-13' });
+
+  it('moves a payment day with the start date: the same renewal of the new schedule', () => {
+    const after = { ...before, startDate: '2026-01-12' };
+    expect(rescheduledDay(before, after, '2026-01-13')).toBe('2026-01-12');
+    expect(rescheduledDay(before, after, renewalAt('2026-01-13', 1, 2))).toBe(renewalAt('2026-01-12', 1, 2));
+    // Not a renewal: stays
+    expect(rescheduledDay(before, after, '2026-01-20')).toBe('2026-01-20');
+    expect(rescheduledDay(before, before, '2026-01-13')).toBe('2026-01-13');
+  });
+
+  it('with the cycle changed, only the first payment moves', () => {
+    const after = { ...before, startDate: '2026-01-12', cycleMonths: 12 };
+    expect(rescheduledDay(before, after, '2026-01-13')).toBe('2026-01-12');
+    const second = renewalAt('2026-01-13', 1, 1);
+    expect(rescheduledDay(before, after, second)).toBe(second);
+  });
+});
+
+describe('duplicatePayments', () => {
+  it('two payments of one renewal days apart: the one on the renewal day is kept', () => {
+    const yearly = sub({ cycleMonths: 12, startDate: '2026-10-19' });
+    const a = { id: 'a', date: '2026-10-19' };
+    const b = { id: 'b', date: '2026-10-20' };
+    expect(duplicatePayments(yearly, [b, a])).toEqual([{ keep: a, renewal: '2026-10-19', drop: [b] }]);
+  });
+
+  it('payments of different renewals, or far apart (a cycle changed since), are all kept', () => {
+    expect(duplicatePayments(sub(), [{ id: 'a', date: '2026-01-12' }, { id: 'b', date: '2026-02-11' }])).toEqual([]);
+    // Monthly payments of a subscription now yearly: one renewal, but each a real payment
+    const yearly = sub({ cycleMonths: 12 });
+    expect(duplicatePayments(yearly, [{ id: 'a', date: '2026-01-12' }, { id: 'b', date: '2026-02-11' }, { id: 'c', date: '2026-03-13' }])).toEqual([]);
   });
 });

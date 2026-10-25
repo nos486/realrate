@@ -66,7 +66,7 @@ vi.mock('../../../web/src/shared/vault/vaultSubscriptions.js', () => ({
   saveSubscription: async (input, existing) => ({ subscription: { ...existing, ...input } }),
 }));
 
-const { runSpendingBackfill, runChequeCategoryMigration, findDuplicateInstallmentExpenses, findOrphanLoanExpenses } = await import('../../../web/src/shared/vault/spendingBackfill.js');
+const { runSpendingBackfill, runChequeCategoryMigration, findDuplicateInstallmentExpenses, findOrphanLoanExpenses, findDuplicateSubscriptionExpenses } = await import('../../../web/src/shared/vault/spendingBackfill.js');
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -164,5 +164,31 @@ describe('expenses of deleted loans', () => {
   it('keeps what the user entered, even one a loan took over', () => {
     const list = [{ id: 'exp_user', recordedBy: 'loan', loanInstallment: { loanId: 'gone', installmentId: 'i' } }, { id: 'exp_user2', category: 'food' }];
     expect(findOrphanLoanExpenses(list, new Set())).toEqual([]);
+  });
+});
+
+describe('subscription payments recorded twice', () => {
+  const suno = {
+    id: 'sub_1', name: 'Suno', amount: 100, currency: 'USD', cycleMonths: 12, startDate: '2026-10-19',
+    autoRenew: true, status: 'active', lastPaidOn: '2026-10-19',
+  };
+  const paid = (id, date, over = {}) => ({ id: `exp_s${id}`, date, subscriptionId: 'sub_1', recordedBy: 'subscription', ...over });
+
+  it('keeps the one on the renewal day and drops the copy', () => {
+    const a = paid('a', '2026-10-19');
+    const b = paid('b', '2026-10-20');
+    expect(findDuplicateSubscriptionExpenses([b, a], [suno], '2026-10-25')).toEqual({ drop: [b], move: [] });
+  });
+
+  it('the copy kept moves to the renewal day when none is on it', () => {
+    const b = paid('b', '2026-10-20');
+    const c = paid('c', '2026-10-21');
+    expect(findDuplicateSubscriptionExpenses([b, c], [suno], '2026-10-25')).toEqual({ drop: [c], move: [{ expense: b, date: '2026-10-19' }] });
+  });
+
+  it('never touches the user\'s own payments, or those of a subscription that is gone', () => {
+    const user = { id: 'exp_user', date: '2026-10-20', subscriptionId: 'sub_1' };
+    expect(findDuplicateSubscriptionExpenses([paid('a', '2026-10-19'), user], [suno], '2026-10-25').drop).toEqual([]);
+    expect(findDuplicateSubscriptionExpenses([paid('a', '2026-10-19', { subscriptionId: 'sub_x' }), paid('b', '2026-10-20', { subscriptionId: 'sub_x' })], [suno], '2026-10-25').drop).toEqual([]);
   });
 });
