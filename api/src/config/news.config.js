@@ -255,7 +255,8 @@ export const NEWS_ANALYSIS = {
   maxNews: 30,
   /** Characters of each item's summary sent */
   summaryChars: 220,
-  perDay: 30,
+  /** At most this many a day: every half hour of the day (minIntervalMinutes) */
+  perDay: 48,
   /** Output tokens, with the reasoning's */
   maxTokens: 4000,
 };
