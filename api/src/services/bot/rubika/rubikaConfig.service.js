@@ -33,10 +33,13 @@ const readSaved = async (store) => (await store?.get(CONFIG_KEY, "json").catch((
 
 /**
  * The saved settings with the token resolved
- * @returns {Promise<{ enabled: boolean, channel: string, feeds: string[]|null, adminChatId: string,
+ * @returns {Promise<{ enabled: boolean, channel: string, feeds: string[]|null, domestic: boolean,
+ *   domesticChannels: string[]|null, adminChatId: string,
  *   adminUserId: string, dailyReport: boolean, linkCode: string, linkCodeExpiresAt: number,
  *   token: string, tokenSource: "env"|"admin"|"" }>}
- *   feeds: the feed ids whose articles are posted; null means every feed. adminChatId /
+ *   feeds: the feed ids whose articles are posted; null means every feed. domestic: the domestic
+ *   news (the news section's channels) is posted too; domesticChannels: which channels' posts
+ *   (lower-case usernames), null means every channel. adminChatId /
  *   adminUserId: the admin's chat with the bot and their Rubika id, set once they sent the code
  */
 export async function getRubikaConfig(env) {
@@ -47,6 +50,8 @@ export async function getRubikaConfig(env) {
     enabled: saved.enabled === true,
     channel: typeof saved.channel === "string" ? saved.channel : "",
     feeds: Array.isArray(saved.feeds) ? saved.feeds.filter((id) => typeof id === "string") : null,
+    domestic: saved.domestic === true,
+    domesticChannels: Array.isArray(saved.domesticChannels) ? saved.domesticChannels.filter((id) => typeof id === "string") : null,
     adminChatId: saved.adminChatId ? String(saved.adminChatId) : "",
     adminUserId: saved.adminUserId ? String(saved.adminUserId) : "",
     dailyReport: saved.dailyReport === true,
@@ -76,7 +81,8 @@ export function publicRubikaConfig({ token, adminChatId, adminUserId, linkCode, 
 /**
  * Save the admin's changes; only the fields sent change
  * @param {object} env
- * @param {{ enabled?: boolean, channel?: string, feeds?: string[]|null, token?: string|null, dailyReport?: boolean, unlinkAdmin?: boolean }} patch
+ * @param {{ enabled?: boolean, channel?: string, feeds?: string[]|null, domestic?: boolean, domesticChannels?: string[]|null,
+ *   token?: string|null, dailyReport?: boolean, unlinkAdmin?: boolean }} patch
  *   token: a new token, or null to remove the saved one. unlinkAdmin: forget the linked account
  */
 export async function saveRubikaConfig(env, patch = {}) {
@@ -87,6 +93,8 @@ export async function saveRubikaConfig(env, patch = {}) {
     enabled: saved.enabled === true,
     channel: saved.channel || "",
     feeds: saved.feeds ?? null,
+    domestic: saved.domestic === true,
+    domesticChannels: saved.domesticChannels ?? null,
     token: saved.token || "",
     adminChatId: saved.adminChatId || "",
     adminUserId: saved.adminUserId || "",
@@ -103,6 +111,12 @@ export async function saveRubikaConfig(env, patch = {}) {
     next.channel = channel;
   }
   if (patch.dailyReport !== undefined) next.dailyReport = patch.dailyReport === true;
+  if (patch.domestic !== undefined) next.domestic = patch.domestic === true;
+  if (patch.domesticChannels !== undefined) {
+    next.domesticChannels = Array.isArray(patch.domesticChannels)
+      ? [...new Set(patch.domesticChannels.filter((id) => typeof id === "string").map((id) => id.trim().replace(/^@/, "").toLowerCase()).filter(Boolean))]
+      : null;
+  }
   if (patch.feeds !== undefined) {
     next.feeds = Array.isArray(patch.feeds) ? [...new Set(patch.feeds.filter((id) => typeof id === "string"))] : null;
   }

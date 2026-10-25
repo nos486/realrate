@@ -25,7 +25,11 @@ afterEach(() => {
 });
 
 const CONFIG = { enabled: false, channel: '', feeds: null, tokenSet: false, tokenSource: '', adminLinked: false, linkCode: '', dailyReport: false };
-const DATA = { config: CONFIG, status: null, feeds: [{ id: 'bbc', title: 'BBC', enabled: true }] };
+const DATA = {
+  config: CONFIG, status: null,
+  feeds: [{ id: 'bbc', title: 'BBC', enabled: true }],
+  channels: [{ id: 'tasnimnews', title: 'tasnimnews', enabled: true }, { id: 'akhbarefori', title: 'akhbarefori', enabled: true }],
+};
 const TOKEN = 'BCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ0123';
 
 describe('AdminRubikaPage', () => {
@@ -63,5 +67,17 @@ describe('AdminRubikaPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: /تست اتصال/ }));
     expect(await screen.findByText(/کانال پیدا نشد/)).toBeTruthy();
     expect(toast.error).toHaveBeenCalled();
+  });
+
+  it('turns the domestic news on and picks its channels', async () => {
+    api.getRubikaSettings.mockResolvedValue(DATA);
+    api.saveRubikaSettings.mockResolvedValue({ ...DATA, config: { ...CONFIG, domestic: true, domesticChannels: ['tasnimnews'] } });
+    render(<AdminRubikaPage />);
+    fireEvent.click(await screen.findByRole('switch', { name: 'ارسال اخبار داخلی در کانال روبیکا' }));
+    fireEvent.click(screen.getByLabelText(/همه‌ی کانال‌ها/));
+    fireEvent.click(screen.getByLabelText(/@akhbarefori/));
+    fireEvent.click(screen.getByRole('button', { name: /ذخیره/ }));
+    await waitFor(() => expect(api.saveRubikaSettings).toHaveBeenCalled());
+    expect(api.saveRubikaSettings.mock.calls[0][0]).toMatchObject({ domestic: true, domesticChannels: ['tasnimnews'] });
   });
 });

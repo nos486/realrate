@@ -2,8 +2,9 @@
  * newsQueue.js — The channel posting queue shared by every messenger (Telegram, Rubika)
  *
  * A messenger's channel is a target: where its queue and its sent links live in `app_state`, how
- * its settings are read and how one article is posted. The news poll hands the published
- * international articles to `enqueueNews`; the messenger's minute run (`flushNews`) posts the
+ * its settings are read, which published items it takes (`accepts`: by default the international
+ * articles of the chosen feeds, `acceptsWorld`) and how one article is posted. The news poll hands
+ * every published item to `enqueueNews`; the messenger's minute run (`flushNews`) posts the
  * waiting ones, oldest first, a few at a time, so a burst of articles never trips a rate limit.
  * An article is posted once per target: the same link from two feeds is the same article.
  */
@@ -18,6 +19,7 @@ import { logger } from "../../lib/logger.js";
  * @property {string} queueKey - `app_state` key of the waiting articles
  * @property {string} sentKey - `app_state` key of the sent links
  * @property {number} [sendPerRun] - messages per run (BOT_LIMITS.sendPerRun by default)
+ * @property {(config: object, item: object) => boolean} [accepts] - which published items it posts (acceptsWorld by default)
  * @property {(env: object) => Promise<{ enabled: boolean, channel: string, token: string, feeds: string[]|null }>} getConfig
  * @property {(config: object, item: object, opts: object) => Promise<{ ok: boolean, error?: string, retryAfter?: number }>} send
  */
@@ -27,28 +29,46 @@ const articleKey = (url) => String(url || "").split(/[?#]/)[0];
 
 const isOn = (config) => Boolean(config.enabled && config.channel && config.token);
 
-/** A published news item as a queue entry: its Persian headline and summary, link and source name */
+/**
+ * An international article of a chosen feed (`config.feeds`: feed ids, null = every feed)
+ * @param {{ feeds: string[]|null }} config
+ * @param {{ source?: string, channel: string }} item
+ */
+export const acceptsWorld = (config, item) => item.source === "world" && (!config.feeds || config.feeds.includes(item.channel));
+
+/**
+ * A published news item as a queue entry: its Persian headline and summary, link, source name and
+ * kind (`world`: an international feed's article; `telegram`: a domestic channel's post)
+ */
 function toQueued(item) {
-  return { key: articleKey(item.url), url: item.url, title: item.title, summary: item.summary === item.title ? "" : item.summary, sourceTitle: item.channelTitle || item.channel, publishedAt: item.publishedAt || 0 };
+  return {
+    key: articleKey(item.url),
+    url: item.url,
+    title: item.title,
+    summary: item.summary === item.title ? "" : item.summary,
+    sourceTitle: item.channelTitle || item.channel,
+    source: item.source === "world" ? "world" : "telegram",
+    publishedAt: item.publishedAt || 0,
+  };
 }
 
 /**
- * Add the published international news to a target's queue (when it is on and the item's feed is chosen)
+ * Add the published news a target takes to its queue (when it is on)
  * @param {object} env
  * @param {NewsTarget} target
- * @param {Array<{ source?: string, channel: string, channelTitle?: string, url: string, title: string, summary?: string, publishedAt?: number }>} items - news items as the pipeline publishes them (`channel` is the feed id)
+ * @param {Array<{ source?: string, channel: string, channelTitle?: string, url: string, title: string, summary?: string, publishedAt?: number }>} items - news items as the pipeline publishes them (`channel` is the feed id, or a domestic post's channel)
  * @param {number} now
  * @returns {Promise<number>} articles added
  */
 export async function enqueueNews(env, target, items, now = Date.now()) {
-  const posts = (items || []).filter((n) => n.source === "world");
-  if (!posts.length) return 0;
+  if (!items?.length) return 0;
   const config = await target.getConfig(env);
   if (!isOn(config)) return 0;
   const store = getStateStore(env);
   if (!store) return 0;
 
-  const chosen = config.feeds ? posts.filter((p) => config.feeds.includes(p.channel)) : posts;
+  const accepts = target.accepts || acceptsWorld;
+  const chosen = items.filter((item) => accepts(config, item));
   if (!chosen.length) return 0;
   const stored = await store.getMany([target.queueKey, target.sentKey], "json");
   const queue = Array.isArray(stored.get(target.queueKey)) ? stored.get(target.queueKey) : [];
