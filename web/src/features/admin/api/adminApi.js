@@ -220,3 +220,32 @@ export async function testBot() {
 export async function runBotNow() {
   return httpClient.post('/api/admin/bot/run', {});
 }
+
+/**
+ * The Rubika bot: settings (never the token, only `tokenSet`; the link code while it is valid),
+ * last status and the feeds to choose from
+ * @returns {Promise<{ config: object, status: object|null, feeds: Array<{ id: string, title: string, enabled: boolean }> }>}
+ */
+export async function getRubikaSettings() {
+  return httpClient.get('/api/admin/rubika');
+}
+
+/** Save the Rubika bot's settings; only the fields sent change (`token: null` removes the saved token, `unlinkAdmin: true` the admin's account) */
+export async function saveRubikaSettings(patch) {
+  return httpClient.put('/api/admin/rubika', patch);
+}
+
+/** Check the Rubika token and channel and post a test message there */
+export async function testRubika() {
+  return httpClient.post('/api/admin/rubika/test', {});
+}
+
+/** Post the Rubika channel's waiting news now */
+export async function runRubikaNow() {
+  return httpClient.post('/api/admin/rubika/run', {});
+}
+
+/** A one-time code the admin sends to the Rubika bot to link their account; `{ code, expiresAt, config, ... }` */
+export async function newRubikaLinkCode() {
+  return httpClient.post('/api/admin/rubika/link', {});
+}

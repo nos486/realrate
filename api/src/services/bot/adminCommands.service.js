@@ -17,6 +17,7 @@ import { USERS_LIST_SIZE } from "../../config/telegramBot.config.js";
 import { sendMessage } from "./telegramApi.js";
 import { getBotStatus } from "./botConfig.service.js";
 import { notifyAdmin } from "./adminChat.service.js";
+import { getRubikaStatus } from "./rubika/rubikaConfig.service.js";
 
 const DAY_MS = 86_400_000;
 const faNum = (n) => Number(n || 0).toLocaleString("fa-IR");
@@ -41,13 +42,14 @@ function ago(iso, now) {
   return days <= 0 ? "امروز" : `${faNum(days)} روز پیش`;
 }
 
-/** The report: headline counts, the last 7 days, pending requests and the channel's state */
+/** The report: headline counts, the last 7 days, pending requests and the channels' state (Telegram, and Rubika once it has run) */
 export async function buildReport(env, now = Date.now()) {
-  const [stats, series, requests, status] = await Promise.all([
+  const [stats, series, requests, status, rubika] = await Promise.all([
     dbGetUserStats(env, { now }),
     dbGetDailyGrowth(env, 7, { now }),
     dbListGroupRequests(env),
     getBotStatus(env),
+    getRubikaStatus(env),
   ]);
   const f = stats.filters;
   const week = series.reduce((sum, d) => ({ signups: sum.signups + d.signups, active: Math.max(sum.active, d.active) }), { signups: 0, active: 0 });
@@ -67,6 +69,7 @@ export async function buildReport(env, now = Date.now()) {
     "",
     `📬 درخواست در انتظار: ${faNum(requests.length)}${requests.length ? " (/requests)" : ""}`,
     `📣 کانال: ${faNum(status?.sentTotal)} خبر فرستاده شده · ${faNum(status?.waiting)} در صف${status?.error ? ` · خطا: ${status.error}` : ""}`,
+    ...(rubika ? [`📣 کانال روبیکا: ${faNum(rubika.sentTotal)} خبر فرستاده شده · ${faNum(rubika.waiting)} در صف${rubika.error ? ` · خطا: ${rubika.error}` : ""}`] : []),
   ];
   return lines.join("\n");
 }
@@ -115,15 +118,18 @@ async function usersList(env, { q = "", filter = "all" } = {}) {
   };
 }
 
-/** The pending group requests, each with approve / reject buttons (the same actions as a live request) */
-async function pendingRequests(env, config, opts) {
+/**
+ * The pending group requests, each with approve / reject buttons (the same actions as a live
+ * request), sent through the messenger the admin asked on (`notify`, Telegram's by default)
+ */
+async function pendingRequests(env, { opts, notify = notifyAdmin } = {}) {
   const [requests, groups] = await Promise.all([dbListGroupRequests(env), dbListGroups(env)]);
   if (!requests.length) return { text: "درخواستی در انتظار نیست. ✅" };
   const byId = new Map(groups.map((g) => [g.id, g]));
   for (const r of requests.slice(0, 10)) {
     const group = byId.get(r.groupId);
     if (!group) continue;
-    await notifyAdmin(env, {
+    await notify(env, {
       text: `📬 ${r.email}${r.name ? ` (${r.name})` : ""} می‌خواهد عضو «${group.name}» شود.${r.note ? `\nپیام: ${r.note}` : ""}`,
       action: { type: "group-request", groupId: group.id, userId: r.userId },
     }, opts);
@@ -140,7 +146,10 @@ const HELP = [
   "/requests — درخواست‌های در انتظار (پرو و…) با دکمه‌ی تأیید و رد",
 ].join("\n");
 
-/** Command name → handler `(env, args, ctx) → { text, replyMarkup? }` */
+/**
+ * Command name → handler `(env, args, ctx) → { text, replyMarkup? }`; ctx: `{ config, opts, notify? }`
+ * (notify: how the messenger sends an action with buttons; Rubika's chat passes its own)
+ */
 export const ADMIN_COMMANDS = {
   help: async () => ({ text: HELP }),
   report: async (env) => ({ text: await buildReport(env) }),
@@ -159,8 +168,26 @@ export const ADMIN_COMMANDS = {
     if (exact || users.length === 1) return (await buildUserCard(env, (exact || users[0]).id)) || { text: "کاربری پیدا نشد." };
     return usersList(env, { q });
   },
-  requests: (env, _args, ctx) => pendingRequests(env, ctx.config, ctx.opts),
+  requests: (env, _args, ctx) => pendingRequests(env, ctx),
 };
+
+/**
+ * The answer to a command, for any messenger (`/name args`; a Telegram `@bot` suffix is ignored)
+ * @param {object} env
+ * @param {string} text - the admin's message
+ * @param {{ config: object, opts?: object, notify?: Function }} ctx - see ADMIN_COMMANDS
+ * @returns {Promise<{ text: string, replyMarkup?: object }|null>} null when it is not a known command
+ */
+export async function answerAdminCommand(env, text, ctx) {
+  const match = /^\/([a-z_]+)(?:@\w+)?(?:\s+([\s\S]*))?$/i.exec(String(text || "").trim());
+  const handler = match && ADMIN_COMMANDS[match[1].toLowerCase()];
+  if (!handler) return null;
+  try {
+    return await handler(env, match[2] || "", ctx);
+  } catch (err) {
+    return { text: `⚠️ انجام نشد: ${String(err?.message || "خطا").slice(0, 120)}` };
+  }
+}
 
 /**
  * Run the command of a message from the admin
@@ -171,15 +198,8 @@ export const ADMIN_COMMANDS = {
  * @returns {Promise<boolean>} whether the text was a known command
  */
 export async function runAdminCommand(env, config, message, opts = {}) {
-  const match = /^\/([a-z_]+)(?:@\w+)?(?:\s+([\s\S]*))?$/i.exec(String(message.text || "").trim());
-  const handler = match && ADMIN_COMMANDS[match[1].toLowerCase()];
-  if (!handler) return false;
-  let answer;
-  try {
-    answer = await handler(env, match[2] || "", { config, opts });
-  } catch (err) {
-    answer = { text: `⚠️ انجام نشد: ${String(err?.message || "خطا").slice(0, 120)}` };
-  }
+  const answer = await answerAdminCommand(env, message.text, { config, opts });
+  if (!answer) return false;
   await sendMessage(config.token, message.chat.id, answer.text, { ...opts, plain: true, replyMarkup: answer.replyMarkup });
   return true;
 }

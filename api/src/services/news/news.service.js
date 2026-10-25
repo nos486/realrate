@@ -51,7 +51,7 @@ import { USER_AGENT } from "../market/sources/parsingUtils.js";
 import { askWorkersAi, hasWorkersAi } from "./workersAi.js";
 import { maybeUpdateNewsAnalysis } from "./newsAnalysis.service.js";
 import { notifyImportantNews } from "./newsPush.service.js";
-import { enqueueFeedNews } from "../bot/newsChannel.service.js";
+import { enqueueChannelNews } from "../bot/messengers.js";
 import { logger } from "../../lib/logger.js";
 
 const CHANNELS_KEY = "news:channels";
@@ -472,8 +472,8 @@ async function pollChannels(env, store, now, fetchPage, fetchFeed) {
   const waiting = writePendingList(deferred);
 
   await dbInsertNews(env, published);
-  // The Telegram bot posts the international news the site just published (translated once, here)
-  await enqueueFeedNews(env, published, now).catch((err) => {
+  // The bots (Telegram, Rubika) post the international news the site just published (translated once, here)
+  await enqueueChannelNews(env, published, now).catch((err) => {
     logger.warn("[News] queuing for the bot failed:", { error: err?.message });
   });
   // Important fresh news: a push to the browsers that asked for it
