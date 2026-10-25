@@ -164,6 +164,30 @@ describe('the admin chat', () => {
     expect(await getRubikaConfig(env)).toMatchObject({ adminUserId: ADMIN.senderId });
   });
 
+  it('never links from a group', async () => {
+    const { code } = await newRubikaLinkCode(env);
+    await handleRubikaUpdate(env, { update: { ...message(code).update, chat_id: 'g0SomeGroup1234567890' } }, { fetchFn: fakeApi().fetchFn });
+    expect((await getRubikaConfig(env)).adminUserId).toBe('');
+  });
+
+  it('voids the code after a few wrong guesses', async () => {
+    const { code } = await newRubikaLinkCode(env);
+    const wrong = code === '000000' ? '111111' : '000000';
+    const stranger = (text) => ({ update: { ...message(text).update, new_message: { ...message(text).update.new_message, sender_id: 'u0Stranger' } } });
+    for (let i = 0; i < 5; i++) await handleRubikaUpdate(env, stranger(wrong), { fetchFn: fakeApi().fetchFn });
+    expect((await getRubikaConfig(env)).linkCode).toBe('');
+    await handleRubikaUpdate(env, message(code), { fetchFn: fakeApi().fetchFn });
+    expect((await getRubikaConfig(env)).adminUserId).toBe('');
+  });
+
+  it('ignores a forwarded post whose channel id is not one', async () => {
+    await linkAdmin();
+    const { fetchFn, calls } = fakeApi();
+    await handleRubikaUpdate(env, message('', { forwarded_from: { type_from: 'Channel', from_chat_id: 'bad id' } }), { fetchFn });
+    expect((await getRubikaConfig(env)).channel).toBe(CHANNEL);
+    expect(calls[0].params.text).toContain('شناخته نشد');
+  });
+
   it('answers the linked admin\'s commands with keypads, and ignores anyone else', async () => {
     await linkAdmin();
     const { fetchFn, calls } = fakeApi();
@@ -181,6 +205,9 @@ describe('the admin chat', () => {
     await handleRubikaUpdate(env, press('ub:u1'), { fetchFn });
     expect(calls.map((c) => c.method)).toEqual(['editMessageText', 'editMessageKeypad']);
     expect(calls[0].params.text).toContain('مسدود شد');
+    const asUpdate = fakeApi();
+    await handleRubikaUpdate(env, { update: { type: 'InlineMessage', ...press('uu:u1').inline_message } }, { fetchFn: asUpdate.fetchFn });
+    expect(asUpdate.calls[0].params.text).toContain('دوباره فعال شد');
     const other = fakeApi();
     await handleRubikaUpdate(env, press('uu:u1', 'u0Stranger'), { fetchFn: other.fetchFn });
     expect(other.calls).toHaveLength(0);

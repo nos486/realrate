@@ -93,6 +93,7 @@ export async function saveRubikaConfig(env, patch = {}) {
     dailyReport: saved.dailyReport === true,
     linkCode: saved.linkCode || "",
     linkCodeExpiresAt: Number(saved.linkCodeExpiresAt) || 0,
+    linkCodeMisses: Number(saved.linkCodeMisses) || 0,
   };
 
   if (patch.enabled !== undefined) next.enabled = patch.enabled === true;
@@ -131,8 +132,24 @@ export async function newRubikaLinkCode(env, now = Date.now()) {
   const digits = crypto.getRandomValues(new Uint32Array(1))[0] % 1_000_000;
   const code = String(digits).padStart(6, "0");
   const expiresAt = now + RUBIKA_LIMITS.linkCodeMinutes * 60_000;
-  await store.put(CONFIG_KEY, JSON.stringify({ ...(await readSaved(store)), linkCode: code, linkCodeExpiresAt: expiresAt }));
+  await store.put(CONFIG_KEY, JSON.stringify({ ...(await readSaved(store)), linkCode: code, linkCodeExpiresAt: expiresAt, linkCodeMisses: 0 }));
   return { code, expiresAt };
+}
+
+/**
+ * Count a wrong code sent while one is valid; past RUBIKA_LIMITS.linkCodeTries the code is void
+ * (a million codes cannot be tried one by one, and the admin just makes a new one)
+ * @returns {Promise<boolean>} whether the code was voided
+ */
+export async function recordRubikaLinkMiss(env) {
+  const store = getStateStore(env);
+  if (!store) return false;
+  const saved = await readSaved(store);
+  if (!saved.linkCode) return false;
+  const misses = (Number(saved.linkCodeMisses) || 0) + 1;
+  const voided = misses >= RUBIKA_LIMITS.linkCodeTries;
+  await store.put(CONFIG_KEY, JSON.stringify({ ...saved, ...(voided ? { linkCode: "", linkCodeExpiresAt: 0, linkCodeMisses: 0 } : { linkCodeMisses: misses }) }));
+  return voided;
 }
 
 /** Remember the admin's chat once they have sent the code; the code is used up */
@@ -140,14 +157,19 @@ export async function linkRubikaAdmin(env, { chatId, userId }) {
   const store = getStateStore(env);
   if (!store) return;
   const saved = await readSaved(store);
-  await store.put(CONFIG_KEY, JSON.stringify({ ...saved, adminChatId: String(chatId), adminUserId: String(userId), linkCode: "", linkCodeExpiresAt: 0 }));
+  await store.put(CONFIG_KEY, JSON.stringify({ ...saved, adminChatId: String(chatId), adminUserId: String(userId), linkCode: "", linkCodeExpiresAt: 0, linkCodeMisses: 0 }));
 }
 
-/** Set the channel (the admin forwarded one of its posts to the bot) */
+/**
+ * Set the channel (the admin forwarded one of its posts to the bot)
+ * @returns {Promise<string>} the channel as saved, "" when the id is not one
+ */
 export async function setRubikaChannel(env, channel) {
   const store = getStateStore(env);
-  if (!store) return;
-  await store.put(CONFIG_KEY, JSON.stringify({ ...(await readSaved(store)), channel }));
+  const normalized = normalizeRubikaChannel(channel);
+  if (!store || !normalized) return "";
+  await store.put(CONFIG_KEY, JSON.stringify({ ...(await readSaved(store)), channel: normalized }));
+  return normalized;
 }
 
 /** The last run's result (what was sent, the last error) */
