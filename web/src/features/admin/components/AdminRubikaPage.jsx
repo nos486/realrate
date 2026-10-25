@@ -203,7 +203,7 @@ export default function AdminRubikaPage() {
         )}
         {config.linkCode ? (
           <p className="admin-card-hint">
-            این کد را با حساب خودتان در روبیکا برای ربات بفرستید (تا ۳۰ دقیقه معتبر است؛ ربات باید روشن و ذخیره‌شده باشد):{' '}
+            این کد را با حساب خودتان در روبیکا برای ربات بفرستید (تا ۳۰ دقیقه معتبر است و با ۵ کد اشتباه باطل می‌شود):{' '}
             <strong><bdi dir="ltr">{config.linkCode}</bdi></strong>
           </p>
         ) : (
@@ -213,10 +213,11 @@ export default function AdminRubikaPage() {
           </p>
         )}
         <div className="admin-news-save">
-          <Button size="sm" variant="secondary" icon={<Link2 size={14} />} loading={busy === 'link'} disabled={Boolean(busy) || !config.tokenSet} onClick={makeCode}>
+          <Button size="sm" variant="secondary" icon={<Link2 size={14} />} loading={busy === 'link'} disabled={Boolean(busy) || !config.tokenSet || !config.enabled} onClick={makeCode}>
             {config.linkCode ? 'کد تازه' : 'ساخت کد اتصال'}
           </Button>
         </div>
+        {!config.enabled && <small className="admin-news-muted">برای اتصال حساب، اول ربات را روشن و ذخیره کنید (ربات خاموش پیامی نمی‌خواند).</small>}
       </div>
 
       <BotFeedsCard feeds={data.feeds} allFeeds={allFeeds} onAllFeeds={setAllFeeds} feedIds={feedIds} onFeedIds={setFeedIds} />

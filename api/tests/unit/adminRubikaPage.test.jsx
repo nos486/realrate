@@ -43,9 +43,14 @@ describe('AdminRubikaPage', () => {
     expect(screen.getByText(/توکن تنظیم است/)).toBeTruthy();
   });
 
-  it('makes a link code and shows it', async () => {
-    api.getRubikaSettings.mockResolvedValue({ ...DATA, config: { ...CONFIG, tokenSet: true, tokenSource: 'admin' } });
-    api.newRubikaLinkCode.mockResolvedValue({ code: '123456', config: { ...CONFIG, tokenSet: true, tokenSource: 'admin', linkCode: '123456' } });
+  it('makes a link code only while the bot is on, and shows it', async () => {
+    api.getRubikaSettings.mockResolvedValueOnce({ ...DATA, config: { ...CONFIG, tokenSet: true, tokenSource: 'admin' } });
+    render(<AdminRubikaPage />);
+    expect((await screen.findByRole('button', { name: /ساخت کد اتصال/ })).disabled).toBe(true);
+    cleanup();
+    const on = { ...CONFIG, enabled: true, channel: '@realrate_news', tokenSet: true, tokenSource: 'admin' };
+    api.getRubikaSettings.mockResolvedValue({ ...DATA, config: on });
+    api.newRubikaLinkCode.mockResolvedValue({ code: '123456', config: { ...on, linkCode: '123456' } });
     render(<AdminRubikaPage />);
     fireEvent.click(await screen.findByRole('button', { name: /ساخت کد اتصال/ }));
     expect(await screen.findByText('123456')).toBeTruthy();

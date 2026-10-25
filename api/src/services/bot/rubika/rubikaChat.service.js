@@ -16,7 +16,7 @@
  */
 
 import { getStateStore } from "../../../repositories/stateStore.repository.js";
-import { getRubikaConfig, linkRubikaAdmin, setRubikaChannel } from "./rubikaConfig.service.js";
+import { getRubikaConfig, linkRubikaAdmin, setRubikaChannel, recordRubikaLinkMiss } from "./rubikaConfig.service.js";
 import { sendMessage, editMessageText, editMessageKeypad, toKeypad } from "./rubikaApi.js";
 import { answerAdminCommand, isUserButton, runUserButton } from "../adminCommands.service.js";
 import { saveBotAction, isActionButton, runBotAction } from "../adminChat.service.js";
@@ -59,22 +59,29 @@ function sentCode(message) {
 async function handleMessage(env, config, chatId, message, opts) {
   if (message?.sender_type && message.sender_type !== "User") return;
   const senderId = String(message?.sender_id || "");
-  if (!chatId || !senderId) return;
+  // Only a private chat with the bot: a group's (g0…) or channel's (c0…) is never the admin's
+  if (!chatId || !senderId || /^[cg]0/.test(chatId)) return;
   const send = (text, extra = {}) => sendMessage(config.token, chatId, text, { ...opts, ...extra });
 
   const code = sentCode(message);
-  if (code && config.linkCode && config.linkCodeExpiresAt > Date.now() && safeEqual(code, config.linkCode)) {
-    await linkRubikaAdmin(env, { chatId, userId: senderId });
-    await send(WELCOME);
-    return;
+  if (code && config.linkCode && config.linkCodeExpiresAt > Date.now()) {
+    if (safeEqual(code, config.linkCode)) {
+      await linkRubikaAdmin(env, { chatId, userId: senderId });
+      await send(WELCOME);
+      return;
+    }
+    // A wrong guess counts against the code (no answer: a stranger learns nothing)
+    if (!isLinkedAdmin(config, senderId)) return void (await recordRubikaLinkMiss(env));
   }
   // Everything else only from the linked admin (their Rubika id)
   if (!isLinkedAdmin(config, senderId)) return;
 
   const forwarded = message.forwarded_from;
   if (forwarded?.type_from === "Channel" && forwarded.from_chat_id) {
-    await setRubikaChannel(env, String(forwarded.from_chat_id));
-    await send(`📣 کانال ربات روی این کانال تنظیم شد:\n${forwarded.from_chat_id}\nدر پنل مدیریت «تست اتصال» را بزنید.`);
+    const channel = await setRubikaChannel(env, String(forwarded.from_chat_id));
+    await send(channel
+      ? `📣 کانال ربات روی این کانال تنظیم شد:\n${channel}\nدر پنل مدیریت «تست اتصال» را بزنید.`
+      : "شناسه‌ی این کانال شناخته نشد؛ آن را در پنل مدیریت وارد کنید.");
     return;
   }
   const text = String(message.text || "").trim();
@@ -119,7 +126,8 @@ async function handleButton(env, config, inline, opts) {
 }
 
 /**
- * One webhook body from Rubika: `{ update }` (a message) or `{ inline_message }` (a button press)
+ * One webhook body from Rubika: `{ update }` (a message, or a press of type InlineMessage) or
+ * `{ inline_message }` (a button press)
  * @param {object} env
  * @param {object} body
  * @param {{ fetchFn?: Function }} [opts]
@@ -129,6 +137,8 @@ export async function handleRubikaUpdate(env, body, opts = {}) {
   if (!config.enabled || !config.token) return;
   if (body?.inline_message) return handleButton(env, config, body.inline_message, opts);
   const update = body?.update;
+  // A press can also come as an update of its own type (its fields at the top level)
+  if (update?.type === "InlineMessage") return handleButton(env, config, update, opts);
   if (update?.type === "NewMessage" && update.new_message) {
     await handleMessage(env, config, String(update.chat_id || ""), update.new_message, opts);
   }

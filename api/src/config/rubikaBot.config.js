@@ -17,6 +17,8 @@ export const RUBIKA_LIMITS = {
   timeoutMs: 10000,
   /** A code that links the admin's Rubika account stays valid this long */
   linkCodeMinutes: 30,
+  /** Wrong codes sent to the bot before the current one stops working (so it cannot be guessed) */
+  linkCodeTries: 5,
 };
 
 /** The endpoints Rubika posts to (each is our webhook address + `/receiveUpdate` and so on) */
