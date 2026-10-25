@@ -4,7 +4,7 @@
  *  - AdminPage: the section's header (name, icon and description from adminSections.js, plus the
  *    page's actions), then one of: an error with «تلاش دوباره», a skeleton while loading, or the page
  *  - AdminTabs: a page's parts as tabs; the open tab is kept in the address (?tab=) so a reload or a
- *    shared link opens it again. Every panel stays mounted (only hidden), so a half-edited form in
+ *    shared link opens it again, and on a phone the bar scrolls sideways to keep it in view. Every panel stays mounted (only hidden), so a half-edited form in
  *    one tab survives a look at another.
  *  - AdminCard: one card of a page (the shared Card, as a labelled section)
  *  - AdminSwitch: the on/off switch of a card or a row
@@ -18,7 +18,7 @@
  *  - AdminSaveBar: «ذخیره» and «انصراف» under a list edited in place, with a note while unsaved
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { intlLocale } from '../../../utils/i18n.js';
 import { AlertTriangle, CheckCircle2, Save, Trash2 } from 'lucide-react';
 import { AlertBanner, Button, Card, EmptyState, FeaturePageHeader, FilterPills } from '../../../shared/ui/index.js';
@@ -88,9 +88,15 @@ export function AdminTabs({ tabs, label, initial }) {
     setActive(id);
     writeTab(id, first);
   };
+  // The bar scrolls sideways on a phone: keep the open tab in view
+  const barRef = useRef(null);
+  useEffect(() => {
+    const bar = barRef.current;
+    if (bar && bar.scrollWidth > bar.clientWidth) bar.querySelector('.filter-pill-btn.active')?.scrollIntoView?.({ inline: 'center', block: 'nearest' });
+  }, [open]);
   return (
     <div className="admin-tabs">
-      <nav className="admin-tabs-bar" aria-label={label}>
+      <nav ref={barRef} className="admin-tabs-bar" aria-label={label}>
         <FilterPills
           variant="segmented"
           options={tabs.map(({ id, label: name, icon, badge }) => ({ value: id, label: name, icon, badge: badge ? Number(badge).toLocaleString(intlLocale()) : null }))}
