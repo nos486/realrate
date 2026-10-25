@@ -41,6 +41,9 @@ export const DEFAULT_NEWS_FEEDS = [
   { id: "skynews_world", title: "Sky News", url: "https://feeds.skynews.com/feeds/rss/world.xml" },
   { id: "middle_east_eye", title: "Middle East Eye", url: "https://www.middleeasteye.net/rss" },
   { id: "cointelegraph", title: "Cointelegraph", url: "https://cointelegraph.com/rss" },
+  { id: "axios", title: "Axios", url: "https://api.axios.com/feed/" },
+  { id: "wapo_world", title: "The Washington Post", url: "https://feeds.washingtonpost.com/rss/world" },
+  { id: "wapo_business", title: "The Washington Post", url: "https://feeds.washingtonpost.com/rss/business" },
 ];
 
 /**
@@ -62,7 +65,7 @@ export const NEWS_LIMITS = {
   /** Channels in the list (each one is a fetch every minute) */
   maxChannels: 30,
   /** Feeds in the list (each one is a fetch every minute) */
-  maxFeeds: 20,
+  maxFeeds: 25,
   /** A feed's article older than this is never sent (a feed read for the first time, a late item) */
   feedMaxAgeHours: 12,
   /** A feed's items remembered as seen (the feed's own window; an item is decided once) */

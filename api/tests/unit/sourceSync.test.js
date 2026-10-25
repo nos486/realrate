@@ -232,7 +232,9 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
   });
 
   it('cronPolling.job.js purges expired sessions only on the top-of-hour tick', async () => {
-    // Each tick's queued work is awaited, so none of it runs into the next test
+    // Each tick's queued work is awaited, so none of it runs into the next test; the news pass
+    // never reaches the network (a slow live feed would outlast the test's timeout)
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status: 503 })));
     const pending = [];
     const ctxFor = () => ({ waitUntil: vi.fn((p) => pending.push(p)) });
 
@@ -246,6 +248,7 @@ describe('Unified Orchestration — sourceSync.service (Phase 4)', () => {
     // the sync, the news, expired sessions and the other hourly cleanups
     expect(atMinute0.waitUntil).toHaveBeenCalledTimes(4);
     await Promise.allSettled(pending);
+    vi.unstubAllGlobals();
   });
 
   it('records the tick\'s prices in one history write, catalog items under their market id', async () => {
