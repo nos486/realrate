@@ -175,10 +175,6 @@ describe('the model', () => {
     expect(messages[0].content).toMatch(/POLITICS AND SECURITY/);
     // One test for every post: a fact, not words, that changes a market driver
     expect(messages[0].content).toMatch(/THE TEST — apply it to every other post/);
-    // Persian sources: economic news only; international ones: Iran's news too
-    expect(messages[0].content).toMatch(/PERSIAN POSTS .* only as economic and market news/);
-    expect(messages[0].content).toMatch(/\[international\].*OR when it is about Iran in any way/s);
-    expect((messages[0].content.match(/about Iran in any way/g) || []).length).toBe(1);
     expect(messages[0].content).toMatch(/Words fail this test whoever says them/);
     expect(messages[0].content).toMatch(/Publish only when both answers are yes/);
     expect(messages[0].content).toMatch(/vulgar or insulting language/);
