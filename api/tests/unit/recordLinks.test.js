@@ -44,7 +44,7 @@ vi.mock('../../../web/src/features/incomes/api/incomeApi.js', () => ({
 vi.mock('../../../web/src/shared/vault/vaultExpenses.js', () => ({
   ensureDailyGroup: async () => ({ id: 'grp_daily' }),
   getExpenseGroups: async () => ({ groups: [] }),
-  getExpenses: async () => ({ success: true, expenses: mocks.expenses }),
+  getExpenses: async ({ from, to } = {}) => ({ success: true, expenses: mocks.expenses.filter((e) => !from || (e.date >= from && e.date <= to)) }),
   saveExpense: mocks.saveExpense,
   deleteExpense: mocks.deleteExpense,
 }));
@@ -179,6 +179,22 @@ describe('editing a cheque carries over to its record', () => {
     mocks.incomes = [{ id: 'inc_9', title: 'old', category: 'other', amount: 1, incomeDate: '2026-02-04' }];
     await resyncChequeRecord({ ...received, status: 'cleared', category: 'salary', settlement: { side: 'income', id: 'inc_9' } });
     expect(mocks.updateIncome).toHaveBeenCalledWith('inc_9', expect.objectContaining({ category: 'salary', amount: 5_000_000 }), { asOwner: true });
+  });
+
+  it('finds the expense when it is not on the day the cheque cleared (e.g. a bank SMS linked later)', async () => {
+    mocks.expenses = [{ id: 'exp_sms', title: 'sms', category: 'other', amount: 1, date: '2026-02-07', chequeId: 'chq_out' }];
+    const cheque = { ...issued, status: 'cleared', category: 'investment', history: [...issued.history, { status: 'cleared', date: '2026-02-04', note: '' }], settlement: { side: 'expense', id: 'exp_sms' } };
+    expect(await resyncChequeRecord(cheque)).toBeNull();
+    expect(mocks.saveExpense).toHaveBeenCalledWith(expect.objectContaining({ category: 'investment' }), expect.objectContaining({ id: 'exp_sms' }), expect.anything());
+    expect(mocks.updateCheque).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(mocks.refreshScopes).toHaveBeenCalledWith({ scopes: ['expenses'] }));
+  });
+
+  it('a cleared cheque without a pointer: the expense paid with it follows, and the pointer comes back', async () => {
+    mocks.expenses = [{ id: 'exp_7', title: 'old', category: 'other', amount: 1, date: '2026-02-04', chequeId: 'chq_out' }];
+    await resyncChequeRecord({ ...issued, status: 'cleared', category: 'investment' });
+    expect(mocks.saveExpense).toHaveBeenCalledWith(expect.objectContaining({ category: 'investment' }), expect.objectContaining({ id: 'exp_7' }), expect.anything());
+    expect(mocks.updateCheque).toHaveBeenCalledWith('chq_out', expect.objectContaining({ settlement: { side: 'expense', id: 'exp_7' } }));
   });
 
   it('does nothing for a cheque without a record', async () => {

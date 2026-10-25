@@ -82,18 +82,22 @@ export function useCheques() {
   /**
    * Create or update a cheque depending on whether `chequeId` is given. Errors are re-thrown so
    * the open form can show them inline.
+   * @param {{ carryOver?: boolean }} [options] `carryOver: false` for a status change (its record
+   *   follows the status instead: settleWithStatus)
    * @returns {Promise<object>} The saved cheque
    */
-  const saveCheque = useCallback(async (chequeData, chequeId = null) => {
+  const saveCheque = useCallback(async (chequeData, chequeId = null, { carryOver = true } = {}) => {
     setSubmitting(true);
     try {
       const res = chequeId ? await apiUpdateCheque(chequeId, chequeData) : await apiCreateCheque(chequeData);
       if (!res?.success || !res.cheque) throw new Error(res?.message || t('خطا در ذخیره چک'));
-      // Editing a cheque that has a record of its money carries the change over to it
-      if (chequeId && res.cheque.settlement) {
-        await resyncChequeRecord(res.cheque).catch((err) => {
+      // Editing a cheque that has a record of its money (or is cleared) carries the change over to it
+      if (chequeId && carryOver && (res.cheque.settlement || res.cheque.status === CHEQUE_CLEARED)) {
+        const repaired = await resyncChequeRecord(res.cheque).catch((err) => {
           setError((t('چک ذخیره شد، ولی به‌روزرسانی درآمد یا هزینه‌اش ممکن نشد: {reason}', { reason: err.message || '' })).trim());
+          return null;
         });
+        if (repaired) return store(repaired);
       }
       return store(res.cheque);
     } finally {
@@ -106,7 +110,7 @@ export function useCheques() {
    * @returns {Promise<object>} The updated cheque
    */
   const changeStatus = useCallback(async (cheque, status, date, note = '') => {
-    const saved = await saveCheque(toInput(applyChequeStatus(cheque, status, date, note)), cheque.id);
+    const saved = await saveCheque(toInput(applyChequeStatus(cheque, status, date, note)), cheque.id, { carryOver: false });
     await settleWithStatus(cheque, saved, date);
     return saved;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -116,7 +120,7 @@ export function useCheques() {
   const restoreCheque = useCallback(async (cheque) => {
     const stored = latest.current.find((c) => c.id === cheque.id) || null;
     // The copy put back keeps the record of its money, if it still has one
-    const saved = await saveCheque(toInput({ ...cheque, settlement: stored?.settlement || cheque.settlement || null }), cheque.id);
+    const saved = await saveCheque(toInput({ ...cheque, settlement: stored?.settlement || cheque.settlement || null }), cheque.id, { carryOver: false });
     await settleWithStatus(stored, saved, saved.history?.at(-1)?.date);
     return saved;
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -199,32 +199,60 @@ export async function settleCheque(cheque, { date, expenses = true }) {
 const chequeRecordTitle = (cheque) => `${t('چک {name}', { name: cheque.counterparty })}${cheque.chequeNumber ? ` (${cheque.chequeNumber})` : ''}`.slice(0, 120);
 
 /**
+ * The income or expense that holds a cheque's money: the one its pointer names, else one paid
+ * with it (`chequeId`). Looked for on the day it cleared first, then among all of them — the
+ * record's day may not be that one (an expense from a bank SMS linked to a cheque cleared
+ * earlier, a later note logged as «پاس شد» again).
+ * @param {object} cheque
+ * @param {'income'|'expense'} side
+ * @returns {Promise<object|null>}
+ */
+async function findChequeRecord(cheque, side) {
+  const read = side === 'income'
+    ? async (range) => (await (await import('../../features/incomes/api/incomeApi.js')).getIncomes(range)).incomes || []
+    : async (range) => (await (await import('./vaultExpenses.js')).getExpenses(range)).expenses || [];
+  const id = cheque.settlement?.side === side ? cheque.settlement.id : '';
+  const pick = (list) => (id && list.find((r) => r.id === id)) || list.find((r) => r.chequeId === cheque.id) || null;
+  const cleared = [...(cheque.history || [])].reverse().find((h) => h.status === CHEQUE_CLEARED)?.date;
+  if (cleared && id) {
+    const sameDay = (await read({ from: cleared, to: cleared })).find((r) => r.id === id);
+    if (sameDay) return sameDay;
+  }
+  return pick(await read({}));
+}
+
+/**
  * A cheque edited on the cheques page (already saved): the income or expense that holds its money
- * follows its title, amount, category («بابت») and account. Nothing when it has no record.
- * @param {object} cheque the cheque as saved, pointing at its record
+ * follows its title, amount, category («بابت») and account. A cleared cheque that lost its pointer
+ * gets it back when a record paid with it is found. Nothing when it has no record.
+ * @param {object} cheque the cheque as saved
+ * @returns {Promise<object|null>} the cheque saved again with its pointer, when it was repaired
  */
 export async function resyncChequeRecord(cheque) {
-  const link = cheque?.settlement;
-  if (!link) return;
-  const cleared = [...(cheque.history || [])].reverse().find((h) => h.status === CHEQUE_CLEARED)?.date;
-  const range = cleared ? { from: cleared, to: cleared } : {};
+  if (!cheque || (!cheque.settlement && cheque.status !== CHEQUE_CLEARED)) return null;
+  const side = cheque.settlement?.side || (cheque.direction === 'received' ? 'income' : 'expense');
+  const record = await findChequeRecord(cheque, side);
+  if (!record) return null;
   const category = cheque.category || 'other';
-  if (link.side === 'income') {
-    const { getIncomes, updateIncome } = await import('../../features/incomes/api/incomeApi.js');
-    const record = ((await getIncomes(range)).incomes || []).find((i) => i.id === link.id);
-    if (!record) return;
+  if (side === 'income') {
+    const { updateIncome } = await import('../../features/incomes/api/incomeApi.js');
     const { id: _id, createdAt: _c, updatedAt: _u, ...fields } = record;
     await updateIncome(record.id, { ...fields, title: chequeRecordTitle(cheque), amount: cheque.amount, category }, { asOwner: true });
-    return;
+  } else {
+    const store = await import('./vaultExpenses.js');
+    await store.saveExpense(
+      { title: chequeRecordTitle(cheque), amount: cheque.amount, category, accountId: cheque.accountId || '' },
+      record,
+      { syncLinks: false, asOwner: true },
+    );
   }
-  const store = await import('./vaultExpenses.js');
-  const record = ((await store.getExpenses(range)).expenses || []).find((e) => e.id === link.id);
-  if (!record) return;
-  await store.saveExpense(
-    { title: chequeRecordTitle(cheque), amount: cheque.amount, category, accountId: cheque.accountId || '' },
-    record,
-    { syncLinks: false, asOwner: true },
-  );
+  // The screens showing it read it again
+  import('../refresh/pageRefresh.js')
+    .then(({ refreshScopes }) => refreshScopes({ scopes: [side === 'income' ? 'incomes' : 'expenses'] }))
+    .catch(() => {});
+  if (cheque.settlement?.id === record.id) return null;
+  const { cheque: saved } = await (await cheques()).updateCheque(cheque.id, chequeInput({ ...cheque, settlement: { side, id: record.id } }));
+  return saved || null;
 }
 
 /**
