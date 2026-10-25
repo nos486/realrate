@@ -16,10 +16,10 @@
 import { intlLocale } from '../../../utils/i18n.js';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Sliders, Layers, RefreshCw, Zap, FlaskConical, ListTree, Star, AlertTriangle, CheckCircle2, X, Activity,
+  Sliders, Layers, RefreshCw, Zap, FlaskConical, ListTree, Star, AlertTriangle, Activity,
 } from 'lucide-react';
 import { Button, AlertBanner, EmptyState, Modal, SearchBar } from '../../../shared/ui/index.js';
-import AdminPage, { AdminCard, AdminSwitch } from './AdminPage.jsx';
+import AdminPage, { AdminCard, AdminSwitch, AdminNotice } from './AdminPage.jsx';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import {
   getPriceSources, getPriceSourceItems, setPriceSourceActive, setPrimarySource,
@@ -68,23 +68,19 @@ function Fact({ label, children, ltr = false }) {
 /** What a dry run gave */
 function TestResult({ result, quote, onClose }) {
   return (
-    <div className={`ps-test ${result.success ? 'is-ok' : 'is-error'}`} role="status">
-      {result.success ? <CheckCircle2 size={14} aria-hidden="true" /> : <AlertTriangle size={14} aria-hidden="true" />}
-      <span>
-        {result.success ? (
-          <>
-            تست موفق: {result.price ? <strong>{quotePrice(result.price, quote)}</strong> : <strong>{fa(result.count)} قیمت</strong>}
-            {result.sample?.length > 1 && (
-              <small> — {result.sample.slice(0, 4).map((i) => `${i.name || i.id}: ${quotePrice(i.price, quote)}`).join('، ')}</small>
-            )}
-          </>
-        ) : (
-          <>تست ناموفق: <bdi>{result.error}</bdi></>
-        )}
-        <small className="ps-test-ms"> ({fa(result.ms)} میلی‌ثانیه، چیزی ذخیره نشد)</small>
-      </span>
-      <button type="button" className="ps-test-close" aria-label="بستن نتیجه" onClick={onClose}><X size={14} /></button>
-    </div>
+    <AdminNotice tone={result.success ? 'ok' : 'error'} onClose={onClose}>
+      {result.success ? (
+        <>
+          تست موفق: {result.price ? <strong>{quotePrice(result.price, quote)}</strong> : <strong>{fa(result.count)} قیمت</strong>}
+          {result.sample?.length > 1 && (
+            <> — {result.sample.slice(0, 4).map((i) => `${i.name || i.id}: ${quotePrice(i.price, quote)}`).join('، ')}</>
+          )}
+        </>
+      ) : (
+        <>تست ناموفق: <bdi>{result.error}</bdi></>
+      )}
+      <small>{fa(result.ms)} میلی‌ثانیه، چیزی ذخیره نشد</small>
+    </AdminNotice>
   );
 }
 

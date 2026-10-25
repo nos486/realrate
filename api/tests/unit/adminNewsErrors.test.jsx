@@ -2,16 +2,17 @@
 /**
  * adminNewsErrors.test.jsx — The admin's news panel: the report (today's totals, the last runs,
  * the last published news); it says when the model failed (screening or the day's analysis) and
- * that no other model was tried; «تحلیل الان» reports the model's error; the international feeds
+ * that no other model was tried; «تحلیل الان» reports the model's error; the international feeds;
+ * the channels, an English one marked «ترجمه»
  */
 import React from 'react';
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, cleanup, screen, fireEvent, waitFor } from '@testing-library/react';
 
-const api = { getNewsChannels: vi.fn(), runNewsAnalysisNow: vi.fn(), saveNewsFeeds: vi.fn() };
+const api = { getNewsChannels: vi.fn(), runNewsAnalysisNow: vi.fn(), saveNewsFeeds: vi.fn(), saveNewsChannels: vi.fn() };
 vi.mock('../../../web/src/features/news/newsApi.js', () => ({
   getNewsChannels: (...a) => api.getNewsChannels(...a),
-  saveNewsChannels: vi.fn(),
+  saveNewsChannels: (...a) => api.saveNewsChannels(...a),
   saveNewsFeeds: (...a) => api.saveNewsFeeds(...a),
   runNewsNow: vi.fn(),
   runNewsAnalysisNow: (...a) => api.runNewsAnalysisNow(...a),
@@ -111,5 +112,28 @@ describe('the international feeds', () => {
     fireEvent.submit(url.closest('form'));
     expect(toast.error).toHaveBeenCalled();
     expect(screen.getByText('فیدی نیست')).toBeTruthy();
+  });
+});
+
+describe('the channels', () => {
+  it('marks a channel «ترجمه» and adds an English one, saved with the flag', async () => {
+    const channel = { username: 'khabari', enabled: true, translate: false };
+    api.getNewsChannels.mockResolvedValue({ ...DATA, channels: [channel], status: { ...DATA.status, channels: { khabari: { ok: true, title: 'خبری', published: 3 } } } });
+    api.saveNewsChannels.mockImplementation(async (channels) => ({ channels }));
+    render(<AdminNewsPage />);
+    expect(await screen.findByText('کانال‌های خبری تلگرام')).toBeTruthy();
+    expect(screen.getByText('۳ خبر منتشرشده')).toBeTruthy();
+
+    fireEvent.click(screen.getAllByLabelText(/^ترجمه$/)[0]);
+    fireEvent.change(screen.getByPlaceholderText('@channel یا t.me/channel'), { target: { value: 't.me/EN_Wire' } });
+    fireEvent.click(screen.getByLabelText(/انگلیسی \(ترجمه\)/));
+    fireEvent.submit(screen.getByPlaceholderText('@channel یا t.me/channel').closest('form'));
+    expect(screen.getByText('تغییرات ذخیره نشده‌اند')).toBeTruthy();
+    fireEvent.click(screen.getAllByText('ذخیره فهرست')[0]);
+    await waitFor(() => expect(api.saveNewsChannels).toHaveBeenCalledWith([
+      { username: 'khabari', enabled: true, translate: true },
+      { username: 'en_wire', enabled: true, translate: true },
+    ]));
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('فهرست کانال‌ها ذخیره شد.'));
   });
 });

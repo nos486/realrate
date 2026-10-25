@@ -14,7 +14,7 @@ import { jsonResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
 import { logger } from "../lib/logger.js";
 import { requireAdmin } from "./botRoutes.js";
-import { getNewsFeeds, getNewsChannels } from "../services/news/news.service.js";
+import { getWorldSources, getNewsChannels } from "../services/news/news.service.js";
 import { safeEqual } from "../services/bot/webhook.js";
 import { getRubikaConfig, publicRubikaConfig, saveRubikaConfig, getRubikaStatus, newRubikaLinkCode } from "../services/bot/rubika/rubikaConfig.service.js";
 import { runRubikaBot, syncRubikaWebhook, rubikaWebhookSecret } from "../services/bot/rubika/rubikaBot.service.js";
@@ -25,13 +25,13 @@ import { getMe, getChat, sendMessage } from "../services/bot/rubika/rubikaApi.js
 export const RUBIKA_WEBHOOK_ROUTE = /^\/api\/bot\/rubika\/webhook\/([a-f0-9]{64})(?:\/(receiveUpdate|receiveInlineMessage))?$/;
 
 async function overview(env) {
-  const [config, status, feeds, channels] = await Promise.all([getRubikaConfig(env), getRubikaStatus(env), getNewsFeeds(env), getNewsChannels(env)]);
+  const [config, status, feeds, channels] = await Promise.all([getRubikaConfig(env), getRubikaStatus(env), getWorldSources(env), getNewsChannels(env)]);
   return {
     config: publicRubikaConfig(config),
     status,
-    feeds: feeds.map(({ id, title, enabled }) => ({ id, title, enabled })),
+    feeds,
     // The news section's domestic channels, for choosing which ones' posts go to the channel
-    channels: channels.map(({ username, enabled }) => ({ id: String(username).toLowerCase(), title: username, enabled })),
+    channels: channels.filter((c) => !c.translate).map(({ username, enabled }) => ({ id: String(username).toLowerCase(), title: username, enabled })),
   };
 }
 

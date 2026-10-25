@@ -512,10 +512,32 @@ describe('channels and the list', () => {
 
   it('defaults to the configured channels; saving normalizes and drops repeats', async () => {
     const env = { DB: sqliteD1() };
-    expect((await getNewsChannels(env)).map((c) => c.username)).toEqual(DEFAULT_NEWS_CHANNELS);
-    const saved = await saveNewsChannels(env, ['@Khabari', 'khabari', { username: 't.me/bourse24ir', enabled: false }, '!!']);
-    expect(saved).toEqual([{ username: 'khabari', enabled: true }, { username: 'bourse24ir', enabled: false }]);
+    expect((await getNewsChannels(env)).map((c) => c.username)).toEqual(DEFAULT_NEWS_CHANNELS.map((c) => c.username));
+    const saved = await saveNewsChannels(env, ['@Khabari', 'khabari', { username: 't.me/bourse24ir', enabled: false }, { username: 'en_news', translate: true }, '!!']);
+    expect(saved).toEqual([
+      { username: 'khabari', enabled: true, translate: false },
+      { username: 'bourse24ir', enabled: false, translate: false },
+      { username: 'en_news', enabled: true, translate: true },
+    ]);
     expect(await getNewsChannels(env)).toEqual(saved);
+  });
+
+  it('adds a default channel that came after the admin saved their list, and keeps one they removed removed', async () => {
+    const env = { DB: sqliteD1() };
+    await env.DB.exec("CREATE TABLE IF NOT EXISTS app_state (key TEXT PRIMARY KEY, value TEXT, expires_at INTEGER, updated_at INTEGER)");
+    const { getStateStore } = await import('../../src/repositories/stateStore.repository.js');
+    // A list saved before the defaults grew (no memory of them, no translate flag): two old ones kept
+    await getStateStore(env).put('news:channels', JSON.stringify({ channels: [{ username: 'khabari', enabled: true }, { username: 'my_own', enabled: false }] }));
+    const channels = await getNewsChannels(env);
+    const names = channels.map((c) => c.username);
+    expect(names.slice(0, 2)).toEqual(['khabari', 'my_own']);
+    expect(channels[1]).toEqual({ username: 'my_own', enabled: false, translate: false });
+    expect(names).toContain('bbcpersian');
+    expect(channels.find((c) => c.username === 'bloomberg')).toMatchObject({ enabled: true, translate: true });
+    // The old defaults the admin removed stay out
+    expect(names).not.toContain('bourse24ir');
+    await saveNewsChannels(env, channels.filter((c) => c.username !== 'bbcpersian'));
+    expect((await getNewsChannels(env)).map((c) => c.username)).not.toContain('bbcpersian');
   });
 
   it('lists newest first by page and category; hidden and old items are left out', async () => {
@@ -719,6 +741,21 @@ describe('runNewsPolling with the international feeds', () => {
     expect(env.AI.run).not.toHaveBeenCalled();
     expect(posts[0].text).toContain('<b>طلا رکورد زد 1</b>');
     expect(posts[0].text).toContain('<a href="https://example.com/news/1">منبع: Markets Wire</a>');
+  });
+
+  it('an English channel marked translate goes the international way and is counted with the channels', async () => {
+    await saveNewsChannels(env, [{ username: 'en_wire', translate: true }]);
+    await saveNewsFeeds(env, []);
+    const pages = { en_wire: page('en_wire', [post('en_wire', 5, 'Gold hits a record as the dollar slides', new Date(NOW - 60000).toISOString())], 'EN Wire') };
+    const result = await runNewsPolling(env, { now: NOW, fetchPage: async (c) => pages[c], fetchFeed });
+    expect(result.published).toBe(1);
+    expect(env.AI.run.mock.calls[0][1].messages[1].content).toContain('[international] Gold hits a record');
+    const { items } = await dbListNews(env, { source: 'world' });
+    expect(items[0]).toMatchObject({ id: 'en_wire/5', channel: 'en_wire', source: 'world', url: 'https://t.me/en_wire/5', title: 'طلا رکورد زد 1' });
+    expect((await getNewsStatus(env)).channels.en_wire).toMatchObject({ ok: true, published: 1 });
+    // The bots list it with the feeds
+    const { getWorldSources } = await import('../../src/services/news/news.service.js');
+    expect(await getWorldSources(env)).toEqual([{ id: 'en_wire', title: '@en_wire', enabled: true }]);
   });
 
   it("an article whose Persian came back with English words isn't published in English", async () => {
