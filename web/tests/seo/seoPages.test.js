@@ -52,6 +52,13 @@ describe('SEO Pages Acceptance Tests', () => {
     })),
   ];
 
+  it('landing: the static crawler copy is hidden whenever scripts run (no flash before the app mounts)', () => {
+    const html = readFileSync(resolve(distDir, 'index.html'), 'utf-8');
+    assert.ok(html.includes('class="landing-ssr-fallback"'), 'landing keeps its crawlable copy');
+    assert.ok(html.includes("classList.add('js')"), 'the head script marks <html> as scripted');
+    assert.ok(/html\.js \.landing-ssr-fallback\s*\{\s*display:\s*none/.test(html), 'scripted pages hide the crawlable copy');
+  });
+
   for (const page of staticHtmlFiles) {
     describe(`Static HTML: ${page.slug}`, () => {
       it('exists in dist directory', () => {
