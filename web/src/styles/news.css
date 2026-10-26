@@ -956,3 +956,103 @@
   font-weight: 700;
 }
 
+
+/* «درخواست‌های ردشده» (AdminNewsAiLog.jsx): a row per post the model was sent and didn't publish */
+.admin-news-ailog {
+  display: flex;
+  flex-direction: column;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-news-ailog-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-table-row);
+}
+
+.admin-news-ailog-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.admin-news-ailog-head a {
+  color: var(--text-primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.admin-news-ailog-head a:hover {
+  text-decoration: underline;
+}
+
+.admin-news-ailog-head small {
+  margin-inline-start: auto;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-news-ailog-reason,
+.admin-news-ailog-tag {
+  padding: 0 8px;
+  border-radius: var(--radius-full);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-news-ailog-row.is-error .admin-news-ailog-reason {
+  background: var(--color-negative-soft);
+  color: var(--color-negative-text);
+}
+
+.admin-news-ailog-row.is-warn .admin-news-ailog-reason {
+  background: var(--color-warning-soft);
+  color: var(--color-warning-text);
+}
+
+.admin-news-ailog-tag {
+  font-weight: 400;
+}
+
+.admin-news-ailog-error {
+  margin: 0;
+  color: var(--color-negative-text);
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+
+.admin-news-ailog details summary {
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.admin-news-ailog details h4 {
+  margin: 8px 0 4px;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+}
+
+.admin-news-ailog-text {
+  max-height: 260px;
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  overflow: auto;
+  border-radius: var(--radius-xs);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12.5px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

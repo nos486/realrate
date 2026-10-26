@@ -3,19 +3,21 @@
  * adminNewsErrors.test.jsx — The admin's news panel: the report (today's totals, the last runs,
  * the last published news); it says when the model failed (screening or the day's analysis) and
  * that no other model was tried; «تحلیل الان» reports the model's error; the international feeds;
- * the channels, an English one marked «ترجمه»
+ * the channels, an English one marked «ترجمه»; «درخواست‌های ردشده»: the posts the model was sent
+ * and didn't publish, filtered by reason
  */
 import React from 'react';
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render, cleanup, screen, fireEvent, waitFor } from '@testing-library/react';
 
-const api = { getNewsChannels: vi.fn(), runNewsAnalysisNow: vi.fn(), saveNewsFeeds: vi.fn(), saveNewsChannels: vi.fn() };
+const api = { getNewsChannels: vi.fn(), runNewsAnalysisNow: vi.fn(), saveNewsFeeds: vi.fn(), saveNewsChannels: vi.fn(), getNewsAiLog: vi.fn(async () => ({ items: [], counts: {}, hours: 24, limit: 300, model: 'GLM 5.3 Flash' })) };
 vi.mock('../../../web/src/features/news/newsApi.js', () => ({
   getNewsChannels: (...a) => api.getNewsChannels(...a),
   saveNewsChannels: (...a) => api.saveNewsChannels(...a),
   saveNewsFeeds: (...a) => api.saveNewsFeeds(...a),
   runNewsNow: vi.fn(),
   runNewsAnalysisNow: (...a) => api.runNewsAnalysisNow(...a),
+  getNewsAiLog: (...a) => api.getNewsAiLog(...a),
 }));
 const toast = { success: vi.fn(), error: vi.fn(), warning: vi.fn() };
 vi.mock('../../../web/src/shared/ui/FeedbackProvider.jsx', () => ({ useFeedback: () => ({ toast }) }));
@@ -25,6 +27,8 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
 });
+
+const EMPTY_LOG = { items: [], counts: {}, hours: 24, limit: 300, model: 'GLM 5.3 Flash' };
 
 const DATA = {
   channels: [],
@@ -135,5 +139,37 @@ describe('the channels', () => {
       { username: 'en_wire', enabled: true, translate: true },
     ]));
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith('فهرست کانال‌ها ذخیره شد.'));
+  });
+});
+
+describe('«درخواست‌های ردشده»', () => {
+  it("lists the posts the model didn't publish, with the error and its answer, and filters by reason", async () => {
+    api.getNewsChannels.mockResolvedValue(DATA);
+    const at = Date.now();
+    const failed = { id: 2, at, requestId: `${at}-1`, reason: 'unreadable', post: 'chan/7', channel: 'chan', url: 'https://t.me/chan/7', source: 'telegram', text: 'دلار جهش کرد', tries: 1, error: 'unreadable answer (no JSON verdicts)', answer: 'Sorry, I cannot' };
+    const rejected = { id: 1, at, requestId: `${at}-1`, reason: 'rejected', post: 'chan/8', channel: 'chan', url: 'https://t.me/chan/8', source: 'telegram', text: 'تیم ملی برد', tries: 0, error: '', answer: '' };
+    api.getNewsAiLog.mockImplementation(async (reason) => ({
+      ...EMPTY_LOG,
+      counts: { unreadable: 1, rejected: 1 },
+      items: reason === 'unreadable' ? [failed] : [failed, rejected],
+    }));
+    render(<AdminNewsPage />);
+    fireEvent.click(await screen.findByRole('tab', { name: 'درخواست‌های ردشده' }));
+    const list = await screen.findByRole('list', { name: 'درخواست‌های ردشده' });
+    expect(list.querySelectorAll('li')).toHaveLength(2);
+    expect(screen.getByText('unreadable answer (no JSON verdicts)')).toBeTruthy();
+    expect(screen.getByText('Sorry, I cannot')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'chan/7' }).getAttribute('href')).toBe('https://t.me/chan/7');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'جواب نامفهوم' }));
+    await waitFor(() => expect(api.getNewsAiLog).toHaveBeenLastCalledWith('unreadable'));
+    await waitFor(() => expect(screen.getByRole('list', { name: 'درخواست‌های ردشده' }).querySelectorAll('li')).toHaveLength(1));
+  });
+
+  it('says when nothing was rejected', async () => {
+    api.getNewsChannels.mockResolvedValue(DATA);
+    api.getNewsAiLog.mockResolvedValue(EMPTY_LOG);
+    render(<AdminNewsPage />);
+    expect(await screen.findByText('در این بازه چیزی نیست')).toBeTruthy();
   });
 });

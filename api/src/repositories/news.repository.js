@@ -136,3 +136,64 @@ export async function dbPurgeOldNews(env, before) {
   await ensureSchema(env);
   await env.DB.prepare("DELETE FROM news WHERE published_at < ?").bind(before).run();
 }
+
+const toAiLogRow = (row) => ({
+  id: row.id,
+  at: row.at,
+  requestId: row.request_id,
+  reason: row.reason,
+  post: row.post,
+  channel: row.channel,
+  url: row.url,
+  source: row.source === "world" ? "world" : "telegram",
+  text: row.text,
+  tries: row.tries,
+  error: row.error,
+  answer: row.answer,
+});
+
+/**
+ * Log the model's requests that published nothing, a row per post (written only when there is one)
+ * @param {object} env
+ * @param {Array<{ at: number, requestId?: string, reason: string, post: string, channel?: string, url?: string,
+ *   source?: string, text?: string, tries?: number, error?: string, answer?: string }>} rows
+ */
+export async function dbInsertNewsAiLog(env, rows) {
+  if (!hasDatabase(env) || !rows?.length) return;
+  await ensureSchema(env);
+  await env.DB.batch(rows.map((r) => env.DB.prepare(
+    `INSERT INTO news_ai_log (at, request_id, reason, post, channel, url, source, text, tries, error, answer)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(
+    r.at, r.requestId || "", r.reason, r.post, r.channel || "", r.url || "", r.source === "world" ? "world" : "telegram",
+    r.text || "", r.tries || 0, r.error || "", r.answer || "",
+  )));
+}
+
+/**
+ * The log since `since` (ms), newest first, and how many rows each reason has in it
+ * @param {object} env
+ * @param {{ since: number, reason?: string, limit?: number }} opts - reason: that reason's rows only
+ * @returns {Promise<{ items: object[], counts: Record<string, number> }>}
+ */
+export async function dbListNewsAiLog(env, { since, reason = "", limit = 300 }) {
+  if (!hasDatabase(env)) return { items: [], counts: {} };
+  await ensureSchema(env);
+  const where = reason ? "at >= ? AND reason = ?" : "at >= ?";
+  const params = reason ? [since, reason] : [since];
+  const [list, counts] = await env.DB.batch([
+    env.DB.prepare(`SELECT * FROM news_ai_log WHERE ${where} ORDER BY at DESC, id DESC LIMIT ?`).bind(...params, limit),
+    env.DB.prepare("SELECT reason, COUNT(*) AS n FROM news_ai_log WHERE at >= ? GROUP BY reason").bind(since),
+  ]);
+  return {
+    items: (list?.results || []).map(toAiLogRow),
+    counts: Object.fromEntries((counts?.results || []).map((r) => [r.reason, Number(r.n) || 0])),
+  };
+}
+
+/** Delete the log's rows before `before` (ms); run from the hourly cron */
+export async function dbPurgeNewsAiLog(env, before) {
+  if (!hasDatabase(env)) return;
+  await ensureSchema(env);
+  await env.DB.prepare("DELETE FROM news_ai_log WHERE at < ?").bind(before).run();
+}

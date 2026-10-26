@@ -1,9 +1,11 @@
 /**
- * AdminNewsPage.jsx — The news section in the admin panel (/admin/news), in three tabs; «خواندن الان»
+ * AdminNewsPage.jsx — The news section in the admin panel (/admin/news), in four tabs; «خواندن الان»
  * (read every channel and feed now) and «تحلیل الان» (write «تحلیل روز» now) are in the header:
  *  - «گزارش»: the AI's state (on, today's calls, the models, the last «تحلیل روز»), today's totals
  *    (posts checked, not market news, repeats, sent to the model, rejected by it, published), the
  *    last runs one per row, and the last published news
+ *  - «درخواست‌های ردشده»: the posts sent to the model in the last 24 hours and not published, and
+ *    why (AdminNewsAiLog.jsx)
  *  - «کانال‌های تلگرام»: add, pause or remove a channel, mark an English one «ترجمه» (its posts are
  *    translated like the feeds' articles), see how each one did on the last run
  *  - «خبرگزاری‌های بین‌المللی»: the news feeds (RSS/Atom, English): add, pause or remove a feed,
@@ -13,11 +15,12 @@
 
 import { intlLocale } from '../../../utils/i18n.js';
 import React, { useEffect, useState } from 'react';
-import { Newspaper, Plus, RefreshCw, Sparkles, BarChart3, Globe, Bot, Languages, AlertTriangle } from 'lucide-react';
+import { Newspaper, Plus, RefreshCw, Sparkles, BarChart3, Globe, Bot, Languages, AlertTriangle, Ban } from 'lucide-react';
 import { Button, Input, EmptyState } from '../../../shared/ui/index.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { getNewsChannels, saveNewsChannels, saveNewsFeeds, runNewsNow, runNewsAnalysisNow } from '../../news/newsApi.js';
 import { newsTimeAgo, newsClock, NEWS_CATEGORIES } from '../../news/newsFormat.js';
+import AdminNewsAiLog from './AdminNewsAiLog.jsx';
 import AdminPage, { AdminCard, AdminSwitch, AdminTabs, AdminNotice, AdminStatus, AdminList, AdminListRow, AdminRemoveButton, AdminSaveBar } from './AdminPage.jsx';
 
 const fa = (n) => Number(n || 0).toLocaleString(intlLocale());
@@ -467,6 +470,12 @@ export default function AdminNewsPage() {
                   <NewsReport status={status} latest={data.latest} model={data.model} dayBudget={data.limits?.aiCallsPerDay} />
                 </div>
               ),
+            },
+            {
+              id: 'ailog',
+              label: 'درخواست‌های ردشده',
+              icon: <Ban size={14} />,
+              content: <AdminNewsAiLog />,
             },
             {
               id: 'channels',

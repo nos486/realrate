@@ -22,6 +22,9 @@
  * most NEWS_LIMITS.pendingMax, dropped after NEWS_LIMITS.pendingMaxHours) and go first next run.
  * The channels' cursors and the feeds' seen lists always move on: a post is read once, and never
  * decided twice.
+ * Every post sent to the model and not published — the request failed, the answer was unreadable or
+ * left it out, the model rejected it, or it was set aside — is logged (table news_ai_log, kept
+ * NEWS_LIMITS.aiLogHours) with what was sent and why, for the admin's «درخواست‌های ردشده».
  */
 
 import {
@@ -47,7 +50,7 @@ import {
   tehranDayStart,
 } from "../../domain/news.js";
 import { parseNewsFeed, normalizeFeed } from "../../domain/newsFeeds.js";
-import { dbInsertNews, dbRecentNewsTexts } from "../../repositories/news.repository.js";
+import { dbInsertNews, dbInsertNewsAiLog, dbRecentNewsTexts } from "../../repositories/news.repository.js";
 import { getStateStore } from "../../repositories/stateStore.repository.js";
 import { USER_AGENT } from "../market/sources/parsingUtils.js";
 import { askWorkersAi, hasWorkersAi } from "./workersAi.js";
@@ -67,6 +70,8 @@ const feedSeenKey = (feed) => `news:feedseen:${feed}`;
 /** The model calls of a Tehran day (the budget and the report share the same day) */
 const aiDayKey = (now) => `news:ai:${tehranDayStart(now)}`;
 const FETCH_TIMEOUT_MS = 10000;
+/** An answer as text, for the log */
+const answerText = (answer) => (answer === undefined ? "" : typeof answer === "string" ? answer : JSON.stringify(answer ?? null));
 const FETCH_CONCURRENCY = 6;
 
 /** A channel as the list keeps it: on or paused, and whether its (English) posts are translated */
@@ -416,8 +421,28 @@ async function pollChannels(env, store, now, fetchPage, fetchFeed) {
   const hasModel = hasWorkersAi(env);
   // Posts whose request already failed: set aside after NEWS_LIMITS.aiMaxTries, else tried alone
   // and last, so a post the model can't take never holds the others back
+  // The posts the model was sent and that weren't published, for the admin (one write per run)
+  const aiLog = [];
+  const logPosts = (reason, posts, { requestId = "", error = "", answer } = {}) => {
+    for (const p of posts) {
+      aiLog.push({
+        at: now,
+        requestId,
+        reason,
+        post: postKey(p),
+        channel: p.channel,
+        url: p.url,
+        source: p.source,
+        text: Array.from(String(p.text || "")).slice(0, NEWS_LIMITS.aiTextChars).join(""),
+        tries: p.tries || 0,
+        error,
+        answer: answerText(answer).slice(0, NEWS_LIMITS.aiLogAnswerChars),
+      });
+    }
+  };
   const gaveUp = candidates.filter((p) => (p.tries || 0) >= NEWS_LIMITS.aiMaxTries);
   if (gaveUp.length) {
+    logPosts("gaveUp", gaveUp, { error: `set aside after ${NEWS_LIMITS.aiMaxTries} failed requests` });
     logger.error("[News] posts the model failed on repeatedly — set aside", { posts: gaveUp.map(postKey), tries: NEWS_LIMITS.aiMaxTries });
   }
   const firstTry = candidates.filter((p) => !p.tries);
@@ -438,13 +463,17 @@ async function pollChannels(env, store, now, fetchPage, fetchFeed) {
       break;
     }
     let verdicts;
+    let answer;
+    let unreadable = false;
+    const requestId = `${now}-${b + 1}`;
     try {
       status.aiCalls++;
-      const answer = await askWorkersAi(env, NEWS_AI_MODEL, buildNewsPrompt(batch), { maxTokens: newsMaxTokens(batch.length) + NEWS_AI_MODEL.reasoningTokens, temperature: 0 });
+      answer = await askWorkersAi(env, NEWS_AI_MODEL, buildNewsPrompt(batch), { maxTokens: newsMaxTokens(batch.length) + NEWS_AI_MODEL.reasoningTokens, temperature: 0 });
       verdicts = parseNewsVerdicts(answer, batch.length);
       // An answer that says nothing about any post: the model failed
       if (verdicts.size === 0) {
-        const text = typeof answer === "string" ? answer : JSON.stringify(answer ?? null);
+        unreadable = true;
+        const text = answerText(answer);
         throw new Error(`unreadable answer (no JSON verdicts): «${text.replace(/\s+/g, " ").trim().slice(0, 100)}»`);
       }
     } catch (err) {
@@ -456,6 +485,7 @@ async function pollChannels(env, store, now, fetchPage, fetchFeed) {
         posts: batches.slice(b).flat().length,
         error: status.aiError,
       });
+      logPosts(unreadable ? "unreadable" : "error", batch.map((p) => ({ ...p, tries: (p.tries || 0) + 1 })), { requestId, error: status.aiError, answer });
       // The failed request's posts count a try
       deferred.push(...batch.map((p) => ({ ...p, tries: (p.tries || 0) + 1 })));
       // A post retried alone failed on its own: the next one is still asked. A first try failing
@@ -469,6 +499,7 @@ async function pollChannels(env, store, now, fetchPage, fetchFeed) {
     const missed = batch.filter((_, i) => !verdicts.has(i));
     if (missed.length) {
       deferred.push(...missed);
+      logPosts("missed", missed, { requestId, error: "the answer left the post out", answer });
       logger.warn("[News] the model's answer left posts out — kept for the next run", { posts: missed.length });
     }
     decided += batch.length - missed.length;
@@ -477,6 +508,7 @@ async function pollChannels(env, store, now, fetchPage, fetchFeed) {
       // The model's headline slipped into another language: the post's own words, its verdict
       // kept — but an English article's own words aren't Persian: not published
       if (verdict?.keep && verdict.foreign && post.source === "world") {
+        logPosts("foreign", [post], { requestId, error: `foreign words in the Persian: «${verdict.title}»` });
         logger.warn("[News] the model's Persian for an article had foreign words — not published", { post: postKey(post) });
         return;
       }
@@ -484,7 +516,11 @@ async function pollChannels(env, store, now, fetchPage, fetchFeed) {
         const own = fallbackNewsItem(post.text);
         verdict = { ...verdict, title: own.title, summary: own.summary };
       }
-      if (!verdict?.keep) return;
+      if (!verdict?.keep) {
+        // No verdict: left out of the answer (logged above)
+        if (verdict) logPosts("rejected", [post], { requestId });
+        return;
+      }
       published.push({
         id: `${post.channel}/${post.postId}`,
         channel: post.channel,
@@ -509,6 +545,10 @@ async function pollChannels(env, store, now, fetchPage, fetchFeed) {
   const waiting = writePendingList(deferred);
 
   await dbInsertNews(env, published);
+  // The log is the admin's view only: a failed write never holds the run back
+  await dbInsertNewsAiLog(env, aiLog).catch((err) => {
+    logger.warn("[News] the model's log was not saved:", { error: err?.message });
+  });
   // The bots (Telegram, Rubika) post the international news the site just published (translated once, here)
   await enqueueChannelNews(env, published, now).catch((err) => {
     logger.warn("[News] queuing for the bot failed:", { error: err?.message });

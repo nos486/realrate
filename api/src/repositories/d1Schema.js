@@ -481,6 +481,32 @@ export const APP_TABLES = [
     ],
   },
   {
+    // The news model's requests that didn't get a post published, one row per post
+    // (services/news/news.service.js), for the admin's panel: `reason` is why (NEWS_AI_LOG_REASONS),
+    // `request_id` groups a request's posts, `text` is what the model was sent, `error` and `answer`
+    // what went wrong. Deleted after NEWS_LIMITS.aiLogHours.
+    name: "news_ai_log",
+    columns: ["id", "at", "request_id", "reason", "post", "channel", "url", "source", "text", "tries", "error", "answer"],
+    ddl: [
+      `CREATE TABLE IF NOT EXISTS news_ai_log (
+        id INTEGER PRIMARY KEY,
+        at INTEGER NOT NULL,
+        request_id TEXT NOT NULL DEFAULT '',
+        reason TEXT NOT NULL,
+        post TEXT NOT NULL,
+        channel TEXT NOT NULL DEFAULT '',
+        url TEXT NOT NULL DEFAULT '',
+        source TEXT NOT NULL DEFAULT 'telegram',
+        text TEXT NOT NULL DEFAULT '',
+        tries INTEGER NOT NULL DEFAULT 0,
+        error TEXT NOT NULL DEFAULT '',
+        answer TEXT NOT NULL DEFAULT ''
+      )`,
+      "CREATE INDEX IF NOT EXISTS idx_news_ai_log_at ON news_ai_log(at DESC)",
+      "CREATE INDEX IF NOT EXISTS idx_news_ai_log_reason ON news_ai_log(reason, at DESC)",
+    ],
+  },
+  {
     // The one-time data changes this database has had (ONE_TIME_CLEANUPS)
     name: "app_cleanups",
     columns: ["id", "done_at"],
