@@ -141,7 +141,7 @@ In **Workers & Pages > Create Application > Pages > Connect to Git**:
 | Framework preset | `Vite` |
 | Build command | `npm run build` |
 | Build output directory | `dist` |
-| `VITE_API_URL` | The Worker's URL (e.g. `https://realrate-api.geekio.org`) |
+| `VITE_API_URL` | The Worker's URL (e.g. `https://realrate-api.geekio.org`); site hosts listed in `api/src/config/apiHosts.js` (e.g. `realrate.ir` → `api.realrate.ir`) use their own API instead, and the Android app always uses this one |
 | `VITE_GOOGLE_CLIENT_ID` | The Google client id |
 
 The frontend's domain must be in `ALLOWED_ORIGINS` in `api/src/lib/helpers.js` (CORS).

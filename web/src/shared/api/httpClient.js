@@ -2,7 +2,7 @@
  * httpClient.js — Centralized HTTP Client for RealRate Web Client
  *
  * Features:
- * - Environment-aware API_BASE resolution
+ * - API_BASE per site host (config/apiHosts.js), else the build's VITE_API_URL
  * - Automatic Authorization header injection for authenticated requests
  * - Global network loading status pub/sub: writes (the blocking loader) and every request in
  *   flight (subscribeRequests: what a tab being opened is still waiting for, TabLoadingGate)
@@ -14,13 +14,18 @@
  */
 
 import { Capacitor } from '@capacitor/core';
+import { resolveApiBase } from '../../config/apiHosts.js';
 import { CLIENT_HEADER, formatClientHeader } from '../../utils/clientInfo.js';
 import { t, msg, tMessage } from '../../utils/i18n.js';
 
-export const API_BASE = (
-  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) ||
-  (typeof import.meta !== 'undefined' && import.meta.env?.PROD ? 'https://realrate-api.geekio.org' : (typeof window !== 'undefined' ? '' : 'http://localhost:8787'))
-).replace(/\/$/, '');
+/** The API this page talks to: its site host's own API (config/apiHosts.js), else the build's */
+export const API_BASE = resolveApiBase({
+  hostname: typeof window !== 'undefined' ? window.location?.hostname : undefined,
+  native: Capacitor.isNativePlatform(),
+  envUrl: typeof import.meta !== 'undefined' ? import.meta.env?.VITE_API_URL : undefined,
+  prod: typeof import.meta !== 'undefined' && !!import.meta.env?.PROD,
+  browser: typeof window !== 'undefined',
+});
 
 /**
  * Which client this is (utils/clientInfo.js): the Android app with its version name (set by the
