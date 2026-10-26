@@ -8,7 +8,7 @@
 #   realrate-<version>.apk (reads bank SMS; also as realrate.apk, the stable name) and realrate-bazaar-<version>.apk
 #   (the full app for Cafe Bazaar: no install-packages permission, no in-app update) and realrate-nosms-<version>.apk
 #   (no SMS permission, for stores that refuse it), plus realrate-nosms-<version>.aab (the same build as an app bundle, for
-#   Google Play), and native-hash.txt. Latest: releases/latest/download/realrate.apk.
+#   Google Play), realrate-bazaar-<version>.aab (the Bazaar build as an app bundle, for Cafe Bazaar), and native-hash.txt. Latest: releases/latest/download/realrate.apk.
 name: Android
 
 on:
@@ -124,8 +124,8 @@ jobs:
           build_flavor full assembleFullRelease
           # The no-SMS build: its own web bundle (SMS screens hidden) and manifest (no SMS permission)
           build_flavor nosms assembleNosmsRelease bundleNosmsRelease
-          # The Cafe Bazaar build: the full app without the install-packages permission and the in-app update
-          build_flavor bazaar assembleBazaarRelease
+          # The Cafe Bazaar build: the full app without the install-packages permission and the in-app update (APK and app bundle)
+          build_flavor bazaar assembleBazaarRelease bundleBazaarRelease
           rm -f "$RUNNER_TEMP/bundle-key.pem" "$ANDROID_KEYSTORE_PATH"
           if [ "$BUILD_APK" = "true" ] && [ "$HAS_SIGNING" = "true" ]; then
             # Files carry the version; realrate.apk stays too (the website's stable download link)
@@ -134,6 +134,7 @@ jobs:
             cp android/app/build/outputs/apk/bazaar/release/*.apk "$RUNNER_TEMP/realrate-bazaar-$VERSION_NAME.apk"
             cp android/app/build/outputs/apk/nosms/release/*.apk "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.apk"
             cp android/app/build/outputs/bundle/nosmsRelease/*.aab "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.aab"
+            cp android/app/build/outputs/bundle/bazaarRelease/*.aab "$RUNNER_TEMP/realrate-bazaar-$VERSION_NAME.aab"
             echo "$NATIVE_HASH" > "$RUNNER_TEMP/native-hash.txt"
           fi
 
@@ -146,6 +147,7 @@ jobs:
             ${{ runner.temp }}/realrate-bazaar-${{ env.VERSION_NAME }}.apk
             ${{ runner.temp }}/realrate-nosms-${{ env.VERSION_NAME }}.apk
             ${{ runner.temp }}/realrate-nosms-${{ env.VERSION_NAME }}.aab
+            ${{ runner.temp }}/realrate-bazaar-${{ env.VERSION_NAME }}.aab
           if-no-files-found: ignore
           retention-days: 90
 
@@ -166,12 +168,12 @@ jobs:
           fi
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             # A re-run (or a publish that failed half way): replace the file, make sure it is out
-            gh release upload "$tag" "$RUNNER_TEMP/realrate-$VERSION_NAME.apk" "$RUNNER_TEMP/realrate.apk" "$RUNNER_TEMP/realrate-bazaar-$VERSION_NAME.apk" "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.apk" "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.aab" "$RUNNER_TEMP/native-hash.txt" --repo "$GITHUB_REPOSITORY" --clobber
+            gh release upload "$tag" "$RUNNER_TEMP/realrate-$VERSION_NAME.apk" "$RUNNER_TEMP/realrate.apk" "$RUNNER_TEMP/realrate-bazaar-$VERSION_NAME.apk" "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.apk" "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.aab" "$RUNNER_TEMP/realrate-bazaar-$VERSION_NAME.aab" "$RUNNER_TEMP/native-hash.txt" --repo "$GITHUB_REPOSITORY" --clobber
             gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest \
               --title "RealRate $VERSION_NAME" \
               --notes-file "$RUNNER_TEMP/release_notes.md"
           else
-            gh release create "$tag" "$RUNNER_TEMP/realrate-$VERSION_NAME.apk" "$RUNNER_TEMP/realrate.apk" "$RUNNER_TEMP/realrate-bazaar-$VERSION_NAME.apk" "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.apk" "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.aab" "$RUNNER_TEMP/native-hash.txt" --repo "$GITHUB_REPOSITORY" --verify-tag --latest \
+            gh release create "$tag" "$RUNNER_TEMP/realrate-$VERSION_NAME.apk" "$RUNNER_TEMP/realrate.apk" "$RUNNER_TEMP/realrate-bazaar-$VERSION_NAME.apk" "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.apk" "$RUNNER_TEMP/realrate-nosms-$VERSION_NAME.aab" "$RUNNER_TEMP/realrate-bazaar-$VERSION_NAME.aab" "$RUNNER_TEMP/native-hash.txt" --repo "$GITHUB_REPOSITORY" --verify-tag --latest \
               --title "RealRate $VERSION_NAME" \
               --notes-file "$RUNNER_TEMP/release_notes.md"
           fi
