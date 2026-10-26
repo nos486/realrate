@@ -51,11 +51,12 @@ export function investmentPoints(expenses = [], amountOf) {
  * @param {Array<{ date: string, amount: number }>} incomePoints tomans
  * @param {ReturnType<typeof investmentPoints>} investPoints
  * @param {number} jy
- * @param {{ throughMonth?: number, years?: number }} [options]
+ * @param {{ throughMonth?: number, years?: number, starts?: string[] }} [options] starts: the
+ *   salary days, when months start there
  */
-export function investmentShareByMonth(incomePoints, investPoints, jy, { throughMonth = 12, years = 1 } = {}) {
-  const income = buildYearSeries(incomePoints, jy, { throughMonth, years });
-  const invest = buildYearSeries(investPoints, jy, { throughMonth, years });
+export function investmentShareByMonth(incomePoints, investPoints, jy, { throughMonth = 12, years = 1, starts = [] } = {}) {
+  const income = buildYearSeries(incomePoints, jy, { throughMonth, years, starts });
+  const invest = buildYearSeries(investPoints, jy, { throughMonth, years, starts });
   return income.map((m, i) => {
     const invested = invest[i]?.total || 0;
     return {
@@ -120,13 +121,14 @@ export function dollarPoints(items = [], dateOf, dollarOf) {
 
 /**
  * Income and expenses in dollars month by month, and what was left (income − expenses);
- * `unpriced`: the month's items left out for want of a rate (`missing`, from dollarPoints)
+ * `unpriced`: the month's items left out for want of a rate (`missing`, from dollarPoints);
+ * `starts`: the salary days, when months start there
  * @returns {Array<{ key: string, jm: number, label: string, monthLabel: string, income: number, expense: number, net: number, unpriced: number }>}
  */
-export function dollarFlowByMonth(incomePoints, expensePoints, jy, { throughMonth = 12, years = 1, missing = [] } = {}) {
-  const income = buildYearSeries(incomePoints, jy, { throughMonth, years });
-  const expense = buildYearSeries(expensePoints, jy, { throughMonth, years });
-  const left = buildYearSeries(missing, jy, { throughMonth, years });
+export function dollarFlowByMonth(incomePoints, expensePoints, jy, { throughMonth = 12, years = 1, missing = [], starts = [] } = {}) {
+  const income = buildYearSeries(incomePoints, jy, { throughMonth, years, starts });
+  const expense = buildYearSeries(expensePoints, jy, { throughMonth, years, starts });
+  const left = buildYearSeries(missing, jy, { throughMonth, years, starts });
   return income.map((m, i) => ({
     unpriced: left[i]?.count || 0,
     key: m.key,
@@ -280,15 +282,15 @@ export function sumApart(records = [], { dateOf, keyOf, amountOf, range }) {
  *   invested?: Array<{ date: string, amount: number }> }} points tomans, counted ones only
  * @param {number} endJy the last year
  * @param {number} years how many years (the last one included)
- * @param {{ throughMonth?: number }} [options]
+ * @param {{ throughMonth?: number, starts?: string[] }} [options] starts: the salary days
  * @returns {Array<{ jy: number, months: number, income: number, expense: number, net: number,
  *   savingsRate: number|null, invested: number, incomeChange: number|null, expenseChange: number|null }>}
  */
-export function summarizeYears({ incomes = [], expenses = [], invested = [] }, endJy, years, { throughMonth = 12 } = {}) {
+export function summarizeYears({ incomes = [], expenses = [], invested = [] }, endJy, years, { throughMonth = 12, starts = [] } = {}) {
   const rows = [];
   for (let jy = endJy - Math.max(1, years) + 1; jy <= endJy; jy++) {
     const through = jy === endJy ? throughMonth : 12;
-    const total = (points) => buildYearSeries(points, jy, { throughMonth: through }).reduce((s, m) => s + m.total, 0);
+    const total = (points) => buildYearSeries(points, jy, { throughMonth: through, starts }).reduce((s, m) => s + m.total, 0);
     const income = total(incomes);
     const expense = total(expenses);
     const prev = rows[rows.length - 1];

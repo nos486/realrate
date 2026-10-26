@@ -29,7 +29,7 @@ const inRange = (e, { from, to }) => e.date >= from && e.date <= to;
  * @param {{ enabled?: boolean, year?: boolean }} [options] enabled: nothing loads when false (a
  *   page without the feature); year: load the month's whole Shamsi year (the expenses page) —
  *   otherwise only the month and the one before; years: with `year`, that many years back (the
- *   multi-year report)
+ *   multi-year report); salaryStarts: the salary days, when months start there (useSalaryMonths)
  */
 export function useDailyExpenses(month, { enabled = true, year = false, years = 1, salaryStarts = [] } = {}) {
   const { user } = useAuth();
@@ -57,8 +57,8 @@ export function useDailyExpenses(month, { enabled = true, year = false, years = 
     return salaryMonthRange(prev.jy, prev.jm, salaryStarts);
   }, [month, salaryStarts]);
   const loadWindow = useMemo(
-    () => (year ? flowWindow(month.jy, years) : { from: prevRange.from, to: range.to }),
-    [year, years, month.jy, prevRange.from, range.to],
+    () => (year ? flowWindow(month.jy, years, salaryStarts) : { from: prevRange.from, to: range.to }),
+    [year, years, month.jy, prevRange.from, range.to, salaryStarts],
   );
 
   const fetchMonth = useCallback(async () => {

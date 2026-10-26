@@ -104,7 +104,7 @@ export default function IncomesPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingIncome, setEditingIncome] = useState(null);
 
-  const loadWindow = useMemo(() => flowWindow(month.jy), [month.jy]);
+  const loadWindow = useMemo(() => flowWindow(month.jy, 1, salary.activeStarts), [month.jy, salary.activeStarts]);
   const {
     incomes: loaded,
     pageSize,
@@ -152,12 +152,12 @@ export default function IncomesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, progress, exclusionKey, rates]);
 
-  // The year so far, month by month (counted incomes only)
+  // The year so far, month by month (counted incomes only), in the months the page shows
   const series = useMemo(() => {
     const points = splitCounted('income', loaded).counted.map((i) => toPoint(i, rates));
-    return buildYearSeries(points, month.jy, { throughMonth: month.jy === thisMonth.jy ? thisMonth.jm : 12 });
+    return buildYearSeries(points, month.jy, { throughMonth: month.jy === thisMonth.jy ? thisMonth.jm : 12, starts: salary.activeStarts });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded, month.jy, thisMonth, exclusionKey, rates]);
+  }, [loaded, month.jy, thisMonth, exclusionKey, rates, salary.activeStarts]);
   const categoryOrder = useMemo(() => categoryTotals.map((c) => c.category), [categoryTotals]);
 
   // The list: the month, without the excluded categories unless shown, filtered, searched, sorted

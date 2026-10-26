@@ -55,16 +55,43 @@ export function salaryMonthRange(jy, jm, starts = []) {
   return { from, to, days: Math.round((Date.parse(to) - Date.parse(from)) / DAY_MS) + 1 };
 }
 
+/**
+ * Which month each day falls in when months start at the salary, for grouping many records: a
+ * function of an ISO day that works out each month's range once. Without marks: the calendar's.
+ * @param {string[]} [starts] the marked days
+ * @returns {(isoDay: string) => { jy: number, jm: number }}
+ */
+export function salaryMonthLocator(starts = []) {
+  if (!starts.length) return shamsiMonthOf;
+  const ranges = new Map();
+  const rangeOf = (month) => {
+    const key = month.jy * 12 + month.jm;
+    if (!ranges.has(key)) ranges.set(key, salaryMonthRange(month.jy, month.jm, starts));
+    return ranges.get(key);
+  };
+  return (isoDay) => {
+    const calendar = shamsiMonthOf(isoDay);
+    // A day belongs to its calendar month, the next (a salary after the 15th) or the one before
+    for (const delta of [0, 1, -1]) {
+      const month = shiftShamsiMonth(calendar, delta);
+      const { from, to } = rangeOf(month);
+      if (isoDay >= from && isoDay <= to) return month;
+    }
+    return calendar;
+  };
+}
+
 /** The month `today` falls in when months start at the salary */
 export function currentSalaryMonth(today, starts = []) {
-  const calendar = shamsiMonthOf(today);
-  if (!starts.length) return calendar;
-  for (const delta of [0, 1, -1]) {
-    const month = shiftShamsiMonth(calendar, delta);
-    const { from, to } = salaryMonthRange(month.jy, month.jm, starts);
-    if (today >= from && today <= to) return month;
-  }
-  return calendar;
+  return salaryMonthLocator(starts)(today);
+}
+
+/**
+ * The days of a year (inclusive) when its months start at the salary: from Farvardin's first day
+ * to Esfand's last
+ */
+export function salaryYearRange(jy, starts = []) {
+  return { from: salaryMonthRange(jy, 1, starts).from, to: salaryMonthRange(jy, 12, starts).to };
 }
 
 /**

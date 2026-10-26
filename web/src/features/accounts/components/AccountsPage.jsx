@@ -30,7 +30,9 @@ import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import { todayIso } from '../../../shared/utils/dates.js';
 import { accountTypeLabel, accountsForCurrency, isCreditAccount } from '../../../utils/accountDocument.js';
 import { accountCurrencyLabel } from '../constants/accountDisplay.js';
-import { summarizeByAccount, shamsiMonthOf, shamsiMonthRange, shiftShamsiMonth } from '../../../utils/expenseDocument.js';
+import { summarizeByAccount, shiftShamsiMonth } from '../../../utils/expenseDocument.js';
+import { salaryMonthRange, currentSalaryMonth } from '../../../utils/salaryMonth.js';
+import { useSalaryMonths } from '../../../shared/salary/useSalaryMonths.js';
 import { summarizeTransfersByAccount } from '../../../utils/transferDocument.js';
 import { formatShamsiMonth } from '../../incomes/utils/incomeReport.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
@@ -121,8 +123,10 @@ export default function AccountsPage() {
 
   // This month's spending per account, everyday and projects' (only with the expenses feature):
   // in each currency as paid, and in tomans at each expense's day rate (utils/currencies.js)
-  const thisMonth = useMemo(() => shamsiMonthOf(todayIso()), []);
-  const { expenses: dailyExpenses, projectExpenses = [] } = useDailyExpenses(thisMonth, { enabled: hasExpenses });
+  // The month is the «ماه حقوقی» while the expenses show months so (useSalaryMonths)
+  const salaryStarts = useSalaryMonths().activeStarts;
+  const thisMonth = useMemo(() => currentSalaryMonth(todayIso(), salaryStarts), [salaryStarts]);
+  const { expenses: dailyExpenses, projectExpenses = [] } = useDailyExpenses(thisMonth, { enabled: hasExpenses, salaryStarts });
   const monthExpenses = useMemo(() => [...dailyExpenses, ...projectExpenses], [dailyExpenses, projectExpenses]);
   const usdToman = Number(usePricing()?.getAssetPrice?.('usd')) || 0;
   const usdAt = useUsdAt(monthExpenses.some((e) => e.currency === 'USD'));
@@ -133,8 +137,10 @@ export default function AccountsPage() {
   );
 
   // Transfers of the month shown (this month to start with)
-  const [transferMonth, setTransferMonth] = useState(thisMonth);
-  const transferRange = useMemo(() => shamsiMonthRange(transferMonth.jy, transferMonth.jm), [transferMonth]);
+  // None picked follows the current month (the salary days load after the page)
+  const [pickedTransferMonth, setTransferMonth] = useState(null);
+  const transferMonth = pickedTransferMonth || thisMonth;
+  const transferRange = useMemo(() => salaryMonthRange(transferMonth.jy, transferMonth.jm, salaryStarts), [transferMonth, salaryStarts]);
   const { transfers, saveTransfer, deleteTransfer, submitting: savingTransfer } = useTransfers({ from: transferRange.from, to: transferRange.to });
   const movedBy = useMemo(() => summarizeTransfersByAccount(transfers), [transfers]);
   const isThisMonth = transferMonth.jy === thisMonth.jy && transferMonth.jm === thisMonth.jm;
@@ -377,11 +383,11 @@ export default function AccountsPage() {
           <header className="transfers-head">
             <h3><ArrowLeftRight size={17} /> {t('انتقال بین حساب‌ها')}</h3>
             <div className="transfers-month">
-              <button type="button" className="btn-table-action" title={t('ماه قبل')} onClick={() => setTransferMonth((m) => shiftShamsiMonth(m, -1))}>
+              <button type="button" className="btn-table-action" title={t('ماه قبل')} onClick={() => setTransferMonth(shiftShamsiMonth(transferMonth, -1))}>
                 <ChevronRight size={15} />
               </button>
               <span>{formatShamsiMonth(transferMonth.jy, transferMonth.jm)}</span>
-              <button type="button" className="btn-table-action" title={t('ماه بعد')} disabled={isThisMonth} onClick={() => setTransferMonth((m) => shiftShamsiMonth(m, 1))}>
+              <button type="button" className="btn-table-action" title={t('ماه بعد')} disabled={isThisMonth} onClick={() => setTransferMonth(shiftShamsiMonth(transferMonth, 1))}>
                 <ChevronLeft size={15} />
               </button>
             </div>

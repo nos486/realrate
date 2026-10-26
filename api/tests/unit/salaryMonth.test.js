@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { salaryMonthOf, salaryMonthRange, currentSalaryMonth, validateSalaryMonths } from '../../src/domain/salaryMonth.js';
+import { salaryMonthOf, salaryMonthRange, currentSalaryMonth, salaryMonthLocator, salaryYearRange, validateSalaryMonths } from '../../src/domain/salaryMonth.js';
 import { shamsiMonthRange } from '../../src/domain/expenseDocument.js';
 
 const mehr = shamsiMonthRange(1405, 7);
@@ -37,5 +37,15 @@ describe('salary months', () => {
 
   it('validates and sorts the days, dropping invalid ones', () => {
     expect(validateSalaryMonths({ starts: ['2026-09-01', 'x', '2026-10-01', '2026-09-01'] }).value.starts).toEqual(['2026-10-01', '2026-09-01']);
+  });
+
+  it('locates each day in its salary month, the calendar one without marks', () => {
+    const mark = day(shahrivar.to, -5);
+    const monthOf = salaryMonthLocator([mark]);
+    expect(monthOf(day(mark, -1))).toEqual({ jy: 1405, jm: 6 });
+    expect(monthOf(mark)).toEqual({ jy: 1405, jm: 7 });
+    expect(monthOf(mehr.to)).toEqual({ jy: 1405, jm: 7 });
+    expect(salaryMonthLocator([])(mark)).toEqual({ jy: 1405, jm: 6 });
+    expect(salaryYearRange(1405, [])).toEqual({ from: shamsiMonthRange(1405, 1).from, to: shamsiMonthRange(1405, 12).to });
   });
 });

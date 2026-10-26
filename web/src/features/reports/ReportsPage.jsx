@@ -22,7 +22,8 @@ import { useVault } from '../../shared/vault/useVault.js';
 import { usePrivacyMode } from '../../hooks/usePrivacyMode.js';
 import { todayIso } from '../../shared/utils/dates.js';
 import PeriodSwitcher from '../../shared/flow/PeriodSwitcher.jsx';
-import { formatShamsiYear, shamsiMonthOf } from '../../shared/flow/flowYear.js';
+import { formatShamsiYear, currentSalaryMonth } from '../../shared/flow/flowYear.js';
+import { useSalaryMonths } from '../../shared/salary/useSalaryMonths.js';
 import { useReportData } from './useReportData.js';
 import { useNetWorth } from './useNetWorth.js';
 import { reportFormatters } from './reportFormat.js';
@@ -48,9 +49,9 @@ const HEADER = {
 };
 
 /** The year, or the years ending with it, month by month: the same page whatever the span */
-function ReportBody({ jy, years, throughMonth, hideValues }) {
-  const data = useReportData(jy, throughMonth, years);
-  const netWorth = useNetWorth(jy, throughMonth, years);
+function ReportBody({ jy, years, throughMonth, starts, hideValues }) {
+  const data = useReportData(jy, throughMonth, years, starts);
+  const netWorth = useNetWorth(jy, throughMonth, years, starts);
   const f = useMemo(() => reportFormatters(hideValues), [hideValues]);
   const spanLabel = spanOf(jy, years);
   if (data.loading) {
@@ -74,8 +75,12 @@ export default function ReportsPage() {
   const { status: vaultStatus } = useVault();
   const hideValues = usePrivacyMode();
   const today = todayIso();
-  const thisMonth = useMemo(() => shamsiMonthOf(today), [today]);
-  const [month, setMonth] = useState(thisMonth);
+  // Months are the «ماه حقوقی» while the expenses and incomes show them so (useSalaryMonths)
+  const starts = useSalaryMonths().activeStarts;
+  const thisMonth = useMemo(() => currentSalaryMonth(today, starts), [today, starts]);
+  // The year browsed to; none picked follows the current one (the salary days load after the page)
+  const [picked, setMonth] = useState(null);
+  const month = picked || thisMonth;
   const [years, setYears] = useState(1);
   const throughMonth = month.jy === thisMonth.jy ? thisMonth.jm : 12;
   const pageRef = useRef(null);
@@ -104,7 +109,7 @@ export default function ReportsPage() {
       <p className="report-print-meta">{t('گزارش سال {year} · ساخته‌شده در {date} · RealRate', { year: yearLabel, date: new Date().toLocaleDateString(calendarLocale()) })}</p>
       <FilterPills options={SPANS} activeValue={years} onChange={setYears} size="sm" />
       <PeriodSwitcher mode="year" month={month} thisMonth={thisMonth} onMonthChange={setMonth} />
-      <ReportBody jy={month.jy} years={years} throughMonth={throughMonth} hideValues={hideValues} />
+      <ReportBody jy={month.jy} years={years} throughMonth={throughMonth} starts={starts} hideValues={hideValues} />
     </div>
   );
 }
