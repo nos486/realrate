@@ -11,6 +11,7 @@ RealRate is a market analysis and personal finance platform for Iran: it calcula
 The system is built as an ultra-fast, serverless monorepo consisting of:
 - **Backend (`api/`)**: Built as an Edge-native Cloudflare Worker with zero framework overhead, Cloudflare D1 (the app's data, the daily price history, counters and other state that must read back exactly) and Workers KV (the price book and per-source lists).
 - **Frontend (`web/`)**: A modern React SPA built with Vite, utilizing a modular **feature-based architecture**, custom hooks, vanilla CSS design tokens, and Web Crypto API for client-side Zero-Knowledge End-to-End Encryption (E2EE).
+- **API host per site**: the same Worker answers on several hosts; each site host talks to its own (`realrate.ir` → `api.realrate.ir`, `realrate.geekio.org` → `realrate-api.geekio.org`), from the table in `api/src/config/apiHosts.js` (symlinked into `web/src/config/`). Other hosts (previews, local development) and the Android app use the build's `VITE_API_URL`. Every mapped site must also be a trusted origin (`lib/security.js`, CORS in `lib/helpers.js`).
 - **Android app (`web/android`)**: The same SPA packaged with Capacitor 8, plus native plugins (bank SMS, fingerprint) and an encrypted offline copy of the user's records (the website keeps the same copy).
 - **Display Engine Bridge (`displayEngine.js`)**: Symlinked between `api/src/domain/displayEngine.js` and `web/src/config/displayEngine.js`, guaranteeing 100% identical formatting, naming, unit resolution, and category metadata across both tiers.
 
