@@ -155,7 +155,7 @@ cd api && npx wrangler deploy
 | Framework preset | `Vite` |
 | Build command | `npm run build` |
 | Build output directory | `dist` |
-| `VITE_API_URL` | آدرس ورکر (مثلاً `https://realrate-api.geekio.org`)؛ دامنه‌هایی که در `api/src/config/apiHosts.js` آمده‌اند (مثلاً `realrate.ir` → `api.realrate.ir`) API خودشان را دارند و اپ اندروید همیشه همین آدرس را می‌گیرد |
+| `VITE_API_URL` | آدرس ورکر (مثلاً `https://realrate-api.geekio.org`)؛ دامنه‌هایی که در `api/src/config/apiHosts.js` آمده‌اند (مثلاً `realrate.ir` → `api.realrate.ir`) API خودشان را دارند و اپ اندروید همیشه به `api.realrate.ir` وصل می‌شود |
 | `VITE_GOOGLE_CLIENT_ID` | شناسه کلاینت گوگل |
 
 دامنه فرانت‌اند باید در `ALLOWED_ORIGINS` در `api/src/lib/helpers.js` باشد (CORS).
