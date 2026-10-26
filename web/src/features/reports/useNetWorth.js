@@ -60,14 +60,17 @@ function useNetWorthRecords() {
   return { ...records, loading, error };
 }
 
+const NO_STARTS = [];
+
 /**
  * @param {number} jy the Shamsi year (the last one)
  * @param {number} throughMonth the last month shown
  * @param {number} [years] how many years the report covers
+ * @param {string[]} [starts] the salary days, when months start there
  * @returns {{ loading: boolean, error: string|null, start: object|null, end: object|null,
  *   months: object[], compare: object|null, estimated: boolean, empty: boolean }}
  */
-export function useNetWorth(jy, throughMonth, years = 1) {
+export function useNetWorth(jy, throughMonth, years = 1, starts = NO_STARTS) {
   const { portfolios, loans, cheques, loading, error } = useNetWorthRecords();
   const pricing = usePricing();
   const priceMap = pricing?.priceMap;
@@ -90,8 +93,8 @@ export function useNetWorth(jy, throughMonth, years = 1) {
   const portfolioToday = useMemo(() => assets.reduce((sum, a) => sum + (Number(a.itemRealVal) || 0), 0), [assets]);
 
   const year = useMemo(
-    () => buildNetWorthYear({ portfolioSeries, portfolioToday, loans, cheques, usdAt, today }, jy, { throughMonth, years }),
-    [portfolioSeries, portfolioToday, loans, cheques, usdAt, today, jy, throughMonth, years],
+    () => buildNetWorthYear({ portfolioSeries, portfolioToday, loans, cheques, usdAt, today }, jy, { throughMonth, years, starts }),
+    [portfolioSeries, portfolioToday, loans, cheques, usdAt, today, jy, throughMonth, years, starts],
   );
   const months = useMemo(() => changeByMonth(year), [year]);
   const compare = useMemo(() => compareWithDollar(year.start, year.end), [year]);

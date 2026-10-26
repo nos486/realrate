@@ -45,26 +45,29 @@ import {
   summarizeYears,
 } from './reportMath.js';
 
+const NO_STARTS = [];
+
 /**
  * @param {number} jy the Shamsi year (the last one)
  * @param {number} throughMonth the last month shown (this month in the current year, else 12)
  * @param {number} [years] how many years the report covers, `jy` the last; months then run through
  *   all of them and `yearly` has one row per year
+ * @param {string[]} [starts] the salary days, when months start there (useSalaryMonths)
  */
-export function useReportData(jy, throughMonth, years = 1) {
+export function useReportData(jy, throughMonth, years = 1, starts = NO_STARTS) {
   const hasExpenses = useFeature('expenses');
   // Re-read when a category is switched in or out of the totals
   const incomeCats = useCategories('income', { includeHidden: true });
   const expenseCats = useCategories('expense', { includeHidden: true });
   const exclusionKey = [...incomeCats, ...expenseCats].filter((c) => c.excluded).map((c) => c.value).join(',');
 
-  const loadWindow = useMemo(() => flowWindow(jy, years), [jy, years]);
-  const range = useMemo(() => ({ from: shamsiYearRange(jy - years + 1).from, to: shamsiYearRange(jy).to }), [jy, years]);
+  const loadWindow = useMemo(() => flowWindow(jy, years, starts), [jy, years, starts]);
+  const range = useMemo(() => ({ from: shamsiYearRange(jy - years + 1, starts).from, to: shamsiYearRange(jy, starts).to }), [jy, years, starts]);
   const month = useMemo(() => ({ jy, jm: 1 }), [jy]);
   const { incomes, loadingIncomes, error: incomeError } = useIncomes(loadWindow);
   const {
     yearExpenses, yearProjectExpenses = [], projects = [], loading: loadingExpenses, error: expenseError,
-  } = useDailyExpenses(month, { enabled: hasExpenses, year: true, years });
+  } = useDailyExpenses(month, { enabled: hasExpenses, year: true, years, salaryStarts: starts });
   const pricing = usePricing();
   const usdToman = Number(pricing?.getAssetPrice?.('usd')) || 0;
   const usdAt = useUsdAt(true);
@@ -84,13 +87,13 @@ export function useReportData(jy, throughMonth, years = 1) {
 
   // Month by month in tomans, by category
   const incomeSeries = useMemo(
-    () => buildYearSeries(counted.incomes.map((i) => ({ date: i.incomeDate, amount: incomeToman(i), category: i.category })), jy, { throughMonth, years }),
+    () => buildYearSeries(counted.incomes.map((i) => ({ date: i.incomeDate, amount: incomeToman(i), category: i.category })), jy, { throughMonth, years, starts }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [counted, rates, jy, throughMonth, years],
+    [counted, rates, jy, throughMonth, years, starts],
   );
   const expenseSeries = useMemo(
-    () => buildYearSeries(counted.expenses.map((e) => ({ date: e.date, amount: expenseInToman(e, rates) || 0, category: e.category })), jy, { throughMonth, years }),
-    [counted, rates, jy, throughMonth, years],
+    () => buildYearSeries(counted.expenses.map((e) => ({ date: e.date, amount: expenseInToman(e, rates) || 0, category: e.category })), jy, { throughMonth, years, starts }),
+    [counted, rates, jy, throughMonth, years, starts],
   );
   const incomeYear = useMemo(() => summarizeYear(incomeSeries), [incomeSeries]);
   const expenseYear = useMemo(() => summarizeYear(expenseSeries), [expenseSeries]);
@@ -105,9 +108,9 @@ export function useReportData(jy, throughMonth, years = 1) {
     [hasExpenses, yearExpenses, rates],
   );
   const shareMonths = useMemo(
-    () => investmentShareByMonth(counted.incomes.map((i) => ({ date: i.incomeDate, amount: incomeToman(i) })), points, jy, { throughMonth, years }),
+    () => investmentShareByMonth(counted.incomes.map((i) => ({ date: i.incomeDate, amount: incomeToman(i) })), points, jy, { throughMonth, years, starts }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [counted, points, rates, jy, throughMonth, years],
+    [counted, points, rates, jy, throughMonth, years, starts],
   );
   const shareYear = useMemo(() => summarizeInvestmentShare(shareMonths), [shareMonths]);
   const investedIn = useMemo(() => investmentBreakdown(points, range), [points, range]);
@@ -116,12 +119,12 @@ export function useReportData(jy, throughMonth, years = 1) {
   const dollars = useMemo(() => {
     const inc = dollarPoints(counted.incomes.filter((i) => inYear(i.incomeDate)), (i) => i.incomeDate, (i) => incomeDollarValue(i, { ...rates, usdToman: 0 }));
     const exp = dollarPoints(counted.expenses.filter((e) => inYear(e.date)), (e) => e.date, (e) => expenseDollarValue(e, { ...rates, usdToman: 0 }));
-    const months = dollarFlowByMonth(inc.points, exp.points, jy, { throughMonth, years, missing: [...inc.missing, ...exp.missing] });
+    const months = dollarFlowByMonth(inc.points, exp.points, jy, { throughMonth, years, starts, missing: [...inc.missing, ...exp.missing] });
     const income = months.reduce((s, m) => s + m.income, 0);
     const expense = months.reduce((s, m) => s + m.expense, 0);
     return { months, income, expense, net: income - expense, unpriced: inc.unpriced + exp.unpriced };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [counted, usdAt, rates, jy, throughMonth, years, range]);
+  }, [counted, usdAt, rates, jy, throughMonth, years, range, starts]);
   // The dollar view of each side (what those dollars are worth today), for the yearly cards
   const incomeDollar = useMemo(
     () => summarizeDollarValues(counted.incomes.filter((i) => inYear(i.incomeDate)).map((i) => incomeDollarValue(i, rates)), usdToman),
@@ -153,9 +156,9 @@ export function useReportData(jy, throughMonth, years = 1) {
     incomes: counted.incomes.map((i) => ({ date: i.incomeDate, amount: incomeToman(i) })),
     expenses: counted.expenses.map((e) => ({ date: e.date, amount: expenseInToman(e, rates) || 0 })),
     invested: points,
-  }, jy, years, { throughMonth }) : []),
+  }, jy, years, { throughMonth, starts }) : []),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [counted, points, rates, jy, years, throughMonth]);
+  [counted, points, rates, jy, years, throughMonth, starts]);
 
   // What each subscription cost this year: its payments (the counted expenses naming it)
   const subscriptions = useOptionalSubscriptions();

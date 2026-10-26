@@ -26,7 +26,8 @@ import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 import VaultUnlockCard from '../../../shared/vault/VaultUnlockCard.jsx';
 import { saveExpense } from '../../../shared/vault/vaultExpenses.js';
 import { todayIso } from '../../../shared/utils/dates.js';
-import { shamsiMonthOf, shamsiMonthRange, formatShamsiMonth } from '../../../shared/flow/flowYear.js';
+import { salaryMonthRange, currentSalaryMonth, formatShamsiMonth } from '../../../shared/flow/flowYear.js';
+import { useSalaryMonths } from '../../../shared/salary/useSalaryMonths.js';
 import { useQuickAddParam } from '../../../shared/hooks/useQuickAddParam.js';
 import { useDemo } from '../../demo/index.js';
 import { usePricing } from '../../market/index.js';
@@ -70,14 +71,16 @@ export default function SubscriptionsPage() {
   const [showInactive, setShowInactive] = useState(false);
 
   const today = todayIso();
-  const month = useMemo(() => shamsiMonthOf(today), [today]);
+  // The month is the «ماه حقوقی» while the expenses show months so (useSalaryMonths)
+  const salaryStarts = useSalaryMonths().activeStarts;
+  const month = useMemo(() => currentSalaryMonth(today, salaryStarts), [today, salaryStarts]);
   const monthLabel = formatShamsiMonth(month.jy, month.jm);
   const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
 
   const totals = useMemo(() => {
-    const { from, to } = shamsiMonthRange(month.jy, month.jm);
+    const { from, to } = salaryMonthRange(month.jy, month.jm, salaryStarts);
     return subscriptionTotals(subscriptions, { today, usdToman, ...fx, monthFrom: from, monthTo: to });
-  }, [subscriptions, today, usdToman, fx, month]);
+  }, [subscriptions, today, usdToman, fx, month, salaryStarts]);
 
   const rows = useMemo(
     () => [...subscriptions].sort(compareSubscriptions(today)).map((sub) => ({ sub, view: subscriptionView(sub, today), period: subscriptionPeriod(sub, today) })),

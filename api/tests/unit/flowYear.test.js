@@ -81,4 +81,28 @@ describe('flow year', () => {
     const past = monthProgress({ jy: 1405, jm: 1 }, day(1405, 2, 10));
     expect(past).toMatchObject({ current: false, days: 31, cutoff: shamsiMonthRange(1404, 12).to });
   });
+
+  it('groups by salary month when months start at the salary', () => {
+    // Salary on 25 Mehr starts Aban; on 20 Aban starts Azar
+    const starts = [day(1405, 8, 20), day(1405, 7, 25)];
+    const points = [
+      { date: day(1405, 7, 24), amount: 10, category: 'a' }, // Mehr
+      { date: day(1405, 7, 25), amount: 100, category: 'a' }, // the salary: Aban
+      { date: day(1405, 8, 19), amount: 5, category: 'b' }, // still Aban
+      { date: day(1405, 8, 20), amount: 200, category: 'a' }, // Azar
+    ];
+    const series = buildYearSeries(points, 1405, { throughMonth: 9, starts });
+    expect(series.map((m) => m.total).slice(6)).toEqual([10, 105, 200]);
+    expect(series[7].byCategory).toEqual({ a: 100, b: 5 });
+    // Calendar months without the salary days
+    expect(buildYearSeries(points, 1405, { throughMonth: 9 }).map((m) => m.total).slice(6)).toEqual([110, 205, 0]);
+  });
+
+  it('reaches the salary year: Farvardin started by an Esfand salary', () => {
+    const starts = [day(1404, 12, 20), day(1404, 11, 20)];
+    expect(shamsiYearRange(1405, starts).from).toBe(day(1404, 12, 20));
+    expect(flowWindow(1405, 1, starts).from).toBe(day(1404, 11, 20));
+    const series = buildYearSeries([{ date: day(1404, 12, 25), amount: 7 }], 1405, { throughMonth: 1, starts });
+    expect(series[0].total).toBe(7);
+  });
 });

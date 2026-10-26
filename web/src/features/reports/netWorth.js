@@ -13,7 +13,7 @@
  */
 
 import { getChequeStatus } from '../../utils/chequeDocument.js';
-import { formatShamsiMonth, formatShamsiYear, shamsiMonthRange } from '../../shared/flow/flowYear.js';
+import { formatShamsiMonth, formatShamsiYear, salaryMonthRange } from '../../shared/flow/flowYear.js';
 import { PERSIAN_MONTHS } from '../portfolio/components/ShamsiDatePicker.jsx';
 
 const isoDay = (value) => (/^\d{4}-\d{2}-\d{2}/.test(String(value || '')) ? String(value).slice(0, 10) : '');
@@ -121,22 +121,23 @@ export function netWorthAt(input, day) {
  * was recorded is null.
  * @param {object} input - as netWorthAt, with `today`
  * @param {number} jy
- * @param {{ throughMonth?: number, years?: number }} [options] years: how many years, `jy` the last
+ * @param {{ throughMonth?: number, years?: number, starts?: string[] }} [options] years: how many
+ *   years, `jy` the last; starts: the salary days, when months start (and end) there
  * @returns {{ start: object|null, months: Array<object>, end: object|null }}
  *   each month: { key, jy, jm, label, monthLabel, point: netWorthAt(...)|null }
  */
-export function buildNetWorthYear(input, jy, { throughMonth = 12, years = 1 } = {}) {
+export function buildNetWorthYear(input, jy, { throughMonth = 12, years = 1, starts = [] } = {}) {
   const { today } = input;
   const span = Math.max(1, Math.floor(years) || 1);
   const firstYear = jy - span + 1;
   const first = firstNetWorthDay(input);
   const pointOn = (day) => (first && day >= first ? netWorthAt(input, day) : null);
-  const yearStart = shamsiMonthRange(firstYear, 1).from;
+  const yearStart = salaryMonthRange(firstYear, 1, starts).from;
   const startDay = previousDay(yearStart);
   const months = [];
   for (let y = firstYear; y <= jy; y++) {
     for (let jm = 1; jm <= (y === jy ? Math.min(12, Math.max(1, throughMonth)) : 12); jm++) {
-      const { from, to } = shamsiMonthRange(y, jm);
+      const { from, to } = salaryMonthRange(y, jm, starts);
       if (from > today) break;
       const day = to < today ? to : today;
       months.push({

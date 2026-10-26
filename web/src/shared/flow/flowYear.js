@@ -2,16 +2,17 @@
  * flowYear.js — Money in or out (incomes, expenses) by Shamsi month and year, for their pages
  *
  * Both pages show one Shamsi month at a time, or a whole Shamsi year; their charts run from the
- * start of the year. Each page turns its records into points `{ date, amount, category }`
+ * start of the year. Every helper takes `starts`, the days salary was received (useSalaryMonths'
+ * `activeStarts`): with them a month is the «ماه حقوقی» (utils/salaryMonth.js), else the calendar's. Each page turns its records into points `{ date, amount, category }`
  * (amount in tomans, only what counts toward the totals) and these helpers do the rest.
  */
 
 import { intlLocale } from '../../utils/i18n.js';
 import { shamsiMonthOf, shamsiMonthRange, shiftShamsiMonth } from '../../utils/expenseDocument.js';
-import { salaryMonthRange, currentSalaryMonth } from '../../utils/salaryMonth.js';
+import { salaryMonthRange, currentSalaryMonth, salaryMonthLocator, salaryYearRange } from '../../utils/salaryMonth.js';
 import { PERSIAN_MONTHS } from '../../features/portfolio/components/ShamsiDatePicker.jsx';
 
-export { shamsiMonthOf, shamsiMonthRange, shiftShamsiMonth, salaryMonthRange, currentSalaryMonth };
+export { shamsiMonthOf, shamsiMonthRange, shiftShamsiMonth, salaryMonthRange, currentSalaryMonth, salaryMonthLocator };
 
 export const monthIndex = ({ jy, jm }) => jy * 12 + jm;
 
@@ -22,18 +23,21 @@ export function formatShamsiMonth(jy, jm) {
 
 export const formatShamsiYear = (jy) => Number(jy).toLocaleString(intlLocale(), { useGrouping: false });
 
-/** The Gregorian days of a Shamsi year (inclusive) */
-export function shamsiYearRange(jy) {
-  return { from: shamsiMonthRange(jy, 1).from, to: shamsiMonthRange(jy, 12).to };
+/** The Gregorian days of a Shamsi year (inclusive); its salary months' with `starts` */
+export function shamsiYearRange(jy, starts = []) {
+  return salaryYearRange(jy, starts);
 }
 
 /**
  * What a page loads for a year: the year itself and the month before it (last year's Esfand), so
  * Farvardin can be compared with the month before as every other month is; `years` > 1 reaches
  * back that many years (the multi-year report)
+ * @param {number} jy
+ * @param {number} [years]
+ * @param {string[]} [starts] the salary days, when months start there
  */
-export function flowWindow(jy, years = 1) {
-  return { from: shamsiMonthRange(jy - Math.max(1, years), 12).from, to: shamsiMonthRange(jy, 12).to };
+export function flowWindow(jy, years = 1, starts = []) {
+  return { from: salaryMonthRange(jy - Math.max(1, years), 12, starts).from, to: salaryMonthRange(jy, 12, starts).to };
 }
 
 /**
@@ -41,14 +45,17 @@ export function flowWindow(jy, years = 1) {
  * of this year), each with its total, count, total per category and the change from the month
  * before (Farvardin against last year's Esfand when those points are given). With `years` > 1
  * the series runs through that many years ending in `jy` (the multi-year report): the same
- * entries, the axis label of a month then being its year at Farvardin and empty otherwise.
+ * entries, the axis label of a month then being its year at Farvardin and empty otherwise. With
+ * `starts` each point goes to the salary month its day falls in.
  * @param {Array<{ date: string, amount: number, category?: string }>} points
  * @param {number} jy the last year
- * @param {{ throughMonth?: number, years?: number }} [options] throughMonth: the last month of `jy`
+ * @param {{ throughMonth?: number, years?: number, starts?: string[] }} [options] throughMonth: the
+ *   last month of `jy`; starts: the salary days
  * @returns {Array<{ key: string, jy: number, jm: number, label: string, monthLabel: string,
  *   total: number, count: number, byCategory: Record<string, number>, change: number|null }>}
  */
-export function buildYearSeries(points, jy, { throughMonth = 12, years = 1 } = {}) {
+export function buildYearSeries(points, jy, { throughMonth = 12, years = 1, starts = [] } = {}) {
+  const monthOf = salaryMonthLocator(starts);
   const last = Math.min(12, Math.max(1, throughMonth));
   const span = Math.max(1, Math.floor(years) || 1);
   const first = jy - span + 1;
@@ -60,7 +67,7 @@ export function buildYearSeries(points, jy, { throughMonth = 12, years = 1 } = {
   };
   for (const p of points || []) {
     if (!p?.date) continue;
-    const { jy: y, jm: m } = shamsiMonthOf(p.date);
+    const { jy: y, jm: m } = monthOf(p.date);
     if (!(y >= first && y <= jy) && !(y === first - 1 && m === 12)) continue;
     const s = slot(y, m);
     const amount = Number(p.amount) || 0;
