@@ -2,7 +2,7 @@
  * apiHosts.test.js — Each site host talks to its own API; other hosts and the app keep the build's
  */
 import { describe, it, expect } from 'vitest';
-import { resolveApiBase, DEFAULT_API_ORIGIN } from '../../src/config/apiHosts.js';
+import { resolveApiBase, DEFAULT_API_ORIGIN, NATIVE_API_ORIGIN } from '../../src/config/apiHosts.js';
 import { isOriginAllowed } from '../../src/lib/helpers.js';
 
 const BUILD = 'https://realrate-api.geekio.org/';
@@ -14,9 +14,13 @@ describe('resolveApiBase', () => {
     expect(resolveApiBase({ hostname: 'realrate.geekio.org', envUrl: BUILD, prod: true })).toBe('https://realrate-api.geekio.org');
   });
 
-  it('keeps the build API for the Android app, previews and unknown hosts', () => {
-    expect(resolveApiBase({ hostname: 'localhost', native: true, envUrl: BUILD, prod: true })).toBe('https://realrate-api.geekio.org');
-    expect(resolveApiBase({ hostname: 'realrate.ir', native: true, envUrl: BUILD, prod: true })).toBe('https://realrate-api.geekio.org');
+  it('the Android app always talks to api.realrate.ir', () => {
+    expect(NATIVE_API_ORIGIN).toBe('https://api.realrate.ir');
+    expect(resolveApiBase({ hostname: 'localhost', native: true, envUrl: BUILD, prod: true })).toBe('https://api.realrate.ir');
+    expect(resolveApiBase({ hostname: 'localhost', native: true })).toBe('https://api.realrate.ir');
+  });
+
+  it('keeps the build API for previews and unknown hosts', () => {
     expect(resolveApiBase({ hostname: 'abc.realrate-5pn.pages.dev', envUrl: BUILD, prod: true })).toBe('https://realrate-api.geekio.org');
     expect(resolveApiBase({ hostname: 'evilrealrate.ir', prod: true })).toBe(DEFAULT_API_ORIGIN);
   });

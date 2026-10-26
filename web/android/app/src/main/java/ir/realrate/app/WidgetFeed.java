@@ -20,7 +20,8 @@ import java.util.List;
  */
 final class WidgetFeed {
     static final String PREFS = "realrate_widgets";
-    private static final String API = "https://realrate-api.geekio.org/api/widget";
+    /** The app's API host (api/src/config/apiHosts.js NATIVE_API_ORIGIN) */
+    private static final String API = "https://api.realrate.ir/api/widget";
     private static final String KEY_FAVORITES = "favorites";
     private static final String KEY_FEED = "feed";
     private static final String KEY_FEED_IDS = "feedIds";
