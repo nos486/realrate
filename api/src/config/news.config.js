@@ -128,11 +128,28 @@ export const NEWS_LIMITS = {
   storedTextChars: 3000,
   /** News older than this is deleted (hourly) */
   retentionDays: 30,
+  /** The model's requests that published nothing (the admin's «درخواست‌های ردشده») are kept this long */
+  aiLogHours: 24,
+  /** Of a failed request's answer, the characters kept for the admin */
+  aiLogAnswerChars: 2000,
+  /** Rows of the log the admin's panel reads at once (newest first) */
+  aiLogPage: 300,
   /** A post this close to one already published (shared words) is the same news */
   duplicateSimilarity: 0.6,
   /** Hours of published news a new post is compared with */
   duplicateWindowHours: 36,
 };
+
+/**
+ * Why a post sent to the model was not published (the `reason` of the news_ai_log table):
+ *  - error: the request failed (Workers AI refused it, a timeout, …); the post is tried again
+ *  - unreadable: the answer had no JSON verdicts; the post is tried again
+ *  - missed: the answer left the post out (cut off by the output limit); it is tried again
+ *  - rejected: the model read it and said it isn't market news
+ *  - foreign: the model's Persian for an international article had foreign words
+ *  - gaveUp: its requests failed NEWS_LIMITS.aiMaxTries times; set aside, never asked again
+ */
+export const NEWS_AI_LOG_REASONS = ["error", "unreadable", "missed", "rejected", "foreign", "gaveUp"];
 
 /** The news section's model, on Workers AI (the `AI` binding in wrangler.toml): GLM 5.3 Flash */
 const GLM_FLASH = { id: "@cf/zai-org/glm-5.3-flash", label: "GLM 5.3 Flash" };

@@ -10,6 +10,8 @@
  *                                           feeds: [{ id?, title, url, enabled }] }) (admin)
  *   POST   /api/admin/news/run           — Read the channels and feeds now (admin)
  *   POST   /api/admin/news/analysis      — Write the analyst's card now (admin)
+ *   GET    /api/admin/news/ai-log        — The model's requests of the last NEWS_LIMITS.aiLogHours that published
+ *                                           nothing, a row per post, and the count of each reason (?reason) (admin)
  *   POST   /api/admin/news/:id/hidden    — Take an item down or put it back ({ hidden }) (admin)
  */
 
@@ -18,7 +20,7 @@ import { requireFeature } from "../lib/features.js";
 import { jsonResponse } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
 import { edgeCachedJson } from "../lib/edgeCache.js";
-import { dbListNews, dbSetNewsHidden, dbTopNewsSince } from "../repositories/news.repository.js";
+import { dbListNews, dbListNewsAiLog, dbSetNewsHidden, dbTopNewsSince } from "../repositories/news.repository.js";
 import {
   getNewsAnalysis,
   maybeUpdateNewsAnalysis,
@@ -41,6 +43,7 @@ import {
   NEWS_LIMITS,
   NEWS_ANALYSIS,
   NEWS_AI_MODEL,
+  NEWS_AI_LOG_REASONS,
 } from "../config/news.config.js";
 
 /** The last published news shown in the admin's report */
@@ -158,4 +161,21 @@ export async function handleAdminRunNewsAnalysis(request, env) {
   const result = await maybeUpdateNewsAnalysis(env, { force: true });
   const [analysis, analysisStatus] = await Promise.all([getNewsAnalysis(env), getNewsAnalysisStatus(env)]);
   return jsonResponse({ success: true, result, analysis, analysisStatus }, 200, request);
+}
+
+export async function handleAdminGetNewsAiLog(request, env) {
+  await requireAdmin(request, env);
+  const asked = new URL(request.url).searchParams.get("reason") || "";
+  const reason = NEWS_AI_LOG_REASONS.includes(asked) ? asked : "";
+  const since = Date.now() - NEWS_LIMITS.aiLogHours * 3600_000;
+  const { items, counts } = await dbListNewsAiLog(env, { since, reason, limit: NEWS_LIMITS.aiLogPage });
+  return jsonResponse({
+    success: true,
+    items,
+    counts,
+    reasons: NEWS_AI_LOG_REASONS,
+    hours: NEWS_LIMITS.aiLogHours,
+    limit: NEWS_LIMITS.aiLogPage,
+    model: NEWS_AI_MODEL.label,
+  }, 200, request);
 }

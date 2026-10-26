@@ -34,6 +34,14 @@ export const saveNewsChannels = (channels) => httpClient.put('/api/admin/news/ch
 /** Admin: save the international feeds ([{ id?, title, url, enabled }]) */
 export const saveNewsFeeds = (feeds) => httpClient.put('/api/admin/news/channels', { feeds });
 
+/**
+ * Admin: the posts the news model was sent in the last 24 hours that weren't published
+ * @param {string} [reason] - one reason's rows only (error, unreadable, missed, rejected, foreign, gaveUp)
+ * @returns {Promise<{ items: object[], counts: Record<string, number>, hours: number, limit: number, model: string }>}
+ */
+export const getNewsAiLog = (reason = '') =>
+  httpClient.get(`/api/admin/news/ai-log${reason ? `?reason=${encodeURIComponent(reason)}` : ''}`);
+
 /** Admin: read the channels and feeds now */
 export const runNewsNow = () => httpClient.post('/api/admin/news/run', {});
 

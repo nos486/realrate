@@ -21,7 +21,7 @@ import {
 } from '../../src/domain/news.js';
 import { runNewsPolling, saveNewsChannels, getNewsChannels, saveNewsFeeds, getNewsFeeds, getNewsStatus, newsReport } from '../../src/services/news/news.service.js';
 import { parseNewsFeed, feedPostId, normalizeFeed, feedIdFromUrl } from '../../src/domain/newsFeeds.js';
-import { dbListNews, dbSetNewsHidden, dbPurgeOldNews } from '../../src/repositories/news.repository.js';
+import { dbListNews, dbSetNewsHidden, dbPurgeOldNews, dbListNewsAiLog, dbPurgeNewsAiLog } from '../../src/repositories/news.repository.js';
 import { resetD1SchemaCache } from '../../src/repositories/d1Schema.js';
 import { DEFAULT_NEWS_CHANNELS, DEFAULT_NEWS_FEEDS, NEWS_LIMITS, NEWS_AI_MODEL } from '../../src/config/news.config.js';
 import { sqliteD1 } from '../helpers/sqliteD1.js';
@@ -388,6 +388,45 @@ describe('runNewsPolling', () => {
     await runNewsPolling(env, { now: NOW + 180000, fetchPage });
     expect(run).not.toHaveBeenCalled();
     expect(error.mock.calls.flat().join(' ')).toMatch(/set aside/);
+    error.mockRestore();
+  });
+
+  it("logs every post the model was sent and didn't publish, with why, for the admin", async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    pages.chan_one = page('chan_one', [
+      post('chan_one', 1, 'دلار و طلا و سکه بعد از تصمیم بانک مرکزی جهش کرد', at(0)),
+      post('chan_one', 2, 'نرخ تورم نقطه به نقطه شهریور به ۴۵ درصد رسید و بانک مرکزی ارز را گران کرد', at(1)),
+      post('chan_one', 3, 'بانک مرکزی نرخ ارز تجاری و قیمت سکه امامی را اعلام کرد امروز', at(2)),
+    ]);
+    // Post 1 published, post 2 rejected, post 3 left out of the answer
+    const run = vi.fn(async () => ({ response: '[{"i":1,"k":1,"c":"currency","p":2,"t":"دلار جهش کرد","s":"خلاصه"},{"i":2,"k":0}]' }));
+    env.AI = { run };
+    await runNewsPolling(env, { now: NOW, fetchPage });
+    let log = await dbListNewsAiLog(env, { since: NOW - 3600_000 });
+    expect(log.counts).toEqual({ rejected: 1, missed: 1 });
+    const rejected = log.items.find((r) => r.reason === 'rejected');
+    expect(rejected).toMatchObject({ post: 'chan_one/2', url: 'https://t.me/chan_one/2', requestId: `${NOW}-1` });
+    expect(rejected.text).toMatch(/تورم/);
+    expect(log.items.find((r) => r.reason === 'missed').answer).toMatch(/"i":2/);
+
+    // The next run: the model's answer is unreadable — the post is logged with the answer
+    run.mockImplementation(async () => ({ response: 'Sorry, I cannot help with that.' }));
+    await runNewsPolling(env, { now: NOW + 60000, fetchPage });
+    log = await dbListNewsAiLog(env, { since: NOW - 3600_000, reason: 'unreadable' });
+    expect(log.items).toHaveLength(1);
+    expect(log.items[0]).toMatchObject({ post: 'chan_one/3', tries: 1, answer: 'Sorry, I cannot help with that.' });
+    expect(log.items[0].error).toMatch(/unreadable answer/);
+
+    // A request Workers AI refuses: an error row
+    run.mockImplementation(async () => { throw new Error('3040: capacity'); });
+    await runNewsPolling(env, { now: NOW + 120000, fetchPage });
+    log = await dbListNewsAiLog(env, { since: NOW - 3600_000, reason: 'error' });
+    expect(log.items[0]).toMatchObject({ post: 'chan_one/3', tries: 2, error: '3040: capacity' });
+
+    // Rows older than the window are purged (hourly)
+    await dbPurgeNewsAiLog(env, NOW + 1);
+    log = await dbListNewsAiLog(env, { since: 0 });
+    expect(log.items.every((r) => r.at > NOW)).toBe(true);
     error.mockRestore();
   });
 
