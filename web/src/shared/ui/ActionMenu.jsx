@@ -13,7 +13,8 @@ import { MoreVertical } from 'lucide-react';
  * room below), so a card or list that clips its overflow never cuts it off.
  *
  * @param {Array<{ key: string, label: string, icon?: React.ReactNode, onClick: () => void,
- *   disabled?: boolean, danger?: boolean, title?: string }>} items — falsy entries are skipped
+ *   disabled?: boolean, danger?: boolean, active?: boolean, title?: string }>} items — falsy entries
+ *   are skipped; `active` marks the one in use (e.g. the open page in a menu of pages)
  * @param {string} [label] — the button's accessible name
  * @param {React.ReactNode} [trigger] — the button's own content (e.g. the user's avatar) in place of "⋮"
  * @param {string} [triggerClassName] — the button's class in place of the small secondary button
@@ -100,7 +101,8 @@ export default function ActionMenu({ items = [], label = t('گزینه‌های 
               <button
                 type="button"
                 role="menuitem"
-                className={`ui-action-menu-item ${item.danger ? 'is-danger' : ''}`}
+                className={`ui-action-menu-item ${item.danger ? 'is-danger' : ''} ${item.active ? 'is-active' : ''}`}
+                aria-current={item.active ? 'page' : undefined}
                 disabled={item.disabled}
                 title={item.title}
                 onClick={() => {

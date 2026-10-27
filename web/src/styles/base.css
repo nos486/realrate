@@ -1012,25 +1012,14 @@ input.search-bar-input:focus-visible {
   display: none;
 }
 
-/* The open group's sections (shared/app/navGroups.js), on the website and in the app frame */
-.main-nav-subtabs {
-  margin-bottom: 14px;
-  min-width: 0;
-  max-width: 100%;
+/* A group with several sections opens a dropdown of them (shared/app/GroupTabs.jsx) */
+.group-tabs .group-tab-chevron {
+  margin-inline-start: 6px;
+  opacity: 0.7;
 }
 
-.main-nav-subtabs .ui-filter-pills {
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.main-nav-subtabs .ui-filter-pills::-webkit-scrollbar {
-  display: none;
-}
-
-.main-nav-subtabs .filter-pill-btn {
-  flex: none;
+.group-tabs .filter-pill-btn[aria-expanded="true"] .group-tab-chevron {
+  transform: rotate(180deg);
 }
 
 /* ── Price refresh warning (offline / failed refresh, with a retry button) ─── */
@@ -1595,6 +1584,12 @@ input.search-bar-input:focus-visible {
 .ui-action-menu-item svg {
   flex-shrink: 0;
   color: var(--text-secondary);
+}
+
+.ui-action-menu-item.is-active,
+.ui-action-menu-item.is-active svg {
+  color: var(--color-primary-text);
+  font-weight: 700;
 }
 
 .ui-action-menu-item.is-danger,
