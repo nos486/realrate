@@ -79,6 +79,7 @@ export default function AppLayout({
           gold18kPrice={gold18kPrice}
           activeTab={activeTab}
           navItems={navItems}
+          onSelectTab={setActiveTab}
         />
       )}
 

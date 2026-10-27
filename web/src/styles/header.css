@@ -145,6 +145,12 @@
   transition: var(--transition-fast);
 }
 
+.header-account-menu .header-user-profile-direct {
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
 .header-user-profile-direct:hover {
   background: rgba(255, 255, 255, 0.08);
   border-color: var(--border-hover, rgba(255, 255, 255, 0.15));

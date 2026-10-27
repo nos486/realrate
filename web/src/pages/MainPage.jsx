@@ -25,6 +25,7 @@ import PlanLimitPrompt from '../shared/plan/PlanLimitPrompt.jsx';
 import { useIsPro, usePlan, PRO_PATH } from '../shared/plan/usePlan.js';
 import { setSmsLimits } from '../shared/native/smsPlan.js';
 import { useAppLayout } from '../shared/app/appLayout.js';
+import { buildNavGroups, groupOfTab, groupTarget, rememberGroupTab } from '../shared/app/navGroups.js';
 import { isNativeApp, smsEnabled } from '../shared/native/nativeApp.js';
 import { startSmsAutoRead } from '../shared/native/smsInbox.js';
 import { startWidgetLinks, refreshWidgets } from '../shared/native/widgets.js';
@@ -425,6 +426,22 @@ export default function MainPage() {
   }, [user, isDemo, isPro, hasExpenses, hasAccounts, hasMarket, hasNewsFeature, hasExplore, hasReports, offered.join(), hasHome, hasPortfolio, hasIncomes, hasLoans, hasCheques, hasSubscriptions, hasGoals]);
 
 
+  // The sections gathered into groups (shared/app/navGroups.js): the group tabs, then the open
+  // group's sub-tabs; each group reopens the section of it opened last
+  const navGroups = useMemo(() => buildNavGroups(tabOptions), [tabOptions]);
+  const activeGroup = groupOfTab(navGroups, activeTab);
+  useEffect(() => {
+    if (activeGroup && activeTab !== 'admin') rememberGroupTab(activeGroup.key, activeTab);
+  }, [activeGroup?.key, activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+  const groupOptions = useMemo(
+    () => navGroups.filter((g) => !g.menu).map((g) => ({ value: g.key, label: t(g.label), icon: <g.Icon size={16} strokeWidth={2} /> })),
+    [navGroups],
+  );
+  const openGroup = (key) => {
+    const target = groupTarget(navGroups.find((g) => g.key === key));
+    if (target) handleTabChange(target);
+  };
+
   const {
     calcData,
     globalSettings,
@@ -484,20 +501,30 @@ export default function MainPage() {
       <AppAlertSources announcement={isDemo ? '' : announcement} />
       <AlertStack sources={['system']} className="main-system-alerts" />
 
-      {/* The site's section tabs (in the app frame — the Android app and phones — the bottom bar
-          navigates) */}
+      {/* The site's group tabs (in the app frame — the Android app and phones — the bottom bar
+          picks the group); below them, on both, the open group's sections */}
       {!appLayout && (
       <div className="main-nav-container">
         <div className="main-nav-tabs-bar">
           <FilterPills
             variant="segmented"
             size="lg"
-            options={tabOptions}
+            options={groupOptions}
+            activeValue={activeGroup?.key}
+            onChange={openGroup}
+          />
+        </div>
+      </div>
+      )}
+      {activeGroup && activeGroup.items.length > 1 && (
+        <div className="main-nav-subtabs">
+          <FilterPills
+            size="sm"
+            options={activeGroup.items}
             activeValue={activeTab}
             onChange={handleTabChange}
           />
         </div>
-      </div>
       )}
 
       {/* Only where prices are shown */}

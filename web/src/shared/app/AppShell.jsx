@@ -3,11 +3,11 @@
  * "+" button, and the sheets they open (shared/app/AppSheet.jsx)
  *
  * Inside the app it replaces the website's header, side menu and footer (AppLayout.jsx):
- *   bottom bar   خانه · هزینه‌ها · (+) · پورتفو · بیشتر
+ *   bottom bar   خانه · پول · (+) · سرمایه · بیشتر   (groups: shared/app/navGroups.js)
  *   +            quick add: an expense, an income, a portfolio asset, the bank messages waiting
- *   بیشتر        every other section, and the account actions (hide values, lock, sign out)
+ *   بیشتر        the other groups, each with its sections, and the account actions (hide values, lock)
  * Sections come from the page's own `navItems` (MainPage), so a section a user does not have
- * (a feature not enabled) is simply not there.
+ * (a feature not enabled) is simply not there; a group's sections are the page's sub-tabs.
  *
  * A form opened from "+" is reached with `?add=…` on the section's page (useQuickAddParam).
  */
@@ -16,7 +16,7 @@ import { intlLocale, t } from '../../utils/i18n.js';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Home, HandCoins, Wallet, Briefcase, LayoutGrid, Plus, Eye, EyeOff, Lock,
+  HandCoins, Wallet, Briefcase, LayoutGrid, Plus, Eye, EyeOff, Lock,
   MessageSquareText, ChevronLeft, ArrowLeftRight,
 } from 'lucide-react';
 import { useAuth } from '../../features/auth/index.js';
@@ -30,18 +30,14 @@ import AppSheet from './AppSheet.jsx';
 import AlertCenterButton from '../alerts/AlertCenter.jsx';
 import PageRefreshButton from '../refresh/PageRefreshButton.jsx';
 import { APP_PRIVATE_VALUE_TABS } from './privacyTabs.js';
+import { BOTTOM_NAV_GROUPS, buildNavGroups, groupOfTab, groupTarget } from './navGroups.js';
 
-/** Sections whose pages show amounts (the hide-values button is offered there) */
-
-/** The bottom bar's own sections; everything else is under «بیشتر» */
-function mainTabs(items) {
-  const has = (value) => items.some((i) => i.value === value);
-  const expenses = { value: 'expenses', label: t('هزینه‌ها'), Icon: HandCoins };
-  const incomes = { value: 'incomes', label: t('درآمدها'), Icon: Wallet };
-  const portfolio = { value: 'portfolio', label: t('پورتفو'), Icon: Briefcase };
-  // Expenses and incomes; without expenses, incomes and the portfolio (it moves to «بیشتر»
-  // otherwise)
-  return [{ value: 'market', label: t('خانه'), Icon: Home }, ...(has('expenses') ? [expenses, incomes] : [incomes, portfolio])];
+/** The bottom bar's three groups: the preferred ones the user has, then the next ones; the rest
+ * are under «بیشتر» */
+function bottomGroups(groups) {
+  const tabs = groups.filter((g) => !g.menu);
+  const preferred = BOTTOM_NAV_GROUPS.map((key) => tabs.find((g) => g.key === key)).filter(Boolean);
+  return [...preferred, ...tabs.filter((g) => !preferred.includes(g))].slice(0, 3);
 }
 
 function usePendingSmsCount() {
@@ -63,6 +59,9 @@ export function AppTopBar({ activeTab, navItems = [] }) {
   const canLock = Boolean(user) && vault.status === 'unlocked';
   const current = navItems.find((i) => i.value === activeTab);
   const isHome = activeTab === 'market';
+  // A group with sub-tabs is named by the group (its sections are the tabs under the bar)
+  const group = groupOfTab(buildNavGroups(navItems), activeTab);
+  const title = group && group.items.length > 1 ? t(group.label) : current?.label;
 
   return (
     <header className="app-topbar">
@@ -73,7 +72,7 @@ export function AppTopBar({ activeTab, navItems = [] }) {
             RealRate
           </>
         ) : (
-          current?.label || 'RealRate'
+          title || 'RealRate'
         )}
       </h1>
       <div className="app-topbar-actions">
@@ -112,10 +111,15 @@ export function AppBottomNav({ activeTab, navItems = [], onSelect }) {
   const [sheet, setSheet] = useState(null); // null | 'add' | 'more'
   const closeSheet = useCallback(() => setSheet(null), [setSheet]);
 
-  const tabs = mainTabs(navItems);
-  const mainValues = tabs.map((t) => t.value);
-  const moreItems = navItems.filter((i) => !mainValues.includes(i.value));
-  const inMore = !mainValues.includes(activeTab);
+  const groups = buildNavGroups(navItems);
+  const bottom = bottomGroups(groups);
+  const moreGroups = groups.filter((g) => !bottom.includes(g));
+  const activeGroup = groupOfTab(groups, activeTab);
+  const inMore = !bottom.includes(activeGroup);
+  const tabs = bottom.map((g) => ({ value: g.key, label: t(g.short || g.label), Icon: g.Icon, group: g }));
+  // The waiting bank messages show on the group that has the SMS page, or on «بیشتر»
+  const smsGroup = groupOfTab(groups, 'sms');
+  const smsOnBottom = bottom.includes(smsGroup);
   const has = (value) => navItems.some((i) => i.value === value);
   const canLock = Boolean(user) && vault.status === 'unlocked';
 
@@ -141,7 +145,7 @@ export function AppBottomNav({ activeTab, navItems = [], onSelect }) {
     <>
       <nav className="app-bottom-nav" aria-label={t('بخش‌های اصلی')}>
         {tabs.slice(0, 2).map((t) => (
-          <NavButton key={t.value} tab={t} active={activeTab === t.value} onClick={() => go(t.value)} />
+          <NavButton key={t.value} tab={t} active={activeGroup === t.group} badge={smsOnBottom && smsGroup === t.group ? pendingSms : 0} onClick={() => go(groupTarget(t.group))} />
         ))}
         <div className="app-bottom-nav-center">
           <button
@@ -157,11 +161,13 @@ export function AppBottomNav({ activeTab, navItems = [], onSelect }) {
             <Plus size={26} strokeWidth={2.4} />
           </button>
         </div>
-        <NavButton tab={tabs[2]} active={activeTab === tabs[2].value} onClick={() => go(tabs[2].value)} />
+        {tabs[2] && (
+          <NavButton tab={tabs[2]} active={activeGroup === tabs[2].group} badge={smsOnBottom && smsGroup === tabs[2].group ? pendingSms : 0} onClick={() => go(groupTarget(tabs[2].group))} />
+        )}
         <NavButton
           tab={{ value: 'more', label: t('بیشتر'), Icon: LayoutGrid }}
           active={inMore || sheet === 'more'}
-          badge={pendingSms}
+          badge={smsOnBottom ? 0 : pendingSms}
           onClick={() => {
             tap();
             setSheet('more');
@@ -202,20 +208,25 @@ export function AppBottomNav({ activeTab, navItems = [], onSelect }) {
             </div>
           </div>
         )}
-        <div className="app-more-grid">
-          {moreItems.map((item) => (
-            <button
-              key={item.value}
-              type="button"
-              className={`app-more-tile ${item.value === activeTab ? 'is-active' : ''}`}
-              onClick={() => go(item.value)}
-            >
-              <span className="app-more-tile-icon">{item.icon}</span>
-              <span>{item.label}</span>
-              {item.value === 'sms' && pendingSms > 0 && <span className="app-badge">{faNum(pendingSms)}</span>}
-            </button>
-          ))}
-        </div>
+        {moreGroups.map((group) => (
+          <div key={group.key} className="app-more-group">
+            <h3 className="app-more-group-title">{t(group.label)}</h3>
+            <div className="app-more-grid">
+              {group.items.map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  className={`app-more-tile ${item.value === activeTab ? 'is-active' : ''}`}
+                  onClick={() => go(item.value)}
+                >
+                  <span className="app-more-tile-icon">{item.icon}</span>
+                  <span>{item.label}</span>
+                  {item.value === 'sms' && pendingSms > 0 && <span className="app-badge">{faNum(pendingSms)}</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
         {user && (
           <div className="app-sheet-rows">
             <button type="button" className="app-sheet-row" onClick={() => { tap(); setPrivacyMode(!hideValues); }} aria-pressed={hideValues}>
