@@ -7,9 +7,9 @@
   padding: 16px;
   box-sizing: border-box;
   background:
-    radial-gradient(900px 480px at 85% -10%, rgba(2, 132, 199, 0.16), transparent 60%),
-    radial-gradient(700px 420px at 0% 110%, rgba(245, 158, 11, 0.1), transparent 60%),
-    var(--bg-app, #07090e);
+    radial-gradient(900px 480px at 85% -10%, var(--color-primary-tint), transparent 60%),
+    radial-gradient(700px 420px at 0% 110%, var(--color-warning-soft), transparent 60%),
+    var(--bg-app);
 }
 
 .auth-top {
@@ -30,8 +30,8 @@
   background: transparent;
   color: var(--text-secondary);
   font: inherit;
-  font-size: 14px;
-  font-weight: 800;
+  font-size: var(--fs-md);
+  font-weight: 700;
   cursor: pointer;
 }
 
@@ -54,9 +54,9 @@
   width: 100%;
   max-width: 440px;
   padding: 26px 24px;
-  border-radius: 20px;
-  background: var(--bg-surface-elevated, #111726);
-  box-shadow: 0 0 0 1px var(--border-medium, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-xl);
+  background: var(--bg-surface-elevated);
+  box-shadow: 0 0 0 1px var(--border-medium);
   box-sizing: border-box;
 }
 
@@ -68,14 +68,14 @@
 
 .auth-card-head h1 {
   margin: 0;
-  font-size: 19px;
-  font-weight: 900;
-  color: var(--text-heading, var(--text-primary));
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  color: var(--text-heading);
 }
 
 .auth-card-head p {
   margin: 3px 0 0;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   color: var(--text-muted);
   overflow-wrap: anywhere;
 }
@@ -87,9 +87,9 @@
   flex-shrink: 0;
   width: 44px;
   height: 44px;
-  border-radius: 14px;
-  background: var(--primary-soft-bg);
-  color: var(--blue-sky, var(--color-primary-text));
+  border-radius: var(--radius-lg);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-text);
 }
 
 .auth-google-btn {
@@ -100,12 +100,12 @@
   width: 100%;
   height: 46px;
   border: none;
-  border-radius: 12px;
-  background: #ffffff;
-  color: #1f2937;
+  border-radius: var(--radius-md);
+  background: var(--surface-light);
+  color: var(--text-on-light);
   font: inherit;
-  font-size: 14px;
-  font-weight: 800;
+  font-size: var(--fs-md);
+  font-weight: 700;
   cursor: pointer;
   transition: var(--transition-fast);
 }
@@ -118,7 +118,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
@@ -127,7 +127,7 @@
   content: '';
   flex: 1;
   height: 1px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--bg-control-hover);
 }
 
 .auth-form {
@@ -155,7 +155,7 @@
   height: 32px;
   padding: 0;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
@@ -174,8 +174,8 @@
 
 .auth-link,
 .auth-link-btn {
-  color: var(--blue-sky, var(--color-primary-text));
-  font-size: 13px;
+  color: var(--color-primary-text);
+  font-size: var(--fs-base);
   font-weight: 700;
   text-decoration: none;
 }
@@ -197,20 +197,20 @@
 
 .auth-switch {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--fs-base);
   text-align: center;
   color: var(--text-secondary);
 }
 
 .auth-text {
   margin: 0;
-  font-size: 13.5px;
+  font-size: var(--fs-md);
   line-height: 1.9;
   color: var(--text-secondary);
 }
 
 .auth-muted {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   line-height: 1.8;
   color: var(--text-muted);
 }
@@ -239,20 +239,20 @@ p.auth-muted {
 
   .auth-card {
     padding: 22px 16px;
-    border-radius: 18px;
+    border-radius: var(--radius-xl);
   }
 }
 
 /* ── Maintenance page (pages/MaintenancePage) ── */
 .maintenance-icon {
-  background: rgba(245, 158, 11, 0.14);
-  color: var(--accent-amber);
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
 }
 
 .maintenance-message {
   margin: 0;
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: var(--fs-md);
   line-height: 1.9;
   white-space: pre-line;
 }
@@ -260,7 +260,7 @@ p.auth-muted {
 .maintenance-note {
   margin: 0;
   color: var(--text-muted);
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .maintenance-actions {

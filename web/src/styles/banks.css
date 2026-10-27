@@ -7,7 +7,7 @@
   overflow: hidden;
   border-radius: 25%;
   /* Bank marks are designed for light backgrounds — show them on a white tile */
-  background: #ffffff;
+  background: var(--surface-light);
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
@@ -21,7 +21,7 @@
   background: var(--bg-surface-elevated);
   box-shadow: inset 0 0 0 1px var(--border-medium);
   color: var(--text-secondary);
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1;
 }
 
@@ -38,13 +38,13 @@
 }
 
 .bank-picker-label {
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   font-weight: 700;
   color: var(--text-secondary);
 }
 
 .bank-picker-optional {
-  font-weight: 500;
+  font-weight: 400;
   color: var(--text-muted);
 }
 
@@ -59,7 +59,7 @@
   background: var(--bg-input);
   color: var(--text-input);
   font: inherit;
-  font-size: 13.5px;
+  font-size: var(--fs-md);
   font-weight: 600;
   text-align: start;
   cursor: pointer;
@@ -104,7 +104,6 @@
   border: var(--border-dropdown);
   border-radius: var(--radius-md);
   background: var(--bg-dropdown);
-  box-shadow: var(--shadow-dropdown);
   overflow: hidden;
 }
 
@@ -125,7 +124,7 @@
   background: transparent;
   color: var(--text-input);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--fs-base);
 }
 
 .bank-picker-search input::placeholder {
@@ -145,7 +144,7 @@
 
 .bank-picker-group h5 {
   margin: 8px 2px 6px;
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   color: var(--text-muted);
 }
@@ -168,11 +167,11 @@
   min-height: 44px;
   padding: 7px 8px;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.025);
   color: var(--text-primary);
   font: inherit;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   font-weight: 600;
   text-align: start;
   cursor: pointer;
@@ -187,17 +186,17 @@
 }
 
 .bank-option:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--bg-control);
 }
 
 .bank-option:focus-visible {
   outline: none;
-  border-color: var(--primary-color);
+  border-color: var(--color-primary);
 }
 
 .bank-option-wrap.is-selected .bank-option {
-  border-color: var(--primary-color);
-  background: var(--primary-soft-bg);
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
 }
 
 .bank-option-remove {
@@ -207,7 +206,7 @@
   display: inline-flex;
   padding: 3px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: rgba(0, 0, 0, 0.35);
   color: var(--text-secondary);
   cursor: pointer;
@@ -233,7 +232,7 @@
   background: none;
   color: var(--text-muted);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   cursor: pointer;
 }
 
@@ -244,7 +243,7 @@
 .bank-picker-empty {
   margin: 16px 0;
   text-align: center;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   color: var(--text-muted);
 }
 
@@ -259,9 +258,9 @@
   gap: 6px;
   border: none;
   background: none;
-  color: var(--accent-color);
+  color: var(--color-primary-text);
   font: inherit;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   font-weight: 700;
   cursor: pointer;
 }
@@ -272,7 +271,7 @@
 }
 
 .bank-picker-hint {
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 

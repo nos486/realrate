@@ -20,10 +20,10 @@
 .feature-page-header-icon {
   width: 44px;
   height: 44px;
-  border-radius: 12px;
-  background: rgba(245, 158, 11, 0.14);
-  color: var(--color-warning);
-  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-radius: var(--radius-md);
+  background: var(--color-brand-soft);
+  color: var(--color-brand);
+  border: 1px solid var(--color-brand-border);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -31,27 +31,27 @@
 }
 
 .feature-page-header-icon.green {
-  background: var(--green-soft, rgba(16, 185, 129, 0.14));
-  color: var(--green-emerald, var(--color-positive));
-  border-color: rgba(16, 185, 129, 0.28);
+  background: var(--color-positive-soft);
+  color: var(--color-positive);
+  border-color: var(--color-positive-border);
 }
 
 .feature-page-header-icon.blue {
-  background: rgba(59, 130, 246, 0.14);
+  background: var(--color-primary-soft);
   color: var(--color-primary-text);
-  border-color: rgba(59, 130, 246, 0.28);
+  border-color: var(--color-primary-border);
 }
 
 .feature-page-title {
-  font-size: 1.35rem;
-  font-weight: 800;
-  color: var(--text-primary, var(--text-primary));
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+  color: var(--text-primary);
   margin: 0 0 4px 0;
 }
 
 .feature-page-subtitle {
-  font-size: 0.85rem;
-  color: var(--text-secondary, var(--text-secondary));
+  font-size: var(--fs-md);
+  color: var(--text-secondary);
   margin: 0;
 }
 
@@ -100,7 +100,7 @@
 
 .ui-pagination-range {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .ui-pagination-controls {
@@ -111,7 +111,7 @@
 
 .ui-pagination-page {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   white-space: nowrap;
 }
@@ -144,7 +144,7 @@
 
 .flow-period-label {
   min-width: 110px;
-  font-size: 16px;
+  font-size: var(--fs-lg);
   text-align: center;
 }
 
@@ -164,7 +164,7 @@
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 9.5px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   white-space: nowrap;
   pointer-events: none;
@@ -174,7 +174,7 @@
 .flow-bar-pct.is-down { color: var(--color-negative); }
 
 .flow-year-plot .monthly-income-col.is-selected .monthly-income-bar {
-  box-shadow: 0 0 0 2px var(--accent-blue, var(--color-primary-text));
+  box-shadow: 0 0 0 2px var(--color-primary);
 }
 
 .flow-year-chart .monthly-income-plot {
@@ -186,7 +186,7 @@
 }
 
 .flow-year-total {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
@@ -194,19 +194,19 @@
 .flow-month-grid {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--fs-base);
 }
 .flow-month-grid th,
 .flow-month-grid td {
   padding: 10px 8px;
   text-align: start;
-  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
+  border-bottom: 1px solid var(--border-subtle);
   white-space: nowrap;
 }
 .flow-month-grid th {
   color: var(--text-muted);
   font-weight: 600;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 .flow-month-grid td.num { font-variant-numeric: tabular-nums; }
 .flow-month-grid tr.is-clickable { cursor: pointer; }
@@ -222,14 +222,14 @@
   display: block;
   width: 100px;
   height: 6px;
-  border-radius: 999px;
-  background: var(--bg-input, rgba(255, 255, 255, 0.06));
+  border-radius: var(--radius-full);
+  background: var(--bg-input);
   overflow: hidden;
 }
 .flow-share-bar {
   display: block;
   height: 100%;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   min-width: 2px;
 }
 .flow-share-bar.is-income { background: var(--color-positive); }
@@ -240,23 +240,23 @@
   .flow-period-bar { justify-content: center; }
   .flow-share-col { display: none; }
   .flow-month-grid th,
-  .flow-month-grid td { padding: 9px 5px; font-size: 12px; }
+  .flow-month-grid td { padding: 9px 5px; font-size: var(--fs-sm); }
 }
 
 /* ── Records seen in dollars (shared/ui/DollarValue.jsx) ── */
 .dollar-value-line {
   display: block;
   color: var(--text-muted);
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
 }
 .dollar-value-line .is-up,
-.dollar-value-foot .is-up { color: #f59e0b; font-weight: 700; }
+.dollar-value-foot .is-up { color: var(--color-warning); font-weight: 700; }
 .dollar-value-line .is-down,
-.dollar-value-foot .is-down { color: var(--green-emerald); font-weight: 700; }
+.dollar-value-foot .is-down { color: var(--color-positive); font-weight: 700; }
 .dollar-value-line .is-profit,
-.dollar-value-foot .is-profit { color: var(--green-emerald); font-weight: 700; }
+.dollar-value-foot .is-profit { color: var(--color-positive); font-weight: 700; }
 .dollar-value-line .is-loss,
-.dollar-value-foot .is-loss { color: var(--rose-red); font-weight: 700; }
+.dollar-value-foot .is-loss { color: var(--color-negative); font-weight: 700; }
 .dollar-value-foot small { color: var(--text-muted); }
 
 /* ── Page help (shared/help/HelpButton.jsx) ───────────────────────────────── */
@@ -279,7 +279,7 @@
   gap: 8px;
   color: var(--text-muted);
   line-height: 1.9;
-  font-size: 0.9rem;
+  font-size: var(--fs-md);
 }
 
 /* ── «ماه حقوقی» (shared/flow/SalaryMonthBar.jsx): month, switch and days on one line ── */
@@ -290,8 +290,8 @@
 }
 
 .flow-period-bar.has-extra .flow-period-nav { gap: 4px; min-width: 0; }
-.flow-period-bar.has-extra .flow-period-label { min-width: 0; font-size: 15px; white-space: nowrap; }
-.flow-period-bar.has-extra .salary-month-controls .filter-pill-btn { padding-inline: 10px; font-size: 12.5px; }
+.flow-period-bar.has-extra .flow-period-label { min-width: 0; font-size: var(--fs-lg); white-space: nowrap; }
+.flow-period-bar.has-extra .salary-month-controls .filter-pill-btn { padding-inline: 10px; font-size: var(--fs-base); }
 
 .salary-month-controls {
   flex-shrink: 0;
@@ -316,7 +316,7 @@
 
 .month-calendar-weekday {
   padding-block: 4px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   text-align: center;
   color: var(--text-muted);
 }
@@ -328,11 +328,11 @@
   justify-content: center;
   padding: 0;
   font-family: inherit;
-  font-size: 14px;
+  font-size: var(--fs-md);
   color: var(--text-primary);
   background: transparent;
   border: var(--card-inner-border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
 }
 
@@ -343,6 +343,6 @@
 .month-calendar-day.is-marked {
   font-weight: 700;
   color: var(--text-primary);
-  background: var(--color-primary);
+  background: var(--color-primary-fill);
   border-color: var(--color-primary);
 }

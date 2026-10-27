@@ -12,8 +12,8 @@
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid transparent;
   padding: 8px 16px;
-  font-size: 13.5px;
-  font-weight: 500;
+  font-size: var(--fs-md);
+  font-weight: 400;
   transition: all 0.2s ease;
 }
 
@@ -35,32 +35,32 @@
 
 .demo-bar-view {
   background: rgba(15, 23, 42, 0.94);
-  border-color: rgba(56, 189, 248, 0.28);
-  color: #e2e8f0;
+  border-color: var(--color-primary-border);
+  color: var(--text-primary);
 }
 
 .demo-bar-view .demo-bar-icon {
-  color: #38bdf8;
+  color: var(--color-primary-text);
 }
 
 .demo-bar-edit {
   background: rgba(24, 16, 44, 0.94);
   border-color: rgba(168, 85, 247, 0.35);
-  color: #f3e8ff;
+  color: var(--text-heading);
 }
 
 .demo-bar-edit .demo-bar-icon {
-  color: #c084fc;
+  color: var(--cat-4);
 }
 
 .demo-bar-warning {
   background: rgba(30, 20, 10, 0.94);
-  border-color: rgba(245, 158, 11, 0.35);
-  color: #fef3c7;
+  border-color: var(--color-warning-border);
+  color: var(--color-warning-text);
 }
 
 .demo-bar-warning .demo-bar-icon {
-  color: #fbbf24;
+  color: var(--color-warning-text);
 }
 
 .demo-bar-action {
@@ -68,42 +68,42 @@
   align-items: center;
   gap: 6px;
   padding: 5px 12px;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   font-weight: 600;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all 0.2s ease;
   border: 1px solid transparent;
 }
 
 .demo-action-accent {
-  background: rgba(56, 189, 248, 0.16);
-  border-color: rgba(56, 189, 248, 0.35);
-  color: #38bdf8;
+  background: var(--color-primary-tint);
+  border-color: var(--color-primary-border);
+  color: var(--color-primary-text);
 }
 .demo-action-accent:hover {
-  background: rgba(56, 189, 248, 0.25);
-  color: #ffffff;
+  background: var(--color-primary-border);
+  color: var(--text-heading);
 }
 
 .demo-action-purple {
   background: rgba(168, 85, 247, 0.2);
   border-color: rgba(168, 85, 247, 0.4);
-  color: #d8b4fe;
+  color: var(--cat-4);
 }
 .demo-action-purple:hover {
   background: rgba(168, 85, 247, 0.3);
-  color: #ffffff;
+  color: var(--text-heading);
 }
 
 .demo-action-amber {
-  background: rgba(245, 158, 11, 0.2);
-  border-color: rgba(245, 158, 11, 0.4);
-  color: #fbbf24;
+  background: var(--color-warning-tint);
+  border-color: var(--color-warning-border-strong);
+  color: var(--color-warning-text);
 }
 .demo-action-amber:hover {
-  background: rgba(245, 158, 11, 0.3);
-  color: #ffffff;
+  background: var(--color-warning-border);
+  color: var(--text-heading);
 }
 
 /* Admin Demo Card */
@@ -130,11 +130,11 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-control);
+  border: 1px solid var(--border-medium);
   padding: 6px 10px;
-  border-radius: 8px;
-  font-size: 12px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
   color: var(--text-secondary);
 }
 
@@ -152,21 +152,20 @@
   align-items: center;
   gap: 6px;
   padding: 8px 16px;
-  font-size: 13.5px;
+  font-size: var(--fs-md);
   font-weight: 600;
-  color: #fbbf24;
-  background: rgba(245, 158, 11, 0.1);
-  border: 1px solid rgba(245, 158, 11, 0.3);
-  border-radius: 10px;
+  color: var(--color-warning-text);
+  background: var(--color-warning-soft);
+  border: 1px solid var(--color-warning-border);
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .landing-btn-demo:hover {
-  background: rgba(245, 158, 11, 0.18);
+  background: var(--color-warning-tint);
   border-color: rgba(245, 158, 11, 0.55);
-  transform: translateY(-1px);
-  color: #fde68a;
+  color: var(--color-warning-text);
 }
 
 .landing-cta-demo {
@@ -175,21 +174,20 @@
   align-items: center;
   gap: 10px;
   padding: 14px 24px;
-  font-size: 15.5px;
+  font-size: var(--fs-lg);
   font-weight: 700;
-  color: #fde68a;
-  background: rgba(245, 158, 11, 0.12);
-  border: 1px solid rgba(245, 158, 11, 0.35);
-  border-radius: 14px;
+  color: var(--color-warning-text);
+  background: var(--color-warning-soft);
+  border: 1px solid var(--color-warning-border);
+  border-radius: var(--radius-lg);
   cursor: pointer;
   transition: all 0.25s ease;
 }
 
 .landing-cta-demo:hover {
-  transform: translateY(-2px);
-  background: rgba(245, 158, 11, 0.2);
+  background: var(--color-warning-tint);
   border-color: rgba(245, 158, 11, 0.6);
-  color: #ffffff;
+  color: var(--text-heading);
 }
 
 .landing-cta-demo:disabled,

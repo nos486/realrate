@@ -74,7 +74,7 @@ export default function AccountSettingsView() {
     return (
       <Card className="admin-container" padding="lg" style={{ width: '100%', maxWidth: '100%', margin: '0 0 32px 0', textAlign: 'center' }}>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px' }}>
-          <User size={44} style={{ color: 'var(--accent-blue, #38bdf8)' }} />
+          <User size={44} style={{ color: 'var(--color-primary, #38bdf8)' }} />
         </div>
         <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '8px' }}>
           {t('ورود به حساب کاربری')}
@@ -111,7 +111,7 @@ export default function AccountSettingsView() {
       <div className="account-settings-col">
       <div className="section-title" style={{ marginTop: 0 }}>
         <span>
-          <User size={18} style={{ verticalAlign: 'middle', marginInlineEnd: '6px', display: 'inline', color: 'var(--accent-blue)' }} />
+          <User size={18} style={{ verticalAlign: 'middle', marginInlineEnd: '6px', display: 'inline', color: 'var(--color-primary)' }} />
           {t('پروفایل')}
         </span>
       </div>
@@ -135,7 +135,7 @@ export default function AccountSettingsView() {
             onError={(e) => { e.target.style.display = 'none'; }}
           />
         ) : (
-          <div className="account-user-avatar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--accent-blue)', color: '#000', fontWeight: 800 }}>
+          <div className="account-user-avatar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-primary)', color: '#000', fontWeight: 800 }}>
             {user.name?.[0] || 'U'}
           </div>
         )}

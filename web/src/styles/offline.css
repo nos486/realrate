@@ -10,24 +10,24 @@
   gap: 8px;
   width: 100%;
   padding: 7px 16px;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   line-height: 1.6;
   text-align: center;
   border-bottom: 1px solid transparent;
 }
 
 .offline-bar.is-offline {
-  background: var(--color-warning-soft, rgba(245, 158, 11, 0.14));
-  border-bottom-color: rgba(245, 158, 11, 0.35);
-  color: var(--color-warning, #f59e0b);
+  background: var(--color-warning-soft);
+  border-bottom-color: var(--color-warning-border);
+  color: var(--color-warning);
 }
 
 .offline-bar.is-offline strong {
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .offline-bar.is-syncing {
-  background: var(--gold-soft-bg);
+  background: var(--color-brand-soft);
   color: var(--text-secondary);
 }
 

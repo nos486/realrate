@@ -118,7 +118,7 @@ html.is-app-layout [role='button']:active {
   background: rgba(7, 9, 14, 0.86);
   -webkit-backdrop-filter: saturate(160%) blur(16px);
   backdrop-filter: saturate(160%) blur(16px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .app-topbar-title {
@@ -126,8 +126,8 @@ html.is-app-layout [role='button']:active {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 19px;
-  font-weight: 800;
+  font-size: var(--fs-xl);
+  font-weight: 700;
   color: var(--text-heading);
   white-space: nowrap;
   overflow: hidden;
@@ -138,7 +138,7 @@ html.is-app-layout [role='button']:active {
   width: 28px;
   height: 28px;
   flex-shrink: 0;
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
   background:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'%3E%3Cpath d='M10 22L15 16L19 19L26 11' stroke='%23f59e0b' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M22 11H26V15' stroke='%23f59e0b' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='19' cy='19' r='2.2' fill='%23fbbf24'/%3E%3C/svg%3E") center / 100% no-repeat,
     var(--bg-surface-elevated);
@@ -163,7 +163,7 @@ html.is-app-layout [role='button']:active {
 }
 
 .app-icon-btn:active {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--bg-control-hover);
 }
 
 .app-icon-btn[aria-pressed='true'] {
@@ -184,7 +184,7 @@ html.is-app-layout [role='button']:active {
   background: rgba(10, 13, 20, 0.92);
   -webkit-backdrop-filter: saturate(160%) blur(18px);
   backdrop-filter: saturate(160%) blur(18px);
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .app-bottom-nav-item {
@@ -207,12 +207,12 @@ html.is-app-layout [role='button']:active {
   height: 30px;
   display: grid;
   place-items: center;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   transition: background-color 0.25s var(--app-ease), color 0.2s ease;
 }
 
 .app-bottom-nav-label {
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   line-height: 1;
 }
@@ -229,7 +229,7 @@ html.is-app-layout [role='button']:active {
 }
 
 .app-bottom-nav-item.is-active .app-bottom-nav-label {
-  font-weight: 800;
+  font-weight: 700;
 }
 
 @keyframes app-pill-in {
@@ -255,9 +255,9 @@ html.is-app-layout [role='button']:active {
   display: grid;
   place-items: center;
   border: 0;
-  border-radius: 18px;
-  background: var(--color-primary);
-  color: var(--primary-text);
+  border-radius: var(--radius-xl);
+  background: var(--color-primary-fill);
+  color: var(--text-on-fill);
   box-shadow: 0 0 0 5px var(--bg-app);
   cursor: pointer;
 }
@@ -280,11 +280,11 @@ html.is-app-layout [role='button']:active {
   padding: 0 5px;
   display: grid;
   place-items: center;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--color-negative);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 800;
+  color: var(--text-heading);
+  font-size: var(--fs-xs);
+  font-weight: 700;
   line-height: 1;
 }
 
@@ -331,7 +331,7 @@ html.is-app-layout [role='button']:active {
   flex-direction: column;
   padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   background: var(--bg-modal);
-  border-radius: 24px 24px 0 0;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   border-top: var(--border-modal);
   outline: none;
   transform: translateY(105%);
@@ -354,14 +354,14 @@ html.is-app-layout [role='button']:active {
   width: 36px;
   height: 4px;
   margin: 0 auto 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: rgba(255, 255, 255, 0.22);
 }
 
 .app-sheet-title {
   margin: 0;
-  font-size: 17px;
-  font-weight: 800;
+  font-size: var(--fs-lg);
+  font-weight: 700;
   color: var(--text-heading);
 }
 
@@ -377,7 +377,7 @@ html.is-app-layout [role='button']:active {
 .app-sheet-rows {
   display: flex;
   flex-direction: column;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid var(--border-subtle);
   padding-top: 6px;
 }
 
@@ -388,11 +388,11 @@ html.is-app-layout [role='button']:active {
   min-height: 52px;
   padding: 0 8px;
   border: 0;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: transparent;
   color: var(--text-primary);
   font-family: inherit;
-  font-size: 15px;
+  font-size: var(--fs-lg);
   font-weight: 600;
   text-align: start;
   cursor: pointer;
@@ -404,7 +404,7 @@ html.is-app-layout [role='button']:active {
 }
 
 .app-sheet-row:active {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--bg-control);
 }
 
 .app-sheet-row.is-danger,
@@ -440,8 +440,8 @@ html.is-app-layout [role='button']:active {
   align-items: center;
   gap: 6px;
   padding: 16px 8px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 20px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
   background: var(--bg-surface-elevated);
   color: var(--text-primary);
   font-family: inherit;
@@ -453,27 +453,27 @@ html.is-app-layout [role='button']:active {
 .app-quick-add-item:nth-child(3) { animation-delay: 0.08s; }
 
 .app-quick-add-item.tone-rose { --tone: var(--color-negative-text); --tone-soft: var(--color-negative-soft); }
-.app-quick-add-item.tone-green { --tone: #34d399; --tone-soft: rgba(16, 185, 129, 0.13); }
-.app-quick-add-item.tone-amber { --tone: #fbbf24; --tone-soft: rgba(245, 158, 11, 0.13); }
-.app-quick-add-item.tone-blue { --tone: #60a5fa; --tone-soft: rgba(59, 130, 246, 0.13); }
+.app-quick-add-item.tone-green { --tone: var(--color-positive-text); --tone-soft: var(--color-positive-soft); }
+.app-quick-add-item.tone-amber { --tone: var(--color-warning-text); --tone-soft: var(--color-warning-soft); }
+.app-quick-add-item.tone-blue { --tone: var(--color-primary-text); --tone-soft: var(--color-primary-soft); }
 
 .app-quick-add-icon {
   width: 48px;
   height: 48px;
   display: grid;
   place-items: center;
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: var(--tone-soft);
   color: var(--tone);
 }
 
 .app-quick-add-item strong {
-  font-size: 15px;
-  font-weight: 800;
+  font-size: var(--fs-lg);
+  font-weight: 700;
 }
 
 .app-quick-add-item small {
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
   text-align: center;
   line-height: 1.5;
@@ -496,7 +496,7 @@ html.is-app-layout [role='button']:active {
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
-  border-radius: 18px;
+  border-radius: var(--radius-xl);
   background: var(--bg-surface-elevated);
 }
 
@@ -507,12 +507,12 @@ html.is-app-layout [role='button']:active {
 }
 
 .app-more-user strong {
-  font-size: 15px;
+  font-size: var(--fs-lg);
   color: var(--text-heading);
 }
 
 .app-more-user small {
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   color: var(--text-muted);
   direction: ltr;
   text-align: start;
@@ -533,8 +533,8 @@ html.is-app-layout [role='button']:active {
   place-items: center;
   background: var(--color-primary-soft);
   color: var(--color-primary-text);
-  font-weight: 800;
-  font-size: 17px;
+  font-weight: 700;
+  font-size: var(--fs-lg);
 }
 
 .app-more-grid {
@@ -552,12 +552,12 @@ html.is-app-layout [role='button']:active {
   gap: 8px;
   min-height: 86px;
   padding: 10px 4px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 18px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
   background: var(--bg-surface-elevated);
   color: var(--text-primary);
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   font-weight: 700;
   line-height: 1.4;
   text-align: center;
@@ -569,8 +569,8 @@ html.is-app-layout [role='button']:active {
   height: 40px;
   display: grid;
   place-items: center;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-lg);
+  background: var(--bg-control);
   color: var(--color-primary-text);
 }
 
@@ -618,9 +618,9 @@ html.is-app-layout .site-footer {
   position: relative;
   overflow: hidden;
   padding: 18px 18px 14px;
-  border-radius: 24px;
+  border-radius: var(--radius-xl);
   background: var(--bg-surface-elevated);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-subtle);
 }
 
 .app-home-hero-top {
@@ -632,7 +632,7 @@ html.is-app-layout .site-footer {
 }
 
 .app-home-month {
-  font-size: 13px;
+  font-size: var(--fs-base);
   font-weight: 700;
   color: var(--text-secondary);
 }
@@ -642,8 +642,8 @@ html.is-app-layout .site-footer {
   align-items: center;
   gap: 4px;
   padding: 3px 9px;
-  border-radius: 999px;
-  font-size: 11.5px;
+  border-radius: var(--radius-full);
+  font-size: var(--fs-sm);
   font-weight: 700;
 }
 
@@ -653,26 +653,26 @@ html.is-app-layout .site-footer {
 }
 
 .app-home-change.is-down {
-  background: rgba(16, 185, 129, 0.13);
-  color: #34d399;
+  background: var(--color-positive-soft);
+  color: var(--color-positive-text);
 }
 
 .app-home-hero-label {
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: var(--text-secondary);
 }
 
 .app-home-hero-value {
   margin: 2px 0 16px;
-  font-size: 32px;
-  font-weight: 900;
+  font-size: var(--fs-3xl);
+  font-weight: 700;
   letter-spacing: -0.5px;
   color: var(--text-heading);
   line-height: 1.3;
 }
 
 .app-home-hero-value small {
-  font-size: 14px;
+  font-size: var(--fs-md);
   font-weight: 600;
   color: var(--text-secondary);
 }
@@ -682,7 +682,7 @@ html.is-app-layout .site-footer {
   justify-content: space-between;
   gap: 8px;
   margin: -8px 0 14px;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .app-home-hero-breakdown small {
@@ -690,7 +690,7 @@ html.is-app-layout .site-footer {
 }
 
 .app-home-hero-breakdown strong {
-  font-weight: 800;
+  font-weight: 700;
   color: var(--text-primary);
 }
 
@@ -706,8 +706,8 @@ html.is-app-layout .site-footer {
   gap: 10px;
   padding: 10px 12px;
   border: 0;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-lg);
+  background: var(--bg-control);
   color: var(--text-primary);
   font-family: inherit;
   text-align: start;
@@ -720,12 +720,12 @@ html.is-app-layout .site-footer {
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  border-radius: 11px;
+  border-radius: var(--radius-md);
 }
 
 .app-home-stat-icon.is-in {
-  background: rgba(16, 185, 129, 0.15);
-  color: #34d399;
+  background: var(--color-positive-soft);
+  color: var(--color-positive-text);
 }
 
 .app-home-stat-icon.is-left {
@@ -740,13 +740,13 @@ html.is-app-layout .site-footer {
 }
 
 .app-home-stat-text small {
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
 .app-home-stat-text strong {
-  font-size: 15px;
-  font-weight: 800;
+  font-size: var(--fs-lg);
+  font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -762,8 +762,8 @@ html.is-app-layout .site-footer {
   gap: 10px;
   width: 100%;
   padding: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 20px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
   background: var(--bg-surface-elevated);
   color: var(--text-primary);
   font-family: inherit;
@@ -782,8 +782,8 @@ button.app-home-card {
 
 .app-home-card-head h2 {
   margin: 0;
-  font-size: 15px;
-  font-weight: 800;
+  font-size: var(--fs-lg);
+  font-weight: 700;
   color: var(--text-heading);
 }
 
@@ -796,7 +796,7 @@ button.app-home-card {
   background: none;
   color: var(--color-primary-text);
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--fs-base);
   font-weight: 700;
   cursor: pointer;
 }
@@ -815,9 +815,9 @@ button.app-home-card {
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  border-radius: 14px;
-  background: var(--color-primary);
-  color: #fff;
+  border-radius: var(--radius-lg);
+  background: var(--color-primary-fill);
+  color: var(--text-heading);
 }
 
 .app-home-sms-text {
@@ -828,11 +828,11 @@ button.app-home-card {
 }
 
 .app-home-sms-text strong {
-  font-size: 14.5px;
+  font-size: var(--fs-md);
 }
 
 .app-home-sms-text small {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-secondary);
 }
 
@@ -853,7 +853,7 @@ button.app-home-card {
 }
 
 .app-home-row + .app-home-row {
-  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .app-home-row-icon {
@@ -862,8 +862,8 @@ button.app-home-card {
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  border-radius: 13px;
-  background: rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-md);
+  background: var(--bg-control);
   color: var(--text-secondary);
 }
 
@@ -875,7 +875,7 @@ button.app-home-card {
 }
 
 .app-home-row-text strong {
-  font-size: 14px;
+  font-size: var(--fs-md);
   font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
@@ -883,13 +883,13 @@ button.app-home-card {
 }
 
 .app-home-row-text small {
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
 .app-home-row-amount {
-  font-size: 14px;
-  font-weight: 800;
+  font-size: var(--fs-md);
+  font-weight: 700;
   color: var(--color-negative-text);
   white-space: nowrap;
 }
@@ -900,12 +900,12 @@ button.app-home-card {
   justify-content: center;
   gap: 8px;
   padding: 16px;
-  border: 1px dashed rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
   background: none;
   color: var(--text-secondary);
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--fs-base);
   cursor: pointer;
 }
 
@@ -922,20 +922,20 @@ button.app-home-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 13px;
-  font-weight: 800;
+  font-size: var(--fs-base);
+  font-weight: 700;
   color: var(--text-heading);
 }
 
 .app-home-rates-head small {
   margin-inline-start: 4px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--text-muted);
 }
 
 .app-home-rates-head svg {
-  color: #38bdf8;
+  color: var(--color-primary-text);
 }
 
 .app-home-rates-grid {
@@ -957,19 +957,19 @@ button.app-home-card {
 }
 
 .app-home-rate + .app-home-rate {
-  border-inline-start: 1px solid rgba(255, 255, 255, 0.08);
+  border-inline-start: 1px solid var(--border-medium);
 }
 
 .app-home-rate small {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--text-muted);
   white-space: nowrap;
 }
 
 .app-home-rate strong {
   max-width: 100%;
-  font-size: 14.5px;
-  font-weight: 800;
+  font-size: var(--fs-md);
+  font-weight: 700;
   color: var(--text-heading);
   white-space: nowrap;
   overflow: hidden;
@@ -977,14 +977,14 @@ button.app-home-card {
 }
 
 .app-home-rate em {
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   font-style: normal;
   font-weight: 700;
   white-space: nowrap;
 }
 
 .app-home-rate em.is-up {
-  color: #34d399;
+  color: var(--color-positive-text);
 }
 
 .app-home-rate em.is-down {
@@ -1006,8 +1006,8 @@ button.app-home-card {
   height: 28px;
   padding: 0;
   border: none;
-  border-radius: 9px;
-  background: rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-sm);
+  background: var(--bg-control);
   color: var(--text-secondary);
   cursor: pointer;
 }
@@ -1049,11 +1049,11 @@ button.app-home-card {
 .app-layout.has-app-shell .portfolio-stat-card {
   min-width: 0;
   padding: 12px;
-  border-radius: 18px;
+  border-radius: var(--radius-xl);
 }
 
 .app-layout.has-app-shell .incomes-summary-grid .ui-mini-card:not(:first-child) .mini-card-value {
-  font-size: 16px;
+  font-size: var(--fs-lg);
 }
 
 .app-layout.has-app-shell .incomes-summary-grid .mini-card-foot,
@@ -1070,7 +1070,7 @@ button.app-home-card {
 }
 
 .app-layout.has-app-shell .portfolio-stat-card:not(:first-child) .stat-number {
-  font-size: 17px;
+  font-size: var(--fs-lg);
 }
 
 /* No hover lift on touch screens */
@@ -1107,7 +1107,7 @@ button.app-home-card {
 /* Roomy card padding is for wide screens: on the phone the content gets the width */
 .app-layout.has-app-shell .ui-card.p-lg {
   padding: 16px 14px;
-  border-radius: 20px;
+  border-radius: var(--radius-xl);
 }
 
 /* The SMS page's first card only frames another card: let the inner one stand alone */
@@ -1214,9 +1214,9 @@ html.is-app-layout .budget-grid .ui-input-label {
   align-items: center;
   margin: 10px 16px 0;
   padding: 12px 14px 12px 40px;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   z-index: 5;
-  border: 1px solid rgba(52, 211, 153, 0.35);
+  border: 1px solid var(--color-positive-border);
   background: var(--color-positive-soft);
   color: var(--text-primary);
 }
@@ -1226,9 +1226,9 @@ html.is-app-layout .budget-grid .ui-input-label {
   justify-content: center;
   width: 38px;
   height: 38px;
-  border-radius: 11px;
-  background: rgba(16, 185, 129, 0.18);
-  color: #34d399;
+  border-radius: var(--radius-md);
+  background: var(--color-positive-tint);
+  color: var(--color-positive-text);
 }
 .app-suggest-text {
   display: flex;
@@ -1236,10 +1236,10 @@ html.is-app-layout .budget-grid .ui-input-label {
   gap: 2px;
   min-width: 0;
 }
-.app-suggest-text strong { font-size: 13.5px; }
+.app-suggest-text strong { font-size: var(--fs-md); }
 .app-suggest-text span {
   color: var(--text-muted);
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   line-height: 1.6;
 }
 .app-suggest-actions {
@@ -1256,7 +1256,7 @@ html.is-app-layout .budget-grid .ui-input-label {
 }
 .app-suggest-guide {
   color: var(--color-primary-text);
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   text-decoration: none;
 }
 .app-suggest-close {
@@ -1266,7 +1266,7 @@ html.is-app-layout .budget-grid .ui-input-label {
   display: inline-flex;
   padding: 4px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
@@ -1284,7 +1284,7 @@ html.is-app-layout .budget-grid .ui-input-label {
 .app-setup-intro {
   margin: 0 0 12px;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: var(--fs-base);
 }
 
 .app-setup-item {
@@ -1293,8 +1293,8 @@ html.is-app-layout .budget-grid .ui-input-label {
   gap: 12px;
   padding: 12px;
   margin-bottom: 8px;
-  border: 1px solid var(--border-color, rgba(148, 163, 184, 0.2));
-  border-radius: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
 }
 
 .app-setup-icon {
@@ -1304,9 +1304,9 @@ html.is-app-layout .budget-grid .ui-input-label {
   flex: 0 0 36px;
   width: 36px;
   height: 36px;
-  border-radius: 12px;
-  background: rgba(56, 189, 248, 0.12);
-  color: #38bdf8;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-soft);
+  color: var(--color-primary-text);
 }
 
 .app-setup-item.is-done .app-setup-icon {
@@ -1322,12 +1322,12 @@ html.is-app-layout .budget-grid .ui-input-label {
 }
 
 .app-setup-text strong {
-  font-size: 14px;
+  font-size: var(--fs-md);
 }
 
 .app-setup-text small {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   line-height: 1.6;
 }
 
@@ -1344,7 +1344,7 @@ html.is-app-layout .budget-grid .ui-input-label {
 .app-setup-note {
   margin: 10px 0 0;
   color: var(--text-muted);
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   text-align: center;
 }
 
@@ -1359,8 +1359,8 @@ html.is-app-layout .budget-grid .ui-input-label {
   gap: 4px;
   flex-shrink: 0;
   padding: 3px 8px;
-  border-radius: 999px;
-  font-size: 11.5px;
+  border-radius: var(--radius-full);
+  font-size: var(--fs-sm);
   font-weight: 700;
   white-space: nowrap;
 }
@@ -1388,7 +1388,7 @@ html.is-app-layout .budget-grid .ui-input-label {
   align-items: center;
   gap: 10px;
   margin-top: 12px;
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: var(--text-secondary);
 }
 
