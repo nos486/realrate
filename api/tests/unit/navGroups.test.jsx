@@ -2,7 +2,8 @@
 /**
  * navGroups.test.jsx — The app's sections gathered into groups: a group shows only when the user
  * has one of its sections, reopens the section opened last, and the app frame's bottom bar takes
- * the preferred groups with the rest grouped under «بیشتر»
+ * the preferred groups (a group with several sections lists them like «ثبت سریع») with the rest
+ * grouped under «بیشتر»
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -59,14 +60,24 @@ describe('the app frame', () => {
   const renderNav = (activeTab, navItems = ALL, onSelect = () => {}) =>
     render(<MemoryRouter><AppBottomNav activeTab={activeTab} navItems={navItems} onSelect={onSelect} /></MemoryRouter>);
 
-  it('puts home, money and wealth on the bottom bar and opens a group\'s section', () => {
+  it('puts home, money and wealth on the bottom bar; a group lists its sections like quick add', () => {
     const onSelect = vi.fn();
-    const { container } = renderNav('market', ALL, onSelect);
+    const { container } = renderNav('goals', ALL, onSelect);
     const labels = [...container.querySelectorAll('.app-bottom-nav-label')].map((n) => n.textContent);
     expect(labels).toEqual(['خانه', 'پول', 'سرمایه', 'بیشتر']);
-    rememberGroupTab('money', 'incomes');
     fireEvent.click(screen.getByText('پول'));
+    expect(onSelect).not.toHaveBeenCalled();
+    const cards = [...container.ownerDocument.querySelectorAll('.app-group-sheet .app-quick-add-item strong')].map((n) => n.textContent);
+    expect(cards).toEqual(['expenses', 'incomes', 'accounts']);
+    fireEvent.click(screen.getByText('incomes'));
     expect(onSelect).toHaveBeenCalledWith('incomes');
+  });
+
+  it('opens a one-section group right away', () => {
+    const onSelect = vi.fn();
+    renderNav('goals', ALL, onSelect);
+    fireEvent.click(screen.getByText('خانه'));
+    expect(onSelect).toHaveBeenCalledWith('market');
   });
 
   it('marks the group of the open section as active', () => {
@@ -87,8 +98,8 @@ describe('the app frame', () => {
     expect(titles).toEqual(['بازار', 'تعهدات', 'گزارش‌ها', 'حساب کاربری']);
   });
 
-  it('names a page with sub-tabs by its group in the top bar', () => {
+  it('names the open section in the top bar', () => {
     const { container } = render(<MemoryRouter><AppTopBar activeTab="cheques" navItems={ALL} /></MemoryRouter>);
-    expect(container.querySelector('.app-topbar-title').textContent).toBe('تعهدات');
+    expect(container.querySelector('.app-topbar-title').textContent).toBe('cheques');
   });
 });

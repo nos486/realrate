@@ -30,6 +30,26 @@ export const NAV_GROUPS = [
   { key: 'account', label: msg('حساب کاربری'), Icon: UserRound, tabs: ['settings', 'app-settings', 'pro', 'admin'], menu: true },
 ];
 
+/**
+ * How a section shows in a bottom-bar group's list (the app frame, the same cards as «ثبت سریع»):
+ * a short hint under its name and the color of its icon
+ */
+export const NAV_SECTION_CARDS = {
+  expenses: { hint: msg('خرید، قبض، بودجه…'), tone: 'rose' },
+  incomes: { hint: msg('حقوق، فروش، سود…'), tone: 'green' },
+  accounts: { hint: msg('بانک، نقد، انتقال‌ها'), tone: 'blue' },
+  projects: { hint: msg('هزینه‌های هر پروژه'), tone: 'amber' },
+  sms: { hint: msg('پیامک‌های منتظر ثبت'), tone: 'blue' },
+  portfolio: { hint: msg('طلا، سکه، ارز…'), tone: 'amber' },
+  goals: { hint: msg('پس‌انداز برای هدف'), tone: 'green' },
+  rates: { hint: msg('قیمت‌ها و حباب امروز'), tone: 'blue' },
+  explore: { hint: msg('جست‌وجوی هر دارایی'), tone: 'amber' },
+  news: { hint: msg('خبرها و تحلیل روز'), tone: 'green' },
+  loans: { hint: msg('اقساط و سررسیدها'), tone: 'rose' },
+  cheques: { hint: msg('چک‌های دریافتی و صادره'), tone: 'amber' },
+  subscriptions: { hint: msg('تمدیدهای ماهانه'), tone: 'blue' },
+};
+
 /** The groups the app frame's bottom bar prefers, before falling back to the next ones */
 export const BOTTOM_NAV_GROUPS = ['home', 'money', 'wealth'];
 
