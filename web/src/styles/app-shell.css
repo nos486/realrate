@@ -452,6 +452,11 @@ html.is-app-layout [role='button']:active {
 .app-quick-add-item:nth-child(2) { animation-delay: 0.04s; }
 .app-quick-add-item:nth-child(3) { animation-delay: 0.08s; }
 
+/* A bottom-bar group's list: the section open now, and the waiting bank messages */
+.app-quick-add-item { position: relative; }
+.app-quick-add-item.is-active { border-color: var(--color-primary-border); }
+.app-quick-add-item .app-badge { top: 8px; inset-inline-end: 8px; }
+
 .app-quick-add-item.tone-rose { --tone: var(--color-negative-text); --tone-soft: var(--color-negative-soft); }
 .app-quick-add-item.tone-green { --tone: #34d399; --tone-soft: rgba(16, 185, 129, 0.13); }
 .app-quick-add-item.tone-amber { --tone: #fbbf24; --tone-soft: rgba(245, 158, 11, 0.13); }

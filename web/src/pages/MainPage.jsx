@@ -501,8 +501,8 @@ export default function MainPage() {
       <AppAlertSources announcement={isDemo ? '' : announcement} />
       <AlertStack sources={['system']} className="main-system-alerts" />
 
-      {/* The site's group tabs (in the app frame — the Android app and phones — the bottom bar
-          picks the group); below them, on both, the open group's sections */}
+      {/* The site's group tabs and, below them, the open group's sections (in the app frame — the
+          Android app and phones — the bottom bar's groups ask for the section in a sheet) */}
       {!appLayout && (
       <div className="main-nav-container">
         <div className="main-nav-tabs-bar">
@@ -516,7 +516,7 @@ export default function MainPage() {
         </div>
       </div>
       )}
-      {activeGroup && activeGroup.items.length > 1 && (
+      {!appLayout && activeGroup && activeGroup.items.length > 1 && (
         <div className="main-nav-subtabs">
           <FilterPills
             size="sm"
