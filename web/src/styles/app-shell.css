@@ -537,6 +537,23 @@ html.is-app-layout [role='button']:active {
   font-size: 17px;
 }
 
+/* «بیشتر»: one titled part per group (shared/app/navGroups.js) */
+.app-more-group {
+  display: grid;
+  gap: 8px;
+}
+
+.app-more-group + .app-more-group {
+  margin-top: 14px;
+}
+
+.app-more-group-title {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
 .app-more-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

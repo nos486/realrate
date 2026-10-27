@@ -15,8 +15,10 @@ import { MoreVertical } from 'lucide-react';
  * @param {Array<{ key: string, label: string, icon?: React.ReactNode, onClick: () => void,
  *   disabled?: boolean, danger?: boolean, title?: string }>} items — falsy entries are skipped
  * @param {string} [label] — the button's accessible name
+ * @param {React.ReactNode} [trigger] — the button's own content (e.g. the user's avatar) in place of "⋮"
+ * @param {string} [triggerClassName] — the button's class in place of the small secondary button
  */
-export default function ActionMenu({ items = [], label = t('گزینه‌های بیشتر'), disabled = false, className = '' }) {
+export default function ActionMenu({ items = [], label = t('گزینه‌های بیشتر'), disabled = false, className = '', trigger = null, triggerClassName = '' }) {
   const [open, setOpen] = useState(false);
   const [place, setPlace] = useState(null);
   const rootRef = useRef(null);
@@ -75,7 +77,7 @@ export default function ActionMenu({ items = [], label = t('گزینه‌های 
     <div className={`ui-action-menu ${className}`} ref={rootRef}>
       <button
         type="button"
-        className="ui-btn ui-btn-secondary ui-btn-sm ui-action-menu-trigger"
+        className={triggerClassName || 'ui-btn ui-btn-secondary ui-btn-sm ui-action-menu-trigger'}
         aria-label={label}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -83,7 +85,7 @@ export default function ActionMenu({ items = [], label = t('گزینه‌های 
         disabled={disabled}
         onClick={() => setOpen((v) => !v)}
       >
-        <MoreVertical size={16} />
+        {trigger || <MoreVertical size={16} />}
       </button>
       {open && createPortal(
         <ul
