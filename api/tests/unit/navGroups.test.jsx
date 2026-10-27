@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 /**
  * navGroups.test.jsx — The app's sections gathered into groups: a group shows only when the user
- * has one of its sections, reopens the section opened last, and the app frame's bottom bar takes
+ * has one of its sections; on the website a group with several sections is a dropdown of them, and
+ * the app frame's bottom bar takes
  * the preferred groups (a group with several sections lists them like «ثبت سریع») with the rest
  * grouped under «بیشتر»
  */
@@ -16,7 +17,8 @@ vi.mock('../../../web/src/shared/native/smsInbox.js', () => ({ getPendingSms: ()
 vi.mock('../../../web/src/shared/alerts/AlertCenter.jsx', () => ({ default: () => null }));
 vi.mock('../../../web/src/shared/refresh/PageRefreshButton.jsx', () => ({ default: () => null }));
 
-import { buildNavGroups, groupOfTab, groupTarget, rememberGroupTab } from '../../../web/src/shared/app/navGroups.js';
+import { buildNavGroups, groupOfTab } from '../../../web/src/shared/app/navGroups.js';
+import GroupTabs from '../../../web/src/shared/app/GroupTabs.jsx';
 import { AppBottomNav, AppTopBar } from '../../../web/src/shared/app/AppShell.jsx';
 
 const item = (value, label = value) => ({ value, label });
@@ -37,22 +39,6 @@ describe('nav groups', () => {
     expect(groupOfTab(groups, 'cheques').key).toBe('plans');
     expect(groupOfTab(groups, 'goals').key).toBe('wealth');
     expect(groupOfTab(groups, 'nothing')).toBeNull();
-  });
-
-  it('opens the section opened last, or the first one', () => {
-    const money = buildNavGroups(ALL).find((g) => g.key === 'money');
-    expect(groupTarget(money)).toBe('expenses');
-    rememberGroupTab('money', 'accounts');
-    expect(groupTarget(money)).toBe('accounts');
-    // A section the user no longer has: back to the first
-    rememberGroupTab('money', 'projects');
-    expect(groupTarget(money)).toBe('expenses');
-  });
-
-  it('never reopens the admin area', () => {
-    const account = buildNavGroups([item('admin'), item('settings')]).find((g) => g.key === 'account');
-    rememberGroupTab('account', 'admin');
-    expect(groupTarget(account)).toBe('settings');
   });
 });
 
@@ -101,5 +87,35 @@ describe('the app frame', () => {
   it('names the open section in the top bar', () => {
     const { container } = render(<MemoryRouter><AppTopBar activeTab="cheques" navItems={ALL} /></MemoryRouter>);
     expect(container.querySelector('.app-topbar-title').textContent).toBe('cheques');
+  });
+});
+
+describe('the website\'s group tabs', () => {
+  const tabGroups = () => buildNavGroups(ALL).filter((g) => !g.menu);
+
+  it('shows one tab per group and marks the open section\'s group', () => {
+    const { container } = render(<GroupTabs groups={tabGroups()} activeTab="cheques" onSelect={() => {}} />);
+    const labels = [...container.querySelectorAll('.pill-label')].map((n) => n.textContent);
+    expect(labels).toEqual(['خانه', 'بازار', 'پول روزانه', 'سرمایه و اهداف', 'تعهدات', 'گزارش‌ها']);
+    expect(container.querySelector('.filter-pill-btn.active').textContent).toBe('تعهدات');
+  });
+
+  it('opens a one-section group right away', () => {
+    const onSelect = vi.fn();
+    render(<GroupTabs groups={tabGroups()} activeTab="cheques" onSelect={onSelect} />);
+    fireEvent.click(screen.getByText('گزارش‌ها'));
+    expect(onSelect).toHaveBeenCalledWith('reports');
+  });
+
+  it('lists a group\'s sections in a dropdown, the open one marked', () => {
+    const onSelect = vi.fn();
+    render(<GroupTabs groups={tabGroups()} activeTab="loans" onSelect={onSelect} />);
+    fireEvent.click(screen.getByText('تعهدات'));
+    expect(onSelect).not.toHaveBeenCalled();
+    const items = screen.getAllByRole('menuitem');
+    expect(items.map((n) => n.textContent)).toEqual(['loans', 'cheques', 'subscriptions']);
+    expect(items[0].getAttribute('aria-current')).toBe('page');
+    fireEvent.click(screen.getByText('cheques'));
+    expect(onSelect).toHaveBeenCalledWith('cheques');
   });
 });
