@@ -18,9 +18,31 @@ import { MoreVertical } from 'lucide-react';
  * @param {string} [label] — the button's accessible name
  * @param {React.ReactNode} [trigger] — the button's own content (e.g. the user's avatar) in place of "⋮"
  * @param {string} [triggerClassName] — the button's class in place of the small secondary button
+ * @param {boolean} [openOnHover] — a mouse resting on the button opens the list too (a menu bar's
+ *   dropdown); it closes a moment after the mouse leaves both, and a click then only opens it
+ * @param {number} [gap] — the space between the button and the list, in pixels
  */
-export default function ActionMenu({ items = [], label = t('گزینه‌های بیشتر'), disabled = false, className = '', trigger = null, triggerClassName = '' }) {
+export default function ActionMenu({
+  items = [], label = t('گزینه‌های بیشتر'), disabled = false, className = '', trigger = null, triggerClassName = '',
+  openOnHover = false, gap = 6,
+}) {
   const [open, setOpen] = useState(false);
+  const closeTimer = useRef(null);
+  // Hover (a mouse only; a touch is a click): open now, close shortly after leaving, so the mouse
+  // can cross the gap between the button and the list
+  const hover = openOnHover ? {
+    onPointerEnter: (e) => {
+      if (e.pointerType !== 'mouse' || disabled) return;
+      clearTimeout(closeTimer.current);
+      setOpen(true);
+    },
+    onPointerLeave: (e) => {
+      if (e.pointerType !== 'mouse') return;
+      clearTimeout(closeTimer.current);
+      closeTimer.current = setTimeout(() => setOpen(false), 220);
+    },
+  } : {};
+  useEffect(() => () => clearTimeout(closeTimer.current), []);
   const [place, setPlace] = useState(null);
   const rootRef = useRef(null);
   const menuRef = useRef(null);
@@ -39,8 +61,8 @@ export default function ActionMenu({ items = [], label = t('گزینه‌های 
       const up = below < menuHeight + 12 && r.top > below;
       const rtl = getComputedStyle(trigger).direction === 'rtl';
       setPlace({
-        top: up ? 'auto' : r.bottom + 6,
-        bottom: up ? window.innerHeight - r.top + 6 : 'auto',
+        top: up ? 'auto' : r.bottom + gap,
+        bottom: up ? window.innerHeight - r.top + gap : 'auto',
         left: rtl ? r.left : 'auto',
         right: rtl ? 'auto' : window.innerWidth - r.right,
         direction: rtl ? 'rtl' : 'ltr',
@@ -53,7 +75,7 @@ export default function ActionMenu({ items = [], label = t('گزینه‌های 
       window.removeEventListener('resize', update);
       window.removeEventListener('scroll', update, true);
     };
-  }, [open]);
+  }, [open, gap]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -75,7 +97,7 @@ export default function ActionMenu({ items = [], label = t('گزینه‌های 
   if (!list.length) return null;
 
   return (
-    <div className={`ui-action-menu ${className}`} ref={rootRef}>
+    <div className={`ui-action-menu ${className}`} ref={rootRef} {...hover}>
       <button
         type="button"
         className={triggerClassName || 'ui-btn ui-btn-secondary ui-btn-sm ui-action-menu-trigger'}
@@ -84,7 +106,7 @@ export default function ActionMenu({ items = [], label = t('گزینه‌های 
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         disabled={disabled}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen((v) => (openOnHover ? true : !v))}
       >
         {trigger || <MoreVertical size={16} />}
       </button>
@@ -95,6 +117,7 @@ export default function ActionMenu({ items = [], label = t('گزینه‌های 
           role="menu"
           id={menuId}
           style={place || { visibility: 'hidden' }}
+          {...hover}
         >
           {list.map((item) => (
             <li key={item.key} role="none">

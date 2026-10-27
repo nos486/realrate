@@ -2,7 +2,7 @@
  * GroupTabs.jsx — The website's section groups as one tab bar (shared/app/navGroups.js)
  *
  * A group with one section is a tab that opens it; a group with several opens a dropdown of its
- * sections (ActionMenu), the open one marked. The open section's group is the active tab. In the
+ * sections (ActionMenu) on a click or when the mouse rests on it, the open one marked. The open section's group is the active tab. In the
  * app frame the bottom bar does this instead (AppShell.jsx).
  */
 
@@ -47,6 +47,8 @@ export default function GroupTabs({ groups, activeTab, onSelect }) {
             key={group.key}
             className="group-tab-menu"
             label={t(group.label)}
+            openOnHover
+            gap={14}
             triggerClassName={`filter-pill-btn ${active ? 'active' : ''}`}
             trigger={(
               <>
