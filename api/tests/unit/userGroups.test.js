@@ -25,6 +25,8 @@ const { ensureSchema, resetD1SchemaCache } = await import('../../src/repositorie
 const repo = await import('../../src/repositories/userGroups.repository.js');
 const features = await import('../../src/lib/features.js');
 const routes = await import('../../src/handlers/groupRoutes.js');
+const signup = await import('../../src/services/signupGroup.service.js');
+const { dbUpsertUser } = await import('../../src/repositories/user.repository.js');
 
 describe('feature rules with groups', () => {
   const rules = {
@@ -239,6 +241,33 @@ describe('groups on SQLite (D1), and the routes', () => {
     expect(await repo.dbGetGroupByKey(env, 'vip')).toBeNull();
     // u1 was moved from Pro to vip (one group only), and vip is gone
     expect(await repo.dbGetUserGroupKeys(env, 'u1')).toEqual([]);
+  });
+
+  it('new accounts join Pro until the admin picks another group or none; existing users keep theirs', async () => {
+    expect(await signup.loadSignupGroupKey(env)).toBe('pro');
+    const now = new Date().toISOString();
+    const fresh = await dbUpsertUser(env, { id: 'g1', email: 'g1@example.com', name: 'G1', picture: '', role: 'user', createdAt: now, lastLogin: now });
+    expect(fresh.isNew).toBe(true);
+    expect(await signup.joinSignupGroup(env, 'g1')).toBe('pro');
+    expect(await repo.dbGetUserGroupKeys(env, 'g1')).toEqual(['pro']);
+
+    // Signing in again is no sign-up
+    const later = new Date(Date.now() + 1000).toISOString();
+    const again = await dbUpsertUser(env, { id: 'g1', email: 'g1@example.com', name: 'G1', picture: '', role: 'user', createdAt: later, lastLogin: later });
+    expect(again.isNew).toBe(false);
+
+    asAdmin();
+    expect((await json(routes.handleAdminListGroups(req('GET', '/api/admin/groups'), env))).signupGroup).toBe('pro');
+    const none = await json(routes.handleAdminSaveSignupGroup(req('PUT', '/api/admin/signup-group', { group: null }), env));
+    expect(none.signupGroup).toBe('');
+    expect(await signup.joinSignupGroup(env, 'u2')).toBe('');
+    expect(await repo.dbGetUserGroupKeys(env, 'g1')).toEqual(['pro']);
+    await expect(routes.handleAdminSaveSignupGroup(req('PUT', '/x', { group: 'ghost' }), env)).rejects.toMatchObject({ statusCode: 404 });
+    await json(routes.handleAdminSaveSignupGroup(req('PUT', '/x', { group: 'pro' }), env));
+    expect(await signup.loadSignupGroupKey(env)).toBe('pro');
+
+    asUser();
+    await expect(routes.handleAdminSaveSignupGroup(req('PUT', '/x', { group: null }), env)).rejects.toMatchObject({ statusCode: 403 });
   });
 
   it('every admin route refuses non-admins', async () => {

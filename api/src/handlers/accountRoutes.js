@@ -52,6 +52,7 @@ import { userFeatures } from "../lib/features.js";
 import { dbGetUserRequestedGroupKeys } from "../repositories/userGroups.repository.js";
 import { isAppVerifier, appChallengeOf, appSignInPurpose } from "../lib/appAuth.js";
 import { resolveFrontendOrigin } from "../lib/siteOrigin.js";
+import { joinSignupGroup } from "../services/signupGroup.service.js";
 
 export { resolveFrontendOrigin };
 
@@ -228,6 +229,7 @@ export async function handleRegister(request, env) {
       passwordHash: await hashPassword(password),
       role: isUserAdmin(email, env) ? "admin" : "user",
     });
+    await joinSignupGroup(env, account.id);
     await sendVerification(request, env, account);
   } else if (!existing.emailVerified) {
     // Never verified: whoever signs up again takes over the pending sign-up (it has no data and

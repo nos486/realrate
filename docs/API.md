@@ -243,7 +243,8 @@ A feature can be open to every user or only to the members of some groups (rules
 | `GET` | `/api/v1/features/:key/access` | Signed in: `{ feature, label, enabled, groups: [{ key, name, description, allowRequests, requested }] }` — the groups that open the feature |
 | `POST` | `/api/v1/groups/:key/request` | Ask to join a group that accepts requests (`{ note? }`); `400 ALREADY_MEMBER`, `404` when the group doesn't accept requests; asking again refreshes the request |
 | `DELETE` | `/api/v1/groups/:key/request` | Take the request back |
-| `GET` | `/api/v1/admin/groups` | Admin: `{ groups: [{ id, key, name, description, allowRequests, isSystem, memberCount, requestCount }], requests: [{ groupId, userId, email, name, requestedAt, note }], features: [{ key, label, description, stage, groups, defaultStage, defaultGroups, customized }] }` |
+| `GET` | `/api/v1/admin/groups` | Admin: `{ groups: [{ id, key, name, description, allowRequests, isSystem, memberCount, requestCount }], requests: [{ groupId, userId, email, name, requestedAt, note }], features: [{ key, label, description, stage, groups, defaultStage, defaultGroups, customized }], signupGroup }` (`signupGroup`: the key of the group new accounts join, `""` for none) |
+| `PUT` | `/api/v1/admin/signup-group` | Admin: `{ group: key\|null }` — the group new accounts join from now on (default `pro`); existing users keep theirs → `{ signupGroup }`; `404` for an unknown group |
 | `POST` | `/api/v1/admin/groups` | Admin: create `{ key, name, description?, allowRequests? }` (`key`: lower-case `[a-z][a-z0-9_-]{1,31}`, can't change later); `400 GROUP_EXISTS` |
 | `PUT` | `/api/v1/admin/groups/:id` | Admin: `{ name?, description?, allowRequests? }` (turning requests off drops the pending ones) |
 | `DELETE` | `/api/v1/admin/groups/:id` | Admin: the group, its members and requests; refused for a system group and `400 GROUP_IN_USE` while a feature's rule names it |
