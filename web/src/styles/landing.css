@@ -5,24 +5,24 @@
  */
 
 .landing-root {
-  --lp-bg: #07090e;
+  --lp-bg: var(--surface-0);
   --lp-surface: rgba(255, 255, 255, 0.03);
   --lp-surface-hover: rgba(255, 255, 255, 0.055);
   --lp-line: rgba(255, 255, 255, 0.08);
   --lp-line-strong: rgba(255, 255, 255, 0.14);
   --lp-gold: #f5b942;
-  --lp-gold-soft: rgba(245, 185, 66, 0.12);
-  --lp-muted: var(--text-secondary, #9ca3af);
+  --lp-gold-soft: var(--color-brand-soft);
+  --lp-muted: var(--text-secondary);
   --lp-radius: 18px;
 
   min-height: 100vh;
   width: 100%;
   overflow-x: hidden;
   background:
-    radial-gradient(900px 480px at 50% -120px, rgba(245, 185, 66, 0.10), transparent 70%),
-    radial-gradient(700px 420px at 100% 30%, rgba(56, 189, 248, 0.05), transparent 70%),
+    radial-gradient(900px 480px at 50% -120px, var(--color-brand-soft), transparent 70%),
+    radial-gradient(700px 420px at 100% 30%, var(--color-primary-faint), transparent 70%),
     var(--lp-bg);
-  color: var(--text-primary, #f3f4f6);
+  color: var(--text-primary);
   font-family: 'Vazirmatn Variable', 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   line-height: 1.7;
 }
@@ -61,7 +61,7 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  color: var(--text-primary, #f3f4f6);
+  color: var(--text-primary);
   font-weight: 800;
   font-size: 1.1rem;
   text-decoration: none;
@@ -76,7 +76,7 @@
   border-radius: 10px;
   background: var(--lp-gold-soft);
   color: var(--lp-gold);
-  border: 1px solid rgba(245, 185, 66, 0.25);
+  border: 1px solid var(--color-brand-border);
 }
 
 .lp-nav {
@@ -93,7 +93,7 @@
 }
 
 .lp-nav a:hover {
-  color: var(--text-primary, #f3f4f6);
+  color: var(--text-primary);
 }
 
 /* ── Buttons ── */
@@ -124,7 +124,7 @@
 }
 
 .lp-btn-primary {
-  background: #fff;
+  background: var(--surface-light);
   color: #0b0d12;
 }
 
@@ -135,7 +135,7 @@
 .lp-btn-ghost {
   background: var(--lp-surface);
   border-color: var(--lp-line-strong);
-  color: var(--text-primary, #f3f4f6);
+  color: var(--text-primary);
 }
 
 .lp-btn-ghost:hover {
@@ -190,7 +190,7 @@
   padding: 6px 14px;
   border-radius: 999px;
   background: var(--lp-gold-soft);
-  border: 1px solid rgba(245, 185, 66, 0.22);
+  border: 1px solid var(--color-brand-tint);
   color: var(--lp-gold);
   font-size: 0.85rem;
   font-weight: 600;
@@ -235,7 +235,7 @@
 }
 
 .lp-promises svg {
-  color: var(--color-positive, #34d399);
+  color: var(--color-positive);
 }
 
 /* ── Sections ── */
@@ -318,7 +318,6 @@
 .lp-feature:hover {
   background: var(--lp-surface-hover);
   border-color: var(--lp-line-strong);
-  transform: translateY(-2px);
 }
 
 .lp-feature h3 {
@@ -344,12 +343,12 @@
   color: var(--lp-tone);
 }
 
-.lp-feature-icon.is-gold { --lp-tone: #f5b942; --lp-tone-soft: rgba(245, 185, 66, 0.12); }
-.lp-feature-icon.is-blue { --lp-tone: #60a5fa; --lp-tone-soft: rgba(96, 165, 250, 0.12); }
-.lp-feature-icon.is-green { --lp-tone: #34d399; --lp-tone-soft: rgba(52, 211, 153, 0.12); }
-.lp-feature-icon.is-cyan { --lp-tone: #22d3ee; --lp-tone-soft: rgba(34, 211, 238, 0.12); }
-.lp-feature-icon.is-violet { --lp-tone: #a78bfa; --lp-tone-soft: rgba(167, 139, 250, 0.13); }
-.lp-feature-icon.is-rose { --lp-tone: #fb7185; --lp-tone-soft: rgba(251, 113, 133, 0.12); }
+.lp-feature-icon.is-gold { --lp-tone: #f5b942; --lp-tone-soft: var(--color-brand-soft); }
+.lp-feature-icon.is-blue { --lp-tone: var(--color-primary-text); --lp-tone-soft: var(--color-primary-soft); }
+.lp-feature-icon.is-green { --lp-tone: var(--color-positive-text); --lp-tone-soft: var(--color-positive-soft); }
+.lp-feature-icon.is-cyan { --lp-tone: var(--cat-3); --lp-tone-soft: rgba(34, 211, 238, 0.12); }
+.lp-feature-icon.is-violet { --lp-tone: var(--cat-4); --lp-tone-soft: rgba(167, 139, 250, 0.13); }
+.lp-feature-icon.is-rose { --lp-tone: var(--color-negative-text); --lp-tone-soft: rgba(251, 113, 133, 0.12); }
 
 /* ── The live analysis ── */
 .landing-analysis {
@@ -466,7 +465,7 @@
   border-radius: 24px;
   text-align: center;
   background:
-    radial-gradient(600px 240px at 50% 0%, rgba(245, 185, 66, 0.13), transparent 70%),
+    radial-gradient(600px 240px at 50% 0%, var(--color-brand-soft), transparent 70%),
     var(--lp-surface);
   border: 1px solid var(--lp-line-strong);
 }
@@ -520,14 +519,14 @@
 }
 
 .lp-footer-links a:hover {
-  color: var(--text-primary, #f3f4f6);
+  color: var(--text-primary);
 }
 
 .lp-footer-bottom {
   margin-top: 28px;
   padding-top: 20px;
   border-top: 1px solid var(--lp-line);
-  color: var(--text-muted, #6b7280);
+  color: var(--text-muted);
   font-size: 0.85rem;
 }
 

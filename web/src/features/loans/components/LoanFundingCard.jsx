@@ -41,7 +41,7 @@ function InvestmentReturn({ result, loanRate, money }) {
       <div className="loan-funding-return-row">
         <span>{t('سود / زیان')}</span>
         <strong className={result.gain >= 0 ? 'is-gain' : 'is-loss'}>
-          {t('{amount} تومان', { amount: money(Math.abs(result.gain)) })} {result.gainPct !== null && `(${formatPct(result.gainPct)})`}
+          {result.gain >= 0 ? '+' : '−'}{t('{amount} تومان', { amount: money(Math.abs(result.gain)) })} {result.gainPct !== null && `(${formatPct(result.gainPct)})`}
         </strong>
       </div>
       {result.annualPct !== null && (

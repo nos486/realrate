@@ -1,7 +1,7 @@
 /* ── In-app confirm / alert dialog ─────────────────────────────────────────── */
 .feedback-dialog-message {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--fs-md);
   line-height: 1.9;
   color: var(--text-secondary);
   white-space: pre-line;
@@ -15,7 +15,7 @@
 }
 
 .feedback-dialog.is-danger .modal-icon {
-  color: var(--rose-red);
+  color: var(--color-negative);
 }
 
 /* ── Toasts ─────────────────────────────────────────────────────────────── */
@@ -39,11 +39,10 @@
   max-width: 420px;
   padding: 11px 12px;
   border: 1px solid var(--border-medium);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--bg-modal);
-  box-shadow: var(--shadow-dropdown);
-  color: var(--text-primary, #fff);
-  font-size: 13px;
+  color: var(--text-primary);
+  font-size: var(--fs-base);
   line-height: 1.7;
   pointer-events: auto;
   animation: toast-in 0.18s ease-out;
@@ -54,12 +53,12 @@
   margin-top: 2px;
 }
 
-.toast-item.success .toast-icon { color: var(--green-emerald); }
-.toast-item.error .toast-icon { color: var(--rose-red); }
-.toast-item.warning .toast-icon { color: var(--gold-primary); }
-.toast-item.info .toast-icon { color: var(--blue-sky); }
+.toast-item.success .toast-icon { color: var(--color-positive); }
+.toast-item.error .toast-icon { color: var(--color-negative); }
+.toast-item.warning .toast-icon { color: var(--color-warning); }
+.toast-item.info .toast-icon { color: var(--color-primary-text); }
 
-.toast-item.error { border-color: rgba(244, 63, 94, 0.35); }
+.toast-item.error { border-color: var(--color-negative-border); }
 
 .toast-message {
   flex: 1;
@@ -120,7 +119,7 @@
   align-items: center;
   gap: 16px;
   padding: 14px 12px;
-  border-bottom: 1px solid var(--border-table-row, rgba(255, 255, 255, 0.04));
+  border-bottom: 1px solid var(--border-table-row);
 }
 
 .ui-skeleton-cards {
@@ -135,7 +134,7 @@
   gap: 12px;
   padding: 18px;
   border: var(--card-border);
-  border-radius: var(--card-radius, 16px);
+  border-radius: var(--card-radius);
   background: var(--card-bg);
 }
 
@@ -175,12 +174,12 @@
   flex-shrink: 0;
   padding: 4px 10px;
   border: none;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-sm);
+  background: var(--bg-control-hover);
   color: var(--text-primary);
   font: inherit;
-  font-size: 12px;
-  font-weight: 800;
+  font-size: var(--fs-sm);
+  font-weight: 700;
   cursor: pointer;
 }
 

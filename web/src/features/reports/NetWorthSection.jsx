@@ -14,13 +14,13 @@ import React from 'react';
 import { Landmark, TrendingUp, DollarSign, Scale } from 'lucide-react';
 import { MiniCard } from '../../shared/ui/index.js';
 import Skeleton from '../../shared/ui/Skeleton.jsx';
-import { CHART_COLORS } from '../../shared/ui/chartColors.js';
+import { CHART_COLORS, CHART_SEMANTIC } from '../../shared/ui/chartColors.js';
 import MonthBarChart from './MonthBarChart.jsx';
 import ReportCard from './ReportCard.jsx';
 
 const NET_COLOR = CHART_COLORS[2];
 const DOLLAR_COLOR = CHART_COLORS[3];
-const NEGATIVE_COLOR = CHART_COLORS[1];
+const NEGATIVE_COLOR = CHART_SEMANTIC.negative;
 
 /** The verdict under the dollar card: did the net worth grow more than the dollar? */
 function verdict(compare) {

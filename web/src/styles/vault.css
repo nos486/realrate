@@ -19,34 +19,34 @@
 .vault-settings-title-icon {
   vertical-align: middle;
   margin-inline-end: 6px;
-  color: var(--accent-blue, var(--color-primary-text));
+  color: var(--color-primary);
 }
 
 .vault-status-pill {
   padding: 2px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--bg-surface-elevated);
   box-shadow: inset 0 0 0 1px var(--border-medium);
   color: var(--text-muted);
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   font-weight: 700;
 }
 
 .vault-status-pill.is-on {
-  background: rgba(16, 185, 129, 0.12);
-  box-shadow: inset 0 0 0 1px rgba(16, 185, 129, 0.35);
+  background: var(--color-positive-soft);
+  box-shadow: inset 0 0 0 1px var(--color-positive-border);
   color: var(--color-positive-text);
 }
 
 .vault-status-pill.is-locked {
-  background: rgba(245, 158, 11, 0.12);
-  box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.35);
+  background: var(--color-warning-soft);
+  box-shadow: inset 0 0 0 1px var(--color-warning-border);
   color: var(--color-warning-text);
 }
 
 .vault-settings-text {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--fs-base);
   line-height: 1.9;
   color: var(--text-secondary);
 }
@@ -63,8 +63,8 @@
 
 .vault-settings-subtitle {
   margin: 0;
-  font-size: 13.5px;
-  font-weight: 800;
+  font-size: var(--fs-md);
+  font-weight: 700;
   color: var(--text-primary);
 }
 
@@ -99,7 +99,7 @@
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   line-height: 1.8;
   color: var(--text-secondary);
   cursor: pointer;
@@ -107,7 +107,7 @@
 
 .vault-settings-check input {
   margin-top: 5px;
-  accent-color: var(--primary-color);
+  accent-color: var(--color-primary);
 }
 
 .vault-settings-unlock {
@@ -124,7 +124,7 @@
 .vault-legacy-name {
   padding-top: 10px;
   overflow: hidden;
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: var(--text-primary);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -147,7 +147,7 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   color: var(--text-secondary);
 }
 
@@ -160,14 +160,14 @@
 .vault-progress-track {
   height: 6px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--bg-surface-elevated);
 }
 
 .vault-progress-bar {
   height: 100%;
-  border-radius: 999px;
-  background: var(--primary-color);
+  border-radius: var(--radius-full);
+  background: var(--color-primary-fill);
   transition: width 0.2s ease;
 }
 
@@ -188,17 +188,17 @@
 /* Header: lock everything encrypted in this tab */
 .btn-vault-lock-all {
   color: var(--color-warning-text);
-  border-color: rgba(245, 158, 11, 0.35);
+  border-color: var(--color-warning-border);
 }
 
 .btn-vault-lock-all:hover {
-  background: rgba(245, 158, 11, 0.12);
+  background: var(--color-warning-soft);
   color: var(--color-warning-text);
 }
 
 .vault-status-pill.is-required {
-  background: rgba(244, 63, 94, 0.12);
-  box-shadow: inset 0 0 0 1px rgba(244, 63, 94, 0.35);
+  background: var(--color-negative-soft);
+  box-shadow: inset 0 0 0 1px var(--color-negative-border);
   color: var(--color-negative-text);
 }
 
@@ -216,14 +216,14 @@
   width: 100%;
   max-width: 520px;
   padding: 28px 24px;
-  border-radius: 18px;
+  border-radius: var(--radius-xl);
   background: var(--bg-surface-elevated);
   box-shadow: inset 0 0 0 1px var(--border-medium);
 }
 
 .vault-setup-card h2 {
   margin: 0;
-  font-size: 19px;
+  font-size: var(--fs-xl);
   text-align: center;
 }
 
@@ -237,9 +237,9 @@
   width: 56px;
   height: 56px;
   margin: 0 auto;
-  border-radius: 16px;
-  background: rgba(56, 189, 248, 0.12);
-  color: var(--accent-blue, var(--color-primary-text));
+  border-radius: var(--radius-lg);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
 }
 
 .vault-setup-footer {
@@ -250,7 +250,7 @@
   padding-top: 12px;
   border-top: 1px solid var(--border-medium);
   color: var(--text-muted);
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   min-width: 0;
 }
 
@@ -284,7 +284,7 @@
   border-radius: var(--radius-md);
   background: var(--color-negative-soft);
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: var(--fs-base);
   line-height: 1.9;
 }
 
@@ -307,7 +307,7 @@
   display: block;
   margin-top: 10px;
   text-align: center;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   color: var(--text-secondary);
   text-decoration: underline;
 }
@@ -330,9 +330,9 @@
   justify-content: space-between;
   gap: 8px;
   padding: 6px 10px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.04);
-  font-size: 12.5px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-control);
+  font-size: var(--fs-base);
 }
 
 /* ── The one lock screen (shared/vault/VaultLockGate) ── */

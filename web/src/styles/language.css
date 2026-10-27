@@ -32,7 +32,7 @@
 
 .language-picker-title {
   margin: 0;
-  font-size: 24px;
+  font-size: var(--fs-2xl);
 }
 
 .language-picker-hint,
@@ -42,11 +42,11 @@
   gap: 4px;
   margin: 0;
   color: var(--text-secondary);
-  font-size: 15px;
+  font-size: var(--fs-lg);
 }
 
 .language-picker-note {
-  font-size: 13px;
+  font-size: var(--fs-base);
 }
 
 .language-picker-options {
@@ -60,11 +60,11 @@
   padding: 14px 16px;
   border: none;
   border-radius: var(--radius-md);
-  background: var(--accent-blue);
-  color: #fff;
+  background: var(--color-primary-fill);
+  color: var(--text-heading);
   font: inherit;
-  font-size: 17px;
-  font-weight: 800;
+  font-size: var(--fs-lg);
+  font-weight: 700;
   cursor: pointer;
 }
 
@@ -87,14 +87,14 @@
   background: transparent;
   color: var(--text-secondary);
   font: inherit;
-  font-size: 13px;
-  font-weight: 800;
+  font-size: var(--fs-base);
+  font-weight: 700;
   cursor: pointer;
 }
 
 .language-switch-option.is-active {
-  background: var(--accent-blue);
-  color: #fff;
+  background: var(--color-primary-fill);
+  color: var(--text-heading);
   cursor: default;
 }
 

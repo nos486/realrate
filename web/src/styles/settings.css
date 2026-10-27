@@ -25,7 +25,7 @@
 }
 
 .account-user-name {
-  font-size: 13.5px;
+  font-size: var(--fs-md);
   font-weight: 700;
   color: var(--text-heading);
   white-space: nowrap;
@@ -34,7 +34,7 @@
 }
 
 .account-user-email {
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;

@@ -25,13 +25,13 @@
   justify-content: space-between;
   padding: 10px 12px;
   border: 1px dashed var(--color-primary-border);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   background: var(--color-primary-soft);
 }
 
 .dash-hint {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--fs-base);
   font-weight: 700;
   color: var(--color-primary-text);
 }
@@ -50,7 +50,7 @@
 
 .dash-error {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: var(--color-negative-text);
 }
 
@@ -61,7 +61,7 @@
   gap: 12px;
   padding: 36px 16px;
   border: 1px dashed var(--border-medium);
-  border-radius: 20px;
+  border-radius: var(--radius-xl);
   color: var(--text-secondary);
   text-align: center;
 }
@@ -80,7 +80,7 @@
   flex-direction: column;
   gap: 16px;
   min-width: 0;
-  border-radius: 22px;
+  border-radius: var(--radius-xl);
 }
 
 .dash.is-editing .dash-col {
@@ -140,7 +140,7 @@
 .dash-widget.is-editing {
   padding: 8px;
   border: 1px dashed var(--border-strong);
-  border-radius: 22px;
+  border-radius: var(--radius-xl);
   background: var(--bg-surface);
 }
 
@@ -217,11 +217,11 @@
 
 .dash-widget.is-height-1 .dash-month .app-home-hero-value {
   margin-bottom: 8px;
-  font-size: 26px;
+  font-size: var(--fs-2xl);
 }
 
 .dash-widget .dash-month .app-home-hero-value {
-  font-size: 26px;
+  font-size: var(--fs-2xl);
 }
 
 .dash-widget .app-home-rates-grid {
@@ -248,8 +248,8 @@
   gap: 6px;
   flex: 1;
   min-width: 0;
-  font-size: 13px;
-  font-weight: 800;
+  font-size: var(--fs-base);
+  font-weight: 700;
   color: var(--text-heading);
   white-space: nowrap;
   overflow: hidden;
@@ -263,7 +263,7 @@
   height: 32px;
   padding: 0;
   border: 1px solid var(--border-medium);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--bg-surface-elevated);
   color: var(--text-secondary);
   cursor: pointer;
@@ -292,7 +292,7 @@
 .dash-size-toggle {
   display: inline-flex;
   border: 1px solid var(--border-medium);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 
@@ -302,7 +302,7 @@
   background: transparent;
   color: var(--text-secondary);
   font-family: inherit;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   cursor: pointer;
 }
@@ -344,11 +344,11 @@
   gap: 6px;
   padding: 12px 6px;
   border: 1px solid var(--border-subtle);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--card-inner-bg);
   color: var(--text-primary);
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   font-weight: 700;
   cursor: pointer;
 }
@@ -375,7 +375,7 @@
 
 .dash-clock-time {
   font-size: 44px;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
   unicode-bidi: isolate;
@@ -388,16 +388,16 @@
 }
 
 .dash-clock-weekday {
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: var(--text-secondary);
 }
 
 .dash-clock-date {
-  font-size: 16px;
+  font-size: var(--fs-lg);
 }
 
 .dash-clock-sub {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
@@ -429,8 +429,8 @@
 }
 
 .dash-clock-caption {
-  font-size: 15px;
-  font-weight: 800;
+  font-size: var(--fs-lg);
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   unicode-bidi: isolate;
 }
@@ -442,7 +442,7 @@
 }
 
 .dash-clock.is-compact .dash-clock-time {
-  font-size: 30px;
+  font-size: var(--fs-3xl);
 }
 
 .dash-clock.is-compact .dash-clock-dates {
@@ -479,7 +479,7 @@
   padding: 12px;
   overflow: hidden;
   border: 1px solid var(--border-subtle);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--card-inner-bg);
   color: var(--text-primary);
   font-family: inherit;
@@ -508,13 +508,13 @@
 }
 
 .dash-rate-name strong {
-  font-size: 13px;
+  font-size: var(--fs-base);
   font-weight: 700;
   color: var(--text-heading);
 }
 
 .dash-rate-name small {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--text-muted);
 }
 
@@ -525,10 +525,10 @@
   justify-content: center;
   width: 28px;
   height: 28px;
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
   background: var(--bg-surface);
   color: var(--color-primary-text);
-  font-size: 15px;
+  font-size: var(--fs-lg);
 }
 
 .dash-rate-price {
@@ -540,14 +540,14 @@
 }
 
 .dash-rate-price b {
-  font-size: 19px;
-  font-weight: 800;
+  font-size: var(--fs-xl);
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--text-heading);
 }
 
 .dash-rate-price small {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--text-muted);
 }
 
@@ -556,8 +556,8 @@
   align-items: center;
   margin-inline-start: auto;
   padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 11.5px;
+  border-radius: var(--radius-full);
+  font-size: var(--fs-sm);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -576,7 +576,7 @@
 .dash-rate-range-bar {
   position: relative;
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--border-subtle);
 }
 
@@ -587,14 +587,14 @@
   height: 10px;
   margin-inline-start: -5px;
   border-radius: 50%;
-  background: var(--color-primary);
+  background: var(--color-primary-fill);
   transform: translateY(-50%);
 }
 
 .dash-rate-range-ends {
   display: flex;
   justify-content: space-between;
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -632,7 +632,7 @@
 }
 
 .dash-rate-list.is-list .dash-rate-price b {
-  font-size: 16px;
+  font-size: var(--fs-lg);
 }
 
 .dash-rate-list.is-list .dash-rate-change {
@@ -698,7 +698,7 @@ button.dash-rate-tile:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 14px;
+  font-size: var(--fs-md);
 }
 
 .dash-cal-nav {
@@ -711,7 +711,7 @@ button.dash-rate-tile:focus-visible {
   color: var(--text-secondary);
   background: transparent;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
 }
 
@@ -728,7 +728,7 @@ button.dash-rate-tile:focus-visible {
 
 .dash-cal-weekday {
   padding-block: 4px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   text-align: center;
   color: var(--text-muted);
@@ -743,7 +743,7 @@ button.dash-rate-tile:focus-visible {
 .dash-cal-head > strong {
   flex: 1;
   text-align: center;
-  font-size: 15px;
+  font-size: var(--fs-lg);
   color: var(--text-heading);
 }
 
@@ -751,12 +751,12 @@ button.dash-rate-tile:focus-visible {
   padding: 3px 10px;
   margin-inline-end: 6px;
   font-family: inherit;
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   color: var(--color-primary-text);
   background: var(--color-primary-soft);
   border: 1px solid var(--color-primary-border);
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   cursor: pointer;
 }
 
@@ -782,12 +782,12 @@ button.dash-rate-tile:focus-visible {
   min-height: 38px;
   padding: 3px 0;
   font-family: inherit;
-  font-size: 13px;
+  font-size: var(--fs-base);
   font-variant-numeric: tabular-nums;
   color: var(--text-primary);
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 
@@ -816,13 +816,13 @@ button.dash-rate-tile:focus-visible {
 }
 
 .dash-cal-day.is-today {
-  font-weight: 800;
+  font-weight: 700;
 }
 
 /* Today is a filled rounded square, so it reads at a glance */
 .dash-cal-day.is-today,
 .dash-cal-day.is-today:hover {
-  background: var(--color-primary);
+  background: var(--color-primary-fill);
 }
 
 .dash-cal-day.is-today,
@@ -833,7 +833,7 @@ button.dash-rate-tile:focus-visible {
 
 /* The Gregorian day, small under the Shamsi one */
 .dash-cal-greg {
-  font-size: 10px;
+  font-size: var(--fs-xs);
   line-height: 1;
   color: var(--text-muted);
 }
@@ -853,7 +853,7 @@ button.dash-rate-tile:focus-visible {
 }
 
 .dash-cal-title small {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   direction: ltr;
   color: var(--text-muted);
 }
@@ -871,7 +871,7 @@ button.dash-rate-tile:focus-visible {
   padding: 8px 12px;
   color: var(--color-primary-text);
   background: var(--bg-surface);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
 }
 
 .dash-cal-selected > span {
@@ -882,12 +882,12 @@ button.dash-rate-tile:focus-visible {
 }
 
 .dash-cal-selected strong {
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: var(--text-heading);
 }
 
 .dash-cal-selected small {
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   color: var(--text-secondary);
 }
 
@@ -903,7 +903,7 @@ button.dash-rate-tile:focus-visible {
 }
 
 .dash-cal-dots small {
-  font-size: 9px;
+  font-size: var(--fs-xs);
   line-height: 1;
   color: var(--text-secondary);
 }
@@ -933,7 +933,7 @@ button.dash-rate-tile:focus-visible {
   width: 216px;
   padding: 10px 12px;
   border: 1px solid var(--border-strong);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--bg-surface-elevated);
   color: var(--text-primary);
   text-align: start;
@@ -959,11 +959,11 @@ button.dash-rate-tile:focus-visible {
   margin: 0;
   padding-bottom: 6px;
   border-bottom: 1px solid var(--border-subtle);
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .dash-cal-tip-head small {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--text-muted);
 }
 
@@ -991,20 +991,20 @@ button.dash-rate-tile:focus-visible {
 
 .dash-cal-tip li strong {
   overflow: hidden;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .dash-cal-tip li small {
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   color: var(--text-muted);
 }
 
 .dash-cal-tip li b,
 .dash-cal-event-amount {
   flex: none;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -1037,7 +1037,7 @@ button.dash-rate-tile:focus-visible {
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--text-muted);
 }
 
@@ -1059,17 +1059,17 @@ button.dash-rate-tile:focus-visible {
   gap: 2px;
   min-width: 0;
   padding: 7px 10px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: var(--bg-surface);
 }
 
 .dash-cal-totals small {
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   color: var(--text-muted);
 }
 
 .dash-cal-totals b {
-  font-size: 14px;
+  font-size: var(--fs-md);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1100,14 +1100,14 @@ button.dash-rate-tile:focus-visible {
 
 .dash-cal-agenda-title {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   color: var(--text-secondary);
 }
 
 .dash-cal-empty {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-muted);
 }
 
@@ -1135,7 +1135,7 @@ button.dash-rate-tile:focus-visible {
   text-align: start;
   background: transparent;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
 }
 
@@ -1152,14 +1152,14 @@ button.dash-rate-tile:focus-visible {
 
 .dash-cal-event-text strong {
   overflow: hidden;
-  font-size: 13px;
+  font-size: var(--fs-base);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .dash-cal-event-text small,
 .dash-cal-event-day {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--text-muted);
 }
 
@@ -1167,7 +1167,7 @@ button.dash-rate-tile:focus-visible {
 .dash-state-empty,
 .dash-state-error p {
   margin: 0;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   color: var(--text-muted);
 }
 
@@ -1187,8 +1187,8 @@ button.dash-rate-tile:focus-visible {
 
 .dash-picker-group h3 {
   margin: 0 0 8px;
-  font-size: 13px;
-  font-weight: 800;
+  font-size: var(--fs-base);
+  font-weight: 700;
   color: var(--text-secondary);
 }
 
@@ -1208,7 +1208,7 @@ button.dash-rate-tile:focus-visible {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--border-subtle);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--card-inner-bg);
   color: var(--text-primary);
   font-family: inherit;
@@ -1231,7 +1231,7 @@ button.dash-rate-tile:focus-visible {
   width: 38px;
   height: 38px;
   flex-shrink: 0;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--color-primary-soft);
   color: var(--color-primary-text);
 }
@@ -1245,11 +1245,11 @@ button.dash-rate-tile:focus-visible {
 }
 
 .dash-picker-text strong {
-  font-size: 14px;
+  font-size: var(--fs-md);
 }
 
 .dash-picker-text small {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-secondary);
 }
 
@@ -1289,11 +1289,11 @@ button.dash-rate-tile:focus-visible {
   gap: 6px;
   padding: 6px 10px;
   border: 1px solid var(--border-medium);
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: transparent;
   color: var(--text-primary);
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
 }
 
 .dash-asset-rows {
@@ -1309,7 +1309,7 @@ button.dash-rate-tile:focus-visible {
   gap: 4px;
   padding: 6px 10px;
   border: 1px solid var(--border-medium);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
 }
 
 .dash-asset-row-name {
@@ -1324,7 +1324,7 @@ button.dash-rate-tile:focus-visible {
   display: inline-flex;
   padding: 4px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: none;
   color: var(--text-muted);
   cursor: pointer;
@@ -1357,12 +1357,12 @@ button.dash-rate-tile:focus-visible {
   justify-content: space-between;
   gap: 12px;
   padding: 8px 0;
-  font-size: 13.5px;
+  font-size: var(--fs-md);
 }
 
 .dash-settings-label {
   margin: 0 0 10px;
-  font-size: 13px;
+  font-size: var(--fs-base);
   color: var(--text-secondary);
 }
 
@@ -1459,12 +1459,12 @@ button.dash-rate-tile:focus-visible {
 
 .app-home-rate-icon {
   display: inline-flex;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .app-home-rate strong .app-home-rate-unit {
   margin-inline-start: 3px;
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   font-weight: 600;
 }
 

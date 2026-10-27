@@ -14,7 +14,7 @@
   gap: 10px;
   padding: 48px 0;
   color: var(--text-secondary);
-  font-size: 0.9rem;
+  font-size: var(--fs-md);
 }
 
 /* ── Summary Cards ── (stacked single column — this grid now always lives in the
@@ -26,12 +26,12 @@
 }
 
 .incomes-summary-card.is-primary {
-  border-color: rgba(16, 185, 129, 0.35);
+  border-color: var(--color-positive-border);
   background: var(--color-positive-soft);
 }
 
 .incomes-summary-card .mini-card-value {
-  font-size: 19px;
+  font-size: var(--fs-xl);
 }
 
 .incomes-summary-foot-text {
@@ -82,7 +82,7 @@
   gap: 5px;
   padding: 3px 9px;
   border-radius: var(--radius-full);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   white-space: nowrap;
   color: var(--income-cat-color);
@@ -117,15 +117,15 @@
   align-items: flex-start;
   gap: 10px;
   padding: 12px 14px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-md);
+  background: var(--bg-control);
   box-shadow: inset 0 0 0 1px var(--border-medium);
   cursor: pointer;
 }
 
 .income-recurring-toggle input {
   margin-top: 3px;
-  accent-color: var(--primary-color);
+  accent-color: var(--color-primary);
 }
 
 .income-recurring-toggle span {
@@ -135,12 +135,12 @@
 }
 
 .income-recurring-toggle strong {
-  font-size: 13.5px;
+  font-size: var(--fs-md);
   color: var(--text-primary);
 }
 
 .income-recurring-toggle small {
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   line-height: 1.8;
   color: var(--text-muted);
 }
@@ -163,13 +163,13 @@
 
 .monthly-income-readout strong {
   color: var(--text-primary);
-  font-size: 18px;
-  font-weight: 800;
+  font-size: var(--fs-xl);
+  font-weight: 700;
 }
 
 .monthly-income-readout span {
   color: var(--text-muted);
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
 }
 
 .monthly-income-change {
@@ -178,25 +178,25 @@
   gap: 4px;
   padding: 3px 8px;
   border-radius: var(--radius-full);
-  font-size: 12px !important;
-  font-weight: 800;
+  font-size: var(--fs-sm) !important;
+  font-weight: 700;
   direction: inherit;
 }
 
 .monthly-income-change small {
-  font-size: 10.5px;
-  font-weight: 500;
+  font-size: var(--fs-xs);
+  font-weight: 400;
   opacity: 0.85;
 }
 
 .monthly-income-change.is-up {
-  background: var(--green-soft);
-  color: var(--green-emerald) !important;
+  background: var(--color-positive-soft);
+  color: var(--color-positive) !important;
 }
 
 .monthly-income-change.is-down {
-  background: var(--rose-soft);
-  color: var(--rose-red) !important;
+  background: var(--color-negative-soft);
+  color: var(--color-negative) !important;
 }
 
 /* Time runs left to right, like any chart axis, even on an RTL page */
@@ -227,9 +227,9 @@
 }
 
 .monthly-income-col:focus-visible {
-  outline: 2px solid var(--primary, #3987e5);
+  outline: 2px solid var(--color-primary-text);
   outline-offset: -2px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
 }
 
 .monthly-income-bar {
@@ -239,10 +239,10 @@
   display: flex;
   flex-direction: column-reverse; /* first source at the baseline */
   gap: 2px; /* surface gap between stacked sources */
-  border-radius: 4px 4px 0 0;
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
   overflow: hidden;
   opacity: 0.6;
-  transition: opacity 0.15s ease, height var(--transition-smooth, 0.3s ease);
+  transition: opacity 0.15s ease, height var(--transition-smooth);
 }
 
 .monthly-income-col.is-active .monthly-income-bar {
@@ -262,7 +262,7 @@
   align-items: center;
   gap: 5px;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   white-space: nowrap;
 }
 
@@ -278,7 +278,7 @@
 
 .monthly-income-axis span {
   color: var(--text-muted);
-  font-size: 9.5px;
+  font-size: var(--fs-xs);
   text-align: center;
   white-space: nowrap;
   overflow: visible;
@@ -322,7 +322,7 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   transition: opacity 0.15s ease;
 }
 
@@ -330,7 +330,7 @@
   width: 9px;
   height: 9px;
   flex-shrink: 0;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
 }
 
 .monthly-income-legend-name {
