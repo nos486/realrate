@@ -141,6 +141,44 @@ describe('the favorite rates widget', () => {
   });
 });
 
+describe('today\'s rates widget', () => {
+  const book = {
+    usd: { id: 'usd', name: 'دلار', price: 100000, changePercent: 1.5, category: 'currency', unit: 'تومان', params: {} },
+    gold_18k: { id: 'gold_18k', name: 'طلای ۱۸', price: 5000000, changePercent: -0.5, category: 'gold', unit: 'گرم', params: {} },
+    full_coin: { id: 'full_coin', name: 'سکه امامی', price: 60000000, category: 'coin', params: {} },
+    BTC: { id: 'BTC', name: 'بیت‌کوین', price: 0, category: 'crypto', params: {} },
+  };
+  const draw = async (config) => {
+    vi.resetModules();
+    vi.doMock('../../../web/src/features/market/context/PricingContext.jsx', () => ({ usePricing: () => ({ itemMap: book }) }));
+    vi.doMock('../../../web/src/features/dashboard/DashboardContext.js', () => ({ useDashboardData: () => ({ analysis: [], open: () => {} }) }));
+    const { default: RatesWidget } = await import('../../../web/src/features/dashboard/widgets/RatesWidget.jsx');
+    return render(<RatesWidget widget={{ config }} />).container;
+  };
+  const names = (c) => [...c.querySelectorAll('.app-home-rate > small')].map((n) => n.textContent);
+
+  it('shows the dollar, 18k gold and the coin until others are picked', async () => {
+    expect(names(await draw({}))).toEqual(['دلار', 'طلای ۱۸', 'سکه امامی']);
+  });
+
+  it('shows the picked rates in their order, leaving out one without a price', async () => {
+    const c = await draw({ assetIds: ['full_coin', 'BTC', 'usd'] });
+    expect(names(c)).toEqual(['سکه امامی', 'دلار']);
+    expect(c.querySelector('em.is-up')).toBeTruthy();
+  });
+
+  it('draws only the parts switched on', async () => {
+    const plain = await draw({ assetIds: ['usd'], change: false });
+    expect(plain.querySelector('em')).toBeNull();
+    expect(plain.querySelector('.app-home-rate-icon')).toBeNull();
+    expect(plain.querySelector('.app-home-rate-unit')).toBeNull();
+    cleanup();
+    const full = await draw({ assetIds: ['usd'], icon: true, unit: true });
+    expect(full.querySelector('.app-home-rate-icon')).toBeTruthy();
+    expect(full.querySelector('.app-home-rate-unit')).toBeTruthy();
+  });
+});
+
 describe('the calendar\'s look', () => {
   it('shows the Gregorian span, a Gregorian day under each day and the picked day in both calendars', () => {
     const { container } = render(<MemoryRouter><CalendarWidget widget={{ height: 4, config: {} }} /></MemoryRouter>);
