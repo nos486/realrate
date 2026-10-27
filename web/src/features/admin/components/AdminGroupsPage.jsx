@@ -2,8 +2,8 @@
  * AdminGroupsPage.jsx — Groups of users and who gets which feature (/admin/groups), in four tabs:
  *
  * - «درخواست‌ها»: join requests waiting for an answer (approve adds the member, reject drops the request)
- * - «گروه‌ها»: create, edit, delete (not a system group, not one a feature uses), and each group's
- *   members (search, add by email, remove)
+ * - «گروه‌ها»: the group new accounts join (or none), then create, edit, delete (not a system group,
+ *   not one a feature uses), and each group's members (search, add by email, remove)
  * - «دسترسی به ویژگی‌ها»: for each feature, off / admins only / signed-in users — all of them, or
  *   only the members of some groups; back to the code's default
  * - «محدودیت‌ها»: the counts and quotas of the free plan and of each group
@@ -13,7 +13,7 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { UsersRound, Plus, Pencil, Trash2, Check, X, Crown, KeyRound, RotateCcw, UserPlus, Inbox } from 'lucide-react';
+import { UsersRound, Plus, Pencil, Trash2, Check, X, Crown, KeyRound, RotateCcw, UserPlus, Inbox, UserRoundPlus } from 'lucide-react';
 import { AlertBanner, Button, EmptyState, Input, Modal, Pagination, SearchBar } from '../../../shared/ui/index.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
@@ -28,6 +28,7 @@ import {
   addAdminGroupMember,
   removeAdminGroupMember,
   answerAdminGroupRequest,
+  saveAdminSignupGroup,
   saveAdminFeatureRule,
   resetAdminFeatureRule,
   getAdminPlanLimits,
@@ -73,6 +74,34 @@ function RequestsCard({ requests, groups, onAnswer, busy }) {
           );
         })}
       </ul>
+    </AdminCard>
+  );
+}
+
+// ── The group new accounts join ────────────────────────────────────────────
+
+function SignupGroupCard({ groups, signupGroup, onSave }) {
+  const [busy, setBusy] = useState(null);
+  const options = [...groups.map((g) => ({ key: g.key, name: g.name })), { key: '', name: 'بدون گروه' }];
+  const choose = async (key) => {
+    if (key === signupGroup || busy !== null) return;
+    setBusy(key);
+    try {
+      await onSave(key || null);
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <AdminCard icon={<UserRoundPlus size={18} />} title="گروه کاربران جدید" subtitle="هر حسابی که از این پس ساخته شود خودکار عضو این گروه می‌شود؛ کاربران فعلی دست نمی‌خورند.">
+      <div className="admin-feature-groups" role="radiogroup" aria-label="گروه کاربران جدید">
+        {options.map((o) => (
+          <label key={o.key || 'none'} className={`admin-chip-toggle ${signupGroup === o.key ? 'is-on' : ''}`}>
+            <input type="radio" name="signup-group" checked={signupGroup === o.key} disabled={busy !== null} onChange={() => choose(o.key)} />
+            {o.name}
+          </label>
+        ))}
+      </div>
     </AdminCard>
   );
 }
@@ -253,7 +282,7 @@ function MembersModal({ group, onClose, onChanged }) {
 
 // ── Groups ─────────────────────────────────────────────────────────────────
 
-function GroupsCard({ groups, features, onCreate, onEdit, onMembers, onDelete }) {
+function GroupsCard({ groups, features, signupGroup, onCreate, onEdit, onMembers, onDelete }) {
   const usedBy = (key) => features.filter((f) => f.groups.includes(key)).map((f) => f.label);
   return (
     <AdminCard
@@ -274,6 +303,7 @@ function GroupsCard({ groups, features, onCreate, onEdit, onMembers, onDelete })
                   <bdi className="admin-chip admin-mono">{g.key}</bdi>
                   {g.isSystem && <span className="admin-chip">سیستمی</span>}
                   {g.allowRequests && <span className="admin-chip is-blue">پذیرش درخواست</span>}
+                  {g.key === signupGroup && <span className="admin-chip is-blue">کاربران جدید</span>}
                   {g.requestCount > 0 && <span className="admin-chip is-amber">{faNum(g.requestCount)} درخواست</span>}
                 </strong>
                 {g.description && <small>{g.description}</small>}
@@ -530,6 +560,16 @@ export default function AdminGroupsPage() {
     }
   };
 
+  const saveSignupGroup = async (group) => {
+    try {
+      const res = await saveAdminSignupGroup(group);
+      toast.success(res.message);
+      setData((d) => ({ ...d, signupGroup: res.signupGroup }));
+    } catch (err) {
+      toast.error(err.message || 'ذخیره ممکن نشد.');
+    }
+  };
+
   const removeGroup = async (group) => {
     const ok = await confirm({
       title: 'حذف گروه',
@@ -612,14 +652,18 @@ export default function AdminGroupsPage() {
               icon: <UsersRound size={14} />,
               badge: data.groups.length,
               content: (
-                <GroupsCard
-                  groups={data.groups}
-                  features={data.features}
-                  onCreate={() => setEditing({})}
-                  onEdit={setEditing}
-                  onMembers={setMembersOf}
-                  onDelete={removeGroup}
-                />
+                <div className="admin-stack">
+                  <SignupGroupCard groups={data.groups} signupGroup={data.signupGroup || ''} onSave={saveSignupGroup} />
+                  <GroupsCard
+                    groups={data.groups}
+                    features={data.features}
+                    signupGroup={data.signupGroup || ''}
+                    onCreate={() => setEditing({})}
+                    onEdit={setEditing}
+                    onMembers={setMembersOf}
+                    onDelete={removeGroup}
+                  />
+                </div>
               ),
             },
             {

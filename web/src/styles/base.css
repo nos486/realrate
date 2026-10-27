@@ -1011,11 +1011,8 @@ input.search-bar-input:focus-visible {
   max-width: 100%;
 }
 
-/* The section tabs rest as icons: only the active tab keeps its label, and pointing at (or tabbing
-   to) another one opens its name beside it (each still has its name as title and aria-label).
-   The name opens quickly and closes slowly, so moving across the bar doesn't flicker. Where even
-   the icons don't fit, the pills scroll sideways inside the bar instead of pushing the page
-   wider. */
+/* The group tabs keep their names (there are a few of them); where they don't fit, they scroll
+   sideways inside the bar instead of pushing the page wider */
 .main-nav-tabs-bar .ui-filter-pills.variant-segmented {
   overflow-x: auto;
   scrollbar-width: none;
@@ -1025,24 +1022,14 @@ input.search-bar-input:focus-visible {
   display: none;
 }
 
-.main-nav-tabs-bar .ui-filter-pills.variant-segmented .filter-pill-btn:not(.active) {
-  padding: 0 11px;
-  gap: 0;
+/* A group with several sections opens a dropdown of them (shared/app/GroupTabs.jsx) */
+.group-tabs .group-tab-chevron {
+  margin-inline-start: 6px;
+  opacity: 0.7;
 }
 
-.main-nav-tabs-bar .ui-filter-pills.variant-segmented .filter-pill-btn:not(.active) .pill-label {
-  max-width: 0;
-  overflow: hidden;
-  opacity: 0;
-  transition: max-width 0.6s ease, opacity 0.45s ease, margin 0.6s ease;
-}
-
-.main-nav-tabs-bar .ui-filter-pills.variant-segmented .filter-pill-btn:not(.active):hover .pill-label,
-.main-nav-tabs-bar .ui-filter-pills.variant-segmented .filter-pill-btn:not(.active):focus-visible .pill-label {
-  max-width: 160px;
-  margin-inline-start: 7px;
-  opacity: 1;
-  transition: max-width 0.25s ease, opacity 0.2s ease, margin 0.25s ease;
+.group-tabs .filter-pill-btn[aria-expanded="true"] .group-tab-chevron {
+  transform: rotate(180deg);
 }
 
 /* ── Price refresh warning (offline / failed refresh, with a retry button) ─── */
@@ -1605,6 +1592,12 @@ input.search-bar-input:focus-visible {
 .ui-action-menu-item svg {
   flex-shrink: 0;
   color: var(--text-secondary);
+}
+
+.ui-action-menu-item.is-active,
+.ui-action-menu-item.is-active svg {
+  color: var(--color-primary-text);
+  font-weight: 700;
 }
 
 .ui-action-menu-item.is-danger,

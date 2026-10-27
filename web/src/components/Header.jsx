@@ -16,6 +16,8 @@ import { lockAll } from '../shared/vault/vaultStore.js';
 import PlanBadge from '../shared/plan/PlanBadge.jsx';
 import PageRefreshButton from '../shared/refresh/PageRefreshButton.jsx';
 import { PRIVATE_VALUE_TABS } from '../shared/app/privacyTabs.js';
+import { buildNavGroups } from '../shared/app/navGroups.js';
+import ActionMenu from '../shared/ui/ActionMenu.jsx';
 
 const LogoMark = () => (
   <svg width="28" height="28" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -38,7 +40,7 @@ function ProfileLink({ to, children, ...rest }) {
   return <Link to={to} aria-label={t('تنظیمات حساب')} {...rest}>{children}</Link>;
 }
 
-export default function Header({ activeTab, navItems = null }) {
+export default function Header({ activeTab, navItems = null, onSelectTab = null }) {
   const { user, triggerLogin } = useAuth();
 
   const hideValues = usePrivacyMode();
@@ -50,7 +52,22 @@ export default function Header({ activeTab, navItems = null }) {
   const vault = useVault();
   const canLock = Boolean(user) && vault.status === 'unlocked';
 
-  // On phones the app's sections live in a side menu instead of the tab bar
+  // The account's sections (settings, Pro, the admin area: shared/app/navGroups.js) open from the
+  // avatar's menu; on a page without sections the avatar links to the account settings
+  const accountItems = onSelectTab ? buildNavGroups(navItems || []).find((g) => g.menu)?.items || [] : [];
+
+  const avatar = user && (user.picture ? (
+    <img
+      src={user.picture}
+      alt=""
+      className="user-avatar header-avatar-direct"
+      onError={(e) => { e.target.style.display = 'none'; }}
+    />
+  ) : (
+    <span className="user-avatar header-avatar-direct header-avatar-fallback">
+      {(user.customName || user.name || user.email || 'U')[0]}
+    </span>
+  ));
 
   const brand = (
     <Link to={user ? APP_BASE : LANDING_PATH} className="brand-link">
@@ -104,26 +121,30 @@ export default function Header({ activeTab, navItems = null }) {
           {/* User Auth / Profile */}
           <div className="auth-widget">
             {user ? (
-              // Opens account settings; signing out lives there, behind a confirmation (the demo
-              // account has no settings and leaves from its banner)
-              <ProfileLink
-                to={user.demo ? null : appPath('/settings')}
-                className="header-user-profile-direct"
-                title={`${user.customName || user.name} (${user.email})`}
-              >
-                {user.picture ? (
-                  <img
-                    src={user.picture}
-                    alt=""
-                    className="user-avatar header-avatar-direct"
-                    onError={(e) => { e.target.style.display = 'none'; }}
-                  />
-                ) : (
-                  <span className="user-avatar header-avatar-direct header-avatar-fallback">
-                    {(user.customName || user.name || user.email || 'U')[0]}
-                  </span>
-                )}
-              </ProfileLink>
+              // The account's menu (settings, Pro, the admin area); signing out lives in the settings,
+              // behind a confirmation (the demo account has no settings and leaves from its banner)
+              accountItems.length > 0 ? (
+                <ActionMenu
+                  label={t('حساب کاربری')}
+                  className="header-account-menu"
+                  triggerClassName="header-user-profile-direct"
+                  trigger={avatar}
+                  items={accountItems.map((item) => ({
+                    key: item.value,
+                    label: item.label,
+                    icon: item.icon,
+                    onClick: () => onSelectTab(item.value),
+                  }))}
+                />
+              ) : (
+                <ProfileLink
+                  to={user.demo ? null : appPath('/settings')}
+                  className="header-user-profile-direct"
+                  title={`${user.customName || user.name} (${user.email})`}
+                >
+                  {avatar}
+                </ProfileLink>
+              )
             ) : (
               <button className="btn-google-login" onClick={triggerLogin}>
                 <LogIn size={15} />

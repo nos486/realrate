@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import ErrorBoundary from '../shared/ui/ErrorBoundary.jsx';
 import { TrendingUp, Briefcase, ShieldCheck, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards, Smartphone, MessageSquareText, FolderKanban, Newspaper, ChartColumn, CalendarSync, Crown, Compass, Target, Home } from 'lucide-react';
-import { AppLayout, FilterPills, AlertBanner, Button } from '../shared/ui/index.js';
+import { AppLayout, AlertBanner, Button } from '../shared/ui/index.js';
 import { PriceRefreshStatus } from '../features/market/components/index.js';
 import HomeDashboard from '../features/home/HomeDashboard.jsx';
 // Imported from its own file (not the loans barrel) so LoansPage stays in its lazy chunk
@@ -25,6 +25,8 @@ import PlanLimitPrompt from '../shared/plan/PlanLimitPrompt.jsx';
 import { useIsPro, usePlan, PRO_PATH } from '../shared/plan/usePlan.js';
 import { setSmsLimits } from '../shared/native/smsPlan.js';
 import { useAppLayout } from '../shared/app/appLayout.js';
+import { buildNavGroups } from '../shared/app/navGroups.js';
+import GroupTabs from '../shared/app/GroupTabs.jsx';
 import { isNativeApp, smsEnabled } from '../shared/native/nativeApp.js';
 import { startSmsAutoRead } from '../shared/native/smsInbox.js';
 import { startWidgetLinks, refreshWidgets } from '../shared/native/widgets.js';
@@ -425,6 +427,10 @@ export default function MainPage() {
   }, [user, isDemo, isPro, hasExpenses, hasAccounts, hasMarket, hasNewsFeature, hasExplore, hasReports, offered.join(), hasHome, hasPortfolio, hasIncomes, hasLoans, hasCheques, hasSubscriptions, hasGoals]);
 
 
+  // The sections gathered into groups (shared/app/navGroups.js): the website's tabs, each group
+  // with several sections a dropdown of them (the account group is the avatar's menu)
+  const tabGroups = useMemo(() => buildNavGroups(tabOptions).filter((g) => !g.menu), [tabOptions]);
+
   const {
     calcData,
     globalSettings,
@@ -484,18 +490,12 @@ export default function MainPage() {
       <AppAlertSources announcement={isDemo ? '' : announcement} />
       <AlertStack sources={['system']} className="main-system-alerts" />
 
-      {/* The site's section tabs (in the app frame — the Android app and phones — the bottom bar
-          navigates) */}
+      {/* The site's group tabs (in the app frame — the Android app and phones — the bottom bar's
+          groups ask for the section in a sheet) */}
       {!appLayout && (
       <div className="main-nav-container">
         <div className="main-nav-tabs-bar">
-          <FilterPills
-            variant="segmented"
-            size="lg"
-            options={tabOptions}
-            activeValue={activeTab}
-            onChange={handleTabChange}
-          />
+          <GroupTabs groups={tabGroups} activeTab={activeTab} onSelect={handleTabChange} />
         </div>
       </div>
       )}

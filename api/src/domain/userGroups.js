@@ -12,6 +12,9 @@ import { t } from './i18n.js';
 /** The group the market page belongs to (created with the schema, can't be deleted) */
 export const PRO_GROUP_KEY = 'pro';
 
+/** The group new accounts join until the admin picks another (or none) on the groups page */
+export const DEFAULT_SIGNUP_GROUP_KEY = PRO_GROUP_KEY;
+
 export const GROUP_LIMITS = {
   key: 32,
   name: 40,

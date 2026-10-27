@@ -31,7 +31,7 @@ export const DASHBOARD_LAYOUT_VERSION = 1;
 /** Screens a list is arranged for */
 export const DASHBOARD_SCREENS = ["wide", "desktop", "tablet", "mobile"];
 
-export const DASHBOARD_LIMITS = { widgets: 40, idLength: 40, assetIdLength: 120, rateListAssets: 4, columns: 4 };
+export const DASHBOARD_LIMITS = { widgets: 40, idLength: 40, assetIdLength: 120, rateListAssets: 4, rateAssets: 8, columns: 4 };
 
 /** The list each column count is arranged in (the 3-column one is `desktop`, as it was stored before there were more) */
 const SCREEN_OF_COLUMNS = { 4: "wide", 3: "desktop", 2: "tablet", 1: "mobile" };
@@ -59,7 +59,9 @@ export const WIDGET_HEIGHTS = Object.keys(WIDGET_HEIGHT_PX).map(Number);
  * two appearance switches of WIDGET_APPEARANCE (its title, its card). `heights` lists the height
  * classes (WIDGET_HEIGHT_PX) the widget can be drawn at, `defaultHeight` is the one a new widget gets:
  *   count    one of the listed numbers (how many rows)
- *   assets   a list of market asset ids
+ *   assets   { max, min?, legacyKey? }: a list of market asset ids (`assetIds`), in the user's
+ *            order; `min` keeps that many (else the type's default list), `legacyKey` is an older
+ *            setting the list is read from while it was never saved
  *   style    { values, labels, default }: how the widget is drawn (a grid or a list, a clock face)
  *   choices  { key: { label, values, labels, default } }: one of several values (a range, an order)
  *   toggles  { key: { label, default } }: on/off switches
@@ -146,22 +148,20 @@ export const WIDGET_CATALOG = {
   },
   rates: {
     title: msg("نرخ‌های امروز"),
-    description: msg("دلار، طلای ۱۸ و سکه با تغییر امروز"),
+    description: msg("نرخ‌های دلخواهت به ترتیب خودت، با تغییر امروز"),
     group: "market",
     heights: [1, 2, 3], defaultHeight: 1, unique: true, requires: ["market"],
     options: {
+      // Before the assets could be picked, the widget chose among three under `items` (the same book ids)
+      assets: { max: DASHBOARD_LIMITS.rateAssets, min: 1, legacyKey: "items" },
       style: { values: ["tiles", "list"], labels: { tiles: msg("کاشی"), list: msg("فهرست") }, default: "tiles" },
-      multi: {
-        items: {
-          label: msg("نرخ‌های نمایش‌داده‌شده"),
-          values: ["usd", "gold_18k", "full_coin"],
-          labels: { usd: msg("دلار"), gold_18k: msg("طلای ۱۸"), full_coin: msg("سکه امامی") },
-          default: ["usd", "gold_18k", "full_coin"],
-          min: 1,
-        },
+      toggles: {
+        change: { label: msg("نمایش تغییر"), default: true },
+        icon: { label: msg("نمایش آیکون"), default: false },
+        unit: { label: msg("نمایش واحد"), default: false },
       },
-      toggles: { change: { label: msg("نمایش تغییر"), default: true } },
     },
+    defaults: { assetIds: ["usd", "gold_18k", "full_coin"] },
   },
   rate_list: {
     title: msg("نرخ‌های دلخواه"),
@@ -169,7 +169,7 @@ export const WIDGET_CATALOG = {
     group: "market",
     heights: [1, 2, 3], defaultHeight: 2, requires: ["market"],
     options: {
-      assets: true,
+      assets: { max: DASHBOARD_LIMITS.rateListAssets },
       style: { values: ["grid", "list"], labels: { grid: msg("شبکه‌ای"), list: msg("فهرست") }, default: "grid" },
       toggles: { change: { label: msg("نمایش تغییر"), default: true }, range: { label: msg("نمایش بازه‌ی امروز"), default: true } },
     },
@@ -375,12 +375,16 @@ function cleanMulti(def, raw) {
 function cleanConfig(type, raw) {
   const spec = WIDGET_CATALOG[type];
   const config = { ...(spec.defaults || {}) };
+  if (config.assetIds) config.assetIds = [...config.assetIds];
   const options = spec.options || {};
   const src = raw && typeof raw === "object" ? raw : {};
   if (options.count && options.count.includes(Number(src.count))) config.count = Number(src.count);
-  if (options.assets && Array.isArray(src.assetIds)) {
-    const ids = src.assetIds.filter((id) => typeof id === "string" && ASSET_ID_RE.test(id));
-    config.assetIds = [...new Set(ids)].slice(0, DASHBOARD_LIMITS.rateListAssets);
+  if (options.assets) {
+    const def = options.assets;
+    const raw = Array.isArray(src.assetIds) ? src.assetIds : def.legacyKey && Array.isArray(src[def.legacyKey]) ? src[def.legacyKey] : null;
+    const ids = (raw || []).filter((id) => typeof id === "string" && ASSET_ID_RE.test(id));
+    const picked = [...new Set(ids)].slice(0, def.max);
+    if (raw && picked.length >= (def.min || 0)) config.assetIds = picked;
   }
   if (options.style) config.style = options.style.values.includes(src.style) ? src.style : options.style.default;
   for (const [key, def] of Object.entries(options.choices || {})) {

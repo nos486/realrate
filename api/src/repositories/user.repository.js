@@ -119,6 +119,8 @@ export async function dbUpsertUser(env, userData) {
 
       const updated = await env.DB.prepare("SELECT * FROM users WHERE email = ?").bind(userData.email).first();
       if (updated) {
+        // The row was inserted now (not updated) when it keeps the creation time just sent
+        userData.isNew = updated.created_at === userData.createdAt;
         // An account first created with email/password keeps its own id; sessions must use it
         userData.id = updated.id;
         userData.loginCount = updated.login_count;

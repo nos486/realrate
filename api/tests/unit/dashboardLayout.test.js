@@ -71,6 +71,18 @@ describe('sanitizeWidgets', () => {
     expect(sanitizeWidgets([{ type: 'rate_list' }, { type: 'rate_list' }])).toHaveLength(2);
   });
 
+  it('gives today\'s rates their own ordered assets: the default three, at most eight, at least one', () => {
+    const rates = (config) => sanitizeWidgets([{ type: 'rates', config }])[0].config.assetIds;
+    expect(rates()).toEqual(['usd', 'gold_18k', 'full_coin']);
+    expect(rates({ assetIds: ['BTC', 'usd'] })).toEqual(['BTC', 'usd']);
+    expect(rates({ assetIds: [] })).toEqual(['usd', 'gold_18k', 'full_coin']);
+    const many = Array.from({ length: DASHBOARD_LIMITS.rateAssets + 3 }, (_, i) => `asset${i}`);
+    expect(rates({ assetIds: many })).toHaveLength(DASHBOARD_LIMITS.rateAssets);
+    // A widget saved before the assets could be picked keeps the rates it showed
+    expect(rates({ items: ['full_coin', 'usd'] })).toEqual(['full_coin', 'usd']);
+    expect(sanitizeWidgets([{ type: 'rates', config: { items: ['usd'] } }])[0].config.items).toBeUndefined();
+  });
+
   it('no longer has the single-asset widget: a stored one is dropped', () => {
     expect(WIDGET_CATALOG.asset).toBeUndefined();
     expect(sanitizeWidgets([{ type: 'asset', config: { assetId: 'usd' } }, { type: 'goals' }]).map((w) => w.type)).toEqual(['goals']);

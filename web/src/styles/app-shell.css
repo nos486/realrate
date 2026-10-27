@@ -452,6 +452,11 @@ html.is-app-layout [role='button']:active {
 .app-quick-add-item:nth-child(2) { animation-delay: 0.04s; }
 .app-quick-add-item:nth-child(3) { animation-delay: 0.08s; }
 
+/* A bottom-bar group's list: the section open now, and the waiting bank messages */
+.app-quick-add-item { position: relative; }
+.app-quick-add-item.is-active { border-color: var(--color-primary-border); }
+.app-quick-add-item .app-badge { top: 8px; inset-inline-end: 8px; }
+
 .app-quick-add-item.tone-rose { --tone: var(--color-negative-text); --tone-soft: var(--color-negative-soft); }
 .app-quick-add-item.tone-green { --tone: var(--color-positive-text); --tone-soft: var(--color-positive-soft); }
 .app-quick-add-item.tone-amber { --tone: var(--color-warning-text); --tone-soft: var(--color-warning-soft); }
@@ -535,6 +540,23 @@ html.is-app-layout [role='button']:active {
   color: var(--color-primary-text);
   font-weight: 700;
   font-size: var(--fs-lg);
+}
+
+/* «بیشتر»: one titled part per group (shared/app/navGroups.js) */
+.app-more-group {
+  display: grid;
+  gap: 8px;
+}
+
+.app-more-group + .app-more-group {
+  margin-top: 14px;
+}
+
+.app-more-group-title {
+  margin: 0;
+  font-size: var(--fs-base);
+  font-weight: 700;
+  color: var(--text-secondary);
 }
 
 .app-more-grid {

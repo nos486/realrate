@@ -146,7 +146,7 @@
 }
 
 .universal-category-pill.active {
-  background: var(--color-primary);
+  background: var(--color-primary-fill);
   color: var(--text-heading);
   border-color: var(--color-primary);
   box-shadow: none;

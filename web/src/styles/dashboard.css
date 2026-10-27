@@ -1276,14 +1276,12 @@ button.dash-rate-tile:focus-visible {
   gap: 6px;
 }
 
-.dash-asset-chips,
 .dash-chip-set {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.dash-asset-chip,
 .dash-asset-add,
 .dash-chip {
   display: inline-flex;
@@ -1298,13 +1296,43 @@ button.dash-rate-tile:focus-visible {
   font-size: var(--fs-base);
 }
 
-.dash-asset-chip button {
+.dash-asset-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.dash-asset-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+}
+
+.dash-asset-row-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-asset-row button {
   display: inline-flex;
-  padding: 0;
+  padding: 4px;
   border: 0;
+  border-radius: var(--radius-sm);
   background: none;
   color: var(--text-muted);
   cursor: pointer;
+}
+
+.dash-asset-row button:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .dash-asset-add,
@@ -1412,10 +1440,32 @@ button.dash-rate-tile:focus-visible {
   padding: 10px 14px;
 }
 
+/* Today's rates, tiles: one row of up to four, more wrap into rows of equal length */
 .dash-widget .app-home-rates-grid:not(.is-list) {
-  grid-template-columns: none;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(var(--rate-columns, 3), minmax(0, 1fr));
+  row-gap: 12px;
+}
+
+.dash-widget .app-home-rates-grid:not(.is-list) .app-home-rate.is-row-start {
+  padding-inline-start: 0;
+  border-inline-start: 0;
+}
+
+.dash-widget .app-home-rate > small {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.app-home-rate-icon {
+  display: inline-flex;
+  font-size: var(--fs-sm);
+}
+
+.app-home-rate strong .app-home-rate-unit {
+  margin-inline-start: 3px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
 }
 
 .dash-widget .app-home-rates-grid.is-list .app-home-rate {

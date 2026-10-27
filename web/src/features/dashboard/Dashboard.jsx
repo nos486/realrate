@@ -116,8 +116,9 @@ export default function Dashboard({ usdToman = 0, analysis = [], currencies = []
     const next = addWidget(shown, type);
     setShown(next);
     setPickerOpen(false);
-    // A widget that needs a choice asks for it right away
-    if (WIDGET_CATALOG[type].options?.assets) setSettingsId(next[next.length - 1].id);
+    // A widget that needs a choice asks for it right away (one with a default list has it)
+    const added = next[next.length - 1];
+    if (WIDGET_CATALOG[type].options?.assets && !added.config?.assetIds?.length) setSettingsId(added.id);
   };
 
   const handleReset = async () => {
