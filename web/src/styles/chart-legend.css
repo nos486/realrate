@@ -1,0 +1,28 @@
+/*
+ * chart-legend.css — Selectable chart legends (shared/ui/legendSelection.js): a legend row is a
+ * toggle; a hidden series' row is faded and struck through.
+ */
+
+[data-legend] {
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  border-radius: 6px;
+}
+
+[data-legend]:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+[data-legend='off'] {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+
+[data-legend='off'] :is(.donut-chart-swatch, .monthly-income-swatch),
+[data-legend='off'] > i {
+  background: transparent !important;
+  outline: 1.5px solid var(--text-secondary);
+  outline-offset: -1.5px;
+}

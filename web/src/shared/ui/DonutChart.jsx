@@ -1,12 +1,14 @@
 /**
  * DonutChart.jsx — Part-to-whole donut card with a legend (used by the portfolio allocation
- * and the loans bank share).
+ * and the loans bank share). Tapping a legend row hides / shows its slice; the total and the
+ * shares are of the slices shown.
  */
 
 import { intlLocale, t } from '../../utils/i18n.js';
 import React, { useMemo, useState } from 'react';
 import { formatCompactAmount } from '../utils/formatters.js';
 import { CHART_COLORS as DONUT_COLORS, CHART_OTHER_COLOR as OTHER_COLOR } from './chartColors.js';
+import { legendItemProps, useLegendSelection } from './legendSelection.js';
 
 // Slices take the shared hues in the order they're given; anything past the last hue folds into
 // a neutral "Other" slice.
@@ -93,12 +95,16 @@ export default function DonutChart({
     return list;
   }, [items, otherLabel]);
 
-  const total = slices.reduce((acc, s) => acc + s.value, 0);
+  const sliceKeys = useMemo(() => slices.map((s) => s.key), [slices]);
+  const legend = useLegendSelection(sliceKeys);
+  const shown = useMemo(() => slices.filter((s) => !legend.hidden.has(s.key)), [slices, legend.hidden]);
+  const total = shown.reduce((acc, s) => acc + s.value, 0);
+  const allTotal = slices.reduce((acc, s) => acc + s.value, 0);
 
   const arcs = useMemo(() => {
     if (total <= 0) return [];
     let angle = 0;
-    return slices
+    return shown
       .filter((s) => s.value > 0)
       .map((s) => {
         const sweep = (s.value / total) * Math.PI * 2;
@@ -106,10 +112,10 @@ export default function DonutChart({
         angle += sweep;
         return arc;
       });
-  }, [slices, total]);
+  }, [shown, total]);
 
-  const active = activeKey ? slices.find((s) => s.key === activeKey) : null;
-  const shareOf = (s) => (total > 0 ? s.value / total : 0);
+  const active = activeKey && !legend.isHidden(activeKey) ? slices.find((s) => s.key === activeKey) : null;
+  const shareOf = (s) => (total > 0 && !legend.isHidden(s.key) ? s.value / total : 0);
   const amount = (v, compact = true) => (masked ? '****' : compact ? formatCompactAmount(v) : `${formatNum(v)} ${unit}`);
 
   return (
@@ -119,7 +125,7 @@ export default function DonutChart({
         {headerExtra}
       </div>
 
-      {total <= 0 ? (
+      {allTotal <= 0 ? (
         <div className="stat-sub donut-chart-empty">{emptyMessage}</div>
       ) : (
         <div className="donut-chart-body">
@@ -165,7 +171,7 @@ export default function DonutChart({
               ) : (
                 <>
                   <strong>{amount(total)}</strong>
-                  <span>{centerLabel}</span>
+                  <span>{legend.anyHidden ? t('جمع انتخاب‌شده') : centerLabel}</span>
                 </>
               )}
             </div>
@@ -175,16 +181,17 @@ export default function DonutChart({
             {slices.map((s) => (
               <li
                 key={s.key}
-                className={`donut-chart-row ${s.icon ? 'has-icon' : ''} ${activeKey && activeKey !== s.key ? 'is-dimmed' : ''}`}
+                className={`donut-chart-row ${s.icon ? 'has-icon' : ''} ${active && active.key !== s.key ? 'is-dimmed' : ''}`}
                 onMouseEnter={() => setActiveKey(s.key)}
                 onMouseLeave={() => setActiveKey(null)}
+                {...legendItemProps(legend, s.key, s.label)}
               >
                 <span className="donut-chart-swatch" style={{ background: s.color }} aria-hidden="true" />
                 {s.icon}
                 <span className="donut-chart-name" title={s.label}>
                   {s.label}
                 </span>
-                <span className="donut-chart-pct">{formatShare(shareOf(s))}</span>
+                <span className="donut-chart-pct">{legend.isHidden(s.key) ? '—' : formatShare(shareOf(s))}</span>
                 <span className="donut-chart-amount">{amount(s.value)}</span>
               </li>
             ))}

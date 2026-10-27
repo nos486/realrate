@@ -4,7 +4,8 @@
  * A pie of today's shares (with each category's target as a thin outer ring) and a row per
  * category: today's share, its target, and how far apart they are, in points and in tomans — red
  * when more than DRIFT_THRESHOLD points (utils/allocationTargets.js). Without targets it invites
- * setting them.
+ * setting them. The pie's key («اکنون» / «هدف») is selectable: tapping one hides / shows the
+ * slices or the ring.
  */
 
 import { intlLocale, t } from '../../../utils/i18n.js';
@@ -14,6 +15,7 @@ import { CategoryIcon } from '../utils/holdingHelpers.js';
 import { CHART_COLORS, CHART_OTHER_COLOR } from '../../../shared/ui/chartColors.js';
 import { DRIFT_THRESHOLD } from '../utils/allocationTargets.js';
 import { formatCompactAmount } from '../../../shared/utils/formatters.js';
+import { legendItemProps, useLegendSelection } from '../../../shared/ui/legendSelection.js';
 
 const SIZE = 132;
 const C = SIZE / 2;
@@ -25,6 +27,9 @@ const signedPct = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${faPct(Math.abs(n)
 /** «+۱۲ میلیون»: how many tomans above or below the target */
 const signedAmount = (n) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${formatCompactAmount(Math.abs(n))}`;
 const colorOf = (i) => CHART_COLORS[i] || CHART_OTHER_COLOR;
+
+// The pie's two layers, as legend keys
+const LAYERS = ['now', 'target'];
 
 const point = (r, a) => [C + r * Math.sin(a), C - r * Math.cos(a)];
 
@@ -56,16 +61,16 @@ function layoutSlices(rows) {
   return slices;
 }
 
-function Pie({ rows }) {
+function Pie({ rows, showNow = true, showTarget = true }) {
   const slices = layoutSlices(rows);
   return (
     <svg className="allocation-targets-pie" width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} role="img" aria-label={t('ترکیب فعلی و هدف')}>
-      {slices.filter((s) => s.end > s.start).map((s) => (
+      {showNow && slices.filter((s) => s.end > s.start).map((s) => (
         <path key={s.r.targetKey} d={slicePath(s.start, s.end)} fill={s.color}>
           <title>{`${s.r.name}: ${faPct(s.r.currentPct)}`}</title>
         </path>
       ))}
-      {slices.filter((s) => s.ringEnd > s.ringStart).map((s) => (
+      {showTarget && slices.filter((s) => s.ringEnd > s.ringStart).map((s) => (
         <path key={`t-${s.r.targetKey}`} d={arcPath(s.ringStart, s.ringEnd)} stroke={s.color} strokeWidth="5" fill="none" strokeLinecap="butt" opacity="0.75">
           <title>{t('هدف {name}: {pct}', { name: s.r.name, pct: faPct(s.r.targetPct) })}</title>
         </path>
@@ -76,6 +81,7 @@ function Pie({ rows }) {
 
 export default function AllocationTargetsCard({ allocation, onEdit, readOnly = false, hideValues = false }) {
   const { rows, hasTargets, complete, drifted, targetsTotal } = allocation;
+  const layers = useLegendSelection(LAYERS);
   // Largest share first: the same color order as the pie
   const ordered = [...rows].sort((a, b) => b.currentPct - a.currentPct || (b.targetPct || 0) - (a.targetPct || 0));
 
@@ -102,10 +108,10 @@ export default function AllocationTargetsCard({ allocation, onEdit, readOnly = f
       ) : (
         <>
           <div className="allocation-targets-body">
-            <Pie rows={ordered} />
+            <Pie rows={ordered} showNow={!layers.isHidden('now')} showTarget={!layers.isHidden('target')} />
             <div className="allocation-targets-legend-note">
-              <span><i className="is-fill" />{' '}{t('اکنون')}</span>
-              <span><i className="is-ring" />{' '}{t('هدف')}</span>
+              <span {...legendItemProps(layers, 'now', t('اکنون'))}><i className="is-fill" />{' '}{t('اکنون')}</span>
+              <span {...legendItemProps(layers, 'target', t('هدف'))}><i className="is-ring" />{' '}{t('هدف')}</span>
             </div>
           </div>
           {!complete && (
