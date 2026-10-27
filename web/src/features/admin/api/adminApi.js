@@ -126,9 +126,14 @@ export async function editHistoryKeys(body) {
 
 // ── Groups of users and who gets which feature ─────────────────────────────
 
-/** `{ groups, requests, features }` */
+/** `{ groups, requests, features, signupGroup }` — signupGroup: the key of the group new accounts join, '' for none */
 export async function getAdminGroups() {
   return httpClient.get('/api/admin/groups');
+}
+
+/** The group new accounts join: a group key, or null for none (existing users keep theirs) */
+export async function saveAdminSignupGroup(group) {
+  return httpClient.put('/api/admin/signup-group', { group });
 }
 
 export async function createAdminGroup(group) {

@@ -25,6 +25,7 @@ import { CLIENT_HEADER, parseClientHeader } from "../domain/clientInfo.js";
 import { getDemoVaultPassphrase, DEMO_EMAIL } from "../repositories/demo.repository.js";
 import { ACCOUNT_DISABLED_MESSAGE, WEB_SIGNIN_PURPOSE, WEB_SIGNIN_CODE_TTL } from "./accountRoutes.js";
 import { getMaintenance } from "../lib/maintenance.js";
+import { joinSignupGroup } from "../services/signupGroup.service.js";
 import { jsonResponse, errorResponse, getCorsHeaders, safeWaitUntil } from "../lib/helpers.js";
 import { logger } from "../lib/logger.js";
 import { isTrustedOrigin } from "../lib/security.js";
@@ -332,6 +333,7 @@ export async function handleGoogleCallback(request, env) {
 
     // 1. Upsert user in the database
     await dbUpsertUser(env, userData);
+    if (userData.isNew) await joinSignupGroup(env, userData.id);
     if (userData.disabled) {
       return Response.redirect(finishTarget({ auth_error: ACCOUNT_DISABLED_MESSAGE }), 302);
     }
@@ -424,6 +426,7 @@ export async function handleGoogleAuth(request, env) {
 
     // 1. Upsert user in the database
     await dbUpsertUser(env, userData);
+    if (userData.isNew) await joinSignupGroup(env, userData.id);
     if (userData.disabled) return errorResponse(ACCOUNT_DISABLED_MESSAGE, 403, request);
 
     // 2. Create 30-day session

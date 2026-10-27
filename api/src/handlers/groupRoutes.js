@@ -7,7 +7,8 @@
  *   POST   /api/groups/:key/request    ask to join a group that accepts requests { note? }
  *   DELETE /api/groups/:key/request    take the request back
  * For the admin:
- *   GET    /api/admin/groups                           groups (with counts), pending requests, feature rules
+ *   GET    /api/admin/groups                           groups (with counts), pending requests, feature rules, signupGroup
+ *   PUT    /api/admin/signup-group                     { group: groupKey|null } — the group new accounts join
  *   POST   /api/admin/groups                           create { key, name, description, allowRequests }
  *   PUT    /api/admin/groups/:id                       edit { name?, description?, allowRequests? }
  *   DELETE /api/admin/groups/:id                       delete (not a system group, not one a feature uses)
@@ -54,6 +55,7 @@ import { dbGetUserAuthByEmail, dbGetUserAuthById } from "../repositories/account
 import { answerGroupRequest } from "../services/groupRequest.service.js";
 import { dbGetUsersPage, USER_FILTERS } from "../repositories/admin.repository.js";
 import { notifyAdmins } from "../services/bot/messengers.js";
+import { loadSignupGroupKey, saveSignupGroupKey } from "../services/signupGroup.service.js";
 
 const MEMBERS_PAGE_SIZE = 20;
 const userIdOf = (user) => user?.userId || user?.id || "";
@@ -154,8 +156,25 @@ export async function handleCancelGroupRequest(request, env, { key }) {
 /** GET /api/admin/groups */
 export async function handleAdminListGroups(request, env) {
   await requireAdminUser(request, env);
-  const [groups, requests, features] = await Promise.all([dbListGroups(env), dbListGroupRequests(env), featureRulesView(env)]);
-  return jsonResponse({ success: true, groups, requests, features }, 200, request);
+  const [groups, requests, features, signupGroup] = await Promise.all([
+    dbListGroups(env), dbListGroupRequests(env), featureRulesView(env), loadSignupGroupKey(env),
+  ]);
+  return jsonResponse({ success: true, groups, requests, features, signupGroup }, 200, request);
+}
+
+/** PUT /api/admin/signup-group { group } — the group key new accounts join, or null for none; existing users keep theirs */
+export async function handleAdminSaveSignupGroup(request, env) {
+  await requireAdminUser(request, env);
+  const body = await readBody(request);
+  if (body.group === undefined) throw AppError.badRequest("گروه را انتخاب کنید (یا «بدون گروه»).");
+  let group = null;
+  if (body.group !== null && body.group !== "") {
+    group = await dbGetGroupByKey(env, String(body.group).toLowerCase());
+    if (!group) throw AppError.notFound("گروه یافت نشد.");
+  }
+  await saveSignupGroupKey(env, group?.key || null);
+  const message = group ? `کاربران جدید از این پس عضو «${group.name}» می‌شوند.` : "کاربران جدید از این پس بدون گروه ثبت‌نام می‌شوند.";
+  return jsonResponse({ success: true, message, signupGroup: group?.key || "" }, 200, request);
 }
 
 /** POST /api/admin/groups */
