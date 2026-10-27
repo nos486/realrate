@@ -1,6 +1,6 @@
 /**
  * WidgetSettings.jsx — The settings of one widget, drawn from the catalog's `options`: its style
- * (how it looks), how many rows, which market assets, on/off switches and which parts to show
+ * (how it looks), how many rows, which market assets in which order, on/off switches and which parts to show
  *
  * Nothing here is specific to a widget: a new widget gets its settings sheet by declaring options
  * in the catalog (utils/dashboardLayout.js). Every change is saved as it is made. A value or switch
@@ -10,13 +10,13 @@
 import { intlLocale, t } from '../../utils/i18n.js';
 import React, { useState } from 'react';
 import {
-  AlignJustify, CalendarDays, CalendarRange, Clock, Clock3, LayoutGrid, List, ListChecks, PanelTop, Plus, Settings2, X,
+  AlignJustify, ArrowDown, ArrowUp, CalendarDays, CalendarRange, Clock, Clock3, LayoutGrid, List, ListChecks, PanelTop, Plus, Settings2, X,
 } from 'lucide-react';
 import Modal from '../../shared/ui/Modal.jsx';
 import AssetPickerModal from '../home/AssetPickerModal.jsx';
 import { usePricing } from '../market/context/PricingContext.jsx';
 import { assetOf } from '../market/priceBookAssets.js';
-import { DASHBOARD_LIMITS, WIDGET_APPEARANCE, WIDGET_CATALOG, allowedValues } from '../../utils/dashboardLayout.js';
+import { WIDGET_APPEARANCE, WIDGET_CATALOG, allowedValues } from '../../utils/dashboardLayout.js';
 
 /** An icon for each style value of the catalog (a style without one is drawn with its name only) */
 const STYLE_ICONS = {
@@ -65,24 +65,36 @@ function SwitchGroup({ title, defs, config, onChange }) {
   );
 }
 
-/** The market assets of the widget as removable chips, and the button that opens the picker */
-function AssetsGroup({ title, ids, max, onPick, onRemove }) {
+/**
+ * The market assets of the widget, one row each in the order the widget shows them: moved up or
+ * down, removed (while more than `min` are left), and the button that opens the picker
+ */
+function AssetsGroup({ title, ids, max, min = 0, onPick, onChange }) {
   const pricing = usePricing();
+  const nameOf = (id) => assetOf(pricing?.itemMap, id)?.name || id;
+  const move = (from, to) => {
+    const next = [...ids];
+    const [id] = next.splice(from, 1);
+    next.splice(to, 0, id);
+    onChange(next);
+  };
   return (
     <Group title={title}>
-      <div className="dash-asset-chips">
-        {ids.map((id) => (
-          <span key={id} className="dash-asset-chip">
-            {assetOf(pricing?.itemMap, id)?.name || id}
-            <button type="button" onClick={() => onRemove(id)} aria-label={t('حذف {title}', { title: assetOf(pricing?.itemMap, id)?.name || id })}><X size={13} /></button>
-          </span>
+      <div className="dash-asset-rows">
+        {ids.map((id, i) => (
+          <div key={id} className="dash-asset-row">
+            <span className="dash-asset-row-name">{nameOf(id)}</span>
+            <button type="button" onClick={() => move(i, i - 1)} disabled={i === 0} aria-label={t('بالا بردن {title}', { title: nameOf(id) })}><ArrowUp size={14} /></button>
+            <button type="button" onClick={() => move(i, i + 1)} disabled={i === ids.length - 1} aria-label={t('پایین بردن {title}', { title: nameOf(id) })}><ArrowDown size={14} /></button>
+            <button type="button" onClick={() => onChange(ids.filter((x) => x !== id))} disabled={ids.length <= min} aria-label={t('حذف {title}', { title: nameOf(id) })}><X size={14} /></button>
+          </div>
         ))}
-        {ids.length < max && (
-          <button type="button" className="dash-asset-add" onClick={onPick}>
-            <Plus size={14} aria-hidden="true" /> {t('انتخاب دارایی')}
-          </button>
-        )}
       </div>
+      {ids.length < max && (
+        <button type="button" className="dash-asset-add" onClick={onPick}>
+          <Plus size={14} aria-hidden="true" /> {t('انتخاب دارایی')}
+        </button>
+      )}
     </Group>
   );
 }
@@ -102,12 +114,14 @@ export default function WidgetSettings({ widget, can = () => true, onClose, onCh
   const spec = WIDGET_CATALOG[widget.type];
   const options = spec.options || {};
   const config = widget.config || {};
-  const max = DASHBOARD_LIMITS.rateListAssets;
+  const max = options.assets?.max || 0;
+  const minAssets = options.assets?.min || 0;
   const chosen = config.assetIds || [];
 
   const setAssets = (ids) => onChange({ assetIds: ids });
   const toggleAsset = (id, add) => {
     if (add && chosen.length >= max) return;
+    if (!add && chosen.length <= minAssets) return;
     setAssets(add ? [...chosen, id] : chosen.filter((x) => x !== id));
   };
   const toggleMulti = (key, def, value) => {
@@ -159,8 +173,9 @@ export default function WidgetSettings({ widget, can = () => true, onClose, onCh
           title={t('دارایی‌ها')}
           ids={chosen}
           max={max}
+          min={minAssets}
           onPick={() => setPicking(true)}
-          onRemove={(id) => setAssets(chosen.filter((x) => x !== id))}
+          onChange={setAssets}
         />
       )}
       {options.count && (

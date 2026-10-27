@@ -57,6 +57,19 @@ describe('the settings sheet', () => {
     expect(screen.queryByLabelText('نمایش خلاصه‌ی تحلیل روز')).toBeNull();
   });
 
+  it('reorders and removes the chosen assets, keeping the minimum', () => {
+    const onChange = vi.fn();
+    render(<WidgetSettings widget={widgetOf('rates', { assetIds: ['usd', 'gold_18k'] })} onClose={() => {}} onChange={onChange} />);
+    fireEvent.click(screen.getByRole('button', { name: 'بالا بردن gold_18k' }));
+    expect(onChange).toHaveBeenCalledWith({ assetIds: ['gold_18k', 'usd'] });
+    expect(screen.getByRole('button', { name: 'بالا بردن usd' }).disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'حذف usd' }));
+    expect(onChange).toHaveBeenLastCalledWith({ assetIds: ['gold_18k'] });
+    cleanup();
+    render(<WidgetSettings widget={widgetOf('rates', { assetIds: ['usd'] })} onClose={() => {}} onChange={onChange} />);
+    expect(screen.getByRole('button', { name: 'حذف usd' }).disabled).toBe(true);
+  });
+
   it('offers the title and card switches on every widget', () => {
     const onChange = vi.fn();
     render(<WidgetSettings widget={widgetOf('plan')} onClose={() => {}} onChange={onChange} />);
