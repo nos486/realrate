@@ -1,7 +1,8 @@
 /**
  * AssetLedgerDetails.jsx — Everything recorded for one asset, under its row (utils/assetLedger.js)
  *
- * One line per entry, in date order (FIFO reads that way): what it was, its day, quantity × price,
+ * One line per entry, oldest first (FIFO reads that way) or newest first (the viewer's choice, kept in
+ * this browser): what it was, its day, quantity × price and what that came to in tomans,
  * what is left of it (a buy) or what it took from (a sale or a spend), and its own profit or loss:
  *   - a buy: what is left of it at today's price plus what was realized from it when sold
  *   - a sale or a spend: what it realized («بدون سود/زیان» from a purchase without a price)
@@ -11,9 +12,9 @@
  */
 
 import { intlLocale, t, plural } from '../../../utils/i18n.js';
-import React from 'react';
+import React, { useState } from 'react';
 import {
-  ArrowDownLeft, ArrowUpRight, ClipboardList, Receipt, Pencil, Trash2, Plus, Minus, AlertTriangle, MessageSquare,
+  ArrowDownLeft, ArrowUpRight, ClipboardList, Receipt, Pencil, Trash2, Plus, Minus, AlertTriangle, MessageSquare, ArrowDownUp,
 } from 'lucide-react';
 import { formatNum, computeReferenceAssetPnl } from '../utils/holdingHelpers.js';
 import { DollarPnl } from '../../../shared/ui/DollarValue.jsx';
@@ -33,6 +34,29 @@ const kindOf = (kind, price) => (kind === 'manual' && price > 0 ? { ...KIND.manu
 const qtyText = (n) => Number(n || 0).toLocaleString(intlLocale(), { maximumFractionDigits: 6 });
 const dateLabel = (d) => (d ? toPersianDigits(d) : t('موجودی اولیه'));
 const signed = (v) => `${v >= 0 ? '+' : '−'}${formatNum(Math.abs(v))}`;
+
+// The entries' order: a per-viewer preference (this browser only), oldest first by default
+const ORDER_KEY = 'realrate_ledger_order';
+function readNewestFirst() {
+  try {
+    return localStorage.getItem(ORDER_KEY) === 'desc';
+  } catch {
+    return false;
+  }
+}
+function useNewestFirst() {
+  const [newestFirst, setNewestFirst] = useState(readNewestFirst);
+  const toggle = () => {
+    const next = !newestFirst;
+    setNewestFirst(next);
+    try {
+      localStorage.setItem(ORDER_KEY, next ? 'desc' : 'asc');
+    } catch {
+      // Blocked storage: kept for this visit only
+    }
+  };
+  return [newestFirst, toggle];
+}
 
 function Pnl({ value, hideValues, title, none = t('بدون سود/زیان') }) {
   if (value === null || value === undefined) return <span className="ledger-pnl is-none" title={title}>{none}</span>;
@@ -71,6 +95,8 @@ export default function AssetLedgerDetails({
     }
   }
   const unit = asset.unitRealPrice || 0;
+  const [newestFirst, toggleOrder] = useNewestFirst();
+  const entries = newestFirst ? [...asset.entries].reverse() : asset.entries;
 
   return (
     <div className="asset-ledger">
@@ -95,8 +121,19 @@ export default function AssetLedgerDetails({
             <span className="asset-ledger-muted">{t('{qty} {unit} بدون قیمت خرید (در سود/زیان حساب نمی‌شود)', { qty: qtyText(asset.unpricedQty), unit: asset.unit })}</span>
           )}
         </div>
-        {!readOnly && (onBuy || onSell) && (
-          <div className="asset-ledger-actions">
+        <div className="asset-ledger-actions">
+          {asset.entries.length > 1 && (
+            <button
+              type="button"
+              className="ui-btn ui-btn-ghost ui-btn-sm asset-ledger-order"
+              title={t('تغییر ترتیب')}
+              aria-pressed={newestFirst}
+              onClick={toggleOrder}
+            >
+              <ArrowDownUp size={14} />{' '}{newestFirst ? t('جدیدترین اول') : t('قدیمی‌ترین اول')}
+            </button>
+          )}
+          {!readOnly && (onBuy || onSell) && (<>
             {onBuy && (
               <button type="button" className="ui-btn ui-btn-secondary ui-btn-sm" onClick={() => onBuy(asset)}>
                 <Plus size={14} />{' '}{t('خرید')}
@@ -107,12 +144,12 @@ export default function AssetLedgerDetails({
                 <Minus size={14} />{' '}{t('فروش')}
               </button>
             )}
-          </div>
-        )}
+          </>)}
+        </div>
       </div>
 
       <ol className="asset-ledger-list">
-        {asset.entries.map((entry) => {
+        {entries.map((entry) => {
           const kind = kindOf(entry.kind, entry.price);
           const incoming = kind.tone === 'in';
           const closed = incoming && entry.remaining <= EPS;
@@ -172,6 +209,9 @@ export default function AssetLedgerDetails({
               <span className="asset-ledger-qty">
                 {hideValues ? MASK : qtyText(entry.qty)} <small>{asset.unit}</small>
                 {entry.price > 0 ? <> × {money(entry.price)}</> : <small className="asset-ledger-muted">{' '}{t('بی‌قیمت')}</small>}
+              </span>
+              <span className="asset-ledger-total">
+                {entry.price > 0 && <>= {money(entry.qty * entry.price)} <small>{t('تومان')}</small></>}
               </span>
               <span className={`asset-ledger-status ${closed ? 'is-closed' : ''}`} title={statusTitle || undefined}>
                 {status}

@@ -62,6 +62,31 @@ describe('holdings: one row per asset', () => {
   });
 });
 
+describe('each entry\'s total and the order of the entries', () => {
+  afterEach(() => localStorage.removeItem('realrate_ledger_order'));
+
+  it('shows quantity × price in tomans, and only for a priced entry', () => {
+    render(<AssetLedgerDetails asset={assets[0]} />);
+    const totals = [...document.querySelectorAll('.asset-ledger-total')].map((el) => el.textContent.trim());
+    expect(totals[0]).toBe(''); // the unpriced manual record
+    expect(totals.filter(Boolean)).toHaveLength(2);
+    expect(totals[1]).toMatch(/^= [۷7]\D?[۰0]{3}\D?[۰0]{3}/); // 100 × 70,000
+    expect(totals[2]).toMatch(/^= [۱1][۰0]\D?[۸8][۰0]{2}\D?[۰0]{3}/); // 120 × 90,000
+  });
+
+  it('turns to newest first, and remembers it', () => {
+    render(<AssetLedgerDetails asset={assets[0]} />);
+    const kinds = () => [...document.querySelectorAll('.asset-ledger-kind strong')].map((el) => el.textContent);
+    expect(kinds()).toEqual(['موجودی', 'خرید', 'فروش']);
+    fireEvent.click(screen.getByText('قدیمی‌ترین اول'));
+    expect(kinds()).toEqual(['فروش', 'خرید', 'موجودی']);
+    expect(localStorage.getItem('realrate_ledger_order')).toBe('desc');
+    cleanup();
+    render(<AssetLedgerDetails asset={assets[0]} />);
+    expect(screen.getByText('جدیدترین اول')).toBeTruthy();
+  });
+});
+
 describe('a purchase paid with another asset', () => {
   it('shows what it was paid with, and how holding that would be doing', () => {
     const { assets: [coin] } = buildAssetLedgers({

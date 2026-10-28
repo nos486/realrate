@@ -2289,10 +2289,10 @@ tr.is-expandable:focus-visible,
   overflow: hidden;
 }
 
-/* kind · date · quantity × price · left / taken from · P&L · actions */
+/* kind · date · quantity × price · its total · left / taken from · notes · P&L · actions */
 .asset-ledger-entry {
   display: grid;
-  grid-template-columns: minmax(110px, 1fr) minmax(90px, 0.7fr) minmax(150px, 1.4fr) minmax(90px, 0.8fr) minmax(0, 1.4fr) minmax(130px, 1.1fr) auto;
+  grid-template-columns: minmax(110px, 1fr) minmax(90px, 0.7fr) minmax(150px, 1.4fr) minmax(120px, 1fr) minmax(90px, 0.8fr) minmax(0, 1.4fr) minmax(130px, 1.1fr) auto;
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
@@ -2344,7 +2344,13 @@ tr.is-expandable:focus-visible,
   white-space: nowrap;
 }
 
+.asset-ledger-total {
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
 .asset-ledger-qty small,
+.asset-ledger-total small,
 .ledger-pnl small {
   color: var(--text-muted);
   font-size: 0.75em;
@@ -2415,6 +2421,7 @@ tr.is-expandable:focus-visible,
     grid-template-areas:
       "kind pnl"
       "qty status"
+      "total total"
       "date actions"
       "notes notes"
       "extras extras";
@@ -2425,6 +2432,8 @@ tr.is-expandable:focus-visible,
   .asset-ledger-kind { grid-area: kind; }
   .asset-ledger-pnl-cell { grid-area: pnl; }
   .asset-ledger-qty { grid-area: qty; }
+  .asset-ledger-total { grid-area: total; font-size: var(--fs-base); }
+  .asset-ledger-total:empty { display: none; }
   .asset-ledger-status { grid-area: status; justify-self: end; }
   .asset-ledger-date { grid-area: date; font-size: var(--fs-base); }
   .asset-ledger-entry-actions { grid-area: actions; }
