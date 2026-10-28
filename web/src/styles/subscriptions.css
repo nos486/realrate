@@ -13,7 +13,7 @@
   align-items: center;
   gap: 8px;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: var(--fs-base);
   cursor: pointer;
 }
 

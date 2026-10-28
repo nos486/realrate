@@ -476,9 +476,9 @@ function DueNotificationSettings() {
                       borderRadius: '16px',
                       fontSize: '12px',
                       cursor: 'pointer',
-                      border: active ? '1px solid var(--accent-blue, #38bdf8)' : '1px solid var(--border-color, rgba(255,255,255,0.12))',
+                      border: active ? '1px solid var(--color-primary, #38bdf8)' : '1px solid var(--border-color, rgba(255,255,255,0.12))',
                       background: active ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
-                      color: active ? 'var(--accent-blue, #38bdf8)' : 'var(--text-secondary)',
+                      color: active ? 'var(--color-primary, #38bdf8)' : 'var(--text-secondary)',
                       transition: 'all 0.15s ease',
                     }}
                   >

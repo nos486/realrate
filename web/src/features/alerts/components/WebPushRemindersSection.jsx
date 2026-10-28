@@ -129,7 +129,7 @@ export default function WebPushRemindersSection() {
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Bell size={18} style={{ color: 'var(--accent-blue, #38bdf8)' }} />
+          <Bell size={18} style={{ color: 'var(--color-primary, #38bdf8)' }} />
           <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600 }}>{t('اعلان مرورگر (Web Push)')}</h3>
         </div>
         {supported && (
@@ -188,10 +188,10 @@ export default function WebPushRemindersSection() {
                           fontSize: '12px',
                           cursor: 'pointer',
                           border: active
-                            ? '1px solid var(--accent-blue, #38bdf8)'
+                            ? '1px solid var(--color-primary, #38bdf8)'
                             : '1px solid var(--border-color, rgba(255,255,255,0.12))',
                           background: active ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
-                          color: active ? 'var(--accent-blue, #38bdf8)' : 'var(--text-secondary)',
+                          color: active ? 'var(--color-primary, #38bdf8)' : 'var(--text-secondary)',
                           transition: 'all 0.15s ease',
                           display: 'inline-flex',
                           alignItems: 'center',

@@ -11,7 +11,7 @@
    distinguishing it from the surrounding auto-filled/auto-divided cells. */
 .input-touched {
   border-color: rgba(245, 158, 11, 0.55) !important;
-  background: rgba(245, 158, 11, 0.06) !important;
+  background: var(--color-warning-faint) !important;
 }
 
 /* ── Bank-grouped Loans Sections (reuses .category-group-card etc. from portfolio-extras.css) ── */
@@ -26,8 +26,8 @@
 .loan-progress-track {
   width: 100%;
   height: 5px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 6px;
+  background: var(--bg-control-hover);
+  border-radius: var(--radius-sm);
   overflow: hidden;
   margin-top: 3px;
 }
@@ -35,7 +35,7 @@
 .loan-progress-bar {
   height: 100%;
   background: var(--color-warning);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   transition: width 0.3s ease;
 }
 
@@ -57,7 +57,7 @@
   flex-wrap: wrap;
   gap: 12px;
   padding-bottom: 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--border-medium);
 }
 
 .loan-inst-filter-group {
@@ -67,20 +67,20 @@
 }
 
 .loan-inst-filter-btn {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-control);
+  border: 1px solid var(--border-medium);
   color: var(--text-secondary);
-  font-size: 0.82rem;
+  font-size: var(--fs-base);
   font-weight: 600;
   padding: 6px 14px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .loan-inst-filter-btn.active {
-  background: rgba(245, 158, 11, 0.18);
-  border-color: rgba(245, 158, 11, 0.4);
+  background: var(--color-warning-tint);
+  border-color: var(--color-warning-border-strong);
   color: var(--color-warning-text);
 }
 
@@ -88,20 +88,20 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.85rem;
+  font-size: var(--fs-md);
   color: var(--text-secondary);
 }
 
 .loan-inst-summary-badge strong {
   color: var(--color-warning);
-  font-size: 0.95rem;
+  font-size: var(--fs-lg);
 }
 
 .loan-inst-table-wrap {
   width: 100%;
   overflow-x: auto;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-medium);
   background: rgba(0, 0, 0, 0.2);
 }
 
@@ -109,21 +109,21 @@
   width: 100%;
   border-collapse: collapse;
   text-align: start;
-  font-size: 0.85rem;
+  font-size: var(--fs-md);
 }
 
 .loan-inst-table th {
   padding: 12px 14px;
   color: var(--text-secondary);
   font-weight: 600;
-  background: rgba(255, 255, 255, 0.03);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-control);
+  border-bottom: 1px solid var(--border-medium);
   white-space: nowrap;
 }
 
 .loan-inst-table td {
   padding: 12px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--border-subtle);
   color: var(--text-primary);
   vertical-align: middle;
 }
@@ -133,34 +133,34 @@
 }
 
 .inst-num-badge {
-  font-size: 0.78rem;
+  font-size: var(--fs-sm);
   font-weight: 700;
   color: var(--text-secondary);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--bg-control);
   padding: 2px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
 }
 
 .badge-inst {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   padding: 3px 8px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
 }
 
 .badge-inst.paid {
-  background: rgba(16, 185, 129, 0.15);
+  background: var(--color-positive-soft);
   color: var(--color-positive-text);
-  border: 1px solid rgba(16, 185, 129, 0.25);
+  border: 1px solid var(--color-positive-border);
 }
 
 .badge-inst.pending {
-  background: rgba(245, 158, 11, 0.15);
+  background: var(--color-warning-soft);
   color: var(--color-warning-text);
-  border: 1px solid rgba(245, 158, 11, 0.25);
+  border: 1px solid var(--color-warning-border);
 }
 
 .amount-primary {
@@ -169,7 +169,7 @@
 }
 
 .amount-primary .unit {
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
   font-weight: 400;
   color: var(--text-secondary);
 }
@@ -193,7 +193,7 @@
 }
 
 .paid-date-badge {
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
   color: var(--color-positive);
 }
 
@@ -201,19 +201,19 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: rgba(16, 185, 129, 0.15);
-  border: 1px solid rgba(16, 185, 129, 0.35);
+  background: var(--color-positive-soft);
+  border: 1px solid var(--color-positive-border);
   color: var(--color-positive-text);
-  font-size: 0.8rem;
+  font-size: var(--fs-base);
   font-weight: 600;
   padding: 5px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .btn-mark-paid:hover {
-  background: rgba(16, 185, 129, 0.25);
+  background: var(--color-positive-border);
   border-color: var(--color-positive-text);
 }
 
@@ -222,19 +222,19 @@
   align-items: center;
   gap: 4px;
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-medium);
   color: var(--text-secondary);
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .btn-unmark-paid:hover {
-  background: rgba(239, 68, 68, 0.15);
+  background: var(--color-negative-soft);
   color: var(--color-negative);
-  border-color: rgba(239, 68, 68, 0.3);
+  border-color: var(--color-negative-border);
 }
 
 .inline-pay-box {
@@ -246,7 +246,7 @@
 
 .pay-amount-input {
   height: 32px !important;
-  font-size: 0.8rem !important;
+  font-size: var(--fs-base) !important;
 }
 
 .inline-pay-buttons {
@@ -256,28 +256,28 @@
 
 .btn-pay-confirm {
   flex: 1;
-  background: var(--color-positive);
-  color: #000;
+  background: var(--color-primary-fill);
+  color: var(--text-on-fill);
   border: none;
-  font-weight: 700;
-  font-size: 0.78rem;
+  font-weight: 600;
+  font-size: var(--fs-sm);
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
 }
 
 .btn-pay-cancel {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--bg-control-hover);
   color: var(--text-primary);
   border: none;
-  font-size: 0.78rem;
+  font-size: var(--fs-sm);
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
 }
 
 .inline-pay-error {
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   color: var(--color-negative);
   display: flex;
   align-items: center;
@@ -302,8 +302,8 @@
 
 .loan-inst-mobile-card {
   background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
   padding: 12px;
   display: flex;
   flex-direction: column;
@@ -311,8 +311,8 @@
 }
 
 .loan-inst-mobile-card.paid {
-  border-color: rgba(16, 185, 129, 0.25);
-  background: rgba(16, 185, 129, 0.02);
+  border-color: var(--color-positive-border);
+  background: var(--color-positive-faint);
 }
 
 .mobile-card-header {
@@ -325,7 +325,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.8rem;
+  font-size: var(--fs-base);
 }
 
 .mobile-card-body {
@@ -333,7 +333,7 @@
   flex-direction: column;
   gap: 4px;
   background: rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   padding: 8px 10px;
 }
 
@@ -341,7 +341,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 0.88rem;
+  font-size: var(--fs-md);
 }
 
 .mobile-amount-row .label {
@@ -357,17 +357,17 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
   color: var(--text-secondary);
 }
 
 .mobile-paid-info {
   display: flex;
   justify-content: space-between;
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
   color: var(--color-positive-text);
   padding-top: 4px;
-  border-top: 1px dashed rgba(255, 255, 255, 0.08);
+  border-top: 1px dashed var(--border-medium);
 }
 
 .mobile-card-footer {
@@ -406,11 +406,11 @@
 }
 
 .btn-retry {
-  background: rgba(245, 158, 11, 0.15);
-  border: 1px solid rgba(245, 158, 11, 0.3);
+  background: var(--color-warning-soft);
+  border: 1px solid var(--color-warning-border);
   color: var(--color-warning);
   padding: 6px 16px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
 }
 
@@ -419,12 +419,12 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 0.68rem;
+  font-size: var(--fs-xs);
   font-weight: 600;
   padding: 1px 6px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: rgba(147, 51, 234, 0.18);
-  color: #c084fc;
+  color: var(--cat-4);
   border: 1px solid rgba(147, 51, 234, 0.35);
   margin-inline-start: 6px;
 }
@@ -435,9 +435,9 @@
   justify-content: center;
   width: 26px;
   height: 26px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-sm);
+  background: var(--bg-control);
+  border: 1px solid var(--border-medium);
   color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.15s ease;
@@ -445,8 +445,8 @@
 }
 
 .btn-edit-installment:hover {
-  background: rgba(245, 158, 11, 0.2);
-  border-color: rgba(245, 158, 11, 0.4);
+  background: var(--color-warning-tint);
+  border-color: var(--color-warning-border-strong);
   color: var(--color-warning-text);
 }
 
@@ -459,28 +459,28 @@
 .inline-edit-amount-input {
   width: 140px !important;
   height: 30px !important;
-  font-size: 0.8rem !important;
+  font-size: var(--fs-base) !important;
   padding: 2px 8px !important;
 }
 
 .btn-inline-save {
-  background: var(--color-positive);
-  color: #000;
+  background: var(--color-primary-fill);
+  color: var(--text-on-fill);
   border: none;
-  font-size: 0.72rem;
-  font-weight: 700;
+  font-size: var(--fs-sm);
+  font-weight: 600;
   padding: 4px 8px;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   cursor: pointer;
 }
 
 .btn-inline-cancel {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--bg-control-hover);
   color: var(--text-secondary);
   border: none;
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   padding: 4px 6px;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   cursor: pointer;
 }
 
@@ -493,7 +493,7 @@
   margin-bottom: 14px;
   padding: 14px;
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.02);
 }
 
@@ -513,7 +513,7 @@
 }
 
 .loan-funding-pct {
-  font-size: 0.8rem;
+  font-size: var(--fs-base);
   color: var(--text-secondary);
 }
 
@@ -529,7 +529,7 @@
 }
 
 .loan-funding-stats dt {
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
   color: var(--text-secondary);
 }
 
@@ -545,7 +545,7 @@
 
 .loan-funding-empty {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: var(--fs-base);
   line-height: 1.7;
   color: var(--text-secondary);
 }
@@ -565,7 +565,7 @@
   gap: 10px;
   padding: 7px 0;
   border-top: 1px solid var(--border-color);
-  font-size: 0.82rem;
+  font-size: var(--fs-base);
 }
 
 .loan-funding-item-title {
@@ -578,7 +578,7 @@
 .loan-funding-item-title small,
 .loan-funding-item-date,
 .loan-funding-more {
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   color: var(--text-secondary);
 }
 
@@ -595,7 +595,7 @@
 
 .loan-deposit-hint {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: var(--fs-base);
   line-height: 1.7;
   color: var(--text-secondary);
 }
@@ -616,8 +616,8 @@
   width: 100%;
   padding: 12px;
   border: 1px solid var(--border-color);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-md);
+  background: var(--bg-control);
   color: var(--text-primary);
   font: inherit;
   text-align: start;
@@ -641,7 +641,7 @@
 }
 
 .loan-deposit-option small {
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
   color: var(--text-secondary);
 }
 
@@ -651,8 +651,8 @@
   flex-direction: column;
   gap: 6px;
   padding: 10px 12px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-md);
+  background: var(--bg-control);
 }
 
 .loan-funding-return-row {
@@ -660,7 +660,7 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 10px;
-  font-size: 0.8rem;
+  font-size: var(--fs-base);
   color: var(--text-secondary);
 }
 
@@ -669,7 +669,7 @@
 }
 
 .loan-funding-return-row small {
-  font-weight: 500;
+  font-weight: 400;
   color: var(--text-secondary);
 }
 
@@ -683,7 +683,7 @@
 
 .loan-funding-verdict {
   margin: 2px 0 0;
-  font-size: 0.78rem;
+  font-size: var(--fs-sm);
   line-height: 1.7;
 }
 
@@ -714,7 +714,7 @@
   border-radius: var(--radius-full);
   background: var(--color-positive-soft);
   color: var(--color-positive-text);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 
@@ -723,7 +723,7 @@
   align-items: flex-start;
   gap: 6px;
   margin: 6px 0 0;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--color-negative-text);
 }
 
@@ -734,7 +734,7 @@
 
 .loan-form-payoff-hint {
   margin: 0;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   font-weight: 600;
   color: var(--color-positive-text);
 }
@@ -746,7 +746,7 @@
   gap: 10px;
   padding: 12px 14px;
   border: var(--card-inner-border);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--card-inner-bg);
 }
 
@@ -754,7 +754,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--fs-base);
   font-weight: 600;
   color: var(--text-secondary);
 }
@@ -774,23 +774,23 @@
   flex-direction: column;
   gap: 4px;
   padding: 10px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: var(--bg-surface);
 }
 
 .loan-form-preview-cell span {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-secondary);
 }
 
 .loan-form-preview-cell strong {
-  font-size: 14.5px;
+  font-size: var(--fs-md);
   font-weight: 600;
   color: var(--text-primary);
 }
 
 .loan-form-preview-cell strong.is-main {
-  font-size: 16px;
+  font-size: var(--fs-lg);
   font-weight: 700;
   color: var(--color-warning);
 }
@@ -819,7 +819,7 @@
 
 .loan-payoff-done h3 {
   margin: 0 0 8px;
-  font-size: 1.25rem;
+  font-size: var(--fs-xl);
   font-weight: 700;
   color: var(--text-primary);
 }
@@ -827,7 +827,7 @@
 .loan-payoff-done p {
   max-width: 360px;
   margin: 0 auto;
-  font-size: 0.9rem;
+  font-size: var(--fs-md);
   line-height: 1.6;
   color: var(--text-secondary);
 }
@@ -837,13 +837,13 @@
   max-height: 420px;
   overflow-y: auto;
   border: var(--card-inner-border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
 }
 
 .loan-bulk-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.8rem;
+  font-size: var(--fs-base);
 }
 
 .loan-bulk-table th {
@@ -872,7 +872,7 @@
 }
 
 .loan-bulk-table td.is-muted small {
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
 }
 
 .loan-bulk-table td.is-input {

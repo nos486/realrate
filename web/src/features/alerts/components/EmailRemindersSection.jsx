@@ -127,7 +127,7 @@ export default function EmailRemindersSection() {
     <div className="account-settings-section" style={{ marginTop: '28px', borderTop: '1px solid var(--border-color, rgba(255,255,255,0.08))', paddingTop: '22px' }}>
       <div className="section-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
         <span>
-          <Mail size={18} style={{ verticalAlign: 'middle', marginInlineEnd: '6px', display: 'inline', color: 'var(--accent-blue, #38bdf8)' }} />
+          <Mail size={18} style={{ verticalAlign: 'middle', marginInlineEnd: '6px', display: 'inline', color: 'var(--color-primary, #38bdf8)' }} />
           {t('یادآوری ایمیلی')}
         </span>
         {userEmail && (
@@ -170,7 +170,7 @@ export default function EmailRemindersSection() {
 
       <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
         {/* Master Toggle */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'var(--bg-secondary, rgba(255,255,255,0.03))', borderRadius: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', background: 'var(--bg-control)', borderRadius: '8px' }}>
           <div>
             <strong style={{ fontSize: '14px', display: 'block' }}>{t('ارسال روزانه خلاصه سررسیدها به ایمیل')}</strong>
             <small style={{ color: 'var(--text-muted)', fontSize: '11.5px' }}>
@@ -210,13 +210,13 @@ export default function EmailRemindersSection() {
                       fontSize: '12.5px',
                       cursor: 'pointer',
                       border: sources.includes(opt.id)
-                        ? '1px solid var(--accent-blue, #38bdf8)'
+                        ? '1px solid var(--color-primary, #38bdf8)'
                         : '1px solid var(--border-color, rgba(255,255,255,0.12))',
                       background: sources.includes(opt.id)
                         ? 'rgba(56, 189, 248, 0.15)'
                         : 'transparent',
                       color: sources.includes(opt.id)
-                        ? 'var(--accent-blue, #38bdf8)'
+                        ? 'var(--color-primary, #38bdf8)'
                         : 'var(--text-secondary)',
                       transition: 'all 0.15s ease',
                     }}
@@ -245,13 +245,13 @@ export default function EmailRemindersSection() {
                       fontSize: '12.5px',
                       cursor: 'pointer',
                       border: leadDays.includes(opt.days)
-                        ? '1px solid var(--accent-blue, #38bdf8)'
+                        ? '1px solid var(--color-primary, #38bdf8)'
                         : '1px solid var(--border-color, rgba(255,255,255,0.12))',
                       background: leadDays.includes(opt.days)
                         ? 'rgba(56, 189, 248, 0.15)'
                         : 'transparent',
                       color: leadDays.includes(opt.days)
-                        ? 'var(--accent-blue, #38bdf8)'
+                        ? 'var(--color-primary, #38bdf8)'
                         : 'var(--text-secondary)',
                       transition: 'all 0.15s ease',
                     }}

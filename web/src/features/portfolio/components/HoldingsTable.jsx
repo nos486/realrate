@@ -141,7 +141,7 @@ export default function HoldingsTable({
                 {hideValues ? '****' : t('{sign}{amount} تومان', { sign: isProfit ? '+' : '', amount: formatNum(item.itemPnl) })}
               </span>
               <span className="pnl-pct-badge">
-                {hideValues ? '****' : t('({sign}{pct}٪)', { sign: isProfit ? '+' : '', pct: formatPct(Math.abs(item.itemPnlPct || 0)) })}
+                {hideValues ? '****' : t('({sign}{pct}٪)', { sign: isProfit ? '+' : '−', pct: formatPct(Math.abs(item.itemPnlPct || 0)) })}
               </span>
             </div>
             {item.realizedPnl !== null && item.realizedPnl !== undefined && !hideValues && (
@@ -211,7 +211,7 @@ export default function HoldingsTable({
                     {hideValues ? t('**** تومان') : t('{sign}{amount} تومان', { sign: group.totalPnl >= 0 ? '+' : '', amount: formatNum(group.totalPnl) })}
                   </strong>
                   <span className="subtotal-pnl-pct">
-                    {hideValues ? '(****)' : t('({sign}{pct}٪)', { sign: group.totalPnl >= 0 ? '+' : '', pct: formatPct(Math.abs(group.totalPnlPct)) })}
+                    {hideValues ? '(****)' : t('({sign}{pct}٪)', { sign: group.totalPnl >= 0 ? '+' : '−', pct: formatPct(Math.abs(group.totalPnlPct)) })}
                   </span>
                 </div>
               )}

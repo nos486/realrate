@@ -16,8 +16,8 @@
   gap: 10px;
   padding: 6px 10px;
   border: 1px solid var(--border-color);
-  border-radius: 10px;
-  font-size: 13px;
+  border-radius: var(--radius-md);
+  font-size: var(--fs-base);
 }
 
 .goal-deposit-row small {
@@ -39,7 +39,7 @@
   width: 24px;
   height: 24px;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: none;
   color: var(--text-secondary);
   cursor: pointer;
@@ -64,7 +64,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--fs-base);
 }
 
 .goals-home-name {

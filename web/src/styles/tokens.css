@@ -1,151 +1,170 @@
 /* ── Global Theme & Design Tokens (High-End Dark Minimalist System) ────────── */
 :root {
   color-scheme: dark;
-  /* Core Dark Canvas & Surfaces */
-  --bg-app: #07090e;
-  --bg-surface: #0c101a;
-  --bg-surface-elevated: #111726;
+
+  /* ── Surfaces: four opaque steps of even lightness (docs/en/DESIGN.md) ─────
+     s0 the page, s1 a card, s2 a card inside a card / a menu, s3 hover and the
+     selected row. Layers are told apart by these steps and a border, never a shadow. */
+  --surface-0: #07090e;
+  --surface-1: #0e131e;
+  --surface-2: #151c2a;
+  --surface-3: #1d2637;
+
+  --bg-app: var(--surface-0);
+  --bg-surface: var(--surface-1);
+  --bg-surface-elevated: var(--surface-2);
 
   /* Layout & Container Constraints */
   --layout-max-width: 1860px;
 
-  /* Unified Card & Elevated Glass Surface Tokens */
-  --card-bg: rgba(16, 22, 34, 0.72);
-  --bg-card: var(--card-bg);
-  --card-bg-hover: rgba(22, 30, 48, 0.82);
-  --card-border: 1px solid rgba(255, 255, 255, 0.07);
-  --border-color: rgba(255, 255, 255, 0.07);
-  /* Minimal, flat design: surfaces are separated by borders, never by shadows or glows */
-  --card-shadow: none;
-  --card-shadow-hover: none;
-  --card-radius: 16px;
-  /* A card nested inside a card (e.g. a loan inside its bank group): a lighter step of the same
-     surface, so it reads as a separate layer without a shadow */
-  --card-inner-bg: #161d2c;
-  --card-inner-bg-hover: #1b2334;
-  --card-inner-border: 1px solid rgba(255, 255, 255, 0.08);
-  --card-inner-border-hover: rgba(255, 255, 255, 0.16);
-
+  /* Cards */
+  --card-bg: var(--surface-1);
+  --card-bg-hover: #121826;
+  --card-border: 1px solid var(--border-medium);
+  --border-color: var(--border-medium);
+  --card-radius: var(--radius-lg);
+  /* A card nested inside a card (e.g. a loan inside its bank group): the next surface step */
+  --card-inner-bg: var(--surface-2);
+  --card-inner-bg-hover: var(--surface-3);
+  --card-inner-border: 1px solid var(--border-medium);
+  --card-inner-border-hover: var(--border-strong);
   --bg-card-hover: var(--card-bg-hover);
-  --bg-card-elevated: rgba(19, 27, 42, 0.92);
+  --bg-card-elevated: var(--surface-2);
   --bg-header: rgba(7, 9, 14, 0.88);
   --bg-header-ticker: rgba(255, 255, 255, 0.035);
 
   /* Inputs, Textareas & Form Controls */
   --bg-input: rgba(255, 255, 255, 0.04);
   --bg-input-focus: rgba(255, 255, 255, 0.07);
-  --border-input: 1px solid rgba(255, 255, 255, 0.08);
+  --border-input: 1px solid rgba(255, 255, 255, 0.1);
   --border-input-focus: var(--color-primary);
   --shadow-input-focus: 0 0 0 2px rgba(2, 132, 199, 0.35);
-  --text-input: #ffffff;
+  --text-input: var(--text-heading);
   --placeholder-color: rgba(255, 255, 255, 0.45);
 
-  /* Modals & Popups (Glass Backdrop) */
-  --bg-modal: #0e131d;
+  /* Modals, dropdowns and the backdrop behind them */
+  --bg-modal: var(--surface-1);
   --bg-modal-backdrop: rgba(0, 0, 0, 0.82);
-  --border-modal: 1px solid rgba(255, 255, 255, 0.09);
-  --shadow-modal: none;
-
-  /* Dropdowns */
-  --bg-dropdown: #0e1420;
-  --border-dropdown: 1px solid rgba(255, 255, 255, 0.08);
-  --shadow-dropdown: none;
+  --border-modal: 1px solid var(--border-strong);
+  --bg-dropdown: var(--surface-2);
+  --border-dropdown: 1px solid var(--border-strong);
 
   /* Tables & Lists */
   --bg-table-header: rgba(255, 255, 255, 0.025);
   --bg-row-hover: rgba(255, 255, 255, 0.035);
-  --border-table-row: rgba(255, 255, 255, 0.04);
+  --border-table-row: rgba(255, 255, 255, 0.05);
 
-  /* Subtly Defined Borders */
+  /* Borders */
   --border-subtle: rgba(255, 255, 255, 0.05);
-  --border-medium: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.15);
-  --border-gold: var(--color-warning-border);
+  --border-medium: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.16);
 
-  /* ── Semantic colors: the standard every page uses (docs/DESIGN.md) ──────────
+  /* ── Semantic colors: the standard every page uses (docs/en/DESIGN.md) ──────
      primary   actions, the active tab, focus, links and informative accents
      positive  money in, profit, paid / received / done
      negative  loss, overdue, errors and destructive actions
-     warning   debt still owed, due soon, attention — and the gold brand accent
+     warning   debt due soon, attention
+     brand     the gold of each page's main number, the logo and Pro — never a state
      Everything else (neutral amounts, labels) uses the text tokens below; charts and
      category chips use the categorical palette (shared/ui/chartColors.js).
-     Each hue has a base (fills, icons, borders), a -text shade that reads well on the
-     dark surfaces, and -soft / -border tints for badges, chips and alerts. */
+     Each hue has a base (icons, borders), a -text shade that reads well on the
+     dark surfaces, and tints by strength: -faint (6%), -soft (12%, badges and chips),
+     -tint (20%, their hover / selected state), -border (30%) and -border-strong (45%). */
   --color-primary: #0284c7;
-  --color-primary-strong: #2563eb;
+  /* A filled control (a button, the selected pill) under white text: 5.9:1 */
+  --color-primary-fill: #0369a1;
+  --color-primary-fill-hover: #0277b5;
   --color-primary-text: #38bdf8;
+  --color-primary-faint: rgba(2, 132, 199, 0.06);
   --color-primary-soft: rgba(2, 132, 199, 0.12);
+  --color-primary-tint: rgba(2, 132, 199, 0.2);
   --color-primary-border: rgba(2, 132, 199, 0.3);
+  --color-primary-border-strong: rgba(2, 132, 199, 0.45);
 
   --color-positive: #10b981;
   --color-positive-text: #34d399;
+  --color-positive-faint: rgba(16, 185, 129, 0.06);
   --color-positive-soft: rgba(16, 185, 129, 0.12);
+  --color-positive-tint: rgba(16, 185, 129, 0.2);
   --color-positive-border: rgba(16, 185, 129, 0.3);
+  --color-positive-border-strong: rgba(16, 185, 129, 0.45);
 
   --color-negative: #f43f5e;
   --color-negative-text: #fb7185;
+  --color-negative-faint: rgba(244, 63, 94, 0.06);
   --color-negative-soft: rgba(244, 63, 94, 0.12);
+  --color-negative-tint: rgba(244, 63, 94, 0.2);
   --color-negative-border: rgba(244, 63, 94, 0.3);
+  --color-negative-border-strong: rgba(244, 63, 94, 0.45);
 
   --color-warning: #f59e0b;
   --color-warning-text: #fbbf24;
+  --color-warning-faint: rgba(245, 158, 11, 0.06);
   --color-warning-soft: rgba(245, 158, 11, 0.12);
+  --color-warning-tint: rgba(245, 158, 11, 0.2);
   --color-warning-border: rgba(245, 158, 11, 0.3);
+  --color-warning-border-strong: rgba(245, 158, 11, 0.45);
 
-  /* Older names, kept as aliases of the semantic colors above */
-  --primary-color: var(--color-primary);
-  --primary-color-hover: #0369a1;
-  /* Solid, no gradient or glow (kept as tokens so older rules still resolve) */
-  --primary-gradient: linear-gradient(var(--color-primary), var(--color-primary));
-  --primary-glow: none;
-  --primary-glow-lg: none;
-  --primary-soft-bg: var(--color-primary-soft);
-  --primary-border: 1px solid var(--color-primary-border);
-  --primary-text: #ffffff;
+  --color-brand: #e8b84a;
+  --color-brand-faint: rgba(232, 184, 74, 0.06);
+  --color-brand-soft: rgba(232, 184, 74, 0.12);
+  --color-brand-tint: rgba(232, 184, 74, 0.2);
+  --color-brand-border: rgba(232, 184, 74, 0.32);
+  --color-brand-border-strong: rgba(232, 184, 74, 0.45);
 
-  --accent-color: var(--color-primary-text);
-  --accent-blue: var(--color-primary);
-  --accent-amber: var(--color-warning);
-  --accent-green: var(--color-positive);
-  --accent-rose: var(--color-negative);
+  /* Text on a filled control: white on primary / negative, dark on any light fill */
+  --text-on-fill: #ffffff;
+  --text-on-light: #07090e;
+  /* A white plate (a bank logo, the Google sign-in button) and its border */
+  --surface-light: #ffffff;
+  --border-on-light: #d1d5db;
 
-  --gold-primary: var(--color-warning);
-  --gold-light: var(--color-warning-text);
-  /* One solid gold: the headline total and every other gold value are the same color */
-  --gold-gradient: linear-gradient(var(--color-warning-text), var(--color-warning-text));
-  --gold-soft-bg: var(--color-warning-soft);
+  /* ── Categorical palette: the same hues, in the same order, as CHART_COLORS
+     (shared/ui/chartColors.js; a test keeps the two equal). Categories only —
+     they never mean profit, loss or debt. */
+  --cat-1: #3d7fe0;
+  --cat-2: #f08ac4;
+  --cat-3: #22b5c4;
+  --cat-4: #b58cf5;
+  --cat-5: #c9a978;
+  --cat-6: #93d5f5;
+  --cat-7: #9a6bc4;
+  --cat-8: #dcc49c;
+  --cat-other: #8190a5;
 
-  --green-emerald: var(--color-positive);
-  --green-soft: var(--color-positive-soft);
-  --rose-red: var(--color-negative);
-  --rose-soft: var(--color-negative-soft);
-  --blue-sky: var(--color-primary-text);
-  --blue-soft: rgba(56, 189, 248, 0.1);
+  /* The keyboard focus ring of every control */
+  --focus-ring: 2px solid var(--color-primary-text);
 
-  /* Typography */
+  /* Text */
   --text-primary: #f8fafc;
   --text-heading: #ffffff;
   --text-secondary: #94a3b8;
-  --text-muted: #7a8aa0; /* ≥4.5:1 on every surface (was #64748b, ~3.5–4.2:1) */
+  --text-muted: #7a8aa0; /* ≥4.5:1 on every surface */
 
   /* Controls & Badges */
-  --bg-control: rgba(255, 255, 255, 0.04);
-  --bg-control-hover: rgba(255, 255, 255, 0.08);
-  --border-control: 1px solid rgba(255, 255, 255, 0.08);
-  --border-hover: 1px solid rgba(255, 255, 255, 0.16);
+  --bg-control: rgba(255, 255, 255, 0.05);
+  --bg-control-hover: rgba(255, 255, 255, 0.09);
+  --border-control: 1px solid rgba(255, 255, 255, 0.09);
+  --border-hover: 1px solid var(--border-strong);
 
-  /* Standardized Radii */
-  --radius-xs: 6px;
-  --radius-sm: 9px;
-  --radius-md: 13px;
+  /* ── Type scale: every font-size in the app is one of these steps ───────── */
+  --fs-xs: 11px;   /* tiny labels, timestamps */
+  --fs-sm: 12px;   /* captions, card meta */
+  --fs-base: 13px; /* dense rows and tables */
+  --fs-md: 14px;   /* body text, buttons, list rows */
+  --fs-lg: 16px;   /* card titles */
+  --fs-xl: 19px;   /* page titles */
+  --fs-2xl: 24px;  /* a card's main number */
+  --fs-3xl: 30px;  /* a page's headline total */
+  /* Weights: 400 text, 600 labels and titles, 700 numbers that matter */
+
+  /* ── Radii: sm chips and icons, md buttons/inputs/rows, lg cards, xl sheets ── */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 20px;
   --radius-full: 9999px;
-
-  /* Shadows */
-  --shadow-sm: none;
-  --shadow-md: none;
-  --shadow-lg: none;
 
   /* Transitions */
   --transition-fast: 0.16s cubic-bezier(0.4, 0, 0.2, 1);

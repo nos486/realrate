@@ -35,7 +35,7 @@
   gap: 8px;
   background: var(--bg-input);
   border: var(--border-input);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   padding: 6px 6px 6px 12px;
   transition: border-color 0.16s ease, background-color 0.16s ease;
 }
@@ -52,8 +52,8 @@
   background: transparent;
   color: var(--text-input);
   font: inherit;
-  font-size: 1.6rem;
-  font-weight: 800;
+  font-size: var(--fs-2xl);
+  font-weight: 700;
   padding: 6px 8px;
   outline: none;
   direction: ltr;
@@ -62,8 +62,8 @@
 
 .amount-field-input::placeholder {
   color: var(--placeholder-color);
-  font-size: 1.05rem;
-  font-weight: 500;
+  font-size: var(--fs-lg);
+  font-weight: 400;
 }
 
 /* The box around it shows the focus (base.css styles every focused input) */
@@ -83,10 +83,10 @@
   border: var(--card-inner-border);
   background: var(--card-inner-bg);
   color: var(--text-primary);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   padding: 8px 10px;
   font: inherit;
-  font-size: 0.85rem;
+  font-size: var(--fs-md);
   font-weight: 700;
   cursor: pointer;
 }
@@ -97,7 +97,7 @@
 
 .amount-field-words {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-secondary);
 }
 
@@ -124,7 +124,7 @@
   min-height: 72px;
   padding: 10px 4px 8px;
   border: var(--card-inner-border);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--card-inner-bg);
   color: var(--text-secondary);
   font: inherit;
@@ -142,13 +142,13 @@
   place-items: center;
   width: 32px;
   height: 32px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   color: var(--swatch);
   background: color-mix(in srgb, var(--swatch) 14%, transparent);
 }
 
 .category-tile-label {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   line-height: 1.35;
   text-align: center;
@@ -178,7 +178,7 @@
   min-height: 46px;
   padding: 10px 14px;
   border: var(--card-inner-border);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--card-inner-bg);
   color: var(--text-primary);
   font: inherit;
@@ -195,7 +195,7 @@
 
 .picker-row-label {
   flex: none;
-  font-size: 12.5px;
+  font-size: var(--fs-base);
   font-weight: 700;
   color: var(--text-secondary);
 }
@@ -203,7 +203,7 @@
 .picker-row-value {
   flex: 1;
   min-width: 0;
-  font-size: 13.5px;
+  font-size: var(--fs-md);
   font-weight: 600;
   text-align: end;
   overflow: hidden;
@@ -213,7 +213,7 @@
 
 .picker-row-value.is-empty {
   color: var(--text-muted);
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .picker-row-chevron {
@@ -230,7 +230,7 @@
   display: flex;
   flex-direction: column;
   border: var(--card-inner-border);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   max-height: 260px;
   overflow-y: auto;
@@ -247,7 +247,7 @@
   background: transparent;
   color: var(--text-primary);
   font: inherit;
-  font-size: 13.5px;
+  font-size: var(--fs-md);
   text-align: start;
   cursor: pointer;
 }
@@ -273,14 +273,14 @@
 }
 
 .picker-row-option-text small {
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   color: var(--text-secondary);
 }
 
 /* ── More details ── */
 .more-details {
   border: var(--card-inner-border);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
 }
 
 .more-details-toggle {
@@ -293,7 +293,7 @@
   background: transparent;
   color: var(--text-secondary);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--fs-base);
   font-weight: 700;
   text-align: start;
   cursor: pointer;
@@ -302,7 +302,7 @@
 .more-details-summary {
   flex: 1;
   min-width: 0;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--color-primary-text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -330,8 +330,8 @@
 .entry-form-saved {
   margin: 0;
   padding: 8px 12px;
-  border-radius: 10px;
-  font-size: 12.5px;
+  border-radius: var(--radius-md);
+  font-size: var(--fs-base);
   color: var(--color-positive-text);
   background: var(--color-positive-soft);
   border: 1px solid var(--color-positive-border);

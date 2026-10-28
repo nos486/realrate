@@ -259,7 +259,7 @@ export default function SharedPortfolioPage() {
           <div className="shared-auth-gate-wrap">
             <div className="auth-gate-card shared-lock-card">
               <div className="auth-gate-badge">
-                <Lock size={15} color="var(--gold-light)" />
+                <Lock size={15} color="var(--color-brand)" />
                 <span className="badge-text">{t('پورتفوی محافظت‌شده')}</span>
               </div>
 
@@ -323,7 +323,7 @@ export default function SharedPortfolioPage() {
             <div className="shared-owner-banner">
               <div className="owner-badge">
                 <span className="owner-avatar">
-                  <Briefcase size={20} color="var(--gold-light)" />
+                  <Briefcase size={20} color="var(--color-brand)" />
                 </span>
                 <div className="owner-info">
                   <h2>{portfolioName ? t('پورتفوی «{name}»', { name: portfolioName }) : t('پورتفو')} • {ownerName}</h2>

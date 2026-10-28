@@ -8,7 +8,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, cleanup, fireEvent, screen } from '@testing-library/react';
+import { render, cleanup, fireEvent, screen, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../../../web/src/features/auth/index.js', () => ({ useAuth: () => ({ user: { name: 'Sina', email: 's@example.com' } }) }));
@@ -117,5 +117,20 @@ describe('the website\'s group tabs', () => {
     expect(items[0].getAttribute('aria-current')).toBe('page');
     fireEvent.click(screen.getByText('cheques'));
     expect(onSelect).toHaveBeenCalledWith('cheques');
+  });
+
+  it('opens a group\'s dropdown when the mouse rests on it and closes it after leaving', () => {
+    vi.useFakeTimers();
+    try {
+      render(<GroupTabs groups={tabGroups()} activeTab="loans" onSelect={() => {}} />);
+      const menu = screen.getByText('تعهدات').closest('.ui-action-menu');
+      fireEvent.pointerEnter(menu, { pointerType: 'mouse' });
+      expect(screen.getAllByRole('menuitem')).toHaveLength(3);
+      fireEvent.pointerLeave(menu, { pointerType: 'mouse' });
+      act(() => vi.advanceTimersByTime(300));
+      expect(screen.queryAllByRole('menuitem')).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

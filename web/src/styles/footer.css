@@ -2,15 +2,15 @@
 .site-footer {
   margin-top: auto;
   width: 100%;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 1px solid var(--border-subtle);
   background: transparent;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   padding: 0;
 }
 
 .footer-inner {
-  max-width: var(--layout-max-width, 1860px);
+  max-width: var(--layout-max-width);
   margin: 0 auto;
   width: 100%;
   padding: 24px clamp(14px, 2.5vw, 32px);
@@ -42,7 +42,7 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  color: var(--gold-light);
+  color: var(--color-brand);
   transition: opacity var(--transition-fast);
 }
 
@@ -62,20 +62,19 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: rgba(56, 189, 248, 0.08);
+  background: var(--color-primary-soft);
   border: none;
   color: var(--color-primary-text);
   border-radius: var(--radius-full);
   padding: 6px 14px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   cursor: pointer;
   transition: var(--transition-fast);
 }
 
 .btn-share-settings:hover {
-  background: rgba(56, 189, 248, 0.16);
-  transform: translateY(-1px);
+  background: var(--color-primary-tint);
 }
 
 .btn-export-csv.icon-only,
@@ -99,8 +98,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--bg-control);
+  border: 1px solid var(--border-medium);
   color: var(--text-secondary);
   border-radius: var(--radius-full);
   cursor: pointer;
@@ -109,22 +108,21 @@
 }
 
 .btn-theme-toggle:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.2);
-  transform: translateY(-1px);
+  background: var(--bg-control-hover);
+  color: var(--text-heading);
+  border-color: var(--border-strong);
 }
 
 .btn-privacy-toggle {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--bg-control);
+  border: 1px solid var(--border-medium);
   color: var(--text-muted);
   border-radius: var(--radius-full);
   padding: 6px 14px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   cursor: pointer;
   transition: var(--transition-fast);
@@ -132,21 +130,20 @@
 }
 
 .btn-privacy-toggle:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.2);
-  transform: translateY(-1px);
+  background: var(--bg-control-hover);
+  color: var(--text-heading);
+  border-color: var(--border-strong);
 }
 
 .btn-privacy-toggle.active {
-  background: rgba(245, 158, 11, 0.12);
-  border-color: rgba(245, 158, 11, 0.35);
+  background: var(--color-warning-soft);
+  border-color: var(--color-warning-border);
   color: var(--color-warning-text);
 }
 
 .btn-privacy-toggle.active:hover {
-  background: rgba(245, 158, 11, 0.2);
-  border-color: rgba(245, 158, 11, 0.5);
+  background: var(--color-warning-tint);
+  border-color: var(--color-warning-border-strong);
 }
 
 .is-masked {

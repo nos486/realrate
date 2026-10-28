@@ -6,7 +6,7 @@
 
 import { t, intlLocale } from '../../../utils/i18n.js';
 import React from 'react';
-import { Landmark, Edit2, Trash2, CheckCircle2, Clock } from 'lucide-react';
+import { Landmark, Edit2, Trash2, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
 import { RowCard, RowCardAction, RowCardBadge, RowCardBlock, RowCardProgress } from '../../../shared/ui/index.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
 import { getDisplayRatePct } from '../../../utils/loanCalculator.js';
@@ -62,7 +62,7 @@ export default function LoansTable({
             <RowCardBlock
               label={t('مانده بدهی')}
               value={isCompleted ? t('تسویه شده') : t('{amount} تومان', { amount: money(loan.remainingBalance) })}
-              valueTone={isCompleted ? 'positive' : 'warning'}
+              valueTone={isCompleted ? 'positive' : ''}
               sub={t('اصل: {amount} تومان', { amount: money(loan.principalAmount) })}
             />
             <RowCardProgress
@@ -80,7 +80,7 @@ export default function LoansTable({
               />
             ) : next ? (
               <RowCardBlock
-                label={<><Clock size={12} /> {t('قسط بعدی: #{n}', { n: next.installmentNumber })}</>}
+                label={<>{dueTone === 'negative' ? <AlertTriangle size={12} /> : <Clock size={12} />} {t('قسط بعدی: #{n}', { n: next.installmentNumber })}</>}
                 value={t('{amount} تومان', { amount: money(next.totalAmount) })}
                 valueTone={dueTone || 'primary'}
                 sub={formatShamsiDisplay(next.dueDate)}
