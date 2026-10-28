@@ -2,12 +2,15 @@
  * RiskMixPie.jsx — The suggested asset mix of a risk profile: a pie with a legend
  *
  * Shared by the risk-test modal's result and the portfolio's risk card. Shares are percents
- * (utils/riskProfile.js RISK_PROFILES[].allocation); colors come from chartColors.js.
+ * (utils/riskProfile.js RISK_PROFILES[].allocation); colors come from chartColors.js. Tapping a
+ * legend item hides / shows its slice; the pie then splits the shown slices (the legend keeps
+ * the suggested percents).
  */
 
 import { intlLocale, t } from '../../../utils/i18n.js';
-import React from 'react';
+import React, { useMemo } from 'react';
 import { CHART_COLORS, CHART_OTHER_COLOR } from '../../../shared/ui/chartColors.js';
+import { legendItemProps, useLegendSelection } from '../../../shared/ui/legendSelection.js';
 
 const fa = (n) => Number(n || 0).toLocaleString(intlLocale());
 
@@ -16,14 +19,18 @@ const PIE = { size: 120, r: 54 };
 /** @param {{ items: Array<{ key: string, label: string, value: number }> }} props */
 export default function RiskMixPie({ items }) {
   const c = PIE.size / 2;
-  const shown = items.filter((i) => i.value > 0);
+  const present = items.filter((i) => i.value > 0);
+  const keys = useMemo(() => items.filter((i) => i.value > 0).map((i) => i.key), [items]);
+  const legend = useLegendSelection(keys);
+  const colored = present.map((item, i) => ({ ...item, color: CHART_COLORS[i] || CHART_OTHER_COLOR }));
+  const shown = colored.filter((s) => !legend.isHidden(s.key));
+  const whole = shown.reduce((sum, x) => sum + x.value, 0) || 100;
   const slices = shown.map((item, i) => {
     const before = shown.slice(0, i).reduce((sum, x) => sum + x.value, 0);
     return {
       ...item,
-      start: (before / 100) * Math.PI * 2,
-      end: ((before + item.value) / 100) * Math.PI * 2,
-      color: CHART_COLORS[i] || CHART_OTHER_COLOR,
+      start: (before / whole) * Math.PI * 2,
+      end: ((before + item.value) / whole) * Math.PI * 2,
     };
   });
   const pt = (a) => [c + PIE.r * Math.sin(a), c - PIE.r * Math.cos(a)];
@@ -39,8 +46,8 @@ export default function RiskMixPie({ items }) {
         {slices.map((s) => <path key={s.key} d={path(s)} fill={s.color}><title>{t('{label}: {pct}٪', { label: s.label, pct: fa(s.value) })}</title></path>)}
       </svg>
       <ul className="risk-mix-legend">
-        {slices.map((s) => (
-          <li key={s.key}><i style={{ background: s.color }} /> {s.label} <strong>{t('{pct}٪', { pct: fa(s.value) })}</strong></li>
+        {colored.map((s) => (
+          <li key={s.key} {...legendItemProps(legend, s.key, s.label)}><i style={{ background: s.color }} /> {s.label} <strong>{t('{pct}٪', { pct: fa(s.value) })}</strong></li>
         ))}
       </ul>
     </div>

@@ -2,7 +2,8 @@
  * MonthBarChart.jsx — A Shamsi year month by month as bars: one series, or two side by side on
  * the same scale (never two scales). Values below zero hang under a zero line. Hovering / tapping
  * a month shows its figures in the readout above the plot; with two series a legend names them
- * (and gives the month's values), so a series is never told apart by color alone.
+ * (and gives the month's values), so a series is never told apart by color alone. Tapping a
+ * legend item hides / shows that series, and the scale fits the ones shown.
  *
  * Over several years (more than two dozen bars) the axis names only the years (at Farvardin).
  *
@@ -11,6 +12,7 @@
  */
 
 import React, { useMemo, useState } from 'react';
+import { legendItemProps, useLegendSelection } from '../../shared/ui/legendSelection.js';
 
 /**
  * @param {{
@@ -27,11 +29,14 @@ import React, { useMemo, useState } from 'react';
  */
 export default function MonthBarChart({ title, months, series, format, readout, average = null, averageLabel = '', negativeColor = null, ariaValue, compact = false }) {
   const [activeIndex, setActiveIndex] = useState(null);
+  const seriesKeys = useMemo(() => series.map((s) => s.key), [series]);
+  const legend = useLegendSelection(seriesKeys);
+  const shown = useMemo(() => series.filter((s) => !legend.hidden.has(s.key)), [series, legend.hidden]);
   const { top, bottom } = useMemo(() => {
-    const values = months.flatMap((m) => series.map((s) => Number(s.value(m)) || 0));
+    const values = months.flatMap((m) => shown.map((s) => Number(s.value(m)) || 0));
     if (average !== null) values.push(average);
     return { top: Math.max(0, ...values), bottom: Math.min(0, ...values) };
-  }, [months, series, average]);
+  }, [months, shown, average]);
 
   if (!months.length) return null;
   const range = top - bottom || 1;
@@ -72,7 +77,7 @@ export default function MonthBarChart({ title, months, series, format, readout, 
             aria-label={`${m.label}: ${ariaValue(m)}`}
             aria-pressed={i === index}
           >
-            {series.map((s) => {
+            {shown.map((s) => {
               const v = Number(s.value(m)) || 0;
               const negative = v < 0;
               const height = (Math.abs(v) / range) * 100;
@@ -104,7 +109,7 @@ export default function MonthBarChart({ title, months, series, format, readout, 
       {series.length > 1 && (
         <ul className="monthly-income-legend" aria-label={`${title} — ${month.label}`}>
           {series.map((s) => (
-            <li key={s.key}>
+            <li key={s.key} {...legendItemProps(legend, s.key, s.label)}>
               <span className="monthly-income-swatch" style={{ background: s.color }} aria-hidden="true" />
               <span className="monthly-income-legend-name" title={s.label}>{s.label}</span>
               <span className="monthly-income-legend-amount">{format(Number(s.value(month)) || 0)}</span>

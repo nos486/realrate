@@ -99,6 +99,24 @@ export function buildYearSeries(points, jy, { throughMonth = 12, years = 1, star
 }
 
 /**
+ * The months as a chart shows them with some categories hidden (its legend): each total of the
+ * shown categories, the change from the month before recomputed (unknown for the first month),
+ * and no count (a month's count isn't kept per category).
+ * @param {ReturnType<typeof buildYearSeries>} series
+ * @param {string[]|null} categories  The shown categories; null: all of them (the series as is)
+ */
+export function visibleSeries(series, categories) {
+  if (!categories) return series;
+  let prev = null;
+  return series.map((m) => {
+    const total = categories.reduce((acc, c) => acc + (m.byCategory?.[c] || 0), 0);
+    const change = prev > 0 ? ((total - prev) / prev) * 100 : null;
+    prev = total;
+    return { ...m, total, change, count: 0 };
+  });
+}
+
+/**
  * The year's headline figures
  * @param {ReturnType<typeof buildYearSeries>} series
  * @returns {{ total: number, count: number, months: number, monthlyAverage: number,
