@@ -11,6 +11,8 @@
  *     { id: "g_gold", title: "طلا و سکه", icon: "gold", items: ["gold_18k", "full_coin"] },
  *     { id: "g_saving", title: "پس‌انداز ارزی", icon: "currency", items: ["usd", "eur"] }
  *   ],
+ *   other: ["custom_car"],   // optional: assets the user put in «سایر»
+ *
  *   targets: { "g_gold": 30, "g_fx": 25 }   // optional: the share (%) each category aims for
  * }
  * A target is keyed by the category's group id; the standard categories (no custom groups) are
@@ -28,6 +30,7 @@ export const PORTFOLIO_LAYOUT_LIMITS = {
   titleLength: 50,
   idLength: 120,
   targets: 40,
+  otherItems: 200,
 };
 
 const GROUP_ID_RE = /^[A-Za-z0-9_-]{1,50}$/;
@@ -57,7 +60,9 @@ export const ALLOWED_CATEGORY_ICONS = new Set([
  * - items count limit
  *
  * @param {unknown} input
- * @returns {{ version: number, groups: Array<{ id: string, title: string, icon: string, items: string[] }> }|null}
+ * - `other` (assets kept in «سایر») unique and listed by no group
+ *
+ * @returns {{ version: number, groups: Array<{ id: string, title: string, icon: string, items: string[] }>, other?: string[], targets?: Record<string, number> }|null}
  */
 export function sanitizePortfolioLayout(input) {
   if (!input || typeof input !== 'object' || !Array.isArray(input.groups)) return null;
@@ -94,10 +99,23 @@ export function sanitizePortfolioLayout(input) {
     groups.push({ id, title: title || t('دسته جدید'), icon, items });
   }
 
+  // Assets kept in «سایر»: not listed by any group (an asset left unlisted goes to its standard category)
+  const other = [];
+  for (const item of Array.isArray(input.other) ? input.other : []) {
+    if (other.length >= PORTFOLIO_LAYOUT_LIMITS.otherItems) break;
+    const assetKey = String(item ?? '').trim();
+    if (!assetKey || assetKey.length > PORTFOLIO_LAYOUT_LIMITS.idLength || seenItems.has(assetKey)) continue;
+    seenItems.add(assetKey);
+    other.push(assetKey);
+  }
+
   const targets = sanitizeTargets(input.targets);
-  return Object.keys(targets).length
-    ? { version: PORTFOLIO_LAYOUT_VERSION, groups, targets }
-    : { version: PORTFOLIO_LAYOUT_VERSION, groups };
+  return {
+    version: PORTFOLIO_LAYOUT_VERSION,
+    groups,
+    ...(other.length ? { other } : {}),
+    ...(Object.keys(targets).length ? { targets } : {}),
+  };
 }
 
 /**

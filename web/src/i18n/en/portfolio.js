@@ -169,7 +169,8 @@ export default {
   'پایان شخصی‌سازی و بستن حالت ویرایش': 'Finish customizing and close edit mode',
   'پایان ویرایش': 'Done editing',
   'سایر (دارایی‌های بدون دسته)': 'Other (assets without a category)',
-  'دارایی‌های جدید یا رهاشده در این دسته قرار دارند. می‌توانید آن‌ها را به دسته‌های بالا منتقل کنید.': 'New or unassigned assets land in this category. You can move them to the categories above.',
+  'دسته‌ی خودش ({name})': 'Its own category ({name})',
+  'دارایی‌هایی که دسته‌ای برایشان نیست یا خودتان اینجا گذاشته‌اید. می‌توانید آن‌ها را به دسته‌های بالا منتقل کنید.': 'Assets with no category of their own, or ones you put here. You can move them to the categories above.',
 
   // Holdings table and view
   تا: "To",

@@ -14,7 +14,9 @@
  * full picker with its «امروز» that also fills today's price), and «تأمین از» and the note folded
  * under «جزئیات بیشتر». A new buy can be saved with «ثبت و بعدی»: the form stays open, keeping the
  * asset, price, day and loan (the caller is asked not to close it: `onSubmit(holding, { next })`
- * resolves truthy once saved).
+ * resolves truthy once saved). With a custom category layout (`layout`), «دسته» under «جزئیات بیشتر»
+ * picks the asset's category: its own standard one by default, a custom one, or «سایر»; the caller
+ * gets the choice as `onSubmit(holding, { groupId })` (null when left as it was; portfolioLayoutModel.placeAsset).
  */
 
 import { intlLocale, t } from '../../../utils/i18n.js';
@@ -38,6 +40,7 @@ import {
 import { usePricing } from '../../market/index.js';
 import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
 import { fundingLoanOptions } from '../../../utils/loanFunding.js';
+import { groupForCategory, placementOf, standardCategoryOf } from '../portfolioLayoutModel.js';
 
 /** «خرید / موجودی» here, «فروش» in the transaction form */
 const SIDE_OPTIONS = [
@@ -57,6 +60,8 @@ export default function AddHoldingForm({
   presetAsset = null,
   // «فروش» on a new entry: the sell form for the asset chosen here
   onSwitchToSell = null,
+  // The portfolio's custom category layout (null without one): shows the category picker
+  layout = null,
 }) {
   const pricing = usePricing();
   const [selectedAssetId, setSelectedAssetId] = useState('gold_18k');
@@ -79,6 +84,10 @@ export default function AddHoldingForm({
   const [referenceAsset, setReferenceAsset] = useState(null);
   const [referenceQuantity, setReferenceQuantity] = useState('');
   const [referencePriceToman, setReferencePriceToman] = useState('');
+  // «دسته»: the user's pick for the chosen asset (a group id, 'other' or ''); null while it follows
+  // the asset's placement
+  const [groupPick, setGroupPick] = useState(null);
+  const groupChoice = groupPick?.assetId === selectedAssetId ? groupPick.value : null;
   // "What if I had bought this instead" (comparison only, nothing paid with it)
 
   // Read when the form opens, not a reason to reset it (prices refresh in the background)
@@ -92,6 +101,7 @@ export default function AddHoldingForm({
     if (!isOpen) return;
     setSaved('');
     setOpened((n) => n + 1);
+    setGroupPick(null);
 
     if (editingHolding) {
       setSelectedAssetId(editingHolding.assetId || 'gold_18k');
@@ -239,12 +249,13 @@ export default function AddHoldingForm({
       referenceAssetId: hasReference ? referenceAsset.id : '',
       referenceQuantity: hasReference ? parsedReferenceQuantity : 0,
     };
+    const groupId = hasCategoryPicker ? groupChoice : null;
     if (!next) {
-      onSubmit?.(holding);
+      onSubmit?.(holding, { groupId });
       return;
     }
     // The caller keeps the form open and answers whether it was saved
-    if (await onSubmit?.(holding, { next: true })) startNext(selectedAssetTitle);
+    if (await onSubmit?.(holding, { next: true, groupId })) startNext(selectedAssetTitle);
   };
 
   // The submit buttons stay disabled until a quantity is typed (and while saving: EntryFormActions)
@@ -268,7 +279,22 @@ export default function AddHoldingForm({
 
   const unitLabel = selectedBookAsset?.unit || getItemUnit(selectedAssetId, null, isModalFund ? t('واحد') : (isModalBourse ? t('برگ سهام') : (customUnit || t('واحد'))));
 
+  // «دسته» (custom layouts only): the asset's own standard category, a custom group, or «سایر»
+  const hasCategoryPicker = Boolean(layout?.groups?.length);
+  const placementItem = { assetId: editingHolding?.assetId || selectedAssetId, category: selectedCategory };
+  const ownCategory = standardCategoryOf(placementItem);
+  const ownCategoryTitle = groupForCategory(layout, ownCategory?.key)?.title || ownCategory?.name || t('سایر');
+  const categoryOptions = hasCategoryPicker
+    ? [
+        { value: '', label: t('دسته‌ی خودش ({name})', { name: ownCategoryTitle }) },
+        ...layout.groups.map((g) => ({ value: g.id, label: g.title })),
+        { value: 'other', label: t('سایر') },
+      ]
+    : [];
+  const groupValue = groupChoice ?? placementOf(layout, placementItem);
+
   const detailsFilled = [
+    ...(groupChoice !== null ? [t('دسته')] : []),
     ...(fundingLoans.some((l) => l.id === loanId) ? [t('وام')] : []),
     ...(notes.trim() ? [t('یادداشت')] : []),
   ];
@@ -469,6 +495,15 @@ export default function AddHoldingForm({
         </div>
 
         <MoreDetails key={`details-${opened}`} filled={detailsFilled}>
+          {hasCategoryPicker && (
+            <PickerRow
+              label={t('دسته')}
+              value={groupValue}
+              options={categoryOptions}
+              onChange={(value) => setGroupPick({ assetId: selectedAssetId, value })}
+              placeholder={categoryOptions[0].label}
+            />
+          )}
           {fundingLoans.length > 0 && (
             <PickerRow
               label={t('تأمین از')}

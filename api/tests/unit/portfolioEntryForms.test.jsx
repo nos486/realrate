@@ -7,7 +7,7 @@
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, screen, fireEvent, waitFor } from '@testing-library/react';
-import { openDetails, pickRow, rowValue, setDay } from '../helpers/entryForm.js';
+import { openDetails, pickerRow, pickRow, rowValue, setDay } from '../helpers/entryForm.js';
 
 let loans = [];
 vi.mock('../../../web/src/features/market/index.js', () => ({
@@ -72,7 +72,27 @@ describe('AddHoldingForm as an entry form', () => {
       customPrice: 0,
       referenceAssetId: '',
       referenceQuantity: 0,
-    });
+    }, { groupId: null });
+    // No custom category layout: no «دسته» picker
+    expect(pickerRow('دسته')).toBeFalsy();
+  });
+
+  it('with a custom layout, «دسته» defaults to the asset\'s own category and passes the pick', () => {
+    const layout = {
+      version: 1,
+      groups: [
+        { id: 'g_currency', title: 'ارز من', icon: 'currency', items: [] },
+        { id: 'g_save', title: 'پس‌انداز', icon: 'custom', items: [] },
+      ],
+    };
+    const onSubmit = vi.fn();
+    render(<AddHoldingForm isOpen onClose={() => {}} onSubmit={onSubmit} presetAsset={USD} layout={layout} />);
+    type('holding-amount', '2');
+    openDetails();
+    expect(rowValue('دسته')).toBe('دسته‌ی خودش (ارز من)');
+    pickRow('دسته', 'پس‌انداز');
+    submit();
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ assetId: 'usd', amount: 2 }), { groupId: 'g_save' });
   });
 
   it('«ثبت و بعدی» saves, keeps the form open and clears only the quantity and the note', async () => {
@@ -84,7 +104,7 @@ describe('AddHoldingForm as an entry form', () => {
     type('holding-notes', 'اول');
     fireEvent.click(screen.getByText('ثبت و بعدی'));
     await waitFor(() => expect(screen.getByRole('status').textContent).toContain('ثبت شد'));
-    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ assetId: 'usd', amount: 3, notes: 'اول' }), { next: true });
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ assetId: 'usd', amount: 3, notes: 'اول' }), { next: true, groupId: null });
     expect(document.getElementById('holding-amount').value).toBe('');
     expect(document.getElementById('holding-buy-price').value).toBe('90,000');
     expect(document.getElementById('holding-notes').value).toBe('');

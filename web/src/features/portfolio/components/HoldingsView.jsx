@@ -51,6 +51,8 @@ import { useAssetGoalShares } from '../../goals/hooks/useAssetGoalShares.js';
 import {
   buildCustomCategoryGroups,
   buildDefaultPortfolioLayout,
+  placeAsset,
+  placementOf,
   setTargets,
 } from '../portfolioLayoutModel.js';
 import { buildAllocation, DRIFT_THRESHOLD } from '../utils/allocationTargets.js';
@@ -263,8 +265,13 @@ const HoldingsView = forwardRef(function HoldingsView(
     return Boolean(res);
   };
 
-  const handleSubmitHolding = async (holdingData, { next = false } = {}) => {
+  const handleSubmitHolding = async (holdingData, { next = false, groupId = null } = {}) => {
     const ok = holdingData.id ? await updateHolding(holdingData) : await addHolding(holdingData);
+    // A custom layout places the asset: where the form's «دسته» says, a new one in its own category
+    if (ok && hasCustomGroups && (groupId !== null || !holdingData.id)) {
+      const asset = { assetId: holdingData.assetId };
+      setCustomLayout(placeAsset(customLayout, asset, groupId ?? placementOf(customLayout, asset)));
+    }
     if (ok && !next) setModalOpen(false);
     return Boolean(ok);
   };
@@ -525,6 +532,7 @@ const HoldingsView = forwardRef(function HoldingsView(
         }}
         submitting={submitting}
         realPriceMap={realPriceMap}
+        layout={hasCustomGroups ? customLayout : null}
       />
 
       {/* User & Share Settings Modal */}

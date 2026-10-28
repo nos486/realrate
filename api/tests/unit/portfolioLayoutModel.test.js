@@ -11,6 +11,9 @@ import {
   moveAsset,
   reorderAsset,
   normalizePortfolioLayout,
+  resolveAssetGroupId,
+  placeAsset,
+  placementOf,
 } from '../../../web/src/features/portfolio/portfolioLayoutModel.js';
 
 describe('portfolioLayoutModel pure operations', () => {
@@ -198,9 +201,71 @@ describe('portfolioLayoutModel pure operations', () => {
     expect(layout.groups.find((g) => g.id === 'g_gold').items).toEqual([]);
     expect(layout.groups.find((g) => g.id === 'g_coin').items).toEqual(['full_coin', 'gold_18k']);
 
-    // Move gold_18k to 'other'
+    // Move gold_18k to 'other': kept there, not back in its standard category's group
     layout = moveAsset(layout, 'gold_18k', 'other');
     expect(layout.groups.find((g) => g.id === 'g_coin').items).toEqual(['full_coin']);
+    expect(layout.other).toEqual(['gold_18k']);
+    expect(resolveAssetGroupId(layout, 'gold_18k')).toBeNull();
+
+    // Moving it back out of «سایر» drops it from the list
+    layout = moveAsset(layout, 'gold_18k', 'g_gold');
+    expect(layout.other).toBeUndefined();
+    expect(resolveAssetGroupId(layout, 'gold_18k')).toBe('g_gold');
+  });
+
+  it('an asset no group lists goes to its standard category\'s group, not «سایر»', () => {
+    // Customized before the coin and the dollar were bought; g_gold renamed, a custom group with the currency icon
+    const layout = {
+      version: 1,
+      groups: [
+        { id: 'g_gold', title: 'طلای من', icon: 'gold', items: [] },
+        { id: 'g_x1', title: 'دلارها', icon: 'currency', items: [] },
+      ],
+    };
+    const groups = buildCustomCategoryGroups(mockItems, layout);
+    expect(groups.find((g) => g.id === 'g_gold').items.map((i) => i.assetId)).toEqual(['gold_18k']);
+    expect(groups.find((g) => g.id === 'g_x1').items.map((i) => i.assetId)).toEqual(['usd', 'usd']);
+    // No coin or personal-asset group: those stay in «سایر»
+    expect(groups.find((g) => g.isOther).items.map((i) => i.assetId)).toEqual(['full_coin', 'custom_car']);
+  });
+
+  it('placeAsset puts a new asset in its own category (made when missing), a chosen group or «سایر»', () => {
+    const layout = {
+      version: 1,
+      groups: [{ id: 'g_gold', title: 'طلا', icon: 'gold', items: ['gold_18k'] }],
+      targets: { g_gold: 50 },
+    };
+
+    // No coin group yet: one is made, named for the category
+    let next = placeAsset(layout, 'full_coin', '');
+    expect(next.groups.map((g) => g.id)).toEqual(['g_gold', 'g_coin']);
+    expect(next.groups[1]).toMatchObject({ icon: 'coin', items: ['full_coin'] });
+    expect(next.targets).toEqual({ g_gold: 50 });
+
+    // A gold asset where it already is: nothing to change; its own category: unlisted, no new group
+    expect(placeAsset(layout, 'gold_18k', placementOf(layout, 'gold_18k'))).toBe(layout);
+    const own = placeAsset(layout, 'gold_18k', '');
+    expect(own.groups).toEqual([{ id: 'g_gold', title: 'طلا', icon: 'gold', items: [] }]);
+    expect(resolveAssetGroupId(own, 'gold_18k')).toBe('g_gold');
+
+    // A chosen group, then «سایر»
+    next = placeAsset(next, 'usd', 'g_gold');
+    expect(placementOf(next, 'usd')).toBe('g_gold');
+    next = placeAsset(next, 'usd', 'other');
+    expect(placementOf(next, 'usd')).toBe('other');
+    // Back to its own category: unlisted, and a currency group made for it
+    next = placeAsset(next, 'usd', '');
+    expect(placementOf(next, 'usd')).toBe('g_currency');
+    expect(next.other).toBeUndefined();
+
+    // Without a custom layout nothing changes
+    expect(placeAsset(null, 'usd', '')).toBeNull();
+  });
+
+  it('reorders an asset among those its group takes by category', () => {
+    const layout = { version: 1, groups: [{ id: 'g_currency', title: 'ارز', icon: 'currency', items: ['eur'] }] };
+    const next = reorderAsset(layout, 'g_currency', 'gbp', 'eur', ['eur', 'usd', 'gbp']);
+    expect(next.groups[0].items).toEqual(['gbp', 'eur', 'usd']);
   });
 
   it('reorders categories and assets within categories', () => {

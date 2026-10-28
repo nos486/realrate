@@ -1,9 +1,13 @@
 /**
  * portfolioLayoutModel.js — Default portfolio layout, category definitions and pure edit operations
  *
- * A portfolio layout is `{ version, groups: [{ id, title, icon, items: [assetKey] }], targets? }`
+ * A portfolio layout is `{ version, groups: [{ id, title, icon, items: [assetKey] }], other?, targets? }`
  * (validated by utils/portfolioLayout.js, shared with the API). `targets` (the share each category
- * aims for, utils/allocationTargets.js) rides along every edit below.
+ * aims for, utils/allocationTargets.js) and `other` (assets the user put in «سایر») ride along every
+ * edit below.
+ * An asset no group lists goes to the group of its standard category (resolveAssetGroupId), so a
+ * new asset lands where it belongs; only one with no such group, or one the user moved there,
+ * goes to «سایر».
  * Every operation returns a new layout without mutating input.
  */
 
@@ -45,23 +49,106 @@ export function normalizePortfolioLayout(layout) {
       ...g,
       items: (g.items || []).map((id) => getAssetKey(id)).filter(Boolean),
     })),
+    other: (layout.other || []).map((id) => getAssetKey(id)).filter(Boolean),
     targets: layout.targets,
   });
 }
 
 /**
- * Helper to ensure a sanitized layout (keeping the targets it had)
+ * Helper to ensure a sanitized layout (keeping the targets and «سایر» list it had)
  */
-const layoutOf = (groups, targets) =>
+const layoutOf = (groups, targets, other = []) =>
   normalizePortfolioLayout({
     version: PORTFOLIO_LAYOUT_VERSION,
     groups,
+    other,
     targets,
   });
 
+/** The layout's edits keep these as they were */
+const extrasOf = (layout) => [layout?.targets, layout?.other || []];
+
 /** The layout with new category targets (an empty object clears them) */
 export function setTargets(layout, targets) {
-  return layoutOf(layout?.groups || [], targets);
+  return layoutOf(layout?.groups || [], targets, layout?.other || []);
+}
+
+/**
+ * The standard category (CATEGORY_DEFINITIONS) an asset belongs to
+ * @param {object|string} item - a holding or an asset id
+ * @returns {object|null}
+ */
+export function standardCategoryOf(item) {
+  return CATEGORY_DEFINITIONS.find((cat) => cat.match(item)) || null;
+}
+
+/**
+ * The layout group that stands for a standard category: the one built for it (`g_<key>`, kept
+ * through renames), else the first with its icon
+ * @param {object|null} layout
+ * @param {string} categoryKey
+ * @returns {object|null}
+ */
+export function groupForCategory(layout, categoryKey) {
+  const groups = layout?.groups || [];
+  if (!categoryKey) return null;
+  return groups.find((g) => g.id === `g_${categoryKey}`) || groups.find((g) => g.icon === categoryKey) || null;
+}
+
+/**
+ * The group an asset shows in under a custom layout: the group that lists it, else (unless the
+ * user put it in «سایر») its standard category's group; null means «سایر»
+ * @param {object|null} layout
+ * @param {object|string} item - a holding or an asset id
+ * @returns {string|null}
+ */
+export function resolveAssetGroupId(layout, item) {
+  const key = getAssetKey(item);
+  if (!key || !layout?.groups?.length) return null;
+  const listed = layout.groups.find((g) => (g.items || []).includes(key));
+  if (listed) return listed.id;
+  if ((layout.other || []).includes(key)) return null;
+  return groupForCategory(layout, standardCategoryOf(item)?.key)?.id || null;
+}
+
+/**
+ * Where the user has placed an asset: the group that lists it, `'other'` when kept in «سایر», or
+ * '' when it follows its standard category (the add form's category picker shows this)
+ * @param {object|null} layout
+ * @param {object|string} item
+ * @returns {string}
+ */
+export function placementOf(layout, item) {
+  const key = getAssetKey(item);
+  if (!key) return '';
+  const listed = (layout?.groups || []).find((g) => (g.items || []).includes(key));
+  if (listed) return listed.id;
+  return (layout?.other || []).includes(key) ? 'other' : '';
+}
+
+/**
+ * Place an asset in the portfolio's custom layout: in a group, in «سایر» (`'other'`), or ('')
+ * in its standard category's group, made (named for the category) when the layout has none —
+ * so a newly added asset never falls into «سایر» just because its category had no group yet.
+ * Without a custom layout nothing changes.
+ * @param {object|null} layout
+ * @param {object|string} item - the holding or its asset id
+ * @param {string} [placement] - a group id, 'other', or '' (see placementOf)
+ * @returns {object|null}
+ */
+export function placeAsset(layout, item, placement = '') {
+  const key = getAssetKey(item);
+  if (!key || !layout?.groups?.length) return layout;
+  if (placement) return placementOf(layout, key) === placement ? layout : moveAsset(layout, key, placement);
+
+  const [targets, other] = extrasOf(layout);
+  const groups = layout.groups.map((g) => ({ ...g, items: (g.items || []).filter((id) => id !== key) }));
+  const unlisted = other.filter((id) => id !== key);
+  const category = standardCategoryOf(item);
+  if (category && !groupForCategory(layout, category.key) && groups.length < PORTFOLIO_LAYOUT_LIMITS.groups) {
+    groups.push({ id: `g_${category.key}`, title: category.name, icon: category.key, items: [key] });
+  }
+  return layoutOf(groups, targets, unlisted);
 }
 
 /**
@@ -93,23 +180,7 @@ export function buildDefaultPortfolioLayout(items = [], targets = undefined) {
     }
   }
 
-  // Leftover items that didn't match any standard category
-  const leftoverKeys = [];
-  for (const item of items) {
-    const key = getAssetKey(item);
-    if (key && !seenKeys.has(key)) {
-      seenKeys.add(key);
-      leftoverKeys.push(key);
-    }
-  }
-  if (leftoverKeys.length > 0) {
-    groups.push({
-      id: 'g_other',
-      title: t('سایر'),
-      icon: 'custom',
-      items: leftoverKeys,
-    });
-  }
+  // Items that match no standard category resolve to "سایر" on their own
 
   // If no items in portfolio, provide 3 clean default categories
   if (groups.length === 0) {
@@ -166,24 +237,12 @@ export function buildCustomCategoryGroups(itemsList = [], layout = null, filterQ
     }).filter((group) => options.keepEmpty || group.items.length > 0);
   }
 
-  // Group by custom layout
-  const claimedKeys = new Set();
+  // Group by custom layout: each item in the one group it resolves to (null: «سایر»)
+  const groupIdOf = new Map(itemsToGroup.map((it) => [it, resolveAssetGroupId(layout, it)]));
   const groups = [];
 
   for (const group of layout.groups) {
-    const groupItemKeys = new Set(group.items || []);
-    // Items that belong to this group and haven't been claimed yet
-    const groupItems = itemsToGroup.filter((it) => {
-      const key = getAssetKey(it);
-      if (groupItemKeys.has(key) && !claimedKeys.has(key)) {
-        return true;
-      }
-      return false;
-    });
-
-    for (const it of groupItems) {
-      claimedKeys.add(getAssetKey(it));
-    }
+    const groupItems = itemsToGroup.filter((it) => groupIdOf.get(it) === group.id);
 
     const costedGroupItems = groupItems.filter((it) => it.hasBuyPrice);
     const hasCostedItems = costedGroupItems.length > 0;
@@ -208,8 +267,8 @@ export function buildCustomCategoryGroups(itemsList = [], layout = null, filterQ
     });
   }
 
-  // Any items that were not claimed by any custom group go to "سایر" (Other)
-  const uncategorizedItems = itemsToGroup.filter((it) => !claimedKeys.has(getAssetKey(it)));
+  // Items that resolve to no group go to "سایر" (Other)
+  const uncategorizedItems = itemsToGroup.filter((it) => groupIdOf.get(it) === null);
   if (uncategorizedItems.length > 0 || (options.keepEmpty && layout.groups.length > 0)) {
     const costedOther = uncategorizedItems.filter((it) => it.hasBuyPrice);
     const hasCostedOther = costedOther.length > 0;
@@ -243,7 +302,7 @@ export function buildCustomCategoryGroups(itemsList = [], layout = null, filterQ
 // ── Pure Edit Operations ─────────────────────────────────────────────────────
 
 const mapGroup = (layout, groupId, fn) =>
-  layoutOf(layout.groups.map((g) => (g.id === groupId ? fn(g) : g)), layout.targets);
+  layoutOf(layout.groups.map((g) => (g.id === groupId ? fn(g) : g)), ...extrasOf(layout));
 
 const move = (list, index, delta) => {
   const target = index + delta;
@@ -262,20 +321,21 @@ const reorder = (list, fromIndex, toIndex) => {
 };
 
 export function addGroup(layout, { title = t('دسته جدید'), icon = 'custom' } = {}) {
-  const current = layoutOf(layout?.groups || [], layout?.targets);
+  const current = layoutOf(layout?.groups || [], ...extrasOf(layout));
   if (current.groups.length >= PORTFOLIO_LAYOUT_LIMITS.groups) return current;
-  return layoutOf([...current.groups, { id: newGroupId(), title, icon, items: [] }], current.targets);
+  return layoutOf([...current.groups, { id: newGroupId(), title, icon, items: [] }], ...extrasOf(current));
 }
 
 export function removeGroup(layout, groupId) {
-  const current = layoutOf(layout?.groups || [], layout?.targets);
-  // Removing group releases its items; they will naturally fall into "سایر"
+  const current = layoutOf(layout?.groups || [], ...extrasOf(layout));
+  // Removing a group moves its items to "سایر" (kept there, not back in their standard category)
   const { [groupId]: _dropped, ...targets } = current.targets || {};
-  return layoutOf(current.groups.filter((g) => g.id !== groupId), targets);
+  const released = current.groups.find((g) => g.id === groupId)?.items || [];
+  return layoutOf(current.groups.filter((g) => g.id !== groupId), targets, [...(current.other || []), ...released]);
 }
 
 export function updateGroup(layout, groupId, patch) {
-  const current = layoutOf(layout?.groups || [], layout?.targets);
+  const current = layoutOf(layout?.groups || [], ...extrasOf(layout));
   return mapGroup(current, groupId, (g) => ({
     ...g,
     ...patch,
@@ -285,34 +345,35 @@ export function updateGroup(layout, groupId, patch) {
 }
 
 export function moveGroup(layout, groupId, delta) {
-  const current = layoutOf(layout?.groups || [], layout?.targets);
+  const current = layoutOf(layout?.groups || [], ...extrasOf(layout));
   const index = current.groups.findIndex((g) => g.id === groupId);
-  return layoutOf(move(current.groups, index, delta), current.targets);
+  return layoutOf(move(current.groups, index, delta), ...extrasOf(current));
 }
 
 export function reorderGroups(layout, groupId, overId) {
-  const current = layoutOf(layout?.groups || [], layout?.targets);
+  const current = layoutOf(layout?.groups || [], ...extrasOf(layout));
   const ids = current.groups.map((g) => g.id);
-  return layoutOf(reorder(current.groups, ids.indexOf(groupId), ids.indexOf(overId)), current.targets);
+  return layoutOf(reorder(current.groups, ids.indexOf(groupId), ids.indexOf(overId)), ...extrasOf(current));
 }
 
 /**
  * Move an asset from whatever group it's currently in to targetGroupId.
- * If targetGroupId is 'other' or 'g_other' or null, it is simply removed from all groups,
- * causing it to be placed in the "سایر" group automatically.
+ * If targetGroupId is 'other' or 'g_other' or null, it is removed from all groups and listed in
+ * `other`, so it stays in "سایر" rather than going back to its standard category's group.
  */
 export function moveAsset(layout, assetKey, targetGroupId) {
   const key = getAssetKey(assetKey);
   if (!key) return layout;
-  const current = layoutOf(layout?.groups || [], layout?.targets);
+  const current = layoutOf(layout?.groups || [], ...extrasOf(layout));
 
   const groupsWithoutAsset = current.groups.map((g) => ({
     ...g,
     items: (g.items || []).filter((id) => id !== key),
   }));
 
+  const otherWithoutAsset = (current.other || []).filter((id) => id !== key);
   if (!targetGroupId || targetGroupId === 'other' || targetGroupId === 'g_other') {
-    return layoutOf(groupsWithoutAsset, current.targets);
+    return layoutOf(groupsWithoutAsset, current.targets, [...otherWithoutAsset, key]);
   }
 
   const updatedGroups = groupsWithoutAsset.map((g) => {
@@ -325,19 +386,26 @@ export function moveAsset(layout, assetKey, targetGroupId) {
     return g;
   });
 
-  return layoutOf(updatedGroups, current.targets);
+  return layoutOf(updatedGroups, current.targets, otherWithoutAsset);
 }
 
-export function reorderAsset(layout, groupId, assetKey, overKey) {
+/**
+ * Move an asset to where another sits in the same group. `shownKeys` is the group's assets as
+ * shown (its listed ones, then those it takes by category), so the result lists them all in that order.
+ */
+export function reorderAsset(layout, groupId, assetKey, overKey, shownKeys = null) {
   const key = getAssetKey(assetKey);
   const over = getAssetKey(overKey);
   if (!key || !over) return layout;
-  const current = layoutOf(layout?.groups || [], layout?.targets);
+  const current = layoutOf(layout?.groups || [], ...extrasOf(layout));
 
-  return mapGroup(current, groupId, (g) => ({
-    ...g,
-    items: reorder(g.items || [], (g.items || []).indexOf(key), (g.items || []).indexOf(over)),
-  }));
+  return mapGroup(current, groupId, (g) => {
+    // Listed assets not in the portfolio now keep their place after the shown ones
+    const order = shownKeys
+      ? [...shownKeys, ...(g.items || []).filter((id) => !shownKeys.includes(id))]
+      : g.items || [];
+    return { ...g, items: reorder(order, order.indexOf(key), order.indexOf(over)) };
+  });
 }
 
 export const AVAILABLE_CATEGORY_ICONS = [

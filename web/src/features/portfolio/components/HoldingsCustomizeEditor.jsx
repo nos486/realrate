@@ -50,6 +50,7 @@ import {
   updateGroup,
   reorderGroups,
   moveAsset,
+  resolveAssetGroupId,
   reorderAsset,
   AVAILABLE_CATEGORY_ICONS,
 } from '../portfolioLayoutModel.js';
@@ -393,32 +394,29 @@ export default function HoldingsCustomizeEditor({
 
   const groups = useMemo(() => layout?.groups || [], [layout?.groups]);
 
-  // Group assets according to the current layout
+  // Group assets according to the current layout (an unlisted asset in its standard category's group)
   const { categorizedGroups, uncategorizedAssets } = useMemo(() => {
-    const claimedKeys = new Set();
+    const groupIdOf = new Map();
+    for (const [key, asset] of uniqueAssetsMap.entries()) groupIdOf.set(key, resolveAssetGroupId(layout, asset));
     const resultGroups = groups.map((g) => {
-      const gAssets = [];
-      for (const itemKey of g.items || []) {
-        if (uniqueAssetsMap.has(itemKey) && !claimedKeys.has(itemKey)) {
-          gAssets.push(uniqueAssetsMap.get(itemKey));
-          claimedKeys.add(itemKey);
-        }
-      }
+      // Listed assets first, in the group's order; then those it takes by category
+      const listed = (g.items || []).filter((key) => groupIdOf.get(key) === g.id);
+      const byCategory = [...groupIdOf.keys()].filter((key) => groupIdOf.get(key) === g.id && !listed.includes(key));
       return {
         ...g,
-        assets: gAssets,
+        assets: [...listed, ...byCategory].map((key) => uniqueAssetsMap.get(key)),
       };
     });
 
     const unassigned = [];
     for (const [key, asset] of uniqueAssetsMap.entries()) {
-      if (!claimedKeys.has(key)) {
+      if (groupIdOf.get(key) === null) {
         unassigned.push(asset);
       }
     }
 
     return { categorizedGroups: resultGroups, uncategorizedAssets: unassigned };
-  }, [groups, uniqueAssetsMap]);
+  }, [layout, groups, uniqueAssetsMap]);
 
   // Actions
   const handleAddCategory = () => {
@@ -499,11 +497,11 @@ export default function HoldingsCustomizeEditor({
       // If dropped over another asset
       if (overId.startsWith('asset:')) {
         const overAssetKey = overId.replace('asset:', '');
-        const targetG = groups.find((g) => (g.items || []).includes(overAssetKey));
+        const targetG = categorizedGroups.find((g) => g.assets.some((a) => a.key === overAssetKey));
         if (targetG) {
-          const isSameGroup = (targetG.items || []).includes(assetKey);
+          const isSameGroup = targetG.assets.some((a) => a.key === assetKey);
           if (isSameGroup) {
-            const next = reorderAsset(layout, targetG.id, assetKey, overAssetKey);
+            const next = reorderAsset(layout, targetG.id, assetKey, overAssetKey, targetG.assets.map((a) => a.key));
             onChange(next);
           } else {
             const next = moveAsset(layout, assetKey, targetG.id);
@@ -601,7 +599,7 @@ export default function HoldingsCustomizeEditor({
               </span>
               <div className="other-title-stack">
                 <strong>{t('سایر (دارایی‌های بدون دسته)')}</strong>
-                <small>{t('دارایی‌های جدید یا رهاشده در این دسته قرار دارند. می‌توانید آن‌ها را به دسته‌های بالا منتقل کنید.')}</small>
+                <small>{t('دارایی‌هایی که دسته‌ای برایشان نیست یا خودتان اینجا گذاشته‌اید. می‌توانید آن‌ها را به دسته‌های بالا منتقل کنید.')}</small>
               </div>
             </div>
             <div className="group-header-right">
