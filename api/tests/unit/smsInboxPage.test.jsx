@@ -106,8 +106,9 @@ describe('SmsInboxPage', () => {
     expect(until).toBeGreaterThan(since);
     expect(expenses.saveExpenses).not.toHaveBeenCalled();
 
-    // The last 30 days, with the small ones recorded by themselves
-    fireEvent.click(screen.getByRole('tab', { name: '۳۰ روز' }));
+    // The last year (the message is of a fixed day, so a short span would stop covering it), with
+    // the small ones recorded by themselves
+    fireEvent.click(screen.getByRole('tab', { name: '۱ سال' }));
     fireEvent.click(screen.getByLabelText('ثبت خودکار موارد کوچک این خواندن'));
     fireEvent.change(screen.getByLabelText(/هزینه‌ی تا مبلغ/), { target: { value: '10000' } });
     fireEvent.click(screen.getByText('بخوان').closest('button'));
@@ -437,5 +438,34 @@ describe('«وام»: a deposit that is a received loan', () => {
     expect(url.pathname).toMatch(/\/loans$/);
     expect(Object.fromEntries(url.searchParams)).toMatchObject({ add: 'loan', amount: '250000', date: '2026-09-25', bank: 'blu' });
     expect(getPendingSms()).toHaveLength(2);
+  });
+});
+
+describe('«تسویه بدهی اعتبار»: paying a bank credit from the messages', () => {
+  const creditAccount = { id: 'cr_1', name: 'اعتبار سازمانی', type: 'credit', credit: { limit: 50_000_000, startDate: '2026-09-01', cycleDay: 10 } };
+  afterEach(() => { accountList.list = [{ id: 'acc_1', name: 'بلو', bankId: 'blu', type: 'bank' }]; });
+
+  it('only with a credit account; records a transfer into the credit with the messages\' keys and drops them', async () => {
+    render(<SmsInboxPage />);
+    await waitFor(() => expect(screen.getAllByLabelText('گزینه‌های این پیامک')).toHaveLength(2));
+    fireEvent.click(screen.getAllByLabelText('گزینه‌های این پیامک')[0]);
+    expect(screen.queryByText('تسویه بدهی اعتبار')).toBeNull();
+    cleanup();
+
+    accountList.list = [{ id: 'acc_1', name: 'بلو', bankId: 'blu', type: 'bank' }, creditAccount];
+    render(<SmsInboxPage />);
+    await waitFor(() => expect(screen.getAllByLabelText('گزینه‌های این پیامک')).toHaveLength(2));
+    fireEvent.click(screen.getAllByLabelText('گزینه‌های این پیامک')[0]);
+    fireEvent.click(screen.getByText('تسویه بدهی اعتبار').closest('button'));
+    // The deposit is far below the withdrawal: no pair on its own, so the user goes on with this one
+    fireEvent.click((await screen.findByText('فقط همین پیامک')).closest('button'));
+    await screen.findByText('ثبت پرداخت');
+    fireEvent.submit(screen.getByText('ثبت پرداخت').closest('form'));
+    await waitFor(() => expect(transfers.saveTransfer).toHaveBeenCalled());
+    expect(transfers.saveTransfer.mock.calls[0][0]).toMatchObject({
+      fromAccountId: 'acc_1', toAccountId: 'cr_1', amount: 2000000, fee: 0, date: '2026-09-28', smsKeys: ['blu|debit|2000000|2026-09-28|10:47|7743673'],
+    });
+    expect(expenses.saveExpense).not.toHaveBeenCalled();
+    await waitFor(() => expect(getPendingSms()).toHaveLength(1));
   });
 });

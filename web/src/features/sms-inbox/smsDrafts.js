@@ -2,7 +2,9 @@
  * smsDrafts.js — What a bank SMS read by the Android app becomes when recorded
  *
  * A withdrawal → an everyday expense (or an expense in a project); a withdrawal or a deposit
- * between the user's own accounts → a transfer (smsTransferDraft), neither expense nor income; a deposit → an income, or someone's share of a shared
+ * between the user's own accounts → a transfer (smsTransferDraft), neither expense nor income; a
+ * withdrawal and the deposit it paid into a bank credit → that credit's settlement
+ * (smsCreditSettlementDraft: the debt settled, what was paid, the difference its fee); a deposit → an income, or someone's share of a shared
  * expense coming back (a reimbursement on that expense, ShareDepositSheet.jsx). The form opens filled in from the
  * message (amount in tomans, day, the matched account, a note with the bank and time) and the
  * user only picks the category.
@@ -13,6 +15,7 @@ import { toPersianDigits } from '../../shared/utils/formatters.js';
 import { resolveBank } from '../../shared/banks/resolveBank.js';
 import { matchSmsAccount, smsCategoryOf } from '../../utils/bankSms.js';
 import { SMS_DESCRIPTION_CATEGORIES } from '../../utils/bankSmsTemplates.js';
+import { isCreditAccount } from '../../utils/accountDocument.js';
 
 const faTime = (v) => toPersianDigits(v);
 
@@ -143,6 +146,65 @@ export function smsTransferDraft(item, pending = [], accounts = [], chosen = nul
       // The withdrawal's day (the money left then)
       date: (debit || item).tx.date,
       notes: smsNote(item.tx),
+      smsKeys: [item.tx.key, counterpart?.tx.key].filter(Boolean),
+    },
+  };
+}
+
+/**
+ * The most a credit's settlement may cost on top of the debt for its two messages to pair up on
+ * their own (a share of the deposit): the bank's interest and fee, well above a transfer's fee
+ */
+export const CREDIT_SETTLEMENT_FEE_MAX_SHARE = 0.1;
+
+/**
+ * The other side of a credit's settlement, still waiting: the opposite direction within a day,
+ * the withdrawal (what was paid) at least the deposit (the debt settled) and at most
+ * CREDIT_SETTLEMENT_FEE_MAX_SHARE above it. The smallest difference wins, then the closest day.
+ * @param {object} item the message being recorded
+ * @param {object[]} pending the waiting messages
+ */
+export function findCreditSettlementCounterpart(item, pending = []) {
+  const day = Date.parse(`${item.tx.date}T00:00:00Z`);
+  let best = null;
+  for (const p of oppositeMessages(item, pending)) {
+    const gap = Math.abs(Date.parse(`${p.tx.date}T00:00:00Z`) - day);
+    if (!(gap <= DAY_MS)) continue;
+    const [debit, credit] = item.tx.direction === 'debit' ? [item, p] : [p, item];
+    const deposit = Math.round(credit.tx.amount);
+    const fee = Math.round(debit.tx.amount) - deposit;
+    if (!(fee >= 0 && fee <= deposit * CREDIT_SETTLEMENT_FEE_MAX_SHARE)) continue;
+    if (!best || fee < best.fee || (fee === best.fee && gap < best.gap)) best = { p, fee, gap };
+  }
+  return best ? best.p : null;
+}
+
+/**
+ * The settlement form's draft for a message and the other side's message (found among the waiting
+ * ones, or `chosen` by hand): the deposit is the debt settled, the withdrawal what was paid for it
+ * (the difference the fee) from the withdrawal's account. The credit is the deposit's account when
+ * it is one, else the user's only credit; with none of these the user picks it.
+ * @returns {{ draft: { creditId: string, fromAccountId: string, settled: number, paid: number, date: string, smsKeys: string[] }, counterpart: object|null }}
+ */
+export function smsCreditSettlementDraft(item, pending = [], accounts = [], chosen = null) {
+  const counterpart = chosen || findCreditSettlementCounterpart(item, pending);
+  const debit = item.tx.direction === 'debit' ? item : counterpart;
+  const credit = item.tx.direction === 'credit' ? item : counterpart;
+  const accountOf = (msg) => (msg ? accounts.find((a) => a.id === matchSmsAccount(msg.tx, accounts)) : null);
+  const credits = accounts.filter((a) => isCreditAccount(a) && !a.archived);
+  const depositAccount = accountOf(credit);
+  const payer = accountOf(debit);
+  const paid = Math.round((debit || credit).tx.amount);
+  return {
+    counterpart,
+    draft: {
+      creditId: isCreditAccount(depositAccount) ? depositAccount.id : credits.length === 1 ? credits[0].id : '',
+      fromAccountId: payer && !isCreditAccount(payer) ? payer.id : '',
+      // Alone, the message is both (no fee) until the user says otherwise
+      settled: credit ? Math.min(Math.round(credit.tx.amount), paid) : paid,
+      paid,
+      // The withdrawal's day (the money left then)
+      date: (debit || item).tx.date,
       smsKeys: [item.tx.key, counterpart?.tx.key].filter(Boolean),
     },
   };

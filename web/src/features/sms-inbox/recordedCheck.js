@@ -9,7 +9,7 @@
  * - a deposit that was someone's share of an expense («دنگ»): kept in that expense's
  *   reimbursements (with `smsKey` when from an SMS, else the same day and amount)
  * - a transfer between the user's own accounts: kept in the transfer (`smsKeys` when from an SMS,
- *   else the same day and amount — both the withdrawal and the deposit)
+ *   else the same day and amount — the withdrawal its amount, the deposit its amount less the fee)
  * Only the days the waiting messages cover are fetched (and decrypted) — for deposits, the year
  * before them too, since a share comes back after the expense's own day.
  */
@@ -70,7 +70,8 @@ export async function findRecorded(pending) {
     if (t.smsKeys?.length) for (const key of t.smsKeys) recordedKeys.add(key);
     else {
       addTwin(sameDay, sameDayKey('debit', t.date, t.amount), t.id);
-      addTwin(sameDay, sameDayKey('credit', t.date, t.amount), t.id);
+      // What reached the destination: the fee never did (a credit's settlement: the debt settled)
+      addTwin(sameDay, sameDayKey('credit', t.date, (Number(t.amount) || 0) - (Number(t.fee) || 0)), t.id);
     }
   }
   return { recordedKeys, sameDay };

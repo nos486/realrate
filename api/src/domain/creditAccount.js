@@ -11,6 +11,8 @@
  *   - «تسویه بدهی»: a transfer from another account into the credit of what was actually paid,
  *     its `fee` the part beyond the debt settled (settlementOf) — and that fee as an expense of
  *     its own (category CREDIT_COST_CATEGORY, `creditAccountId`), paid from the same account.
+ *     Each settlement is listed with its fee's percent of the debt and roughly what that comes to
+ *     a year, from how much was owed for how long before it (creditStatus `settlements`).
  *   - A deposit that pays the debt («تسویه بدهی اعتباری»): an income in CREDIT_SETTLEMENT_CATEGORY
  *     naming the credit (`creditAccountId`) — paid into it, like a transfer (left out of the
  *     income totals by default, categoryDocument.js).
@@ -200,16 +202,17 @@ export function validateCreditTerms(body = {}, today = '') {
   return { value: { limit, openingDebt, startDate, cycleDay: cycleDay || shamsiDayOf(startDate), ...(conversions.length ? { conversions } : {}) } };
 }
 
-/** What was charged to the credit and paid into it, from its expenses, transfers and incomes */
-function movementsOf(account, expenses, transfers, incomes, today, rates) {
+/**
+ * What was charged to the credit and paid into it, one entry per record and day: its expenses,
+ * the transfers into and out of it and the deposits that pay its debt, from its start date
+ */
+function eventsOf(account, expenses, transfers, incomes, today, rates) {
   const since = account.credit.startDate || '';
   const inRange = (date) => DATE_RE.test(date || '') && date >= since && date <= today;
-  const opening = account.credit.openingDebt || 0;
-  let charged = 0;
-  let paid = 0;
+  const events = [];
   for (const e of expenses) {
     if (e.accountId !== account.id || !inRange(e.date)) continue;
-    charged += Math.round(expensePaidInToman(e, rates) || 0);
+    events.push({ date: e.date, charge: Math.round(expensePaidInToman(e, rates) || 0), pay: 0 });
   }
   for (const t of transfers) {
     if (!inRange(t.date)) continue;
@@ -217,18 +220,89 @@ function movementsOf(account, expenses, transfers, incomes, today, rates) {
     // (transferDocument.js): into the credit, what reached it pays the debt; out of it (cash), the
     // whole amount is owed
     if (t.toAccountId === account.id) {
-      paid += Math.round((Number(t.amount) || 0) - (Number(t.fee) || 0));
+      events.push({ date: t.date, charge: 0, pay: Math.round((Number(t.amount) || 0) - (Number(t.fee) || 0)) });
     } else if (t.fromAccountId === account.id) {
-      charged += Math.round(Number(t.amount) || 0);
+      events.push({ date: t.date, charge: Math.round(Number(t.amount) || 0), pay: 0 });
     }
   }
   // Deposits that pay its debt («تسویه بدهی اعتباری»)
   for (const i of incomes) {
     if (i.creditAccountId === account.id && i.category === CREDIT_SETTLEMENT_CATEGORY && inRange(i.incomeDate)) {
-      paid += Math.round(incomeInToman(i, rates) || 0);
+      events.push({ date: i.incomeDate, charge: 0, pay: Math.round(incomeInToman(i, rates) || 0) });
     }
   }
-  return { opening, charged, paid };
+  return events;
+}
+
+/** What was charged to the credit and paid into it, in all */
+function movementsOf(account, events) {
+  let charged = 0;
+  let paid = 0;
+  for (const e of events) {
+    charged += e.charge;
+    paid += e.pay;
+  }
+  return { opening: account.credit.openingDebt || 0, charged, paid };
+}
+
+const DAY_MS = 86_400_000;
+const daysBetween = (from, to) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY_MS);
+
+/**
+ * How much was owed for how long before `date`: the sum of each day's debt (at the end of the
+ * day) from when the debt last started — the start date, or the day after it was last paid off —
+ * to the day before `date`. A settlement's fee over this, times 365, is its simple yearly rate.
+ * @returns {number} toman-days
+ */
+function debtDaysBefore(account, events, date) {
+  const byDay = new Map();
+  for (const e of events) {
+    if (e.date >= date) continue;
+    byDay.set(e.date, (byDay.get(e.date) || 0) + e.charge - e.pay);
+  }
+  const start = account.credit.startDate || [...byDay.keys()].sort()[0] || date;
+  let balance = account.credit.openingDebt || 0;
+  let since = start;
+  let total = 0;
+  for (const day of [...byDay.keys()].sort()) {
+    if (day < start) continue;
+    total += Math.max(0, balance) * daysBetween(since, day);
+    balance += byDay.get(day);
+    since = day;
+    // Paid off: what was owed before does not cost this settlement
+    if (balance <= 0) total = 0;
+  }
+  return total + Math.max(0, balance) * daysBetween(since, date);
+}
+
+/**
+ * The credit's settlements («تسویه بدهی»): each transfer into it whose fee was also recorded as
+ * the credit's own fee expense that day (CreditPaymentForm) — the debt settled, the fee, its
+ * percent of the debt and roughly what that comes to a year, from how much was owed for how long
+ * (debtDaysBefore). A debt from before the start date counts from the start date only, so the
+ * yearly rate of a first settlement can read high. Newest first.
+ */
+function settlementsOf(account, events, expenses, transfers, today) {
+  const since = account.credit.startDate || '';
+  const fees = expenses.filter((e) => e.creditAccountId === account.id && e.category === CREDIT_COST_CATEGORY);
+  const list = [];
+  for (const t of transfers) {
+    const fee = Math.round(Number(t.fee) || 0);
+    if (t.toAccountId !== account.id || !(fee > 0) || !DATE_RE.test(t.date || '') || t.date < since || t.date > today) continue;
+    if (!fees.some((e) => e.date === t.date && Math.round(Number(e.amount) || 0) === fee)) continue;
+    const settled = Math.round((Number(t.amount) || 0) - fee);
+    const debtDays = debtDaysBefore(account, events, t.date);
+    list.push({
+      id: t.id,
+      date: t.date,
+      settled,
+      fee,
+      pct: pctOf(fee, settled),
+      // A simple yearly rate; none when the debt was settled the day it was made
+      yearlyPct: debtDays > 0 ? Math.round((fee / debtDays) * 365 * 10000) / 100 : null,
+    });
+  }
+  return list.sort((a, b) => b.date.localeCompare(a.date));
 }
 
 /** This period's spending from the credit and what moved through it (from the period's first day) */
@@ -267,12 +341,14 @@ function periodOf(account, expenses, transfers, today, rates) {
  *     installments: { n: number, dueDate: string, amount: number, paidOn?: string, status: 'paid'|'overdue'|'due'|'upcoming' }[] }[],
  *   next: { n: number, count: number, planId: string, dueDate: string, amount: number }|null,
  *   overdue: { count: number, amount: number },
+ *   settlements: { id: string, date: string, settled: number, fee: number, pct: number, yearlyPct: number|null }[],
  * }|null}
  */
 export function creditStatus(account, { expenses = [], transfers = [], incomes = [] } = {}, today, rates = {}) {
   const terms = account?.credit;
   if (!terms) return null;
-  const { opening, charged, paid } = movementsOf(account, expenses, transfers, incomes, today, rates);
+  const events = eventsOf(account, expenses, transfers, incomes, today, rates);
+  const { opening, charged, paid } = movementsOf(account, events);
   const balance = opening + charged - paid;
   const debt = Math.max(0, balance);
 
@@ -306,6 +382,7 @@ export function creditStatus(account, { expenses = [], transfers = [], incomes =
     plans,
     next: first && { n: first.n, count: first.count, planId: first.planId, dueDate: first.dueDate, amount: first.amount },
     overdue: { count: overdue.length, amount: overdue.reduce((sum, i) => sum + i.amount, 0) },
+    settlements: settlementsOf(account, events, expenses, transfers, today),
   };
 }
 

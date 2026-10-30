@@ -5,7 +5,8 @@
  * The debt and a bar of the limit used; what is owed outside the installments with «تسویه بدهی»
  * and «تبدیل به قسط»; each installment plan as the user entered it — the amount, what the
  * installments add up to and their fee (amount and percent), each installment with its day and
- * «پرداخت» — overdue installments, and the fees paid (utils/creditAccount.js for the figures).
+ * «پرداخت» — overdue installments, the fees paid, and the settlements: each one's fee, its percent
+ * of the debt and roughly what it comes to a year (utils/creditAccount.js for the figures).
  */
 
 import { intlLocale, t } from '../../../utils/i18n.js';
@@ -140,6 +141,23 @@ export default function CreditSummary({
             </div>
           )}
         </>
+      )}
+
+      {status.settlements?.length > 0 && (
+        <details className="credit-plan">
+          <summary>{t('تسویه‌ها ({n})', { n: fa(status.settlements.length) })}</summary>
+          <ul>
+            {status.settlements.map((s) => (
+              <li key={s.id || s.date}>
+                <span>{t('{date} · بدهی {amount}', { date: day(s.date), amount: money(s.settled) })}</span>
+                <span>
+                  {t('سود و کارمزد {fee} ({pct})', { fee: money(s.fee), pct: `${fa(s.pct)}${t('٪')}` })}
+                  {s.yearlyPct != null && <em title={t('از مانده‌ی بدهی و روزهای آن حساب شده (تقریبی)')}>{t('حدود {pct} سالانه', { pct: `${fa(s.yearlyPct)}${t('٪')}` })}</em>}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
 
       {costsPaid > 0 && (

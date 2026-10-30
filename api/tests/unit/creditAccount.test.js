@@ -181,3 +181,48 @@ describe('where a credit stands', () => {
     expect(creditStatus({ id: 'b', type: 'bank' }, {}, TODAY)).toBeNull();
   });
 });
+
+describe('creditStatus settlements', () => {
+  const feeOf = (date, amount) => ({ id: `f-${date}`, accountId: 'bank', creditAccountId: 'c1', category: 'credit_fees', date, amount, currency: 'IRT' });
+
+  it('lists a settlement with its fee, percent and simple yearly rate', () => {
+    // 10,000,000 owed from 2026-09-01 for 30 days, settled with 100,000 on top
+    const records = {
+      expenses: [buy('2026-09-01', 10_000_000), feeOf('2026-10-01', 100_000)],
+      transfers: [pay('2026-10-01', 10_100_000, 100_000)],
+    };
+    const s = creditStatus(account(), records, TODAY);
+    expect(s.debt).toBe(0);
+    expect(s.settlements).toHaveLength(1);
+    expect(s.settlements[0]).toMatchObject({ date: '2026-10-01', settled: 10_000_000, fee: 100_000, pct: 1 });
+    // 100,000 / (10,000,000 × 30 days) × 365
+    expect(s.settlements[0].yearlyPct).toBeCloseTo(12.17, 2);
+  });
+
+  it('counts the opening debt from the start date and weighs each draw by its days', () => {
+    const records = {
+      expenses: [buy('2026-08-21', 10_000_000), feeOf('2026-08-31', 603_350)],
+      transfers: [pay('2026-08-31', 30_503_420, 603_350)],
+    };
+    const s = creditStatus(account({ openingDebt: 19_900_070 }), records, TODAY);
+    const [settlement] = s.settlements;
+    expect(settlement.settled).toBe(29_900_070);
+    expect(settlement.pct).toBeCloseTo(2.02, 2);
+    const debtDays = 19_900_070 * 30 + 10_000_000 * 10;
+    expect(settlement.yearlyPct).toBeCloseTo(Math.round((603_350 / debtDays) * 365 * 10000) / 100, 2);
+  });
+
+  it('leaves out plain transfers whose bank fee is no settlement fee', () => {
+    const records = { expenses: [buy('2026-09-01', 5_000_000)], transfers: [pay('2026-09-10', 5_001_000, 1_000)] };
+    expect(creditStatus(account(), records, TODAY).settlements).toEqual([]);
+  });
+
+  it('starts counting again after the debt was paid off', () => {
+    const records = {
+      expenses: [buy('2026-08-01', 50_000_000), buy('2026-09-20', 10_000_000), feeOf('2026-09-30', 100_000)],
+      transfers: [pay('2026-09-01', 50_000_000), pay('2026-09-30', 10_100_000, 100_000)],
+    };
+    const [settlement] = creditStatus(account(), records, TODAY).settlements;
+    expect(settlement.yearlyPct).toBeCloseTo(Math.round((100_000 / (10_000_000 * 10)) * 365 * 10000) / 100, 2);
+  });
+});

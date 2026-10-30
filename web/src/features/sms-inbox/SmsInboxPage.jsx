@@ -9,6 +9,9 @@
  * - "read earlier messages": automatic reading only picks up messages from the moment it is on;
  *   older ones are read here on demand: the last 24 hours, 7, 30 or 90 days, a year, or any number
  *   of days the user types («دلخواه», up to MAX_READ_DAYS; a long span is read a window at a time)
+ * - «تسویه بدهی اعتبار»: a withdrawal and the deposit it paid into a bank credit (found on their own,
+ *   or the other side picked by hand) open the credit's settlement form, the difference the
+ *   bank's interest and fee (CreditPaymentForm); both messages leave the list with it
  * With «نگه‌داشتن پیامک‌های ردشده» on (app settings), «رد» / «رد همه» record the messages in «رد شده»
  * (outside the totals, smsRecord.js recordSmsRejected) instead of dropping them.
  * Recording writes encrypted records, so the vault must be unlocked for it. Once it is, messages
@@ -38,8 +41,13 @@ import ShareDepositSheet from './ShareDepositSheet.jsx';
 import ProjectPickSheet from './ProjectPickSheet.jsx';
 import TransferPairSheet from './TransferPairSheet.jsx';
 import TransferForm from '../accounts/components/TransferForm.jsx';
+import CreditPaymentForm from '../accounts/components/CreditPaymentForm.jsx';
+import { accountsForCurrency, isCreditAccount } from '../../utils/accountDocument.js';
 import { saveTransfer } from '../../shared/vault/vaultTransfers.js';
-import { smsExpenseDraft, smsProjectExpenseDraft, smsIncomeDraft, smsTransferDraft, findTransferCounterpart, oppositeMessages } from './smsDrafts.js';
+import {
+  smsExpenseDraft, smsProjectExpenseDraft, smsIncomeDraft, smsTransferDraft, findTransferCounterpart, oppositeMessages,
+  smsCreditSettlementDraft, findCreditSettlementCounterpart,
+} from './smsDrafts.js';
 import { formatAmount } from '../expenses/utils/format.js';
 import { ensureSmsAccount } from './smsAccounts.js';
 import { saveSmsExpense, recordSmsExpense, recordSmsRejected, dropAlreadyRecorded, autoRecordSms } from './smsRecord.js';
@@ -112,8 +120,12 @@ export default function SmsInboxPage() {
   const [projectDraft, setProjectDraft] = useState(null); // { project, draft }
   // «انتقال بین حساب‌های خودم»: the message (and the other side's, when it waits too)
   const [transferDraft, setTransferDraft] = useState(null); // { draft, items: [message, counterpart?] }
-  // No pair found on its own but others wait: the message whose other side the user picks
+  // «تسویه بدهی اعتبار»: the settlement's draft and its messages
+  const [settleDraft, setSettleDraft] = useState(null); // { draft, items: [message, counterpart?] }
+  // No pair found on its own but others wait: the message whose other side the user picks, and
+  // what for ('transfer' or 'credit')
   const [pairItem, setPairItem] = useState(null);
+  const [pairFor, setPairFor] = useState('transfer');
 
   const locked = vaultStatus === 'locked';
   const { pending, settings: smsSettings } = useSmsInbox();
@@ -193,10 +205,32 @@ export default function SmsInboxPage() {
   const handleTransfer = async (item) => {
     // Nothing pairs on its own but opposite messages wait: the user may pick the other side
     if (!findTransferCounterpart(item, pending) && oppositeMessages(item, pending).length) {
+      setPairFor('transfer');
       setPairItem(item);
       return;
     }
     await openTransfer(item);
+  };
+
+  const credits = accounts.filter((a) => isCreditAccount(a) && !a.archived);
+
+  /** Opens a credit's settlement form for a message; `chosen` is the other side picked by hand */
+  const openCreditSettle = async (item, chosen = null) => {
+    const other = chosen || findCreditSettlementCounterpart(item, pending);
+    // The withdrawal is from one of the user's accounts (made when there is none); the deposit is the credit
+    const withdrawal = [item, other].find((m) => m?.tx.direction === 'debit');
+    const active = withdrawal ? await withMessageAccounts(withdrawal) : accounts.filter((a) => !a.archived);
+    const { draft, counterpart } = smsCreditSettlementDraft(item, pending, active, chosen);
+    setSettleDraft({ draft, items: [item, counterpart].filter(Boolean) });
+  };
+
+  const handleCreditSettle = async (item) => {
+    if (!findCreditSettlementCounterpart(item, pending) && oppositeMessages(item, pending).length) {
+      setPairFor('credit');
+      setPairItem(item);
+      return;
+    }
+    await openCreditSettle(item);
   };
 
   const handleSaveTransfer = async (input) => {
@@ -302,6 +336,7 @@ export default function SmsInboxPage() {
           onShareDeposit={setShareItem}
           onRecordToProject={setProjectItem}
           onTransfer={accounts.filter((a) => !a.archived).length >= 2 ? handleTransfer : undefined}
+          onCreditSettle={credits.length ? handleCreditSettle : undefined}
           onReject={smsSettings.keepRejected ? handleReject : undefined}
           canRecord={!locked && !readOnly}
         />
@@ -430,9 +465,24 @@ export default function SmsInboxPage() {
         <TransferPairSheet
           item={pairItem}
           candidates={oppositeMessages(pairItem, pending)}
+          credit={pairFor === 'credit'}
           onClose={() => setPairItem(null)}
-          onAlone={() => { const it = pairItem; setPairItem(null); openTransfer(it); }}
-          onPick={(other) => { const it = pairItem; setPairItem(null); openTransfer(it, other); }}
+          onAlone={() => { const it = pairItem; setPairItem(null); (pairFor === 'credit' ? openCreditSettle : openTransfer)(it); }}
+          onPick={(other) => { const it = pairItem; setPairItem(null); (pairFor === 'credit' ? openCreditSettle : openTransfer)(it, other); }}
+        />
+      )}
+      {settleDraft && (
+        <CreditPaymentForm
+          credits={credits}
+          draft={settleDraft.draft}
+          payers={accountsForCurrency(accounts, 'IRT').filter((a) => !a.archived && !isCreditAccount(a))}
+          saveTransfer={(input) => saveTransfer(input)}
+          onPaid={() => {
+            for (const msg of settleDraft.items) markSmsHandled(msg.fingerprint);
+            bumpVaultEpoch();
+            toast.success(t('تسویه‌ی بدهی اعتبار ثبت شد.'));
+          }}
+          onClose={() => setSettleDraft(null)}
         />
       )}
       {shareItem && <ShareDepositSheet item={shareItem} accounts={accounts} onClose={() => setShareItem(null)} />}
