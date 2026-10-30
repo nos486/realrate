@@ -242,4 +242,11 @@ export default {
   'ادغام در حساب': 'Merge into',
   'هزینه‌ها، درآمدها، چک‌ها، اشتراک‌ها و انتقال‌های این حساب به حساب انتخابی می‌روند و این حساب حذف می‌شود. شماره کارت و حساب آن هم نگه داشته می‌شود تا پیامک‌های بعدی بانک به حساب انتخابی بخورد. انتقال‌های بین این دو حساب حذف می‌شوند. این کار برگشت‌پذیر نیست.': "This account's expenses, incomes, cheques, subscriptions and transfers move to the chosen account, and this account is deleted. Its card and account numbers are kept so later bank SMS match the chosen account. Transfers between the two accounts are removed. This cannot be undone.",
   'هر دو حساب موجودی دارند؛ موجودی اعلام‌شده‌ی حساب انتخابی می‌ماند و موجودی اعلام‌شده‌ی این حساب کنار گذاشته می‌شود.': "Both accounts keep a balance; the chosen account's stated balance stays and this account's is set aside.",
+  'اعتبار': 'Credit',
+  'تسویه بدهی اعتبار': 'Settle credit debt',
+  'تسویه‌ها ({n})': 'Settlements ({n})',
+  '{date} · بدهی {amount}': '{date} · debt {amount}',
+  'سود و کارمزد {fee} ({pct})': 'Interest and fees {fee} ({pct})',
+  'از مانده‌ی بدهی و روزهای آن حساب شده (تقریبی)': 'Worked out from the debt owed and for how many days (approximate)',
+  'حدود {pct} سالانه': 'about {pct} a year',
 };

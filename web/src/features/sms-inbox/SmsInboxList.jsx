@@ -12,7 +12,9 @@
  * `onRecordToProject`); a deposit's menu has «وام» (`onLoanDeposit`: a received loan, not
  * income) and «دنگ» (`onShareDeposit`: someone's share of an expense the user paid, not income);
  * either kind can be «انتقال بین حساب‌های خودم» (`onTransfer`: money moved between the user's own
- * accounts — neither expense nor income). «رد همه» above the list drops every message on show (after a
+ * accounts — neither expense nor income) or «تسویه بدهی اعتبار» (`onCreditSettle`: paying a bank
+ * credit's debt, the bank's interest and fee the difference — the main action of a message of a
+ * credit account). «رد همه» above the list drops every message on show (after a
  * confirmation). «رد» (beside the main action, not in the menu) drops it
  * for good — or, when the page gives `onReject` (the «رد شده» setting on), hands the messages to it
  * instead, to be kept there. With messages from more than one bank, pills above the list filter
@@ -22,13 +24,14 @@
 import { intlLocale, t } from '../../utils/i18n.js';
 import { toPersianDigits } from '../../shared/utils/formatters.js';
 import React, { useEffect, useMemo, useState } from 'react';
-import { MessageSquareText, Check, X, ArrowDownLeft, ArrowUpRight, BellRing, Inbox, Zap, Landmark, HandCoins, FolderOpen, ArrowLeftRight } from 'lucide-react';
+import { MessageSquareText, Check, X, ArrowDownLeft, ArrowUpRight, BellRing, Inbox, Zap, Landmark, HandCoins, FolderOpen, ArrowLeftRight, CreditCard } from 'lucide-react';
 import { ActionMenu, Button, EmptyState } from '../../shared/ui/index.js';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { BankLogo, resolveBank } from '../../shared/banks/index.js';
 import { useSmsInbox } from '../../shared/native/useSmsInbox.js';
 import { dismissSms, dismissSmsMany, smsPermission, enableSmsReading, setSmsSettings, SMS_SENDERS, QUICK_RECORD_MAX } from '../../shared/native/smsInbox.js';
 import { matchSmsAccount } from '../../utils/bankSms.js';
+import { isCreditAccount } from '../../utils/accountDocument.js';
 import { formatShamsiDisplay } from '../portfolio/components/ShamsiDatePicker.jsx';
 import { accountLabel } from '../accounts/constants/accountDisplay.js';
 import { formatAmount } from '../expenses/utils/format.js';
@@ -89,7 +92,7 @@ function EnableCard({ onChange }) {
  *   onReject?: (items: object[]) => Promise<void>|void }} props `onReject`: what «رد» / «رد همه» do
  *   in place of dropping the messages (kept in «رد شده»)
  */
-export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, quickRecordingId = null, onLoanDeposit, onShareDeposit, onRecordToProject, onTransfer, onReject, canRecord = true }) {
+export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, quickRecordingId = null, onLoanDeposit, onShareDeposit, onRecordToProject, onTransfer, onCreditSettle, onReject, canRecord = true }) {
   const { pending, settings } = useSmsInbox();
   const { confirm, toast } = useFeedback();
   const [permission, setPermission] = useState(null);
@@ -180,7 +183,9 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
         const account = accounts.find((a) => a.id === matchSmsAccount(tx, accounts));
         const isDebit = tx.direction === 'debit';
         // «ثبت سریع» only when turned on in the app's settings; «ثبت» otherwise
-        const quick = Boolean(onQuickRecord) && settings.quickRecord && isDebit && tx.amount <= QUICK_RECORD_MAX;
+        // A message of a credit account most likely pays its debt
+        const settle = Boolean(onCreditSettle) && isCreditAccount(account);
+        const quick = !settle && Boolean(onQuickRecord) && settings.quickRecord && isDebit && tx.amount <= QUICK_RECORD_MAX;
         return (
           <li key={item.fingerprint} className={`sms-inbox-item ${isDebit ? 'is-debit' : 'is-credit'}`}>
             <BankLogo bank={bank} size={30} />
@@ -201,7 +206,11 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
             </div>
             <div className="sms-inbox-actions">
               {/* One main action; the rest in «⋮» (narrow phones) */}
-              {quick ? (
+              {settle ? (
+                <Button size="sm" icon={<CreditCard size={14} />} onClick={() => onCreditSettle(item)} disabled={!canRecord}>
+                  {t('تسویه اعتبار')}
+                </Button>
+              ) : quick ? (
                 <Button
                   size="sm"
                   icon={<Zap size={14} />}
@@ -230,7 +239,7 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
               <ActionMenu
                 label={t('گزینه‌های این پیامک')}
                 items={[
-                  quick && { key: 'record', label: t('ثبت با فرم'), icon: <Check size={16} />, onClick: () => onRecord(item), disabled: !canRecord },
+                  (quick || settle) && { key: 'record', label: quick ? t('ثبت با فرم') : t('ثبت'), icon: <Check size={16} />, onClick: () => onRecord(item), disabled: !canRecord },
                   onRecordToProject && isDebit && {
                     key: 'project', label: t('ثبت در یک پروژه'), icon: <FolderOpen size={16} />, onClick: () => onRecordToProject(item), disabled: !canRecord,
                   },
@@ -242,6 +251,9 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
                   },
                   onTransfer && {
                     key: 'transfer', label: t('انتقال بین حساب‌های خودم'), icon: <ArrowLeftRight size={16} />, onClick: () => onTransfer(item), disabled: !canRecord,
+                  },
+                  onCreditSettle && !settle && {
+                    key: 'credit', label: t('تسویه بدهی اعتبار'), icon: <CreditCard size={16} />, onClick: () => onCreditSettle(item), disabled: !canRecord,
                   },
                 ]}
               />

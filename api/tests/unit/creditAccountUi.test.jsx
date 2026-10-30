@@ -95,6 +95,21 @@ describe('a bank credit on the accounts page', () => {
     expect(store.saveExpense.mock.calls[0][0]).toMatchObject({ amount: 200_000, category: 'credit_fees', accountId: 'bank_1', creditAccountId: 'cr_1' });
   });
 
+  it('lists a settlement with its fee, percent and rough yearly rate', async () => {
+    ACCOUNTS[1].credit = credit();
+    const paidOn = addDaysIso(today, -5);
+    store.expenses = [
+      ...spent(10_000_000),
+      { id: 'fee1', accountId: 'bank_1', creditAccountId: 'cr_1', category: 'credit_fees', date: paidOn, amount: 100_000, currency: 'IRT' },
+    ];
+    store.transfers = [{ id: 't1', fromAccountId: 'bank_1', toAccountId: 'cr_1', amount: 10_100_000, fee: 100_000, date: paidOn }];
+    renderPage();
+    await waitFor(() => expect(within(card()).getByText(/تسویه‌ها/)).toBeTruthy());
+    expect(within(card()).getByText(/سود و کارمزد ۱۰۰٬۰۰۰ \(۱٪\)/)).toBeTruthy();
+    // 10M owed for 5 days: 100,000 / 50M toman-days × 365
+    expect(within(card()).getByText(/حدود ۷۳٪ سالانه/)).toBeTruthy();
+  });
+
   it('«تبدیل به قسط»: rows filled monthly, one changed by hand; the fee recorded with the plan', async () => {
     ACCOUNTS[1].credit = credit();
     store.expenses = spent(10_000_000);

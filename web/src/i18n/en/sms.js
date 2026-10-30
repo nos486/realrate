@@ -122,4 +122,7 @@ export default {
   'برای انتقال به «رد شده»، اطلاعات رمزنگاری‌شده را باز کنید.': 'Unlock your encrypted data to move SMS to "Dismissed".',
   '{n} پیامک در «رد شده» ثبت شد.': '{n} SMS recorded in "Dismissed".',
   'ثبت در «رد شده» ممکن نشد.': 'Could not record in "Dismissed".',
+  'تسویه اعتبار': 'Settle credit',
+  'تسویه‌ی بدهی اعتبار ثبت شد.': 'Credit settlement recorded.',
+  'پیامک طرف دیگر این تسویه کدام است؟ اختلاف برداشت و واریز، سود و کارمزد اعتبار ثبت می‌شود.': "Which SMS is the other side of this settlement? The gap between the withdrawal and the deposit is recorded as the credit's interest and fees.",
 };
