@@ -7,14 +7,15 @@
  *   - a buy: what is left of it at today's price plus what was realized from it when sold
  *   - a sale or a spend: what it realized («بدون سود/زیان» from a purchase without a price)
  * «خرید» opens the buy form for this asset, «فروش» the sell form; each entry opens its own form
- * (an entry made by an expense or an income — a spend, an investment, a sale — is changed there).
+ * (an entry made by an expense or an income — a spend, an investment, a sale — is changed there;
+ * an account's balance, which the default portfolio counts, is changed on the accounts page).
  * Each entry's notes show in its own row (on phones, on a line under it).
  */
 
 import { intlLocale, t, plural } from '../../../utils/i18n.js';
 import React, { useState } from 'react';
 import {
-  ArrowDownLeft, ArrowUpRight, ClipboardList, Receipt, Pencil, Trash2, Plus, Minus, AlertTriangle, MessageSquare, ArrowDownUp,
+  ArrowDownLeft, ArrowUpRight, ClipboardList, Receipt, Pencil, Trash2, Plus, Minus, AlertTriangle, MessageSquare, ArrowDownUp, Landmark,
 } from 'lucide-react';
 import { formatNum, computeReferenceAssetPnl } from '../utils/holdingHelpers.js';
 import { DollarPnl } from '../../../shared/ui/DollarValue.jsx';
@@ -26,6 +27,15 @@ const KIND = {
   buy: { label: t('خرید'), Icon: ArrowDownLeft, tone: 'in' },
   sell: { label: t('فروش'), Icon: ArrowUpRight, tone: 'out' },
   spend: { label: t('پرداخت هزینه'), Icon: Receipt, tone: 'out' },
+};
+// An account's balance today (utils/accountCash.js): «حساب: …»
+const accountKind = (record) => ({ label: t('حساب: {name}', { name: record.accountName || '' }), Icon: Landmark, tone: 'in' });
+
+// Entries made elsewhere, and where they are changed
+const LINKED = {
+  expense: { label: t('از هزینه‌ها'), title: t('از صفحه‌ی هزینه‌ها ویرایش می‌شود') },
+  income: { label: t('از درآمدها'), title: t('از صفحه‌ی درآمدها ویرایش می‌شود') },
+  account: { label: t('از حساب‌ها'), title: t('موجودی حساب؛ از صفحه‌ی حساب‌ها ویرایش می‌شود') },
 };
 
 const MASK = '****';
@@ -150,7 +160,7 @@ export default function AssetLedgerDetails({
 
       <ol className="asset-ledger-list">
         {entries.map((entry) => {
-          const kind = kindOf(entry.kind, entry.price);
+          const kind = entry.record?.fromAccount ? accountKind(entry.record) : kindOf(entry.kind, entry.price);
           const incoming = kind.tone === 'in';
           const closed = incoming && entry.remaining <= EPS;
           const record = entry.record || {};
@@ -196,7 +206,7 @@ export default function AssetLedgerDetails({
           const rawNotes = showNotes ? String(record.notes || '').trim() : '';
           const notes = rawNotes !== kind.label ? rawNotes : '';
           // Made by an expense or an income: changed there, not here
-          const linkedTo = record.expenseId ? 'expense' : record.incomeId ? 'income' : '';
+          const linkedTo = record.fromAccount ? 'account' : record.expenseId ? 'expense' : record.incomeId ? 'income' : '';
           const editable = !readOnly && !linkedTo;
 
           return (
@@ -239,9 +249,7 @@ export default function AssetLedgerDetails({
                   </button>
                 )}
                 {linkedTo && !readOnly && (
-                  <small className="asset-ledger-muted" title={linkedTo === 'expense' ? t('از صفحه‌ی هزینه‌ها ویرایش می‌شود') : t('از صفحه‌ی درآمدها ویرایش می‌شود')}>
-                    {linkedTo === 'expense' ? t('از هزینه‌ها') : t('از درآمدها')}
-                  </small>
+                  <small className="asset-ledger-muted" title={LINKED[linkedTo].title}>{LINKED[linkedTo].label}</small>
                 )}
               </span>
               {extras.length > 0 && (

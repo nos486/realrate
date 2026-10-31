@@ -5,14 +5,17 @@
  * Owned: every portfolio's value on that day (utils/portfolioHistory.js: each ledger's quantity at
  * that day's price) and the received cheques still open. Owed: the loans' installments not yet
  * paid by that day (with their interest, as the loans page counts the remaining balance) and the
- * issued cheques still open. A loan counts from its start date; a cheque from the first entry of
- * its tracking log, in the status the log gives it on that day. The accounts keep no balance, so
- * cash is not counted (unless it is held in a portfolio).
+ * issued cheques still open, and what the accounts that keep a balance held that day
+ * (utils/accountBalance.js, each currency at its rate of the day; an account counts from the day
+ * its balance was stated, as nothing before is known). A loan counts from its start date; a cheque
+ * from the first entry of its tracking log, in the status the log gives it on that day.
  *
  * Pure: no React, no storage. Everything is decrypted and worked out in the browser.
  */
 
 import { getChequeStatus } from '../../utils/chequeDocument.js';
+import { accountBalanceOf, tracksBalance } from '../../utils/accountBalance.js';
+import { currencyRateOn } from '../../utils/currencies.js';
 import { formatShamsiMonth, formatShamsiYear, salaryMonthRange } from '../../shared/flow/flowYear.js';
 import { PERSIAN_MONTHS } from '../portfolio/components/ShamsiDatePicker.jsx';
 
@@ -79,10 +82,33 @@ export function chequesAt(cheques, day) {
   return out;
 }
 
-/** The first day anything counted existed: a portfolio's first day, a loan's start, a cheque's first entry */
-export function firstNetWorthDay({ portfolioSeries, loans = [], cheques = [] }) {
+/** The accounts the net worth counts: those keeping a balance, not archived */
+const countedAccounts = (accounts = []) => accounts.filter((a) => tracksBalance(a) && !a.archived && isoDay(a.balance.startDate));
+
+/**
+ * What the accounts held at the end of `day`, in tomans at that day's rates: each account from the
+ * day its balance was stated on (0 before)
+ * @param {object[]} accounts
+ * @param {{ expenses?: object[], transfers?: object[], incomes?: object[] }} records - what moved them
+ * @param {string} day - YYYY-MM-DD
+ * @param {{ usdAt?: Function, rateAt?: Function }} [rates]
+ */
+export function accountsCashAt(accounts, records, day, rates = {}) {
+  let total = 0;
+  for (const account of countedAccounts(accounts)) {
+    if (day < isoDay(account.balance.startDate)) continue;
+    for (const [code, amount] of Object.entries(accountBalanceOf(account, records, day))) {
+      total += amount * currencyRateOn(code, day, rates);
+    }
+  }
+  return Math.round(total);
+}
+
+/** The first day anything counted existed: a portfolio's first day, a loan's start, a cheque's first entry, an account's stated balance */
+export function firstNetWorthDay({ portfolioSeries, loans = [], cheques = [], accounts = [] }) {
   const days = [
     portfolioSeries?.days?.[0],
+    ...countedAccounts(accounts).map((a) => isoDay(a.balance.startDate)),
     ...loans.map((l) => isoDay(l.startDate)),
     ...cheques.map((c) => (c.history || []).map((h) => isoDay(h.date)).filter(Boolean).sort()[0] || isoDay(c.issueDate)),
   ].filter(Boolean);
@@ -100,19 +126,22 @@ export function seriesValueAt(series, day) {
 /**
  * The net worth at the end of one day, split into what makes it up
  * @param {{ portfolioSeries: object|null, portfolioToday?: number, loans: object[], cheques: object[],
+ *   accounts?: object[], accountRecords?: object, rateAt?: Function,
  *   usdAt?: (day: string) => number|null, today: string }} input
- *   portfolioToday: the portfolios' value at today's prices, for when no entry has a date (no series)
- * @returns {{ day: string, assets: number, receivable: number, loans: number, payable: number,
- *   net: number, usdRate: number|null, usd: number|null }}
+ *   portfolioToday: the portfolios' value at today's prices, for when no entry has a date (no series);
+ *   accountRecords: the expenses, transfers and incomes that moved the accounts' balances
+ * @returns {{ day: string, assets: number, cash: number, receivable: number, loans: number, payable: number,
+ *   net: number, usdRate: number|null, usd: number|null }} assets: the portfolios and the accounts' cash
  */
 export function netWorthAt(input, day) {
-  const { portfolioSeries, portfolioToday = 0, loans = [], cheques = [], usdAt } = input;
-  const assets = portfolioSeries ? seriesValueAt(portfolioSeries, day) : portfolioToday;
+  const { portfolioSeries, portfolioToday = 0, loans = [], cheques = [], usdAt, rateAt, accounts = [], accountRecords = {} } = input;
+  const cash = accounts.length ? accountsCashAt(accounts, accountRecords, day, { usdAt, rateAt }) : 0;
+  const assets = (portfolioSeries ? seriesValueAt(portfolioSeries, day) : portfolioToday) + cash;
   const { receivable, payable } = chequesAt(cheques, day);
   const loanDebt = loans.reduce((sum, loan) => sum + loanDebtAt(loan, day), 0);
   const net = assets + receivable - loanDebt - payable;
   const rate = usdAt ? Number(usdAt(day)) || 0 : 0;
-  return { day, assets, receivable, loans: loanDebt, payable, net, usdRate: rate > 0 ? rate : null, usd: rate > 0 ? net / rate : null };
+  return { day, assets, cash, receivable, loans: loanDebt, payable, net, usdRate: rate > 0 ? rate : null, usd: rate > 0 ? net / rate : null };
 }
 
 /**

@@ -108,6 +108,9 @@ export default {
   'از صفحه‌ی درآمدها ویرایش می‌شود': 'Edited from the Incomes page',
   'از هزینه‌ها': 'From expenses',
   'از درآمدها': 'From incomes',
+  'از حساب‌ها': 'From accounts',
+  'موجودی حساب؛ از صفحه‌ی حساب‌ها ویرایش می‌شود': "An account's balance; edited from the Accounts page",
+  'حساب: {name}': 'Account: {name}',
   'موجودی دارایی «{assetName}» منفی است ({count} {unit} فروش بیش از موجودی). لطفاً ثبت‌ها را بازبینی کنید.':
     'The balance of "{assetName}" is negative ({count} {unit} sold beyond the holding). Please review the records.',
 

@@ -22,7 +22,9 @@ import { accountCurrencies } from '../../../utils/accountDocument.js';
 
 /**
  * @param {object[]} accounts - the user's accounts
- * @returns {{ balances: ReturnType<typeof accountBalances>, loading: boolean, reload: () => Promise<void> }}
+ * @returns {{ balances: ReturnType<typeof accountBalances>, records: { expenses: object[], transfers: object[], incomes: object[] },
+ *   loading: boolean, reload: () => Promise<void> }} records: what moved the balances (the net worth
+ *   replays them for past days)
  */
 export function useAccountBalances(accounts) {
   const { status: vaultStatus, epoch: vaultEpoch } = useVault();
@@ -62,5 +64,5 @@ export function useAccountBalances(accounts) {
   useRefreshHandler('accounts', reload);
 
   const balances = useMemo(() => accountBalances(accounts, records, todayIso(), rates), [accounts, records, rates]);
-  return { balances, loading, reload };
+  return { balances, records, loading, reload };
 }

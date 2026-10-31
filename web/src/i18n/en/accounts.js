@@ -249,4 +249,5 @@ export default {
   'سود و کارمزد {fee} ({pct})': 'Interest and fees {fee} ({pct})',
   'از مانده‌ی بدهی و روزهای آن حساب شده (تقریبی)': 'Worked out from the debt owed and for how many days (approximate)',
   'حدود {pct} سالانه': 'about {pct} a year',
+  'این موجودی در پورتفوی پیش‌فرض هم جزو دارایی‌ها حساب می‌شود.': 'The default portfolio counts this balance among its assets too.',
 };

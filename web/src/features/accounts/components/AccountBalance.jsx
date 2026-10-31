@@ -4,7 +4,8 @@
  * `AccountBalanceStat` is the line on an account's card: its balance in each currency it holds
  * (and about how much in tomans when that is not tomans alone). `BalanceSummary` is the strip above
  * the cards: the total of the accounts that keep a balance, in tomans at today's rates
- * (utils/accountBalance.js).
+ * (utils/accountBalance.js). The default portfolio counts the same balances among its assets
+ * (features/portfolio/utils/accountCash.js).
  */
 
 import React from 'react';
@@ -48,6 +49,7 @@ export function BalanceSummary({ balances, hideValues = false }) {
         <span>{t('جمع موجودی حساب‌ها')}</span>
         <strong className={signClass(balances.totalToman)}>{hideValues ? '****' : formatAmount(balances.totalToman)} {t('تومان')}</strong>
         <small>{t('{n} حساب', { n: balances.count })}</small>
+        <small>{t('این موجودی در پورتفوی پیش‌فرض هم جزو دارایی‌ها حساب می‌شود.')}</small>
         {balances.unpriced.length > 0 && (
           <small>{t('قیمت {currencies} در دسترس نیست و در جمع نیامده است.', { currencies: balances.unpriced.map(currencyLabel).join('، ') })}</small>
         )}
