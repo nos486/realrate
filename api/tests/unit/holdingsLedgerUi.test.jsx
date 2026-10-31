@@ -124,3 +124,22 @@ describe('entries made by an expense or an income', () => {
     expect(document.querySelectorAll('[title="حذف"]')).toHaveLength(1);
   });
 });
+
+describe('an account balance in the ledger', () => {
+  it('shows it as the account, read-only, edited from the accounts page', () => {
+    const [usd] = buildAssetLedgers({
+      priceMap: { usd: 100_000 },
+      holdings: [
+        { id: 'h1', assetId: 'usd', amount: 10, buyPrice: 50_000, buyDate: '2026-01-01' },
+        { id: 'account:a1:USD', assetId: 'usd', amount: 5, buyPrice: 0, buyDate: '2026-10-31', fromAccount: true, accountId: 'a1', accountName: 'صندوق خانه' },
+      ],
+    }).assets;
+    const onEditEntry = vi.fn();
+    const onDeleteEntry = vi.fn();
+    render(<AssetLedgerDetails asset={usd} onEditEntry={onEditEntry} onDeleteEntry={onDeleteEntry} />);
+    const row = screen.getByText('حساب: صندوق خانه').closest('li');
+    expect(row.textContent).toContain('از حساب‌ها');
+    expect(row.querySelector('.btn-table-action')).toBeNull();
+    expect(document.querySelectorAll('.btn-table-action.edit')).toHaveLength(1); // only the portfolio's own record
+  });
+});

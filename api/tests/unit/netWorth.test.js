@@ -14,6 +14,7 @@ import {
   buildNetWorthYear,
   compareWithDollar,
   changeByMonth,
+  accountsCashAt,
 } from '../../../web/src/features/reports/netWorth.js';
 
 // 1405: Farvardin 1 = 2026-03-21, Ordibehesht 1 = 2026-04-21, Khordad 1 = 2026-05-22
@@ -160,5 +161,36 @@ describe('buildNetWorthYear', () => {
     expect(year.start).toBeNull();
     expect(year.end).toBeNull();
     expect(compareWithDollar(year.start, year.end)).toBeNull();
+  });
+});
+
+describe('the accounts in the net worth', () => {
+  const account = {
+    id: 'acc',
+    type: 'cash',
+    currencies: ['IRT', 'USD'],
+    balance: { amounts: { IRT: 1000, USD: 10 }, startDate: '2026-04-10', startAt: '2026-04-10T00:00:00.000Z' },
+  };
+  const records = {
+    incomes: [{ accountId: 'acc', amount: 5, currency: 'USD', incomeDate: '2026-05-01', createdAt: '2026-05-01T08:00:00.000Z' }],
+    expenses: [{ accountId: 'acc', amount: 400, currency: 'IRT', date: '2026-05-02', createdAt: '2026-05-02T08:00:00.000Z' }],
+    transfers: [],
+  };
+  const usdAt = (day) => (day < '2026-05-01' ? 100 : 200);
+
+  it('counts each account from its stated day, replayed to the day, at that day\'s rates', () => {
+    expect(accountsCashAt([account], records, '2026-04-01', { usdAt })).toBe(0);
+    expect(accountsCashAt([account], records, '2026-04-20', { usdAt })).toBe(1000 + 10 * 100);
+    expect(accountsCashAt([account], records, '2026-05-10', { usdAt })).toBe(600 + 15 * 200);
+    expect(accountsCashAt([{ ...account, archived: true }], records, '2026-05-10', { usdAt })).toBe(0);
+  });
+
+  it('adds the cash to the assets and starts the net worth at the stated day', () => {
+    const input = { portfolioSeries: null, portfolioToday: 0, loans: [], cheques: [], accounts: [account], accountRecords: records, usdAt, today: '2026-05-10' };
+    const point = netWorthAt(input, '2026-05-10');
+    expect(point.cash).toBe(3600);
+    expect(point.assets).toBe(3600);
+    expect(point.net).toBe(3600);
+    expect(firstNetWorthDay(input)).toBe('2026-04-10');
   });
 });

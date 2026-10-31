@@ -5,7 +5,8 @@
  * P&L, from its whole ledger — the manual records and the transactions together, first in first
  * out (utils/assetLedger.js). A row opens into everything recorded for that asset
  * (AssetLedgerDetails), with «خرید» / «فروش» and each entry's own edit. «+» asks what to record:
- * a transaction, or a manual record. Overview cards and vault controls as before; the portfolio
+ * a transaction, or a manual record. The default portfolio also counts what the accounts hold
+ * (useAccountCash): each account's balance joins its currency's ledger, read-only. Overview cards and vault controls as before; the portfolio
  * switcher, page header and "new portfolio" modal live in the parent (PortfolioTracker).
  */
 
@@ -47,6 +48,7 @@ import { useTransactions } from '../../transactions/index.js';
 import { Button, SplitPageLayout } from '../../../shared/ui/index.js';
 import { normalizeHolding } from '../utils/holdingHelpers.js';
 import { buildAssetLedgers, assetDollarPnl, sumDollarPnl } from '../utils/assetLedger.js';
+import { useAccountCash } from '../hooks/useAccountCash.js';
 import { useAssetGoalShares } from '../../goals/hooks/useAssetGoalShares.js';
 import {
   buildCustomCategoryGroups,
@@ -147,9 +149,11 @@ const HoldingsView = forwardRef(function HoldingsView(
   } = useTransactions(activePortfolio, activeVaultKey);
 
   // One ledger per asset: manual records and transactions together, FIFO
+  // The default portfolio also counts what the accounts hold (read-only entries, utils/accountCash.js)
+  const accountCash = useAccountCash(isVaultLocked ? null : activePortfolio, portfolios);
   const normalizedHoldings = useMemo(
-    () => holdings.map((h) => normalizeHolding(h, liveItemMap)),
-    [holdings, liveItemMap]
+    () => [...holdings, ...accountCash].map((h) => normalizeHolding(h, liveItemMap)),
+    [holdings, accountCash, liveItemMap]
   );
   const ledger = useMemo(
     () => buildAssetLedgers({ holdings: normalizedHoldings, transactions, priceMap: realPriceMap }),

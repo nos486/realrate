@@ -4,7 +4,9 @@
  * Reads, once per visit (and again on the tab's refresh): every portfolio's records, every loan
  * with its schedule and every cheque — all decrypted in the browser. The portfolios are valued day
  * by day from the public price history (one download per asset, cached for the session), the
- * dollar's rate of each day from the same history. Nothing about the user is sent out.
+ * dollar's rate of each day from the same history. The accounts that keep a balance count too:
+ * their balances are replayed to each day from the expenses, transfers and incomes
+ * (useAccountBalances), each currency at its rate of that day. Nothing about the user is sent out.
  */
 
 import { t } from '../../utils/i18n.js';
@@ -19,6 +21,11 @@ import { buildAssetLedgers } from '../portfolio/utils/assetLedger.js';
 import { normalizeHolding } from '../portfolio/utils/holdingHelpers.js';
 import { buildPortfolioSeries } from '../portfolio/utils/portfolioHistory.js';
 import { todayIso } from '../../shared/utils/dates.js';
+import { useAccounts } from '../accounts/hooks/useAccounts.js';
+import { useAccountBalances } from '../accounts/hooks/useAccountBalances.js';
+import { useFxRates } from '../market/useFxRates.js';
+import { tracksBalance } from '../../utils/accountBalance.js';
+import { accountCurrencies } from '../../utils/accountDocument.js';
 import { buildNetWorthYear, changeByMonth, compareWithDollar } from './netWorth.js';
 
 /** Every loan with its schedule (the list carries only the totals) */
@@ -92,21 +99,28 @@ export function useNetWorth(jy, throughMonth, years = 1, starts = NO_STARTS) {
   // With no dated entry there is no series: today's value stands for every day
   const portfolioToday = useMemo(() => assets.reduce((sum, a) => sum + (Number(a.itemRealVal) || 0), 0), [assets]);
 
+  // The accounts' cash, replayed to each day
+  const { accounts: allAccounts, loading: loadingAccounts } = useAccounts();
+  const accounts = useMemo(() => allAccounts.filter(tracksBalance), [allAccounts]);
+  const { records: accountRecords, loading: loadingBalances } = useAccountBalances(accounts);
+  const held = useMemo(() => accounts.flatMap((a) => accountCurrencies(a).map((currency) => ({ currency }))), [accounts]);
+  const { rateAt } = useFxRates(held, accounts.length > 0);
+
   const year = useMemo(
-    () => buildNetWorthYear({ portfolioSeries, portfolioToday, loans, cheques, usdAt, today }, jy, { throughMonth, years, starts }),
-    [portfolioSeries, portfolioToday, loans, cheques, usdAt, today, jy, throughMonth, years, starts],
+    () => buildNetWorthYear({ portfolioSeries, portfolioToday, loans, cheques, accounts, accountRecords, usdAt, rateAt, today }, jy, { throughMonth, years, starts }),
+    [portfolioSeries, portfolioToday, loans, cheques, accounts, accountRecords, usdAt, rateAt, today, jy, throughMonth, years, starts],
   );
   const months = useMemo(() => changeByMonth(year), [year]);
   const compare = useMemo(() => compareWithDollar(year.start, year.end), [year]);
 
   return {
-    loading: loading || (ids.length > 0 && loadingPrices),
+    loading: loading || loadingAccounts || loadingBalances || (ids.length > 0 && loadingPrices),
     error,
     start: year.start,
     end: year.end,
     months,
     compare,
     estimated: Boolean(portfolioSeries?.estimated) || (!portfolioSeries && assets.length > 0),
-    empty: !assets.length && !loans.length && !cheques.length,
+    empty: !assets.length && !loans.length && !cheques.length && !accounts.length,
   };
 }
