@@ -24,6 +24,10 @@ export const BOT_LIMITS = {
   summaryChars: 280,
   /** Time allowed for one Bot API request */
   timeoutMs: 10000,
+  /** A channel's posting run holds a lock this long, so two runs never post the same articles (under a minute: a run that died frees it by the next minute) */
+  flushLockSec: 50,
+  /** A posting run starts no new message after this long (with one request's timeout, it ends within the lock) */
+  flushBudgetMs: 30000,
 };
 
 /** The admin's commands in the bot's menu (adminCommands.service.js); the text is what Telegram shows */
