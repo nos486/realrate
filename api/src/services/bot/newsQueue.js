@@ -92,50 +92,88 @@ export async function enqueueNews(env, target, items, now = Date.now()) {
   return added.length;
 }
 
+/** The waiting articles as stored: an array, without the too-old ones */
+const readQueue = (stored, key, oldest, now) =>
+  (Array.isArray(stored.get(key)) ? stored.get(key) : []).filter((q) => (q.publishedAt || now) >= oldest);
+
 /**
  * Post a target's waiting articles (a few per run), oldest first
+ *
+ * One run at a time per target: the minute's run follows the news poll, so a slow poll (the AI's
+ * work, heaviest after midnight) used to start one minute's run while the last one was still
+ * sending, and both read the same queue and posted the same articles. A run holds a short lock
+ * (BOT_LIMITS.flushLockSec) and stops sending within BOT_LIMITS.flushBudgetMs, so it never outlives
+ * the lock. Each sent article is saved at once, and an article already in the sent list is never
+ * posted again (a news poll that wrote the queue back while a run was sending cannot bring it back).
  * @param {object} env
  * @param {NewsTarget} target
  * @param {{ now?: number, fetchFn?: Function }} [opts]
- * @returns {Promise<{ sent: number, waiting: number, error?: string }>}
+ * @returns {Promise<{ sent: number, waiting: number, skipped?: boolean, error?: string }>}
  */
 export async function flushNews(env, target, { now = Date.now(), fetchFn } = {}) {
   const store = getStateStore(env);
   const config = await target.getConfig(env);
   if (!store || !isOn(config)) return { sent: 0, waiting: 0 };
-  const stored = await store.getMany([target.queueKey, target.sentKey], "json");
   const oldest = now - BOT_LIMITS.queueMaxHours * 3600_000;
-  let queue = (Array.isArray(stored.get(target.queueKey)) ? stored.get(target.queueKey) : []).filter((q) => (q.publishedAt || now) >= oldest);
-  if (!queue.length) return { sent: 0, waiting: 0 };
+  const keys = [target.queueKey, target.sentKey];
+  const stored = await store.getMany(keys, "json");
   const sent = Array.isArray(stored.get(target.sentKey)) ? stored.get(target.sentKey) : [];
+  const sentSet = new Set(sent);
+  let queue = readQueue(stored, target.queueKey, oldest, now).filter((q) => !sentSet.has(q.key));
+  if (!queue.length) return { sent: 0, waiting: 0 };
 
-  const ready = queue.slice(0, target.sendPerRun || BOT_LIMITS.sendPerRun);
+  const lockKey = `${target.queueKey}:lock`;
+  const holders = await store.increment(lockKey, 1, { expirationTtl: BOT_LIMITS.flushLockSec });
+  if (holders > 1) return { sent: 0, waiting: queue.length, skipped: true };
+
+  const startedAt = Date.now();
+  const done = new Set(); // sent or given up on: off the queue
+  const tries = new Map();
   let count = 0;
   let error = "";
-  for (const item of ready) {
-    const res = await target.send(config, item, { fetchFn });
-    if (res.ok) {
-      count++;
-      sent.push(item.key);
-      queue = queue.filter((q) => q.key !== item.key);
-      continue;
+
+  /** Write the run's changes onto the queue as it is now (the news poll may have added to it) */
+  const save = async () => {
+    const fresh = readQueue(await store.getMany([target.queueKey], "json"), target.queueKey, oldest, now)
+      .filter((q) => !done.has(q.key) && !sentSet.has(q.key))
+      .map((q) => (tries.has(q.key) ? { ...q, tries: tries.get(q.key) } : q));
+    await Promise.all([
+      store.put(target.queueKey, JSON.stringify(fresh)),
+      count ? store.put(target.sentKey, JSON.stringify(sent.slice(-BOT_LIMITS.sentMax))) : null,
+    ]);
+    queue = fresh;
+  };
+
+  try {
+    for (const item of queue.slice(0, target.sendPerRun || BOT_LIMITS.sendPerRun)) {
+      if (Date.now() - startedAt > BOT_LIMITS.flushBudgetMs) break;
+      const res = await target.send(config, item, { fetchFn });
+      if (res.ok) {
+        count++;
+        sent.push(item.key);
+        sentSet.add(item.key);
+        done.add(item.key);
+        // Saved at once: a run cut short never leaves a posted article waiting
+        await save();
+        continue;
+      }
+      error = res.error || "send failed";
+      // Rate limited, or the channel/token is wrong: stop and try again next minute. Only a message
+      // the messenger keeps refusing is given up on, so it never blocks the ones behind it.
+      const tried = (item.tries || 0) + 1;
+      tries.set(item.key, tried);
+      if (res.retryAfter) break;
+      if (tried >= BOT_LIMITS.maxTries) {
+        logger.error("[Bot] a message was refused repeatedly — dropped", { target: target.id, url: item.url, error });
+        done.add(item.key);
+        continue;
+      }
+      break;
     }
-    error = res.error || "send failed";
-    // Rate limited, or the channel/token is wrong: stop and try again next minute. Only a message
-    // the messenger keeps refusing is given up on, so it never blocks the ones behind it.
-    queue = queue.map((q) => (q.key === item.key ? { ...q, tries: (q.tries || 0) + 1 } : q));
-    if (res.retryAfter) break;
-    if ((queue.find((q) => q.key === item.key)?.tries || 0) >= BOT_LIMITS.maxTries) {
-      logger.error("[Bot] a message was refused repeatedly — dropped", { target: target.id, url: item.url, error });
-      queue = queue.filter((q) => q.key !== item.key);
-      continue;
-    }
-    break;
+    if (error) await save();
+  } finally {
+    await store.delete(lockKey).catch(() => {});
   }
-  await Promise.all([
-    store.put(target.queueKey, JSON.stringify(queue)),
-    count ? store.put(target.sentKey, JSON.stringify(sent.slice(-BOT_LIMITS.sentMax))) : null,
-  ]);
   if (error) logger.warn("[Bot] sending to the channel failed", { target: target.id, error });
   return { sent: count, waiting: queue.length, ...(error ? { error } : {}) };
 }

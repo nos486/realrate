@@ -155,6 +155,44 @@ describe('queuing and posting', () => {
     expect(limited.calls).toHaveLength(1);
   });
 
+  it('two runs at once never post the same article (a slow run and the next minute\'s)', async () => {
+    await turnOn();
+    let release;
+    const gate = new Promise((resolve) => { release = resolve; });
+    const calls = [];
+    // The first message hangs until the second run has had its go
+    const fetchFn = vi.fn(async (url, init) => {
+      calls.push(JSON.parse(init.body).text);
+      if (calls.length === 1) await gate;
+      return { status: 200, json: async () => ({ ok: true, result: {} }) };
+    });
+    await enqueueFeedNews(env, [article(1), article(2), article(3)], NOW);
+    const slow = flushNewsQueue(env, { now: NOW, fetchFn });
+    await vi.waitFor(() => expect(calls).toHaveLength(1));
+    expect(await flushNewsQueue(env, { now: NOW + 60000, fetchFn })).toMatchObject({ sent: 0, skipped: true });
+    release();
+    expect(await slow).toMatchObject({ sent: 3, waiting: 0 });
+    expect(calls).toHaveLength(3);
+    // The lock is freed: the next run goes ahead (with nothing left to post)
+    expect(await flushNewsQueue(env, { now: NOW + 120000, fetchFn })).toMatchObject({ sent: 0, waiting: 0 });
+    expect(calls).toHaveLength(3);
+  });
+
+  it('a news poll that writes the queue back while a run sends neither re-posts nor loses an article', async () => {
+    await turnOn();
+    await enqueueFeedNews(env, [article(1), article(2)], NOW);
+    const calls = [];
+    const fetchFn = vi.fn(async (url, init) => {
+      calls.push(JSON.parse(init.body).text);
+      // Mid-run, the poll queues a new article (it read the queue before the run saved anything)
+      if (calls.length === 1) await enqueueFeedNews(env, [article(3)], NOW);
+      return { status: 200, json: async () => ({ ok: true, result: {} }) };
+    });
+    expect(await flushNewsQueue(env, { now: NOW, fetchFn })).toMatchObject({ sent: 2, waiting: 1 });
+    expect(await flushNewsQueue(env, { now: NOW + 60000, fetchFn })).toMatchObject({ sent: 1, waiting: 0 });
+    expect(calls.map((t) => t.match(/تیتر \d+/)[0])).toEqual(['تیتر 1', 'تیتر 2', 'تیتر 3']);
+  });
+
   it('drops an article that waited past the queue window', async () => {
     await turnOn();
     const { fetchFn, calls } = fakeApi();
