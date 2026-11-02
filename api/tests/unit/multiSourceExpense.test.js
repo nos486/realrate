@@ -181,3 +181,20 @@ describe('saving: the asset sold for a part', () => {
     expect(funds.calls).toEqual([['delete', 'pf_a', 'txl_1'], ['link', 'sell', 'pf_b', 'txl_1', 2, 20_000_000, 'pay'], ['expense']]);
   });
 });
+
+describe('the row taking the rest', () => {
+  it('holds what the others leave, follows the amount, and stops once typed', async () => {
+    const { startingSplitRows, resolveSplitRows, addSplitRow } = await import('../../../web/src/features/expenses/utils/paymentSplit.js');
+    const rows = startingSplitRows('a');
+    rows[0].amount = '113000000';
+    expect(resolveSplitRows(rows, 887_943_198)[1].amount).toBe('774943198');
+    expect(resolveSplitRows(rows, 100_000_000)[1].amount).toBe('');
+    // A third row: the second keeps what it held, the new one takes the rest
+    const three = addSplitRow(rows, 887_943_198);
+    expect(three.map((r) => r.auto)).toEqual([false, false, true]);
+    expect(three[1].amount).toBe('774943198');
+    expect(resolveSplitRows(three, 887_943_198)[2].amount).toBe('');
+    // Over the amount is a problem of its own
+    expect(splitProblem([newSplitRow({ amount: '60', source: 'a' }), newSplitRow({ amount: '50', source: 'b' })], 100)).toMatch(/بیشتر/);
+  });
+});

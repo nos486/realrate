@@ -3,9 +3,10 @@
  *
  * One row per source, each its amount and where it came from: an account (a bank credit is one —
  * its part is owed on it), a loan's money (optionally through an account), or an asset sold from a
- * portfolio (PortfolioLinkFields, embedded: which asset and how much of it). «بقیه» fills a row
- * with what the others leave of the expense's amount; the rows must add up to it
- * (utils/paymentSplit.js). The parent keeps the rows.
+ * portfolio (PortfolioLinkFields, embedded: which asset and how much of it). The last row added
+ * takes what the others leave of the expense's amount by itself until its amount is typed; «بقیه»
+ * fills another empty row with it. The rows must add up to the amount (utils/paymentSplit.js).
+ * The parent keeps the rows (as typed: `auto` rows are filled in here and when saved).
  */
 
 import React from 'react';
@@ -16,7 +17,9 @@ import { PickerRow } from '../../../shared/form/index.js';
 import PortfolioLinkFields from '../../../shared/vault/PortfolioLinkFields.jsx';
 import { accountLabel } from '../../accounts/constants/accountDisplay.js';
 import { formatNum, parseInputNumber } from '../../portfolio/utils/holdingHelpers.js';
-import { LOAN_PREFIX, MAX_SPLIT_ROWS, PORTFOLIO_SOURCE, newSplitRow, splitProblem, splitSum } from '../utils/paymentSplit.js';
+import {
+  LOAN_PREFIX, MAX_SPLIT_ROWS, PORTFOLIO_SOURCE, addSplitRow, resolveSplitRows, splitProblem, splitSum,
+} from '../utils/paymentSplit.js';
 
 const EMPTY_LINK = { portfolioId: '', portfolioName: '', assetId: '', quantity: 0 };
 
@@ -28,9 +31,16 @@ const EMPTY_LINK = { portfolioId: '', portfolioName: '', assetId: '', quantity: 
  *   accounts: those holding tomans; loans: those a purchase may be funded from; ownLinks: the
  *   portfolio links this expense was saved with (their quantity is still in the balances shown)
  */
-export default function PaymentSplitEditor({ rows, onChange, total, accounts, loans, ownLinks = [], hideValues = false }) {
-  const update = (id, patch) => onChange(rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
-  const remove = (id) => onChange(rows.filter((r) => r.id !== id));
+export default function PaymentSplitEditor({ rows: typed, onChange, total, accounts, loans, ownLinks = [], hideValues = false }) {
+  // What is shown and checked: the row taking the rest filled in
+  const rows = resolveSplitRows(typed, total);
+  const update = (id, patch) => onChange(typed.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  const remove = (id) => {
+    const next = typed.filter((r) => r.id !== id);
+    // The row that took the rest is gone: the last one takes it, when it is still empty
+    const last = next[next.length - 1];
+    onChange(next.some((r) => r.auto) || !last || last.amount ? next : next.map((r) => (r === last ? { ...r, auto: true } : r)));
+  };
   const sum = splitSum(rows);
   const left = (Number(total) || 0) - sum;
   const problem = splitProblem(rows, total);
@@ -46,7 +56,6 @@ export default function PaymentSplitEditor({ rows, onChange, total, accounts, lo
     <div className="payment-split">
       {rows.map((row, i) => {
         const amountNum = parseInputNumber(row.amount) || 0;
-        const rest = left + amountNum;
         return (
           <div key={row.id} className="payment-split-row">
             <div className="payment-split-head">
@@ -62,15 +71,18 @@ export default function PaymentSplitEditor({ rows, onChange, total, accounts, lo
                 <NumericInput
                   id={`payment-split-amount-${row.id}`}
                   value={row.amount}
-                  onValueChange={(v) => update(row.id, { amount: v })}
+                  // Typed: it no longer takes the rest
+                  onValueChange={(v) => update(row.id, { amount: v, auto: false })}
                   placeholder={t('مبلغ (تومان)')}
                   className="ui-input-control"
                   aria-label={t('مبلغ منبع {n}', { n: i + 1 })}
                 />
               </div>
-              {rest > 0 && Math.abs(rest - amountNum) > 0.5 && (
-                <button type="button" className="expense-hint-action" onClick={() => update(row.id, { amount: String(Math.round(rest)) })}>
-                  {t('بقیه: {amount}', { amount: hideValues ? '****' : formatNum(Math.round(rest)) })}
+              {row.auto ? (
+                <small className="expense-form-hint">{t('بقیه‌ی مبلغ خودکار این‌جا می‌آید.')}</small>
+              ) : !amountNum && left > 0.5 && (
+                <button type="button" className="expense-hint-action" onClick={() => update(row.id, { amount: String(Math.round(left)) })}>
+                  {t('بقیه: {amount}', { amount: hideValues ? '****' : formatNum(Math.round(left)) })}
                 </button>
               )}
             </div>
@@ -100,7 +112,7 @@ export default function PaymentSplitEditor({ rows, onChange, total, accounts, lo
         );
       })}
       {rows.length < MAX_SPLIT_ROWS && (
-        <button type="button" className="expense-hint-action payment-split-add" onClick={() => onChange([...rows, newSplitRow()])}>
+        <button type="button" className="expense-hint-action payment-split-add" onClick={() => onChange(addSplitRow(typed, total))}>
           <Plus size={14} /> {t('منبع دیگر')}
         </button>
       )}

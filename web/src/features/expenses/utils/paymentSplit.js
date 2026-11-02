@@ -4,8 +4,10 @@
  * A big toman purchase paid from several sources (expenseDocument.js `payments`) is entered as
  * rows, each an amount and its source: an account (a bank credit too), a loan's money (and the
  * account it went through, if any), or an asset sold from a portfolio (a portfolioLink.js link).
- * A row's `source` is the account's id, `loan:<id>` or PORTFOLIO_SOURCE. These helpers turn the
- * stored parts into rows and back, and say what is still missing before it can be saved.
+ * A row's `source` is the account's id, `loan:<id>` or PORTFOLIO_SOURCE. One row may be `auto`:
+ * it takes what the other rows leave of the expense's amount (resolveSplitRows) until its amount
+ * is typed. These helpers turn the stored parts into rows and back, and say what is still missing
+ * before it can be saved.
  */
 
 import { t } from '../../../utils/i18n.js';
@@ -27,7 +29,31 @@ const newId = (prefix) => `${prefix}_${crypto.randomUUID().replace(/-/g, '').sli
 
 /** A new row (its fields may be given) */
 export function newSplitRow(patch = {}) {
-  return { id: newId('pay'), amount: '', source: '', loanAccountId: '', link: null, ...patch };
+  return { id: newId('pay'), amount: '', source: '', loanAccountId: '', link: null, auto: false, ...patch };
+}
+
+/**
+ * The rows with an `auto` row's amount filled in: what the other rows leave of `total` (none
+ * left: empty)
+ * @param {object[]} rows
+ * @param {number} total the expense's amount
+ */
+export function resolveSplitRows(rows, total) {
+  if (!rows.some((r) => r.auto)) return rows;
+  const fixed = rows.filter((r) => !r.auto).reduce((sum, r) => sum + (parseInputNumber(r.amount) || 0), 0);
+  const rest = Math.round((Number(total) || 0) - fixed);
+  return rows.map((r) => (r.auto ? { ...r, amount: rest > 0 ? String(rest) : '' } : r));
+}
+
+/** The rows «چند منبع» starts with: the account chosen so far, then a row taking the rest */
+export const startingSplitRows = (accountId = '') => [newSplitRow({ source: accountId }), newSplitRow({ auto: true })];
+
+/**
+ * The rows after adding one: the new row takes the rest from now on, and the row that took it
+ * keeps what it holds now
+ */
+export function addSplitRow(rows, total) {
+  return [...resolveSplitRows(rows, total).map((r) => ({ ...r, auto: false })), newSplitRow({ auto: true })];
 }
 
 /** The rows of the parts an expense was saved with (none: []) */
@@ -46,12 +72,15 @@ export function rowsFromPayments(payments) {
  * @param {number} total the expense's amount
  */
 export function splitProblem(rows, total) {
+  const sum = splitSum(rows);
+  if (sum > (Number(total) || 0) + SLACK) {
+    return t('جمع منابع ({sum}) از مبلغ هزینه ({total}) بیشتر است.', { sum: formatNum(sum), total: formatNum(Number(total) || 0) });
+  }
   if (rows.length < 2) return t('دست‌کم دو منبع لازم است.');
   if (rows.some((r) => !(parseInputNumber(r.amount) > 0))) return t('مبلغ هر منبع را وارد کنید.');
   if (rows.some((r) => !r.source || (r.source === PORTFOLIO_SOURCE && !isLinkComplete(r.link)))) {
     return t('منبع هر ردیف را کامل انتخاب کنید.');
   }
-  const sum = splitSum(rows);
   if (Math.abs(sum - (Number(total) || 0)) > SLACK) {
     return t('جمع منابع ({sum}) با مبلغ هزینه ({total}) برابر نیست.', { sum: formatNum(sum), total: formatNum(Number(total) || 0) });
   }

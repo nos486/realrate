@@ -68,7 +68,7 @@ import { useFeature } from '../../../shared/features/useFeature.js';
 import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
 import { fundingLoanOptions } from '../../../utils/loanFunding.js';
 import PaymentSplitEditor from './PaymentSplitEditor.jsx';
-import { newSplitRow, paymentsFromRows, rowsFromPayments, splitProblem } from '../utils/paymentSplit.js';
+import { paymentsFromRows, resolveSplitRows, rowsFromPayments, splitProblem, startingSplitRows } from '../utils/paymentSplit.js';
 import { useAssetFunds } from '../../../shared/vault/useAssetFunds.js';
 import { CURRENCY_ASSET, newSpendTxId, newLinkTxId } from '../../../shared/vault/portfolioFunds.js';
 import CategoryLinkField from '../../../shared/links/CategoryLinkField.jsx';
@@ -252,12 +252,12 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
     : [PAY_WITH.account, PAY_WITH.cheque, ...(fundingLoans.length > 0 ? [PAY_WITH.loan] : []), PAY_WITH.multi];
   const paidWith = payOptions.some((o) => o.value === payWith) ? payWith : 'account';
   const multi = paidWith === 'multi';
-  const splitError = multi ? splitProblem(splitRows, amountNum) : '';
-  // «چند منبع» starts from the account chosen so far, with the whole amount, and one more row
+  // The row taking the rest filled in from the amount
+  const splitParts = multi ? resolveSplitRows(splitRows, amountNum) : [];
+  const splitError = multi ? splitProblem(splitParts, amountNum) : '';
+  // «چند منبع» starts from the account chosen so far, and a row taking the rest
   const choosePayWith = (value) => {
-    if (value === 'multi' && splitRows.length === 0) {
-      setSplitRows([newSplitRow({ amount: amount, source: effectiveAccountId }), newSplitRow()]);
-    }
+    if (value === 'multi' && splitRows.length === 0) setSplitRows(startingSplitRows(effectiveAccountId));
     setPayWith(value);
   };
   const loanChosen = paidWith === 'loan' && fundingLoans.some((l) => l.id === loanId);
@@ -285,7 +285,7 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
     setMyShare('');
     setTags([]);
     setChequeId('');
-    if (multi) setSplitRows([newSplitRow({ source: effectiveAccountId }), newSplitRow()]);
+    if (multi) setSplitRows(startingSplitRows(effectiveAccountId));
     setLinkValue(linkValueOf('expense', category, null));
     setSaved(savedTitle);
     // The amount field again, focused
@@ -327,7 +327,7 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
         accountId: payAccountId,
         loanId: loanChosen ? loanId : '',
         // Paid from several sources: each with its part
-        payments: multi ? paymentsFromRows(splitRows, newLinkTxId) : null,
+        payments: multi ? paymentsFromRows(splitParts, newLinkTxId) : null,
         paidFrom: paidFromPortfolio && !multi
           ? {
             portfolioId: fund.portfolioId,
