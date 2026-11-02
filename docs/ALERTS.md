@@ -62,7 +62,7 @@ the rate is unknown). Android notifications and sealed push (`planDueNotificatio
   - portfolio: its own alerts
   - top of the page: the announcement
 
-Transient feedback ("saved", "failed") is not an alert: it stays a toast (`FeedbackProvider`).
+Transient feedback ("saved", "failed") is not an alert: it stays a toast (`FeedbackProvider`): at the bottom on desktop, at the top in the Android app and on phones (`html.is-app-layout`), where the bottom navigation lives.
 
 ## Delivery channels
 
