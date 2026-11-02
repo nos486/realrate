@@ -469,4 +469,22 @@ export default {
   'جمع (تومان)': 'Total (toman)',
   'سهم از سال': 'Share of year',
   تعداد: 'Count',
+
+  // Merging portfolios (MergePortfoliosModal, shared/vault/mergePortfolios.js)
+  'ادغام': 'Merge',
+  'ادغام با پورتفوی دیگر': 'Merge into another portfolio',
+  'ادغام پورتفوی «{name}»': 'Merge portfolio “{name}”',
+  'همه‌ی دارایی‌ها و تراکنش‌های این پورتفو به پورتفوی انتخابی منتقل می‌شود': 'All assets and transactions of this portfolio move to the chosen portfolio',
+  'ادغام و حذف این پورتفو': 'Merge and delete this portfolio',
+  'ادغام در پورتفوی': 'Merge into',
+  '{n} دارایی': '{n} assets',
+  '{n} تراکنش': '{n} transactions',
+  'دارایی‌ها و تراکنش‌های این پورتفو با همه‌ی تاریخچه‌شان به پورتفوی انتخابی می‌روند و هر دارایی یکسان در یک ردیف جمع می‌شود. هزینه‌ها، درآمدها و اهدافی که به این پورتفو وصل‌اند هم به پورتفوی انتخابی وصل می‌شوند. سپس این پورتفو حذف می‌شود. این کار برگشت‌پذیر نیست.': 'This portfolio’s assets and transactions move to the chosen portfolio with their whole history, and the same asset is combined into one row. Expenses, incomes and goals linked to this portfolio are linked to the chosen one too. Then this portfolio is deleted. This cannot be undone.',
+  'دسته‌بندی‌ها و هدف‌های تخصیص پورتفوی انتخابی همان‌طور می‌ماند.': 'The chosen portfolio keeps its categories and allocation targets.',
+  'این پورتفو پیش‌فرض است؛ پس از ادغام، پورتفوی انتخابی پیش‌فرض می‌شود.': 'This is the default portfolio; after the merge, the chosen portfolio becomes the default.',
+  'ادغام پورتفوها ممکن نشد.': 'The portfolios could not be merged.',
+  'این دو پورتفو قابل ادغام نیستند.': 'These two portfolios cannot be merged.',
+  'بعضی از ردیف‌های این پورتفو باز نشد؛ ادغام انجام نشد.': 'Some entries of this portfolio could not be opened; nothing was merged.',
+  'حذف پورتفوی ادغام‌شده ممکن نشد.': 'The merged portfolio could not be deleted.',
+  '«{from}» در «{into}» ادغام شد ({n} ردیف منتقل شد).': '“{from}” was merged into “{into}” ({n} entries moved).',
 };
