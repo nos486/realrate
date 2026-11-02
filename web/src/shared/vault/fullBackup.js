@@ -32,6 +32,7 @@ import { listCustomBanks, createCustomBank } from '../banks/bankApi.js';
 import { getHomeLayout, saveHomeLayout } from '../../features/home/homeApi.js';
 import { reminderOf, REMINDER_KINDS } from '../../utils/reminders.js';
 import { shouldIncludeChequeDirection } from '../alerts/emailAlertsApi.js';
+import { PORTFOLIO_LINK_FIELDS } from '../../utils/portfolioMerge.js';
 import { t } from '../../utils/i18n.js';
 
 export const BACKUP_FORMAT = 'realrate-backup';
@@ -171,7 +172,7 @@ export function remapRecord(kind, data, { portfolioIds = new Map(), bankIds = ne
     if (Array.isArray(next?.aliases)) next = { ...next, aliases: next.aliases.map(swapBank) };
   } else if (kind === 'cheque' || kind === 'income') next = swapBank(next);
   // Portfolio entries of expenses and incomes follow a portfolio restored under a new id
-  const links = { expense: ['paidFrom', 'investedIn'], income: ['soldFrom'] }[kind] || [];
+  const links = PORTFOLIO_LINK_FIELDS[kind] || [];
   for (const field of links) {
     if (next?.[field]?.portfolioId && portfolioIds.has(next[field].portfolioId)) {
       next = { ...next, [field]: { ...next[field], portfolioId: portfolioIds.get(next[field].portfolioId) } };

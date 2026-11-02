@@ -5,6 +5,7 @@ import {
   Eye,
   EyeOff,
   Trash2,
+  Merge,
   Lock,
   ShieldCheck,
 } from 'lucide-react';
@@ -27,10 +28,11 @@ export function generateRandomSlug(len = 8) {
 }
 
 /**
- * Portfolio settings: name, default flag and public sharing. End-to-end encryption is managed
+ * Portfolio settings: name, default flag and public sharing; deleting the portfolio or merging it
+ * into another («ادغام», MergePortfoliosModal). End-to-end encryption is managed
  * for the whole account from account settings; this modal only reports the portfolio's state.
  */
-export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved, canDelete, onDelete }) {
+export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved, canDelete, onDelete, onMerge }) {
   const [portfolioName, setPortfolioName] = useState('');
   const [shareSlug, setShareSlug] = useState('');
   const [shareEnabled, setShareEnabled] = useState(false);
@@ -156,16 +158,30 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
         !loading ? (
           <div className="modal-actions-split">
             {canDelete ? (
-              <button
-                type="button"
-                className="btn-danger"
-                onClick={() => onDelete(portfolio?.id)}
-                disabled={saving}
-                title={t('حذف «{name}»', { name: portfolio?.name || '' })}
-              >
-                <Trash2 size={14} />
-                <span>{t('حذف')}</span>
-              </button>
+              <div className="modal-actions-right">
+                <button
+                  type="button"
+                  className="btn-danger"
+                  onClick={() => onDelete(portfolio?.id)}
+                  disabled={saving}
+                  title={t('حذف «{name}»', { name: portfolio?.name || '' })}
+                >
+                  <Trash2 size={14} />
+                  <span>{t('حذف')}</span>
+                </button>
+                {onMerge && (
+                  <button
+                    type="button"
+                    className="btn-cancel"
+                    onClick={() => onMerge(portfolio)}
+                    disabled={saving}
+                    title={t('ادغام با پورتفوی دیگر')}
+                  >
+                    <Merge size={14} />
+                    <span>{t('ادغام')}</span>
+                  </button>
+                )}
+              </div>
             ) : (
               <div />
             )}

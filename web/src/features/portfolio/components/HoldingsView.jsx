@@ -36,6 +36,8 @@ import TargetAllocationModal from './TargetAllocationModal.jsx';
 import PortfolioPlanCards from './PortfolioPlanCards.jsx';
 import { useMediaQuery } from '../../../hooks/useMediaQuery.js';
 import RiskToleranceModal from './RiskToleranceModal.jsx';
+import MergePortfoliosModal from './MergePortfoliosModal.jsx';
+import { mergePortfolios } from '../../../shared/vault/mergePortfolios.js';
 import { useRiskProfile } from '../hooks/useRiskProfile.js';
 import AlertStack from '../../../shared/alerts/AlertStack.jsx';
 import { useAlertSource } from '../../../shared/alerts/alertStore.js';
@@ -62,7 +64,7 @@ import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 import { useDemo } from '../../demo/index.js';
 import TextField from '../../../shared/ui/TextField.jsx';
-import { t } from '../../../utils/i18n.js';
+import { intlLocale, t } from '../../../utils/i18n.js';
 
 const HoldingsView = forwardRef(function HoldingsView(
   { activePortfolio, portfolios, loadingPortfolios = false, fetchPortfolios, deletePortfolio, onVaultLockChange, toolbarSlot = null },
@@ -119,6 +121,7 @@ const HoldingsView = forwardRef(function HoldingsView(
   const [modalOpen, setModalOpen] = useState(false);
   const [editingHolding, setEditingHolding] = useState(null);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  const [mergeOpen, setMergeOpen] = useState(false);
 
   // The one entry form: its buy side (AddHoldingForm, `buyPreset` for an asset row's «خرید») and
   // its sell side (TransactionForm), each switching to the other for the same asset
@@ -550,12 +553,30 @@ const HoldingsView = forwardRef(function HoldingsView(
         />
       )}
 
+      {mergeOpen && activePortfolio && (
+        <MergePortfoliosModal
+          portfolio={activePortfolio}
+          portfolios={portfolios}
+          onMerge={async (keep, merged) => {
+            const { moved } = await mergePortfolios(keep, merged);
+            toast.success(t('«{from}» در «{into}» ادغام شد ({n} ردیف منتقل شد).', { from: merged.name, into: keep.name, n: moved.toLocaleString(intlLocale()) }));
+            setMergeOpen(false);
+            await fetchPortfolios(keep.id);
+          }}
+          onClose={() => setMergeOpen(false)}
+        />
+      )}
+
       <UserSettingsModal
         isOpen={settingsModalOpen}
         onClose={() => setSettingsModalOpen(false)}
         portfolio={activePortfolio}
         canDelete={portfolios.length > 1}
         onDelete={handleDeleteActivePortfolio}
+        onMerge={readOnly || isVaultLocked ? undefined : () => {
+          setSettingsModalOpen(false);
+          setMergeOpen(true);
+        }}
         onSaved={async (data) => {
           const targetId =
             data && typeof data === 'object' && data.portfolioId
