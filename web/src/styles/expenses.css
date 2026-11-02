@@ -1437,3 +1437,64 @@ tr.is-excluded td,
   flex-direction: column;
   gap: 10px;
 }
+
+/* «چند منبع»: a purchase paid from several sources (PaymentSplitEditor.jsx) */
+.payment-split {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.payment-split-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--card-inner-bg);
+}
+
+.payment-split-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--fs-sm);
+  color: var(--text-secondary);
+}
+
+.payment-split-amount {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.payment-split-row .portfolio-link-body {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.expense-hint-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-primary-text);
+  font: inherit;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.expense-payment-parts {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.expense-payment-parts small {
+  color: var(--text-secondary);
+}

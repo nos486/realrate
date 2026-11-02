@@ -6,6 +6,8 @@
  * portfolio holds, with its balance). The quantity and the record's tomans give the price of
  * each unit; the form stores the link (utils/portfolioLink.js) and portfolioFunds.js writes the
  * portfolio's entry. Only portfolios under the account vault are offered.
+ * `embedded`: always on, without its own toggle — a portfolio part of an expense paid from several
+ * sources (PaymentSplitEditor.jsx), which also offers the quantity today's price gives.
  */
 
 import { intlLocale, t } from '../../utils/i18n.js';
@@ -52,9 +54,10 @@ function usePortfolios(mode) {
  *   hideValues?: boolean,
  * }} props
  *   value: what is chosen so far (null: not linked); own: the link this record already has (its
- *   quantity is still in the balance shown while it is edited)
+ *   quantity is still in the balance shown while it is edited); embedded: no toggle (always on),
+ *   `idSuffix` telling its fields apart from another one's
  */
-export default function PortfolioLinkFields({ mode, value, onChange, toman = 0, own = null, hideValues = false }) {
+export default function PortfolioLinkFields({ mode, value, onChange, toman = 0, own = null, hideValues = false, embedded = false, idSuffix = '' }) {
   const selling = mode === 'sell';
   const pricing = usePricing();
   const { list, loading, error } = usePortfolios(mode);
@@ -99,6 +102,12 @@ export default function PortfolioLinkFields({ mode, value, onChange, toman = 0, 
   const available = selling && value?.assetId ? held.find((p) => p.assetId === value.assetId && sameUnit(value, p))?.amount || 0 : null;
   const qtyNum = parseInputNumber(quantity) || 0;
   const unitPrice = qtyNum > 0 && toman > 0 ? toman / qtyNum : 0;
+  // Embedded: the quantity the amount buys at today's price (the asset's usual unit only)
+  const todayPrice = embedded && value?.assetId && (!value.unit || value.unit === resolveAssetUnit(value.assetId))
+    ? Number(pricing?.getAssetPrice?.(value.assetId)) || 0
+    : 0;
+  const suggested = todayPrice > 0 && toman > 0 ? Math.round((toman / todayPrice) * 10000) / 10000 : 0;
+  const qtyId = `portfolio-link-qty-${mode}${idSuffix}`;
 
   const set = (patch) => onChange({ ...value, ...patch });
   const pickAsset = (asset) => {
@@ -121,6 +130,7 @@ export default function PortfolioLinkFields({ mode, value, onChange, toman = 0, 
 
   return (
     <div className="portfolio-link">
+      {!embedded && (
       <label className="income-recurring-toggle">
         <input type="checkbox" checked={enabled} onChange={(e) => toggle(e.target.checked)} disabled={loading || Boolean(error)} />
         <span>
@@ -132,6 +142,7 @@ export default function PortfolioLinkFields({ mode, value, onChange, toman = 0, 
           </small>
         </span>
       </label>
+      )}
       {error && <p className="expense-form-hint text-loss">{error}</p>}
 
       {enabled && (
@@ -210,10 +221,10 @@ export default function PortfolioLinkFields({ mode, value, onChange, toman = 0, 
           </div>
 
           <div className="ui-input-group">
-            <label htmlFor={`portfolio-link-qty-${mode}`} className="ui-input-label">{t('مقدار')}{unit ? ` (${unit})` : ''} *</label>
+            <label htmlFor={qtyId} className="ui-input-label">{t('مقدار')}{unit ? ` (${unit})` : ''} *</label>
             <div className="ui-input-wrapper">
               <NumericInput
-                id={`portfolio-link-qty-${mode}`}
+                id={qtyId}
                 value={quantity}
                 onValueChange={(v) => {
                   setQuantity(v);
@@ -224,6 +235,18 @@ export default function PortfolioLinkFields({ mode, value, onChange, toman = 0, 
                 className="ui-input-control"
               />
             </div>
+            {suggested > 0 && Math.abs(suggested - qtyNum) > EPS && (
+              <button
+                type="button"
+                className="expense-hint-action"
+                onClick={() => {
+                  setQuantity(String(suggested));
+                  set({ quantity: suggested });
+                }}
+              >
+                {t('به قیمت امروز ≈ {quantity} {unit}', { quantity: qtyText(suggested), unit })}
+              </button>
+            )}
             {unitPrice > 0 && (
               <small className="expense-form-hint">
                 {t('هر {unit} ≈ {price} تومان', { unit: unit || t('واحد'), price: hideValues ? '****' : formatNum(Math.round(unitPrice)) })}

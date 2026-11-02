@@ -215,4 +215,12 @@ export default {
   'مبلغ دارایی نامعتبر است.': 'The asset amount is not valid.',
   'پاسخ‌های آزمون کامل نیست.': 'The quiz answers are incomplete.',
   'موجودی حساب نامعتبر است.': 'The account balance is not valid.',
+  'هزینه‌ی چندمنبعی با چک پرداخت نمی‌شود.': 'An expense paid from several sources cannot be paid with a cheque.',
+  'پرداخت از چند منبع فقط برای هزینه‌های تومانی است.': 'Paying from several sources is only for toman expenses.',
+  'پرداخت چندمنبعی دست‌کم دو منبع لازم دارد.': 'Paying from several sources needs at least two sources.',
+  'یک هزینه از بیشتر از {n} منبع پرداخت نمی‌شود.': 'An expense cannot be paid from more than {n} sources.',
+  'یکی از منابع پرداخت نامعتبر است.': 'One of the payment sources is not valid.',
+  'مبلغ هر منبع پرداخت باید عددی مثبت باشد.': 'Each source\'s amount must be a positive number.',
+  'برای هر منبع پرداخت، حساب، وام یا دارایی پورتفو را انتخاب کنید.': 'For each payment source, choose an account, a loan or a portfolio asset.',
+  'جمع منابع پرداخت باید با مبلغ هزینه برابر باشد.': 'The payment sources must add up to the expense amount.',
 };

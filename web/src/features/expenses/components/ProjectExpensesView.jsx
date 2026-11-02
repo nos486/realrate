@@ -28,7 +28,7 @@ import {
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 import { toEnglishDigits } from '../../../shared/utils/formatters.js';
-import { summarizeExpenses, summarizeDollarValue, summarizeByTag, summarizeByCategory, hasTag } from '../../../utils/expenseDocument.js';
+import { summarizeExpenses, summarizeDollarValue, summarizeByTag, summarizeByCategory, hasTag, expenseAccountIds } from '../../../utils/expenseDocument.js';
 import { useDemo } from '../../demo/index.js';
 import { useExpenses } from '../hooks/useExpenses.js';
 import { formatAmount } from '../utils/format.js';
@@ -346,7 +346,7 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
           projects={groups}
           expense={expenseForm.expense}
           usdToman={usdToman}
-          accounts={accounts.filter((a) => !a.archived || a.id === expenseForm.expense?.accountId)}
+          accounts={accounts.filter((a) => !a.archived || expenseAccountIds(expenseForm.expense).includes(a.id))}
           onSubmit={(input) => saveExpense(input, expenseForm.expense)}
           onClose={() => setExpenseForm(null)}
           submitting={submitting}

@@ -45,6 +45,10 @@ export function repointRecord(kind, record, fromId, intoId) {
     next.accountId = intoId;
     changed = true;
   }
+  if (kind === 'expense' && Array.isArray(record.payments) && record.payments.some((p) => p.accountId === fromId)) {
+    next.payments = record.payments.map((p) => (p.accountId === fromId ? { ...p, accountId: intoId } : p));
+    changed = true;
+  }
   if (kind === 'expense' && Array.isArray(record.reimbursements) && record.reimbursements.some((r) => r.accountId === fromId)) {
     next.reimbursements = record.reimbursements.map((r) => (r.accountId === fromId ? { ...r, accountId: intoId } : r));
     changed = true;

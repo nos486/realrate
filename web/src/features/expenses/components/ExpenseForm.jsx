@@ -31,6 +31,10 @@
  * Added to a portfolio («افزودن به پورتفو»: the asset and its quantity), an expense is a «buy»
  * there at its tomans (`investedIn`).
  *
+ * «چند منبع»: a big toman purchase paid from several sources at once — an amount from each account,
+ * bank credit, loan or asset sold from a portfolio (PaymentSplitEditor.jsx, `payments`); the parts
+ * add up to the amount.
+ *
  * Laid out as an entry form (shared/form/, the income form's too): the amount first (its currency
  * beside it, in words under it), the category as icon tiles (the last used first), the title, the
  * day («امروز»/«دیروز»/«روز دیگر»), «پرداخت با» — an account or cash, a cheque, or a loan, each
@@ -63,6 +67,8 @@ import { useCreateAccount, withMadeAccounts } from '../../accounts/hooks/useCrea
 import { useFeature } from '../../../shared/features/useFeature.js';
 import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
 import { fundingLoanOptions } from '../../../utils/loanFunding.js';
+import PaymentSplitEditor from './PaymentSplitEditor.jsx';
+import { newSplitRow, paymentsFromRows, rowsFromPayments, splitProblem } from '../utils/paymentSplit.js';
 import { useAssetFunds } from '../../../shared/vault/useAssetFunds.js';
 import { CURRENCY_ASSET, newSpendTxId, newLinkTxId } from '../../../shared/vault/portfolioFunds.js';
 import CategoryLinkField from '../../../shared/links/CategoryLinkField.jsx';
@@ -92,6 +98,7 @@ const PAY_WITH = {
   account: { value: 'account', label: t('حساب یا نقد') },
   cheque: { value: 'cheque', label: t('چک') },
   loan: { value: 'loan', label: t('وام') },
+  multi: { value: 'multi', label: t('چند منبع') },
 };
 
 /** A portfolio among the «پرداخت از» choices (an account's is its id) */
@@ -134,7 +141,12 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
     return accounts.some((a) => a.id === last) ? last : '';
   });
   const [loanId, setLoanId] = useState(expense?.loanId || '');
-  const fundingLoans = fundingLoanOptions(useOptionalLoans(), expense?.loanId);
+  const allLoans = useOptionalLoans();
+  const fundingLoans = fundingLoanOptions(allLoans, expense?.loanId);
+  // «چند منبع»: its parts' loans stay offered, even settled
+  const partLoanIds = (expense?.payments || []).map((p) => p.loanId).filter(Boolean);
+  const splitLoans = allLoans.filter((l) => partLoanIds.includes(l.id) || fundingLoans.some((f) => f.id === l.id));
+  const [splitRows, setSplitRows] = useState(() => rowsFromPayments(expense?.payments));
   // In a project an expense may have none (it is named by its title): a new one starts so
   const [category, setCategory] = useState(() => start?.category || (projectId ? '' : startingCategory()));
   const [managing, setManaging] = useState(false);
@@ -174,7 +186,7 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
   const investing = link?.target === 'portfolio' && Boolean(linkValue);
   // «پرداخت با چک»: the issued cheque it was paid with (any category)
   // «وام»: paid with a loan's money (`loanId`)
-  const [payWith, setPayWith] = useState(start?.chequeId ? 'cheque' : expense?.loanId ? 'loan' : 'account');
+  const [payWith, setPayWith] = useState(start?.chequeId ? 'cheque' : expense?.payments?.length ? 'multi' : expense?.loanId ? 'loan' : 'account');
   const [chequeId, setChequeId] = useState(start?.chequeId || '');
   const creatingSubscription = link?.target === 'subscription' && isNewSubscription(linkValue);
 
@@ -237,8 +249,17 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
   // How it may be paid: a cheque and a loan are in tomans; a loan while one is not yet settled
   const payOptions = isForeign
     ? [PAY_WITH.account]
-    : [PAY_WITH.account, PAY_WITH.cheque, ...(fundingLoans.length > 0 ? [PAY_WITH.loan] : [])];
+    : [PAY_WITH.account, PAY_WITH.cheque, ...(fundingLoans.length > 0 ? [PAY_WITH.loan] : []), PAY_WITH.multi];
   const paidWith = payOptions.some((o) => o.value === payWith) ? payWith : 'account';
+  const multi = paidWith === 'multi';
+  const splitError = multi ? splitProblem(splitRows, amountNum) : '';
+  // «چند منبع» starts from the account chosen so far, with the whole amount, and one more row
+  const choosePayWith = (value) => {
+    if (value === 'multi' && splitRows.length === 0) {
+      setSplitRows([newSplitRow({ amount: amount, source: effectiveAccountId }), newSplitRow()]);
+    }
+    setPayWith(value);
+  };
   const loanChosen = paidWith === 'loan' && fundingLoans.some((l) => l.id === loanId);
   // Every expense is tied to an account: one is picked or made, unless it is paid from a
   // portfolio, a cheque or a loan, or is an older expense that never had one
@@ -247,6 +268,7 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
     && (!accountRequired || Boolean(effectiveAccountId))
     && (!needsDayRate || dayRate > 0) && shareValid && !submitting
     && (paidWith !== 'loan' || loanChosen)
+    && !splitError
     && (!investing || isLinkComplete(linkValue))
     // A new subscription is named after the expense
     && (!creatingSubscription || Boolean(title.trim() && subs));
@@ -263,6 +285,7 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
     setMyShare('');
     setTags([]);
     setChequeId('');
+    if (multi) setSplitRows([newSplitRow({ source: effectiveAccountId }), newSplitRow()]);
     setLinkValue(linkValueOf('expense', category, null));
     setSaved(savedTitle);
     // The amount field again, focused
@@ -275,7 +298,7 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
     setSubmitError('');
     setSaved('');
     try {
-      const payAccountId = paidFromPortfolio ? '' : effectiveAccountId;
+      const payAccountId = paidFromPortfolio || multi ? '' : effectiveAccountId;
       // Its category's link (another category has none): a new subscription is made first
       let linked = link && link.target !== 'portfolio' ? linkValue || null : null;
       const savedTitle = title.trim() || getExpenseCategory(category).label;
@@ -303,7 +326,9 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
         chequeId: paidWith === 'cheque' ? chequeId : '',
         accountId: payAccountId,
         loanId: loanChosen ? loanId : '',
-        paidFrom: paidFromPortfolio
+        // Paid from several sources: each with its part
+        payments: multi ? paymentsFromRows(splitRows, newLinkTxId) : null,
+        paidFrom: paidFromPortfolio && !multi
           ? {
             portfolioId: fund.portfolioId,
             portfolioName: fund.portfolioName,
@@ -331,7 +356,7 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
         ...(draft && !expense ? { source: draft.source, bankId: draft.bankId, smsFingerprint: draft.smsFingerprint } : {}),
       });
       try {
-        if (effectiveAccountId) localStorage.setItem(LAST_ACCOUNT_KEY, effectiveAccountId);
+        if (effectiveAccountId && !multi) localStorage.setItem(LAST_ACCOUNT_KEY, effectiveAccountId);
         rememberCategory('expense', category);
       } catch {
         // Only a convenience
@@ -446,7 +471,7 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
           {payOptions.length > 1 && (
             <div className="ui-input-group">
               <span className="ui-input-label">{t('پرداخت با')}</span>
-              <FilterPills variant="segmented" size="sm" options={payOptions} activeValue={paidWith} onChange={setPayWith} />
+              <FilterPills variant="segmented" size="sm" options={payOptions} activeValue={paidWith} onChange={choosePayWith} />
             </div>
           )}
           {paidWith === 'cheque' && (
@@ -462,7 +487,17 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
               <p className="expense-form-hint">{t('از پول این وام خرج شده؛ در «وام‌ها» جزو خرج‌شده‌ی آن حساب می‌شود.')}</p>
             </PickerRow>
           )}
-          {paidWith !== 'cheque' && (payFromOptions.length > 1 || accountRequired) && (
+          {multi && (
+            <PaymentSplitEditor
+              rows={splitRows}
+              onChange={setSplitRows}
+              total={amountNum || 0}
+              accounts={payAccounts}
+              loans={splitLoans}
+              ownLinks={(expense?.payments || []).map((p) => p.soldFrom).filter(Boolean)}
+            />
+          )}
+          {paidWith !== 'cheque' && !multi && (payFromOptions.length > 1 || accountRequired) && (
             <PickerRow label={t('پرداخت از')} value={payFrom} options={payFromOptions} onChange={choosePayFrom} placeholder={accountRequired ? t('یک حساب انتخاب کنید') : t('نامشخص')}>
               {accountRequired && !effectiveAccountId && (
                 <p className="expense-form-hint is-warning">{t('هر هزینه باید به یک حساب وصل باشد؛ حسابی را انتخاب کنید یا «حساب جدید» بسازید.')}</p>

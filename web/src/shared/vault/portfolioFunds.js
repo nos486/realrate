@@ -14,7 +14,8 @@
  *
  * The same way, an expense in «سرمایه‌گذاری» can be a purchase in a portfolio (`investedIn`: a
  * «buy» transaction) and an income in «فروش دارایی» a sale (`soldFrom`: a «sell» transaction) —
- * utils/portfolioLink.js; saveLinkedTransaction / deleteLinkedTransaction.
+ * utils/portfolioLink.js; saveLinkedTransaction / deleteLinkedTransaction. A purchase paid from
+ * several sources sells an asset for each portfolio part (`payments[].soldFrom`: a «sell»).
  *
  * Only portfolios under the account vault are offered (their key is at hand once it is open).
  */
@@ -181,15 +182,21 @@ export async function deleteSpendTransaction(paidFrom) {
 export const newLinkTxId = () => `txl_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
 
 /** Notes the linked transactions carry (never the record's title: share links show them) */
-export const LINK_NOTES = { buy: t('خرید — ثبت‌شده در هزینه‌ها'), sell: t('فروش — ثبت‌شده در درآمدها') };
+export const LINK_NOTES = {
+  buy: t('خرید — ثبت‌شده در هزینه‌ها'),
+  sell: t('فروش — ثبت‌شده در درآمدها'),
+  // Sold to pay part of an expense paid from several sources
+  pay: t('فروش برای پرداخت هزینه'),
+};
 
 /**
  * Write the portfolio entry of a linked expense or income (utils/portfolioLink.js)
  * @param {object} link { portfolioId, assetId, quantity, txId }
- * @param {{ type: 'buy'|'sell', toman: number, date: string, owner: object }} entry
- *   toman: what the whole quantity cost or brought; date: YYYY-MM-DD; owner: { expenseId } or { incomeId }
+ * @param {{ type: 'buy'|'sell', toman: number, date: string, owner: object, note?: string }} entry
+ *   toman: what the whole quantity cost or brought; date: YYYY-MM-DD; owner: { expenseId } or
+ *   { incomeId }; note: a LINK_NOTES key other than the type's own
  */
-export async function saveLinkedTransaction(link, { type, toman, date, owner }) {
+export async function saveLinkedTransaction(link, { type, toman, date, owner, note = '' }) {
   const { portfolio, key } = await portfolioById(link.portfolioId);
   const quantity = Number(link.quantity) || 0;
   const assetId = toPriceId(link.assetId, getKnownPriceIds());
@@ -202,7 +209,7 @@ export async function saveLinkedTransaction(link, { type, toman, date, owner }) 
     quantity,
     unitPrice: quantity > 0 && toman > 0 ? toman / quantity : 0,
     transactionDate: gregorianToShamsi(`${date}T00:00:00`),
-    notes: LINK_NOTES[type] || '',
+    notes: LINK_NOTES[note || type] || '',
     ...owner,
   });
 }

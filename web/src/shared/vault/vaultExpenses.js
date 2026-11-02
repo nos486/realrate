@@ -8,7 +8,8 @@
  *
  * A dollar expense paid from a portfolio (`paidFrom`) also writes, moves or deletes its «spend»
  * transaction in that portfolio, and an expense put into an asset (`investedIn`) its «buy»
- * transaction (portfolioFunds.js): the transaction first, then the expense.
+ * transaction (portfolioFunds.js): the transaction first, then the expense. A purchase paid from
+ * several sources («چند منبع», `payments`) writes a «sell» for each asset sold for its part.
  * An expense is saved in its section (`groupId`): a project's, or — left empty — the daily
  * section (the everyday expenses, created on first use), so every form and path saves alike.
  * The record its category links it to (a cheque, a loan installment, a subscription:
@@ -104,20 +105,40 @@ export async function deleteExpenseGroup(groupId) {
 
 const funds = () => import('./portfolioFunds.js');
 
-/** The portfolio entries an expense can have, and how each is written */
-const LINKS = [
-  { field: 'paidFrom', write: (f, expense) => f.saveSpendTransaction(expense) },
-  {
-    field: 'investedIn',
-    // At its tomans: a foreign expense at its currency's rate on its day (the price history)
-    write: async (f, expense) => f.saveLinkedTransaction(expense.investedIn, {
-      type: 'buy',
-      toman: (Number(expense.amount) || 0) * await tomanRateOn(expense.currency, expense.date),
-      date: expense.date,
-      owner: { expenseId: expense.id },
-    }),
-  },
-];
+/**
+ * The portfolio entries an expense has, and how each is written: paid from a portfolio
+ * (`paidFrom`, a «spend»), put into an asset (`investedIn`, a «buy»), and the assets sold for the
+ * parts of a purchase paid from several sources (`payments[].soldFrom`, a «sell» at the part)
+ * @returns {Array<{ slot: string, link: object, write: (f: object, expense: object) => Promise<void> }>}
+ *   `slot`: where on the expense the entry is (a part's by its id), to pair an edit's entries
+ */
+export function portfolioEntriesOf(expense) {
+  if (!expense) return [];
+  return [
+    ...(expense.paidFrom ? [{ slot: 'paidFrom', link: expense.paidFrom, write: (f, e) => f.saveSpendTransaction(e) }] : []),
+    ...(expense.investedIn ? [{
+      slot: 'investedIn',
+      link: expense.investedIn,
+      // At its tomans: a foreign expense at its currency's rate on its day (the price history)
+      write: async (f, e) => f.saveLinkedTransaction(e.investedIn, {
+        type: 'buy',
+        toman: (Number(e.amount) || 0) * await tomanRateOn(e.currency, e.date),
+        date: e.date,
+        owner: { expenseId: e.id },
+      }),
+    }] : []),
+    ...(Array.isArray(expense.payments) ? expense.payments : []).filter((p) => p?.soldFrom).map((p) => ({
+      slot: `payment:${p.id}`,
+      link: p.soldFrom,
+      write: (f, e) => f.saveLinkedTransaction(p.soldFrom, { type: 'sell', toman: Number(p.amount) || 0, date: e.date, owner: { expenseId: e.id }, note: 'pay' }),
+    })),
+  ];
+}
+
+/** Whether an entry of `list` is the same portfolio entry as `entry` */
+const hasEntry = (list, entry) => list.some((x) => sameLink(x.link, entry.link));
+/** Whether `list` has an entry in the same place on the expense as `entry` */
+const hasSlot = (list, entry) => list.some((x) => x.slot === entry.slot);
 
 /**
  * Expenses, newest first: of one section (`parent`) and/or between two days (`from`, `to`,
@@ -157,27 +178,29 @@ export async function saveExpense(input, existing = null, { id = '', syncLinks =
   // No rate is stored: an older record's goes (its day's rate is read from the price history)
   for (const field of LEGACY_RATE_FIELDS) delete expense[field];
 
-  // Its portfolio entries first (moved when the portfolio changed)
-  const links = LINKS.map((l) => ({ ...l, before: existing?.[l.field] || null, after: expense[l.field] || null }));
-  if (links.some((l) => l.before || l.after)) {
+  // Its portfolio entries first (one that moved to another portfolio leaves the old one)
+  const before = portfolioEntriesOf(existing);
+  const after = portfolioEntriesOf(expense);
+  if (before.length || after.length) {
     const f = await funds();
-    for (const l of links.filter((x) => x.after)) {
-      if (l.before && !sameLink(l.before, l.after)) await f.deleteLinkedTransaction(l.before);
-      await l.write(f, expense);
+    for (const entry of after) {
+      const old = before.find((b) => b.slot === entry.slot);
+      if (old && !sameLink(old.link, entry.link)) await f.deleteLinkedTransaction(old.link);
+      await entry.write(f, expense);
     }
   }
   try {
     await putRecord(EXPENSE_KIND, expense.id, await encryptVaultRecord(expense), expense, { parentId: expense.groupId });
   } catch (err) {
     // A new entry of an expense that couldn't be saved is not left behind
-    for (const l of links.filter((x) => x.after && !sameLink(x.before, x.after))) {
-      await (await funds()).deleteLinkedTransaction(l.after).catch(() => {});
+    for (const entry of after.filter((x) => !hasEntry(before, x))) {
+      await (await funds()).deleteLinkedTransaction(entry.link).catch(() => {});
     }
     throw err;
   }
-  // No longer paid from / put into a portfolio
-  for (const l of links.filter((x) => x.before && !x.after)) {
-    await (await funds()).deleteLinkedTransaction(l.before).catch(() => {});
+  // No longer paid from / put into / sold from a portfolio
+  for (const entry of before.filter((x) => !hasSlot(after, x) && !hasEntry(after, x))) {
+    await (await funds()).deleteLinkedTransaction(entry.link).catch(() => {});
   }
   if (syncLinks) await syncRecordLinks('expense', expense, existing);
   return { success: true, expense };
@@ -193,7 +216,7 @@ export async function saveExpense(input, existing = null, { id = '', syncLinks =
  */
 export async function saveExpenses(inputs) {
   if (!inputs.length) return [];
-  if (inputs.some((input) => LINKS.some((l) => input[l.field]))) {
+  if (inputs.some((input) => portfolioEntriesOf(input).length)) {
     const saved = [];
     for (const input of inputs) saved.push((await saveExpense(input)).expense);
     return saved;
@@ -291,8 +314,8 @@ export function newReimbursement(input) {
 export async function deleteExpense(expenseId, expense = null, { syncLinks = true, asOwner = false } = {}) {
   assertNotOwned(expense || { id: expenseId }, asOwner);
   await deleteVaultRecord(EXPENSE_KIND, expenseId);
-  for (const { field } of LINKS) {
-    if (expense?.[field]) await (await funds()).deleteLinkedTransaction(expense[field]).catch(() => {});
+  for (const { link } of portfolioEntriesOf(expense)) {
+    await (await funds()).deleteLinkedTransaction(link).catch(() => {});
   }
   if (syncLinks) await releaseRecordLinks('expense', expense);
   return { success: true };
@@ -309,8 +332,8 @@ export async function deleteExpenses(expenses, { syncLinks = true, asOwner = fal
   for (const expense of expenses) assertNotOwned(expense, asOwner);
   await deleteVaultRecords(EXPENSE_KIND, expenses.map((e) => e.id));
   for (const expense of expenses) {
-    for (const { field } of LINKS) {
-      if (expense[field]) await (await funds()).deleteLinkedTransaction(expense[field]).catch(() => {});
+    for (const { link } of portfolioEntriesOf(expense)) {
+      await (await funds()).deleteLinkedTransaction(link).catch(() => {});
     }
     if (syncLinks) await releaseRecordLinks('expense', expense);
   }

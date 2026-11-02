@@ -6,7 +6,8 @@
  * keeps no rules: the user records what happened, and the fee of each step is worked out on the
  * spot from the amounts they enter and kept with that record.
  *
- *   - Spending from the credit: an ordinary expense paid from it (`accountId`), counted as an
+ *   - Spending from the credit: an ordinary expense paid from it (`accountId`, or its part of a
+ *     purchase paid from several sources), counted as an
  *     expense on the day of the purchase. Cash taken out of it: a transfer from it.
  *   - «تسویه بدهی»: a transfer from another account into the credit of what was actually paid,
  *     its `fee` the part beyond the debt settled (settlementOf) — and that fee as an expense of
@@ -30,7 +31,7 @@
  */
 
 import { gregorianToJalali, jalaliToGregorian, getJalaliMonthLength } from './loanCalculator.js';
-import { expensePaidInToman } from './expenseDocument.js';
+import { expensePaidInToman, expenseAccountAmount } from './expenseDocument.js';
 import { incomeInToman } from './incomeDocument.js';
 import { t } from './i18n.js';
 
@@ -203,6 +204,17 @@ export function validateCreditTerms(body = {}, today = '') {
 }
 
 /**
+ * What an expense charged to the credit, in tomans: what was paid, or its part of it when it was
+ * paid from several sources (expenseDocument.js `payments`); 0 when not paid from it
+ */
+function chargedTo(expense, accountId, rates) {
+  const part = expenseAccountAmount(expense, accountId);
+  const amount = Number(expense.amount) || 0;
+  if (!(part > 0) || !(amount > 0)) return 0;
+  return Math.round((expensePaidInToman(expense, rates) || 0) * (part / amount));
+}
+
+/**
  * What was charged to the credit and paid into it, one entry per record and day: its expenses,
  * the transfers into and out of it and the deposits that pay its debt, from its start date
  */
@@ -211,8 +223,9 @@ function eventsOf(account, expenses, transfers, incomes, today, rates) {
   const inRange = (date) => DATE_RE.test(date || '') && date >= since && date <= today;
   const events = [];
   for (const e of expenses) {
-    if (e.accountId !== account.id || !inRange(e.date)) continue;
-    events.push({ date: e.date, charge: Math.round(expensePaidInToman(e, rates) || 0), pay: 0 });
+    const charge = chargedTo(e, account.id, rates);
+    if (!charge || !inRange(e.date)) continue;
+    events.push({ date: e.date, charge, pay: 0 });
   }
   for (const t of transfers) {
     if (!inRange(t.date)) continue;
@@ -315,7 +328,7 @@ function periodOf(account, expenses, transfers, today, rates) {
   let paidIn = 0;
   let takenOut = 0;
   for (const e of expenses) {
-    if (e.accountId === account.id && inRange(e.date)) spent += Math.round(expensePaidInToman(e, rates) || 0);
+    if (inRange(e.date)) spent += chargedTo(e, account.id, rates);
   }
   for (const t of transfers) {
     if (!inRange(t.date)) continue;
