@@ -4,7 +4,7 @@
  *
  * The user states what an account holds at some moment (`account.balance`: the amount in each
  * currency the account holds, and when it was stated). From then on the records move it: an
- * expense paid from the account takes its amount out (the part reimbursed to it later puts that
+ * expense paid from the account takes its amount out (its part, when paid from several sources) (the part reimbursed to it later puts that
  * back), an income into it adds, a transfer takes its amount out of the source and brings the
  * amount less the fee into the destination. Tracking is optional per account; a bank credit keeps
  * its own debt figures (creditAccount.js) and has none.
@@ -18,6 +18,7 @@
 
 import { CURRENCY_CODES, BASE_CURRENCY, normalizeCurrency, currencyRateToday } from './currencies.js';
 import { accountCurrencies } from './accountDocument.js';
+import { expenseAccountAmount } from './expenseDocument.js';
 import { t } from './i18n.js';
 import { isValidIsoDate } from './isoDate.js';
 
@@ -75,8 +76,9 @@ export function accountBalanceOf(account, { expenses = [], transfers = [], incom
     held[c] = (held[c] || 0) + amount;
   };
   for (const e of expenses) {
-    const amount = Number(e.amount) || 0;
-    if (e.accountId === account.id && countsAfter(balance, e.date, e.createdAt) && e.date <= today) add(e.currency, -amount);
+    // Its part paid from this account (all of it, unless it was paid from several sources)
+    const amount = expenseAccountAmount(e, account.id);
+    if (amount > 0 && countsAfter(balance, e.date, e.createdAt) && e.date <= today) add(e.currency, -amount);
     for (const r of e.reimbursements || []) {
       if (r.accountId === account.id && countsAfter(balance, r.date, e.updatedAt || e.createdAt) && r.date <= today) add(e.currency, Number(r.amount) || 0);
     }

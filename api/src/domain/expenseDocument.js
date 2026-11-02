@@ -39,6 +39,15 @@
  * portfolioLink.js): the portfolio gets a «buy» transaction at the expense's tomans / quantity, so
  * it is priced at the expense's tomans (a foreign one at its day's rate) and is never shared.
  *
+ * A big toman purchase may be paid from several sources at once («چند منبع»): `payments` lists
+ * them, each `{ id, amount, accountId?, loanId?, soldFrom? }` — an account (a bank credit is one:
+ * its part is owed on it), a loan's money (`loanId`, optionally through an account), or an asset
+ * sold from a portfolio for its part (`soldFrom`, a portfolioLink.js link: a «sell» transaction
+ * there at the part's tomans). The parts add up to `amount`; such an expense has no `accountId`,
+ * `loanId`, `paidFrom` or cheque of its own. Each source counts only its part (expensePayments,
+ * expenseAccountAmount, expenseLoanFraction); the expense itself is counted once, whole, in its
+ * category, budget and the reports. `payments: null` is an expense with one source.
+ *
  * A shared expense («دنگ», toman expenses only): the user paid `amount` for others too, and only `myShare` (same
  * currency) is theirs. Totals, categories, budgets and loan usage count `myShare`
  * (expenseInToman); the rest is owed back to the user. What comes back is kept on the expense
@@ -100,6 +109,7 @@ export const EXPENSE_LIMITS = {
   maxReimbursements: 100,
   maxTags: 10,
   tagLength: 30,
+  maxPayments: 6,
 };
 
 /**
@@ -233,6 +243,11 @@ export function validateExpense(body = {}) {
   if (funding.error) return { error: funding.error };
   const { paidFrom } = funding;
 
+  const split = validatePayments(body.payments, currency, amount);
+  if (split.error) return { error: split.error };
+  const { payments } = split;
+  if (payments && links.chequeId) return { error: t('هزینه‌ی چندمنبعی با چک پرداخت نمی‌شود.') };
+
   const invested = validatePortfolioLink(body.investedIn);
   if (invested.error) return { error: invested.error };
   const investedIn = invested.link;
@@ -241,12 +256,12 @@ export function validateExpense(body = {}) {
   return {
     value: {
       groupId, title, amount, currency, date, notes, category, source, bankId,
-      // Paid from a portfolio: no account, no loan
-      accountId: paidFrom ? '' : accountId,
-      loanId: paidFrom ? '' : loanId,
+      // Paid from a portfolio, or from several sources: no account, no loan of its own
+      accountId: paidFrom || payments ? '' : accountId,
+      loanId: paidFrom || payments ? '' : loanId,
       ...(creditAccountId ? { creditAccountId } : {}),
       ...links,
-      smsFingerprint, smsKey, myShare, reimbursements, paidFrom, investedIn,
+      smsFingerprint, smsKey, myShare, reimbursements, paidFrom: payments ? null : paidFrom, investedIn, payments,
       ...(importKey ? { importKey } : {}),
       tags: normalizeTags(body.tags),
       // Recorded by another feature: changed only from its page (recordOwners.js)
@@ -270,6 +285,81 @@ function validatePaidFrom(raw, currency) {
   if (!ID_RE.test(portfolioId) || !ID_RE.test(txId)) return { error: t('پورتفوی پرداخت نامعتبر است.') };
   if (PAYABLE_ASSETS[currency] !== assetId) return { error: t('این ارز از پورتفو پرداخت‌شدنی نیست.') };
   return { paidFrom: { portfolioId, portfolioName: text(raw.portfolioName).slice(0, EXPENSE_LIMITS.nameLength), assetId, txId } };
+}
+
+/**
+ * The sources a toman expense was paid from («چند منبع»), or null for one source
+ * @returns {{ payments?: object[]|null, error?: string }}
+ */
+function validatePayments(raw, currency, amount) {
+  if (!Array.isArray(raw) || raw.length === 0) return { payments: null };
+  if (currency !== BASE_CURRENCY) return { error: t('پرداخت از چند منبع فقط برای هزینه‌های تومانی است.') };
+  if (raw.length < 2) return { error: t('پرداخت چندمنبعی دست‌کم دو منبع لازم دارد.') };
+  if (raw.length > EXPENSE_LIMITS.maxPayments) return { error: t('یک هزینه از بیشتر از {n} منبع پرداخت نمی‌شود.', { n: EXPENSE_LIMITS.maxPayments }) };
+  const payments = [];
+  const ids = new Set();
+  for (const part of raw) {
+    const id = text(part?.id);
+    if (!ID_RE.test(id) || ids.has(id)) return { error: t('یکی از منابع پرداخت نامعتبر است.') };
+    ids.add(id);
+    const partAmount = Number(part.amount);
+    if (!Number.isFinite(partAmount) || partAmount <= 0 || partAmount > EXPENSE_LIMITS.maxAmount) {
+      return { error: t('مبلغ هر منبع پرداخت باید عددی مثبت باشد.') };
+    }
+    const sold = validatePortfolioLink(part.soldFrom);
+    if (sold.error) return { error: sold.error };
+    const accountId = !sold.link && ID_RE.test(text(part.accountId)) ? text(part.accountId) : '';
+    const loanId = !sold.link && ID_RE.test(text(part.loanId)) ? text(part.loanId) : '';
+    if (!sold.link && !accountId && !loanId) return { error: t('برای هر منبع پرداخت، حساب، وام یا دارایی پورتفو را انتخاب کنید.') };
+    payments.push({
+      id,
+      amount: partAmount,
+      ...(accountId ? { accountId } : {}),
+      ...(loanId ? { loanId } : {}),
+      ...(sold.link ? { soldFrom: sold.link } : {}),
+    });
+  }
+  const sum = payments.reduce((total, p) => total + p.amount, 0);
+  if (Math.abs(sum - amount) > 0.5) return { error: t('جمع منابع پرداخت باید با مبلغ هزینه برابر باشد.') };
+  return { payments };
+}
+
+/** Whether an expense was paid from several sources («چند منبع») */
+export const isMultiSourceExpense = (expense) => Array.isArray(expense?.payments) && expense.payments.length > 0;
+
+/**
+ * The sources an expense was paid from, each with its part (in the expense's currency, the whole
+ * amount paid — shared or not): its `payments`, or its one source as a single part
+ * @returns {Array<{ id: string, amount: number, accountId?: string, loanId?: string, soldFrom?: object }>}
+ */
+export function expensePayments(expense) {
+  if (!expense) return [];
+  if (isMultiSourceExpense(expense)) return expense.payments;
+  return [{
+    id: '',
+    amount: Number(expense.amount) || 0,
+    ...(expense.accountId ? { accountId: expense.accountId } : {}),
+    ...(expense.loanId ? { loanId: expense.loanId } : {}),
+  }];
+}
+
+/** What left an account for an expense, in the expense's currency (0: not paid from it) */
+export function expenseAccountAmount(expense, accountId) {
+  if (!accountId) return 0;
+  return expensePayments(expense).reduce((sum, p) => sum + (p.accountId === accountId ? Number(p.amount) || 0 : 0), 0);
+}
+
+/** The accounts an expense was paid from (each once) */
+export function expenseAccountIds(expense) {
+  return [...new Set(expensePayments(expense).map((p) => p.accountId).filter(Boolean))];
+}
+
+/** How much of an expense a loan's money paid for, from 0 to 1 */
+export function expenseLoanFraction(expense, loanId) {
+  const amount = Number(expense?.amount) || 0;
+  if (!loanId || !(amount > 0)) return 0;
+  const part = expensePayments(expense).reduce((sum, p) => sum + (p.loanId === loanId ? Number(p.amount) || 0 : 0), 0);
+  return Math.min(1, part / amount);
 }
 
 /**
@@ -562,19 +652,28 @@ export function shamsiMonthOf(isoDay) {
 
 /**
  * Per-account totals, largest first (expenses without an account under ''): in tomans, and per
- * currency as recorded (`byCurrency`: what left a euro account, in euros)
+ * currency as recorded (`byCurrency`: what left a euro account, in euros). An expense paid from
+ * several sources counts under each account for its part
  * @returns {Array<{ accountId: string, totalToman: number, byCurrency: Record<string, number>, count: number }>}
  */
 export function summarizeByAccount(expenses = [], rates = {}) {
   const byAccount = new Map();
   for (const e of expenses) {
-    const key = e.accountId || '';
-    const entry = byAccount.get(key) || { accountId: key, totalToman: 0, byCurrency: {}, count: 0 };
-    entry.totalToman += expenseInToman(e, rates) || 0;
+    const amount = Number(e.amount) || 0;
+    const inToman = expenseInToman(e, rates) || 0;
+    const share = expenseShareAmount(e);
     const currency = normalizeCurrency(e.currency);
-    entry.byCurrency[currency] = (entry.byCurrency[currency] || 0) + expenseShareAmount(e);
-    entry.count++;
-    byAccount.set(key, entry);
+    // Several sources: each account counts its part (of the user's share)
+    const parts = new Map();
+    for (const p of expensePayments(e)) parts.set(p.accountId || '', (parts.get(p.accountId || '') || 0) + (Number(p.amount) || 0));
+    for (const [key, part] of parts) {
+      const ratio = amount > 0 ? part / amount : 1;
+      const entry = byAccount.get(key) || { accountId: key, totalToman: 0, byCurrency: {}, count: 0 };
+      entry.totalToman += inToman * ratio;
+      entry.byCurrency[currency] = (entry.byCurrency[currency] || 0) + share * ratio;
+      entry.count++;
+      byAccount.set(key, entry);
+    }
   }
   return [...byAccount.values()].sort((a, b) => b.totalToman - a.totalToman);
 }

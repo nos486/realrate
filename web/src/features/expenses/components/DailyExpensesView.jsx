@@ -37,6 +37,7 @@ import {
   summarizeExpenses,
   summarizeByCategory,
   summarizeByAccount,
+  expenseAccountIds,
   summarizeReceivables,
   summarizeDollarValue,
 } from '../../../utils/expenseDocument.js';
@@ -156,7 +157,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
   const byAccount = useMemo(() => summarizeByAccount(shown, rates), [shown, rates]);
   const spentByAccount = useMemo(() => summarizeByAccount(split.counted, rates), [split, rates]);
   const receivables = useMemo(() => summarizeReceivables(expenses, rates), [expenses, rates]);
-  const usesAccounts = expenses.some((e) => e.accountId);
+  const usesAccounts = expenses.some((e) => expenseAccountIds(e).length > 0);
   const budgetKeys = Object.keys(budgets).filter((k) => k !== 'total');
   // A category's own budget follows its spending even when it is left out of the month's total
   const spentIn = new Map([...byCategory, ...excludedByCategory].map((c) => [c.category, c.totalToman]));
@@ -167,11 +168,13 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
     const dir = order === 'asc' ? 1 : -1;
     const matches = shown.filter((e) => {
       const matchCat = categoryFilter === 'all' || (e.category || 'other') === categoryFilter;
-      const matchAcc = accountFilter === 'all' || (e.accountId || '') === accountFilter;
+      // An expense paid from several sources is under each of its accounts
+      const ids = expenseAccountIds(e);
+      const matchAcc = accountFilter === 'all' || (accountFilter ? ids.includes(accountFilter) : ids.length === 0);
       if (!matchCat || !matchAcc) return false;
       if (!query) return true;
       const catLabel = getExpenseCategory(e.category).label;
-      const accLabel = e.accountId ? accountLabel(accountById.get(e.accountId)) : '';
+      const accLabel = ids.map((id) => accountLabel(accountById.get(id))).join(' ');
       return [e.title, e.notes, catLabel, accLabel]
         .some((f) => String(f || '').toLowerCase().includes(query));
     });
@@ -506,7 +509,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
           projects={projects}
           expense={form.expense}
           usdToman={usdToman}
-          accounts={accounts.filter((a) => !a.archived || a.id === form.expense?.accountId)}
+          accounts={accounts.filter((a) => !a.archived || expenseAccountIds(form.expense).includes(a.id))}
           onSubmit={(input) => saveExpense(input, form.expense)}
           onClose={() => setForm(null)}
           submitting={submitting}

@@ -1,6 +1,7 @@
 /**
  * ExpensesTable.jsx — Expenses of a section (desktop table / mobile cards via ResponsiveDataTable)
- * An expense funded by a loan («تأمین از») names the loan under its title. A shared expense
+ * An expense funded by a loan («تأمین از») names the loan under its title; one paid from several
+ * sources («چند منبع») lists each source with its part under «پرداخت از». A shared expense
  * («دنگ») shows the user's share under the amount, and what is still owed back; «دریافتی‌ها»
  * (`onReimburse`) records what came back. Everyday expenses can be picked (`selection`) and moved
  * to a project (`onMove`). In the everyday list a project's expense (`projectOf`) shows its
@@ -27,6 +28,7 @@ import { currencyLabel, isForeignCurrency } from '../../../utils/currencies.js';
 import { getExpenseCategory } from '../constants/expenseCategories.js';
 import { accountLabel } from '../../accounts/constants/accountDisplay.js';
 import { useOptionalLoans } from '../../loans/context/LoansContext.jsx';
+import { paymentParts } from '../utils/paymentSources.js';
 
 const MASK = '****';
 
@@ -193,13 +195,27 @@ export default function ExpensesTable({
           key: 'account',
           header: t('پرداخت از'),
           mobile: 'meta',
-          render: (e) => (
-            <span className="expense-account-text">
-              {e.paidFrom
-                ? t('دلار «{name}»', { name: e.paidFrom.portfolioName || t('پورتفو') })
-                : e.accountId ? accountLabel(accountById.get(e.accountId)) : '—'}
-            </span>
-          ),
+          render: (e) => {
+            // Paid from several sources: each with its part
+            const parts = paymentParts(e, { accountById, loanTitle });
+            if (parts.length) {
+              return (
+                <span className="expense-account-text expense-payment-parts">
+                  <strong>{t('{n} منبع', { n: parts.length })}</strong>
+                  {parts.map((p) => (
+                    <small key={p.id}>{p.label}: {hideValues ? '****' : formatAmount(p.amount)}</small>
+                  ))}
+                </span>
+              );
+            }
+            return (
+              <span className="expense-account-text">
+                {e.paidFrom
+                  ? t('دلار «{name}»', { name: e.paidFrom.portfolioName || t('پورتفو') })
+                  : e.accountId ? accountLabel(accountById.get(e.accountId)) : '—'}
+              </span>
+            );
+          },
         }]
       : []),
     {

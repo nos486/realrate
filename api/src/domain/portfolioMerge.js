@@ -54,6 +54,16 @@ export function repointPortfolioRecord(kind, record, fromId, into) {
       changed = true;
     }
   }
+  // An expense paid from several sources: the assets sold for its parts
+  if (kind === 'expense' && Array.isArray(next?.payments) && next.payments.some((p) => p?.soldFrom?.portfolioId === fromId)) {
+    next = {
+      ...next,
+      payments: next.payments.map((p) => (p?.soldFrom?.portfolioId === fromId
+        ? { ...p, soldFrom: { ...p.soldFrom, portfolioId: into.id, ...(into.name ? { portfolioName: into.name } : {}) } }
+        : p)),
+    };
+    changed = true;
+  }
   if (kind === 'goal' && Array.isArray(next?.allocations) && next.allocations.some((a) => a?.portfolioId === fromId)) {
     next = { ...next, allocations: next.allocations.map((a) => (a?.portfolioId === fromId ? { ...a, portfolioId: into.id } : a)) };
     changed = true;

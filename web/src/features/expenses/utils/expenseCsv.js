@@ -3,7 +3,8 @@
  *
  * What an expense holds, as recorded: its day, category, title, amount and the user's own share
  * («دنگ»), its currency, tags, what others paid back, the account it was paid from, what funded it
- * (a loan, or a currency held in a portfolio), where it was recorded from (a bank SMS) and the
+ * (a loan, or a currency held in a portfolio) — every source with its part when it was paid from
+ * several, where it was recorded from (a bank SMS) and the
  * note. Nothing computed from a rate (tomans, dollars, today's value): every rate is the price
  * history's by the expense's day, so the file holds only what was recorded.
  *
@@ -20,6 +21,7 @@ import { parseInputNumber } from '../../portfolio/utils/holdingHelpers.js';
 import { toEnglishDigits } from '../../../shared/utils/formatters.js';
 import { accountLabel } from '../../accounts/constants/accountDisplay.js';
 import { getExpenseCategory } from '../constants/expenseCategories.js';
+import { paymentParts } from './paymentSources.js';
 
 const BASE = [t('تاریخ'), t('عنوان'), t('مبلغ'), t('سهم من'), t('ارز')];
 const REST = [t('برچسب‌ها'), t('دریافت‌شده از دیگران'), t('پرداخت از'), t('تأمین از'), t('ثبت از'), t('یادداشت')];
@@ -36,6 +38,8 @@ export function expenseCsvHeaders({ withCategory = false } = {}) {
  */
 export function expenseCsvRow(e, { withCategory = false, accountById = new Map(), loanById = new Map() } = {}) {
   const shared = isSharedExpense(e);
+  // Paid from several sources: every source with its part, under «پرداخت از»
+  const parts = paymentParts(e, { accountById, loanTitle: (id) => loanById.get(id)?.title || t('وام حذف‌شده') });
   const funding = e.paidFrom?.portfolioId
     ? t('پورتفو: {name}', { name: e.paidFrom.portfolioName || t('پورتفو') })
     : e.loanId
@@ -51,7 +55,7 @@ export function expenseCsvRow(e, { withCategory = false, accountById = new Map()
   const rest = [
     (e.tags || []).join(`${t('،')} `),
     shared ? expenseReceivable(e).received : '',
-    e.accountId ? accountLabel(accountById.get(e.accountId)) : '',
+    parts.length ? parts.map((p) => `${p.label}: ${p.amount}`).join(' + ') : e.accountId ? accountLabel(accountById.get(e.accountId)) : '',
     funding,
     e.source === 'sms' ? t('پیامک بانک') : '',
     e.notes || '',

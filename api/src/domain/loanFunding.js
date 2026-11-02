@@ -3,13 +3,14 @@
  *
  * A loan is not income: the money received is a debt. What it pays for is recorded where it is
  * spent, with `loanId` («تأمین از») instead of the user's own money:
- *   - an expense (expenseDocument.js), daily or of a project
+ *   - an expense (expenseDocument.js), daily or of a project — or its part, when it was paid
+ *     from several sources (`payments`)
  *   - a portfolio holding bought with it (its cost: amount × buy price, in tomans)
  * This module sums those up per loan: how much of the principal has been spent, what is left, and
  * on what. Shared with the web client through a symlink.
  */
 
-import { expenseInToman } from './expenseDocument.js';
+import { expenseInToman, expenseLoanFraction } from './expenseDocument.js';
 import { jalaliToGregorian } from './loanCalculator.js';
 
 const DAY_RE = /^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/;
@@ -60,8 +61,10 @@ export function holdingCostToman(holding = {}) {
 export function summarizeLoanFunding(loan, expenses = [], { holdings = [], ...rates } = {}) {
   const principal = Number(loan?.principalAmount) || 0;
   const own = (list) => list.filter((x) => loan?.id && x.loanId === loan.id);
+  // An expense paid from several sources counts only the loan's part
+  const funded = expenses.filter((e) => loan?.id && expenseLoanFraction(e, loan.id) > 0);
   const items = [
-    ...own(expenses).map((e) => ({ id: e.id, kind: 'expense', source: e, date: isoDayOf(e.date), toman: expenseInToman(e, rates) || 0 })),
+    ...funded.map((e) => ({ id: e.id, kind: 'expense', source: e, date: isoDayOf(e.date), toman: (expenseInToman(e, rates) || 0) * expenseLoanFraction(e, loan.id) })),
     ...own(holdings).map((h) => ({ id: h.id, kind: 'holding', source: h, date: isoDayOf(h.buyDate), toman: holdingCostToman(h) })),
   ].sort((a, b) => b.date.localeCompare(a.date));
   const spent = items.reduce((sum, i) => sum + i.toman, 0);
