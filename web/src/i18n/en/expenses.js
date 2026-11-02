@@ -270,4 +270,6 @@ export default {
   'جمع منابع ({sum}) با مبلغ هزینه ({total}) برابر نیست.': 'The sources ({sum}) do not add up to the expense amount ({total}).',
   'به قیمت امروز ≈ {quantity} {unit}': 'At today\'s price ≈ {quantity} {unit}',
   'فروش برای پرداخت هزینه': 'Sold to pay an expense',
+  'جمع منابع ({sum}) از مبلغ هزینه ({total}) بیشتر است.': 'The sources ({sum}) add up to more than the expense amount ({total}).',
+  'بقیه‌ی مبلغ خودکار این‌جا می‌آید.': 'The rest of the amount goes here automatically.',
 };

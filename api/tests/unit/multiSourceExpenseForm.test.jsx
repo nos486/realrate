@@ -41,13 +41,14 @@ describe('paying from several sources', () => {
 
     setPart(rows()[0], '30000000');
     pickSource(rows()[0], 'ملت');
+    // Before the second is typed it already holds the rest (60,000,000)
+    expect(rows()[1].querySelector('input').value).toBe('60,000,000');
     setPart(rows()[1], '40000000');
     pickSource(rows()[1], 'بلو');
     fireEvent.click(screen.getByRole('button', { name: /منبع دیگر/ }));
     pickSource(rows()[2], 'وام «وام مسکن»');
-    // Not yet adding up: saving waits
-    expect(document.querySelector('.payment-split .is-warning')).not.toBeNull();
-    fireEvent.click(within(rows()[2]).getByRole('button', { name: /بقیه/ }));
+    // The last row takes the rest by itself, and follows the amount
+    expect(rows()[2].querySelector('input').value).toBe('20,000,000');
     expect(document.querySelector('.payment-split .is-warning')).toBeNull();
 
     submit();
