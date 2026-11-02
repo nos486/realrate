@@ -84,8 +84,27 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* In the Android app and on phones (html.is-app-layout, shared/app/appLayout.js) the bottom
+   navigation and page actions sit at the bottom: toasts drop in from the top instead, so they
+   never cover a button. Newest stays nearest the top edge. */
+html.is-app-layout .toast-stack {
+  top: calc(8px + env(safe-area-inset-top, 0px));
+  bottom: auto;
+  flex-direction: column-reverse;
+}
+
+html.is-app-layout .toast-item {
+  animation-name: toast-in-top;
+}
+
+@keyframes toast-in-top {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .toast-item { animation: none; }
+  .toast-item,
+  html.is-app-layout .toast-item { animation: none; }
 }
 
 /* ── Skeleton placeholders ─────────────────────────────────────────────────── */
