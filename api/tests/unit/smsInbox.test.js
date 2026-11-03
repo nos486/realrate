@@ -11,6 +11,7 @@ const plugin = vi.hoisted(() => ({
   checkPermissions: vi.fn(),
   requestPermissions: vi.fn(),
   configure: vi.fn(),
+  clearNotifications: vi.fn(async () => {}),
   addListener: vi.fn(),
 }));
 const biometric = vi.hoisted(() => ({ isAvailable: vi.fn(), has: vi.fn(), store: vi.fn(), retrieve: vi.fn(), clear: vi.fn() }));
@@ -133,6 +134,16 @@ describe('SMS inbox', () => {
     expect(addSmsMessages([DEBIT])).toBe(0);
     markSmsHandled(item.fingerprint);
     expect(restoreSms(item)).toBe(false);
+  });
+
+  it('the phone\'s notifications are cleared once nothing waits any more', () => {
+    plugin.clearNotifications.mockClear();
+    addSmsMessages([DEBIT, CREDIT]);
+    const [first, ...rest] = getPendingSms();
+    markSmsHandled(first.fingerprint);
+    expect(plugin.clearNotifications).not.toHaveBeenCalled();
+    markSmsHandledMany(rest.map((p) => p.fingerprint));
+    expect(plugin.clearNotifications).toHaveBeenCalled();
   });
 
   it('several recorded at once leave the inbox with one announcement, and are remembered', () => {
