@@ -34,6 +34,8 @@ import java.util.Set;
 public class BankSmsReceiver extends BroadcastReceiver {
 
     static final String CHANNEL_ID = "bank_sms";
+    /** Tags every bank-message notification, so they can be cleared together (clearAll) */
+    static final String TAG = "bank_sms";
     /** Opens the app on the waiting bank messages (handled in web/src/shared/native/smsInbox.js) */
     static final String INBOX_LINK = "ir.realrate.app://sms-inbox";
 
@@ -76,6 +78,19 @@ public class BankSmsReceiver extends BroadcastReceiver {
         if (any) BankSmsPlugin.notifyReceived();
     }
 
+    /** Cancel every bank-message notification still showing (the messages were handled in the app) */
+    static void clearAll(Context context) {
+        NotificationManager manager = context.getSystemService(NotificationManager.class);
+        if (manager == null) return;
+        try {
+            for (android.service.notification.StatusBarNotification active : manager.getActiveNotifications()) {
+                if (TAG.equals(active.getTag())) manager.cancel(active.getTag(), active.getId());
+            }
+        } catch (RuntimeException ignored) {
+            // Notification service unavailable: nothing to clear
+        }
+    }
+
     /** Only says a withdrawal or deposit arrived: the message's text is never shown in a notification */
     private static void showNotification(Context context) {
         if (Build.VERSION.SDK_INT >= 33
@@ -107,7 +122,7 @@ public class BankSmsReceiver extends BroadcastReceiver {
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT);
         try {
-            NotificationManagerCompat.from(context).notify((int) (System.currentTimeMillis() & 0x7fffffff), builder.build());
+            NotificationManagerCompat.from(context).notify(TAG, (int) (System.currentTimeMillis() & 0x7fffffff), builder.build());
         } catch (SecurityException ignored) {
             // Notifications not allowed: the message still waits in the app
         }

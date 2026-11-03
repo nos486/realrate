@@ -42,6 +42,7 @@ import java.util.regex.Pattern;
  *     → { messages: [{ id, address, body, date }] }, newest first
  *     BankSms.configure({ enabled: boolean, senders: string[], rules: Rule[] })   what BankSmsReceiver notifies for
  *     Rule = { senders: string[], patterns: string[] }   (nativeSmsRules in bankSms.js)
+ *     BankSms.clearNotifications()   cancel the notifications of bank messages still showing
  *     BankSms.addListener('smsReceived', …)   a bank message arrived while the app is running
  *     BankSms.checkPermissions() / requestPermissions()
  *       → { sms: 'granted' | 'denied' | 'prompt', notifications: … }
@@ -77,6 +78,13 @@ public class BankSmsPlugin extends Plugin {
 
     static SharedPreferences prefs(Context context) {
         return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+    }
+
+    /** The bank messages were handled (or the inbox opened): their notifications go away */
+    @PluginMethod
+    public void clearNotifications(PluginCall call) {
+        BankSmsReceiver.clearAll(getContext());
+        call.resolve();
     }
 
     @PluginMethod

@@ -125,7 +125,24 @@ function write(key, value) {
   }
 }
 
-const notify = () => window.dispatchEvent(new Event(SMS_INBOX_EVENT));
+/**
+ * Cancel the phone's notifications of bank messages (BankSmsReceiver) — they only say "something
+ * arrived", so once the waiting list is empty they are stale. Never throws.
+ */
+export function clearSmsNotifications() {
+  if (!smsEnabled()) return;
+  try {
+    Promise.resolve(BankSms.clearNotifications?.()).catch(() => {});
+  } catch {
+    // Older app build without the method: nothing to clear
+  }
+}
+
+const notify = () => {
+  window.dispatchEvent(new Event(SMS_INBOX_EVENT));
+  // Nothing waits any more (all recorded or dismissed): no notification should stay
+  if (!getPendingSms().length) clearSmsNotifications();
+};
 
 /** Forget the inbox and its settings (signing out): the next account starts reading from then on */
 export function clearSmsInbox() {
@@ -513,7 +530,10 @@ export async function autoReadSms() {
     // Overlapping the last read: a message stored late by the SMS app is not skipped (repeats
     // are dropped by their fingerprint); never before automatic reading started
     const since = Math.max(startedAt, (lastRead || startedAt) - READ_OVERLAP_MS);
-    return (await readSmsSince(since)).added;
+    const added = (await readSmsSince(since)).added;
+    // Auto-recorded messages leave nothing waiting: their notifications are stale too
+    if (!getPendingSms().length) clearSmsNotifications();
+    return added;
   } catch (err) {
     console.warn('Reading SMS failed:', err);
     return 0;
@@ -550,11 +570,15 @@ export function startSmsAutoRead({ onOpenInbox } = {}) {
     if (stopped) return;
     keep(await App.addListener('resume', () => autoReadSms()));
     keep(await App.addListener('appUrlOpen', ({ url }) => {
-      if (isInboxLink(url)) onOpenInbox?.();
+      if (isInboxLink(url)) {
+        clearSmsNotifications();
+        onOpenInbox?.();
+      }
     }));
     const launch = await App.getLaunchUrl().catch(() => null);
     if (!stopped && !launchLinkHandled && isInboxLink(launch?.url)) {
       launchLinkHandled = true;
+      clearSmsNotifications();
       onOpenInbox?.();
     }
   }).catch(() => {});
