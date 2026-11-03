@@ -10,6 +10,7 @@ import { useAuth } from '../../auth/index.js';
 import { useVault } from '../../../shared/vault/useVault.js';
 import { getVaultState, createPortfolioKey } from '../../../shared/vault/vaultStore.js';
 import { ensureDefaultPortfolio } from '../../../shared/vault/defaultPortfolio.js';
+import { repairPortfolioLinks } from '../../../shared/vault/repairPortfolioLinks.js';
 
 export function usePortfolio(initialPortfolioId = null) {
   const { user } = useAuth();
@@ -50,6 +51,8 @@ export function usePortfolio(initialPortfolioId = null) {
       if (!list.length && getVaultState().status === 'unlocked') list = await ensureDefaultPortfolio(list);
       if (list.length > 0) {
         setPortfolios(list);
+        // Records linked to a portfolio that was merged or deleted are pointed at the right one (once per change)
+        if (getVaultState().status === 'unlocked') repairPortfolioLinks(list).catch(() => {});
 
         let savedId = null;
         try {
