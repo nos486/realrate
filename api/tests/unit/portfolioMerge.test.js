@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { repointPortfolioRecord, moveEntry, canMergePortfolios } from '../../src/domain/portfolioMerge.js';
+import { repointPortfolioRecord, repairPortfolioRecord, hasOrphanLink, moveEntry, canMergePortfolios } from '../../src/domain/portfolioMerge.js';
 
 const records = new Map();
 const apiCalls = [];
@@ -75,6 +75,36 @@ describe('repointPortfolioRecord', () => {
     expect(moveEntry({ id: 'h1', portfolioId: 'pf_old', amount: 2 }, 'pf_keep')).toEqual({ id: 'h1', portfolioId: 'pf_keep', amount: 2 });
     expect(canMergePortfolios(KEEP, KEEP)).toBe(false);
     expect(canMergePortfolios(KEEP, MERGED)).toBe(true);
+  });
+});
+
+describe('repairPortfolioRecord', () => {
+  const names = new Map([['pf_keep', 'اصلی'], ['pf_other', 'دیگر']]);
+
+  it('points a link to a deleted portfolio at the portfolio holding its entry', () => {
+    const expense = { id: 'e1', investedIn: { portfolioId: 'pf_gone', txId: 'tx_1', assetId: 'usd' } };
+    const txParent = new Map([['tx_1', 'pf_other']]);
+    expect(hasOrphanLink('expense', expense, new Set(names.keys()))).toBe(true);
+    const out = repairPortfolioRecord('expense', expense, { names, txParent });
+    expect(out.record.investedIn).toMatchObject({ portfolioId: 'pf_other', portfolioName: 'دیگر', txId: 'tx_1' });
+  });
+
+  it('repairs the assets sold for the parts of a multi-source expense', () => {
+    const expense = { payments: [{ id: 'a', accountId: 'acc' }, { id: 'b', soldFrom: { portfolioId: 'pf_gone', txId: 'tx_2' } }] };
+    const out = repairPortfolioRecord('expense', expense, { names, txParent: new Map([['tx_2', 'pf_keep']]) });
+    expect(out.record.payments[1].soldFrom.portfolioId).toBe('pf_keep');
+    expect(out.record.payments[0]).toEqual(expense.payments[0]);
+  });
+
+  it('uses the only portfolio left when the entry is unknown, and never touches a link that exists', () => {
+    const one = new Map([['pf_keep', 'اصلی']]);
+    const goal = { allocations: [{ portfolioId: 'pf_gone', assetId: 'usd' }, { portfolioId: 'pf_keep', assetId: 'gold' }] };
+    expect(repairPortfolioRecord('goal', goal, { names: one }).record.allocations.map((a) => a.portfolioId)).toEqual(['pf_keep', 'pf_keep']);
+    // Two portfolios and no entry to tell: left as it is
+    expect(repairPortfolioRecord('goal', goal, { names }).changed).toBe(false);
+    const fine = { soldFrom: { portfolioId: 'pf_other', txId: 'tx_3' } };
+    expect(hasOrphanLink('income', fine, new Set(names.keys()))).toBe(false);
+    expect(repairPortfolioRecord('income', fine, { names }).changed).toBe(false);
   });
 });
 

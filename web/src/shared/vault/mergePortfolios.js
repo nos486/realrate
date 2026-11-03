@@ -29,7 +29,7 @@ import { t } from '../../utils/i18n.js';
 const SILENT = { silent: true };
 
 /** A kind of a feature the account does not have has nothing to move */
-async function listAll(kind, filters = {}) {
+export async function listAll(kind, filters = {}) {
   try {
     return (await listVaultRecords(kind, SILENT, filters))?.records || [];
   } catch (err) {
@@ -39,7 +39,7 @@ async function listAll(kind, filters = {}) {
 }
 
 /** Store records of one kind, VAULT_BATCH_MAX per request */
-async function storeAll(kind, items) {
+export async function storeAll(kind, items) {
   for (let from = 0; from < items.length; from += VAULT_BATCH_MAX) {
     await putVaultRecords(kind, items.slice(from, from + VAULT_BATCH_MAX), SILENT);
   }
