@@ -211,6 +211,7 @@
 }
 
 /* The month's summary adapts to the room it has */
+.dash-widget.is-height-1 .dash-month .app-home-hero-leftout,
 .dash-widget.is-height-1 .dash-month .app-home-hero-breakdown {
   display: none;
 }
@@ -1413,6 +1414,7 @@ button.dash-rate-tile:focus-visible {
 }
 
 /* Month summary, compact style: the figure and the two stats, without the loan breakdown */
+.dash-month.is-compact .app-home-hero-leftout,
 .dash-month.is-compact .app-home-hero-breakdown {
   display: none;
 }
