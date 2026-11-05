@@ -22,7 +22,7 @@ import { summarizeDollarValues } from '../../../utils/dollarValue.js';
 import { incomeDollarValue, incomeInToman } from '../../../utils/incomeDocument.js';
 import { useFxRates } from '../../market/useFxRates.js';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
-import { AlertBanner, Button, EmptyState, FeaturePageHeader, IconButton, Pagination, SearchBar, SplitPageLayout } from '../../../shared/ui/index.js';
+import { LoadErrorBanner, Button, EmptyState, FeaturePageHeader, IconButton, Pagination, SearchBar, SplitPageLayout } from '../../../shared/ui/index.js';
 import DonutChart from '../../../shared/ui/DonutChart.jsx';
 import IncomeForm from './IncomeForm.jsx';
 import IncomesTable from './IncomesTable.jsx';
@@ -342,14 +342,7 @@ export default function IncomesPage() {
 
       <PeriodSwitcher month={month} thisMonth={thisMonth} onMonthChange={changeMonth} extra={<SalaryMonthBar salary={salary} disabled={readOnly} />} />
 
-      {error && (
-        <AlertBanner
-          type="error"
-          message={error}
-          onClose={clearError}
-          action={<Button size="sm" variant="secondary" onClick={fetchIncomes}>{t('تلاش مجدد')}</Button>}
-        />
-      )}
+      <LoadErrorBanner error={error} onClose={clearError} onRetry={fetchIncomes} />
 
       <SplitPageLayout sidebar={monthSidebar}>{list}</SplitPageLayout>
 

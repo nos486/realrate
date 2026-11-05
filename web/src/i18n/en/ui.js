@@ -19,6 +19,7 @@ export default {
   '≈ {price} تومان': '≈ {price} toman',
   'به‌روزرسانی قیمت‌ها': 'Refresh prices',
   'تلاش مجدد': 'Retry',
+  'اتصال اینترنت برقرار نیست؛ با وصل شدن دوباره خودکار تلاش می‌شود.': 'No internet connection; it will try again automatically when you are back online.',
   'اتصال اینترنت برقرار نیست — قیمت‌های ذخیره‌شده ({ago}) نمایش داده می‌شود.': 'No internet connection — showing saved prices ({ago}).',
   'اتصال اینترنت برقرار نیست — آخرین قیمت‌های ذخیره‌شده نمایش داده می‌شود.': 'No internet connection — showing the last saved prices.',
   'آخرین به‌روزرسانی قیمت‌ها ناموفق بود — قیمت‌های {ago} نمایش داده می‌شود.': 'The last price update failed — showing prices from {ago}.',

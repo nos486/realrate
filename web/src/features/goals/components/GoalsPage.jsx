@@ -16,7 +16,7 @@ import React, { useMemo, useState } from 'react';
 import { Target, Plus } from 'lucide-react';
 import { t } from '../../../utils/i18n.js';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
-import { AlertBanner, Button, EmptyState, FeaturePageHeader, SplitPageLayout } from '../../../shared/ui/index.js';
+import { LoadErrorBanner, Button, EmptyState, FeaturePageHeader, SplitPageLayout } from '../../../shared/ui/index.js';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
 import VaultUnlockCard from '../../../shared/vault/VaultUnlockCard.jsx';
@@ -98,14 +98,7 @@ export default function GoalsPage() {
         )}
       />
 
-      {error && (
-        <AlertBanner
-          type="error"
-          message={error}
-          onClose={clearError}
-          action={!hasAny && <Button size="sm" variant="secondary" onClick={fetchGoals}>{t('تلاش مجدد')}</Button>}
-        />
-      )}
+      <LoadErrorBanner error={error} onClose={clearError} onRetry={hasAny ? null : fetchGoals} />
 
       <SplitPageLayout sidebar={hasAny ? <GoalSummary totals={totals} nearest={nearest} hideValues={hideValues} /> : null}>
         <div className="portfolio-table-card">

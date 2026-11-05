@@ -27,7 +27,7 @@ import { useUsdAt } from '../../market/dailyHistory.js';
 import { useFxRates } from '../../market/useFxRates.js';
 import { formatCurrencyAmounts } from '../../../utils/currencies.js';
 import { Plus, Coins, Tags, Target, HandCoins, Eye, EyeOff, FolderInput, X } from 'lucide-react';
-import { AlertBanner, Button, EmptyState, GenericCsvExportButton, IconButton, Pagination, SearchBar, SplitPageLayout } from '../../../shared/ui/index.js';
+import { LoadErrorBanner, Button, EmptyState, GenericCsvExportButton, IconButton, Pagination, SearchBar, SplitPageLayout } from '../../../shared/ui/index.js';
 import DonutChart from '../../../shared/ui/DonutChart.jsx';
 import { useFeedback } from '../../../shared/ui/FeedbackProvider.jsx';
 import { SkeletonRows } from '../../../shared/ui/Skeleton.jsx';
@@ -339,14 +339,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
     <>
       <PeriodSwitcher month={month} thisMonth={thisMonth} onMonthChange={changeMonth} extra={<SalaryMonthBar salary={salary} disabled={readOnly} />} />
 
-      {error && (
-        <AlertBanner
-          type="error"
-          message={error}
-          onClose={clearError}
-          action={<Button size="sm" variant="secondary" onClick={fetchMonth}>{t('تلاش مجدد')}</Button>}
-        />
-      )}
+      <LoadErrorBanner error={error} onClose={clearError} onRetry={fetchMonth} />
 
       <div className="expenses-daily">
         <SplitPageLayout sidebar={monthSidebar}>

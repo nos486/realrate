@@ -18,7 +18,7 @@ import { useFxRates } from '../../market/useFxRates.js';
 import { HandCoins, Plus, FolderKanban, Pencil, Trash2 } from 'lucide-react';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import {
-  AlertBanner,
+  LoadErrorBanner,
   Button,
   EmptyState,
   Pagination,
@@ -159,14 +159,7 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
 
   return (
     <>
-      {error && (
-        <AlertBanner
-          type="error"
-          message={error}
-          onClose={clearError}
-          action={groups.length === 0 ? <Button size="sm" variant="secondary" onClick={fetchAll}>{t('تلاش مجدد')}</Button> : null}
-        />
-      )}
+      <LoadErrorBanner error={error} onClose={clearError} onRetry={groups.length === 0 ? fetchAll : null} />
 
       {loading && groups.length === 0 ? (
         <SkeletonRows rows={4} columns={3} label={t('در حال دریافت هزینه‌ها')} />

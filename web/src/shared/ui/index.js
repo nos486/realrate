@@ -1,4 +1,5 @@
 export { default as AlertBanner } from './AlertBanner.jsx';
+export { default as LoadErrorBanner } from './LoadErrorBanner.jsx';
 export { default as AppLayout } from './AppLayout.jsx';
 export { default as Button } from './Button.jsx';
 export { default as IconButton } from './IconButton.jsx';
