@@ -13,7 +13,7 @@ import React, { useMemo, useState } from 'react';
 import { ReceiptText, Plus } from 'lucide-react';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import {
-  AlertBanner,
+  LoadErrorBanner,
   Button,
   EmptyState,
   FeaturePageHeader,
@@ -178,19 +178,9 @@ export default function ChequesPage() {
         }
       />
 
-      {error && hasCheques && <AlertBanner type="error" message={error} onClose={clearError} />}
+      <LoadErrorBanner error={error} onClose={hasCheques ? clearError : null} onRetry={hasCheques ? null : fetchCheques} />
 
-      {error && !hasCheques ? (
-        <AlertBanner
-          type="error"
-          message={error}
-          action={
-            <Button size="sm" variant="secondary" onClick={fetchCheques}>
-              {t('تلاش مجدد')}
-            </Button>
-          }
-        />
-      ) : (
+      {error && !hasCheques ? null : (
         <SplitPageLayout sidebar={<ChequeSummaryCards summary={summary} hideValues={hideValues} />}>
           <div className="portfolio-table-card">
             <div className="portfolio-table-header">

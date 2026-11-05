@@ -28,6 +28,7 @@ import { useReportData } from './useReportData.js';
 import { useNetWorth } from './useNetWorth.js';
 import { reportFormatters } from './reportFormat.js';
 import ReportDashboard from './ReportDashboard.jsx';
+import AskCard from './AskCard.jsx';
 import { printReport } from './printReport.js';
 import { isNativeApp } from '../../shared/native/nativeApp.js';
 
@@ -84,6 +85,7 @@ export default function ReportsPage() {
   const [years, setYears] = useState(1);
   const throughMonth = month.jy === thisMonth.jy ? thisMonth.jm : 12;
   const pageRef = useRef(null);
+  const askFormat = useMemo(() => reportFormatters(hideValues), [hideValues]);
   const yearLabel = spanOf(month.jy, years);
   const canPrint = !isNativeApp() && typeof window !== 'undefined' && typeof window.print === 'function';
 
@@ -109,6 +111,7 @@ export default function ReportsPage() {
       <p className="report-print-meta">{t('گزارش سال {year} · ساخته‌شده در {date} · RealRate', { year: yearLabel, date: new Date().toLocaleDateString(calendarLocale()) })}</p>
       <FilterPills options={SPANS} activeValue={years} onChange={setYears} size="sm" />
       <PeriodSwitcher mode="year" month={month} thisMonth={thisMonth} onMonthChange={setMonth} />
+      <div className="ask-wrap"><AskCard f={askFormat} /></div>
       <ReportBody jy={month.jy} years={years} throughMonth={throughMonth} starts={starts} hideValues={hideValues} />
     </div>
   );

@@ -3,6 +3,24 @@
  */
 
 export default {
+  // Ask your data (AskCard.jsx; the question rules read Persian, so the card shows in Persian only)
+  'هفته‌ی اخیر': 'Last week',
+  '{n} هفته‌ی اخیر': 'Last {n} weeks',
+  '{n} ماه اخیر': 'Last {n} months',
+  'سال {year}': 'Year {year}',
+  'خطا در بارگذاری داده‌ها': 'Could not load the data',
+  'تومان در هر مورد': 'toman per item',
+  'از داده‌هایت بپرس': 'Ask your data',
+  'به فارسی بپرس؛ پاسخ فقط روی دستگاه تو، از داده‌های رمزنگاری‌شده‌ات ساخته می‌شود.': 'Ask in Persian; the answer is built on your device only, from your encrypted data.',
+  'مثلاً: خرج رستوران سه ماه اخیر': 'e.g. restaurant spending, last 3 months',
+  'پرسش': 'Question',
+  'بپرس': 'Ask',
+  'در حال یافتن پاسخ': 'Finding the answer',
+  'موردی پیدا نشد': 'Nothing found',
+  'در {period} چیزی با این شرایط ثبت نشده است.': 'Nothing matching was recorded in {period}.',
+  '{period} · {count} مورد': '{period} · {count} items',
+  'جمع {amount} تومان': 'total {amount} toman',
+  'بزرگ‌ترین‌ها': 'Largest',
   'یک سال': 'One year',
   '۳ سال': '3 years',
   '۵ سال': '5 years',
