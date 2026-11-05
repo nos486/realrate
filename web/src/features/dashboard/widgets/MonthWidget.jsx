@@ -1,6 +1,6 @@
 /**
- * MonthWidget.jsx — «خلاصه‌ی ماه»: the month's spending (against the same days of last month, every
- * expense counted, hidden/excluded categories included) and income; ‹ › browse earlier months (the widget opens on the current one again).
+ * MonthWidget.jsx — «خلاصه‌ی ماه»: the month's spending (against the same days of last month) and
+ * income, with the categories left out of the totals listed apart under the spending; ‹ › browse earlier months (the widget opens on the current one again).
  * Decrypted in the browser; nothing shows while the vault is locked.
  */
 
@@ -15,7 +15,7 @@ import Skeleton from '../../../shared/ui/Skeleton.jsx';
 import { summarizeExpenses, shiftShamsiMonth } from '../../../utils/expenseDocument.js';
 import { salaryMonthRange, currentSalaryMonth } from '../../../utils/salaryMonth.js';
 import { useSalaryMonths } from '../../../shared/salary/useSalaryMonths.js';
-import { splitCounted } from '../../../shared/categories/categoryStore.js';
+import { getCategory, splitCounted } from '../../../shared/categories/categoryStore.js';
 import { useCategories } from '../../../shared/categories/useCategories.js';
 import { recordOwnerOf } from '../../../utils/recordOwners.js';
 import { buildIncomeReport, formatShamsiMonth } from '../../incomes/utils/incomeReport.js';
@@ -53,8 +53,12 @@ export default function MonthWidget({ widget }) {
 
   const { expenses, previousExpenses, loading: expensesLoading } = useDailyExpenses(month, { enabled: hasExpenses && unlocked, salaryStarts: starts });
   const monthIncomes = useMonthIncomes(range, unlocked);
-  // Spending counts every expense, including the ones in categories left out of other totals
-  const counted = useMemo(() => ({ expenses: expenses || [], previous: previousExpenses || [] }), [expenses, previousExpenses]);
+  const split = useMemo(() => splitCounted('expense', expenses), [expenses, exclusionKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const counted = useMemo(
+    () => ({ expenses: split.counted, previous: splitCounted('expense', previousExpenses).counted }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [split, previousExpenses, exclusionKey],
+  );
   // The rates of the currencies the month's records are in: today's, and on each one's day
   const monthRecords = useMemo(() => [...(expenses || []), ...(previousExpenses || []), ...(monthIncomes.incomes || [])], [expenses, previousExpenses, monthIncomes.incomes]);
   const usdAt = useUsdAt(monthRecords.some((r) => r.currency === 'USD'));
@@ -72,6 +76,18 @@ export default function MonthWidget({ widget }) {
     () => summarizeExpenses(counted.expenses.filter((e) => recordOwnerOf(e) === 'loan'), dollarRates).totalToman,
     [counted, dollarRates],
   );
+  // What each category left out of the totals («سرمایه‌گذاری», …) came to this month, biggest first
+  const leftOut = useMemo(() => {
+    const byCategory = new Map();
+    for (const e of split.excluded) {
+      const key = e.category || 'other';
+      byCategory.set(key, [...(byCategory.get(key) || []), e]);
+    }
+    return [...byCategory].map(([value, list]) => {
+      const category = getCategory('expense', value);
+      return { value, label: category.label, color: category.color, total: summarizeExpenses(list, dollarRates).totalToman };
+    }).filter((c) => c.total > 0).sort((a, b) => b.total - a.total);
+  }, [split, dollarRates]);
   // The current month against the same number of days of last month; a past month against the
   // whole month before it
   const change = useMemo(() => {
@@ -118,6 +134,17 @@ export default function MonthWidget({ widget }) {
           <span><small>{t('بدون اقساط وام')}</small> <strong>{money(spent - loanSpent)}</strong></span>
           <span><small>{t('اقساط وام')}</small> <strong>{money(loanSpent)}</strong></span>
         </div>
+      )}
+      {showBreakdown && !loading && leftOut.length > 0 && (
+        <ul className="app-home-hero-leftout" aria-label={t('خارج از جمع خرج')}>
+          {leftOut.map((c) => (
+            <li key={c.value}>
+              <span className="app-home-leftout-dot" style={{ background: c.color }} aria-hidden="true" />
+              <small>{t(c.label)}</small>
+              <strong>{money(c.total)}</strong>
+            </li>
+          ))}
+        </ul>
       )}
       {showStats && <div className="app-home-hero-split">
         <button type="button" className="app-home-stat" onClick={() => open('incomes')}>

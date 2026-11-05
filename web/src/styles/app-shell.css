@@ -716,6 +716,46 @@ html.is-app-layout .site-footer {
   color: var(--text-primary);
 }
 
+.app-home-hero-leftout {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: -4px 0 14px;
+  padding: 8px 12px;
+  list-style: none;
+  border-radius: var(--radius-lg);
+  background: var(--bg-control);
+  font-size: var(--fs-sm);
+}
+
+.app-home-hero-leftout li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.app-home-hero-leftout small {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.app-home-leftout-dot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+
+.app-home-hero-leftout strong {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
 .app-home-hero-split {
   display: grid;
   grid-template-columns: 1fr 1fr;

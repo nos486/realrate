@@ -18,6 +18,7 @@ export default {
   'خرج ماه': 'Spent in the month',
   'بدون اقساط وام': 'Excluding loan installments',
   'اقساط وام': 'Loan installments',
+  'خارج از جمع خرج': 'Not counted in spending',
   'درآمد': 'Income',
   'باقی‌مانده': 'Left',
   'کسری': 'Shortfall',
