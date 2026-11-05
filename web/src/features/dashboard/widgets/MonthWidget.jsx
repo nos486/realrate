@@ -1,12 +1,12 @@
 /**
- * MonthWidget.jsx — «خلاصه‌ی ماه»: the month's spending (against the same days of last month),
- * income and what is left; ‹ › browse earlier months (the widget opens on the current one again).
+ * MonthWidget.jsx — «خلاصه‌ی ماه»: the month's spending (against the same days of last month, every
+ * expense counted, hidden/excluded categories included) and income; ‹ › browse earlier months (the widget opens on the current one again).
  * Decrypted in the browser; nothing shows while the vault is locked.
  */
 
 import { t } from '../../../utils/i18n.js';
 import React, { useMemo, useState } from 'react';
-import { ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, TrendingDown, TrendingUp } from 'lucide-react';
+import { ArrowDownLeft, ChevronLeft, ChevronRight, TrendingDown, TrendingUp } from 'lucide-react';
 import { useVault } from '../../../shared/vault/useVault.js';
 import { usePrivacyMode } from '../../../hooks/usePrivacyMode.js';
 import { useFeature } from '../../../shared/features/useFeature.js';
@@ -53,11 +53,8 @@ export default function MonthWidget({ widget }) {
 
   const { expenses, previousExpenses, loading: expensesLoading } = useDailyExpenses(month, { enabled: hasExpenses && unlocked, salaryStarts: starts });
   const monthIncomes = useMonthIncomes(range, unlocked);
-  const counted = useMemo(
-    () => ({ expenses: splitCounted('expense', expenses).counted, previous: splitCounted('expense', previousExpenses).counted }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [expenses, previousExpenses, exclusionKey],
-  );
+  // Spending counts every expense, including the ones in categories left out of other totals
+  const counted = useMemo(() => ({ expenses: expenses || [], previous: previousExpenses || [] }), [expenses, previousExpenses]);
   // The rates of the currencies the month's records are in: today's, and on each one's day
   const monthRecords = useMemo(() => [...(expenses || []), ...(previousExpenses || []), ...(monthIncomes.incomes || [])], [expenses, previousExpenses, monthIncomes.incomes]);
   const usdAt = useUsdAt(monthRecords.some((r) => r.currency === 'USD'));
@@ -91,7 +88,6 @@ export default function MonthWidget({ widget }) {
 
   if (!unlocked) return null;
   const loading = (hasExpenses && expensesLoading) || monthIncomes.loading;
-  const left = incomeTotal - spent;
   const money = (v) => moneyText(v, hideValues);
 
   return (
@@ -129,13 +125,6 @@ export default function MonthWidget({ widget }) {
           <span className="app-home-stat-text">
             <small>{t('درآمد')}</small>
             <strong>{loading ? '…' : money(incomeTotal)}</strong>
-          </span>
-        </button>
-        <button type="button" className="app-home-stat" onClick={() => open('expenses')}>
-          <span className="app-home-stat-icon is-left"><ArrowUpRight size={16} /></span>
-          <span className="app-home-stat-text">
-            <small>{left >= 0 ? t('باقی‌مانده') : t('کسری')}</small>
-            <strong className={left < 0 ? 'is-negative' : ''}>{loading ? '…' : money(Math.abs(left))}</strong>
           </span>
         </button>
       </div>}
