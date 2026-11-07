@@ -756,24 +756,45 @@ html.is-app-layout .site-footer {
   color: var(--text-primary);
 }
 
-.app-home-hero-split {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+.app-home-hero-labelrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
 }
 
-.app-home-stat {
-  display: flex;
+/* Income sits in the card's top row, opposite the month navigator */
+.app-home-income-chip {
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 10px 4px 6px;
   border: 0;
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-full);
   background: var(--bg-control);
   color: var(--text-primary);
   font-family: inherit;
-  text-align: start;
   cursor: pointer;
+}
+
+.app-home-income-chip small {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+}
+
+.app-home-income-chip strong {
+  font-size: var(--fs-base);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-home-income-chip .app-home-stat-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
 }
 
 .app-home-stat-icon {
@@ -793,29 +814,6 @@ html.is-app-layout .site-footer {
 .app-home-stat-icon.is-left {
   background: var(--color-primary-soft);
   color: var(--color-primary-text);
-}
-
-.app-home-stat-text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.app-home-stat-text small {
-  font-size: var(--fs-sm);
-  color: var(--text-muted);
-}
-
-.app-home-stat-text strong {
-  font-size: var(--fs-lg);
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.app-home-stat-text strong.is-negative {
-  color: var(--color-negative-text);
 }
 
 .app-home-card {
