@@ -118,14 +118,23 @@ export default function MonthWidget({ widget }) {
             <ChevronLeft size={16} />
           </button>
         </span>
-        {showComparison && change !== null && !loading && (
-          <span className={`app-home-change ${change > 0 ? 'is-up' : 'is-down'}`}>
-            {change > 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-            {change > 0 ? t('{n}٪ بیشتر از ماه قبل', { n: moneyText(Math.abs(change)) }) : t('{n}٪ کمتر از ماه قبل', { n: moneyText(Math.abs(change)) })}
-          </span>
+        {showStats && (
+          <button type="button" className="app-home-income-chip" onClick={() => open('incomes')}>
+            <span className="app-home-stat-icon is-in"><ArrowDownLeft size={14} /></span>
+            <small>{t('درآمد')}</small>
+            <strong>{loading ? '…' : money(incomeTotal)}</strong>
+          </button>
         )}
       </div>
-      <div className="app-home-hero-label">{isCurrentMonth ? t('خرج این ماه') : t('خرج ماه')}</div>
+      <div className="app-home-hero-labelrow">
+        <div className="app-home-hero-label">{isCurrentMonth ? t('خرج این ماه') : t('خرج ماه')}</div>
+      {showComparison && change !== null && !loading && (
+        <span className={`app-home-change ${change > 0 ? 'is-up' : 'is-down'}`}>
+          {change > 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+          {change > 0 ? t('{n}٪ بیشتر از ماه قبل', { n: moneyText(Math.abs(change)) }) : t('{n}٪ کمتر از ماه قبل', { n: moneyText(Math.abs(change)) })}
+        </span>
+      )}
+      </div>
       <div className="app-home-hero-value">
         {loading ? <Skeleton width="60%" height={36} radius={10} /> : <>{money(spent)} <small>{t('تومان')}</small></>}
       </div>
@@ -146,15 +155,6 @@ export default function MonthWidget({ widget }) {
           ))}
         </ul>
       )}
-      {showStats && <div className="app-home-hero-split">
-        <button type="button" className="app-home-stat" onClick={() => open('incomes')}>
-          <span className="app-home-stat-icon is-in"><ArrowDownLeft size={16} /></span>
-          <span className="app-home-stat-text">
-            <small>{t('درآمد')}</small>
-            <strong>{loading ? '…' : money(incomeTotal)}</strong>
-          </span>
-        </button>
-      </div>}
     </section>
   );
 }

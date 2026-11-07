@@ -201,11 +201,6 @@
   flex-direction: column;
 }
 
-/* Extra height goes above the income/left buttons, which stay at the card's bottom */
-.dash-widget-body .dash-month .app-home-hero-split {
-  margin-top: auto;
-}
-
 .dash-widget-body .app-home-rates {
   justify-content: center;
 }
