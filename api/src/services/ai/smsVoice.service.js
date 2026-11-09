@@ -65,13 +65,13 @@ export async function processSmsVoice(env, { audioBuffer, mimeType, categories, 
     } catch (err) {
       lastError = err;
       logger.error('[SmsVoice] Model inference failed:', { model: model.id, durationMs: Date.now() - startTime, audioBytes, error: err.message });
-      if (!(err instanceof GeminiError && (err.busy || err.timedOut))) break;
+      if (!(err instanceof GeminiError && (err.busy || err.timedOut || err.unavailable))) break;
     }
   }
 
   if (answer === undefined) {
     const reason = debug && lastError instanceof GeminiError ? lastError.reason : '';
-    if (lastError instanceof GeminiError && (lastError.busy || lastError.timedOut)) {
+    if (lastError instanceof GeminiError && (lastError.busy || lastError.timedOut || lastError.unavailable)) {
       throw new AppError('سرویس هوش مصنوعی گوگل الان پاسخ نمی‌دهد یا شلوغ است؛ چند دقیقه دیگر دوباره امتحان کنید.', 503, 'AI_BUSY');
     }
     throw new AppError(reason ? `پردازش صدا ناموفق بود (${reason})` : 'پردازش صدا ناموفق بود.', 502, 'AI_GATEWAY_ERROR');

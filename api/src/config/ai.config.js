@@ -22,7 +22,7 @@ export const GEMINI_API_KEY_SECRET = "GEMINI_API_KEY";
  * hands over to the next). A voice note is a few seconds of audio: it must answer quickly.
  */
 export const SMS_VOICE_MODELS = [
-  { id: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash-Lite" },
+  { id: "gemini-3.5-flash-lite", label: "Gemini 3.5 Flash-Lite" },
   { id: "gemini-3.6-flash", label: "Gemini 3.6 Flash" },
   { id: "gemini-3.8-flash", label: "Gemini 3.8 Flash" },
   { id: "gemini-3.7-flash", label: "Gemini 3.7 Flash" },

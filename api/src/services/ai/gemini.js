@@ -17,6 +17,8 @@ export class GeminiError extends Error {
     this.status = status;
     this.busy = status === 503 || status === 429;
     this.timedOut = timedOut;
+    // A model Google no longer serves (to this account): another may still answer
+    this.unavailable = status === 404;
   }
 }
 
