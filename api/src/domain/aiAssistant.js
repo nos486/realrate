@@ -2,7 +2,9 @@
  * aiAssistant.js — Turning the model's answer to what the user said to the AI assistant into data
  *
  * One assistant, one door (POST /api/ai/voice): the model first names the INTENT of what was said, then
- * fills that intent's data. Intents: `records` (a spoken list of expenses and incomes) and `question`
+ * fills that intent's data. Intents: `records` (a spoken list of expenses and incomes), `edit` (change or
+ * delete one record already saved: «آخرین هزینه‌ام را ۳۰۰ هزار کن»; the model names it and the change, the app
+ * finds the record on the device and asks which one when several fit) and `question`
  * («این ماه چقدر خوراک خرج کردم؟ با پارسال مقایسه کن»: one to three plain Persian questions in the words
  * web/src/features/reports/askQuery.js reads). A new capability is a new row in AI_INTENTS plus its prompt
  * part (services/ai/assistant.service.js) and its handler in web/src/features/ai/aiIntents.js.
@@ -23,7 +25,7 @@ import { parseChequeScanJson } from './chequeScan.js';
 import { isValidIsoDate } from './isoDate.js';
 
 /** The intents the assistant understands (the model names one of these) */
-export const AI_INTENTS = ['records', 'question'];
+export const AI_INTENTS = ['records', 'question', 'edit'];
 
 export const AI_VOICE_LIMITS = { questions: 3, questionLength: 120, items: 10, accounts: 40, nameLength: 60, titleLength: 120, maxAmount: 100_000_000_000 };
 
@@ -47,6 +49,39 @@ export function cleanAiAccounts(input) {
   return list;
 }
 
+const cleanText = (value, length) => String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, length);
+const pastDay = (value, today) => (isValidIsoDate(String(value ?? '').trim()) && String(value).trim() <= today ? String(value).trim() : '');
+
+/** The `edit` intent: which record (the latest, or one found by a word and/or a day) and what changes */
+function normalizeEdit(data, { expense, income, accounts, today }) {
+  const kind = data.kind === 'income' ? 'income' : data.kind === 'expense' ? 'expense' : '';
+  const op = data.op === 'delete' ? 'delete' : 'update';
+  const target = {
+    which: data.target?.which === 'last' ? 'last' : 'search',
+    text: cleanText(data.target?.text, AI_VOICE_LIMITS.nameLength),
+    date: pastDay(data.target?.date, today),
+  };
+  const changes = {};
+  if (op === 'update') {
+    const c = data.changes || {};
+    const amount = Math.round(Number(String(c.amount ?? '').replace(/[,،\s]/g, '')));
+    if (Number.isFinite(amount) && amount > 0 && amount <= AI_VOICE_LIMITS.maxAmount) changes.amount = amount;
+    const title = cleanText(c.title, AI_VOICE_LIMITS.titleLength);
+    if (title) changes.title = title;
+    const categories = kind === 'income' ? income : expense;
+    const category = (categories.find((x) => x.value === String(c.category ?? '').trim()) || categories.find((x) => x.label === String(c.category ?? '').trim()))?.value;
+    if (category) changes.category = category;
+    const date = pastDay(c.date, today);
+    if (date) changes.date = date;
+    const asked = String(c.accountId ?? '').trim();
+    const accountId = (accounts.find((a) => a.id === asked) || accounts.find((a) => a.name === asked))?.id;
+    if (accountId) changes.accountId = accountId;
+  }
+  const found = target.which === 'last' || target.text || target.date;
+  const understood = Boolean(found) && (op === 'delete' || Object.keys(changes).length > 0) && data.understood !== false;
+  return { understood, intent: 'edit', op, kind, target, changes };
+}
+
 /**
  * Normalize the model's raw answer
  * @param {string|object|null} raw the answer text (or its parsed JSON)
@@ -57,6 +92,7 @@ export function cleanAiAccounts(input) {
  */
 export function normalizeAiVoice(raw, { expense = [], income = [], accounts = [], today }) {
   const data = typeof raw === 'string' ? parseChequeScanJson(raw) : raw;
+  if (data?.intent === 'edit') return normalizeEdit(data, { expense, income, accounts, today });
   if (data?.intent === 'question') {
     const questions = (Array.isArray(data.questions) ? data.questions : [])
       .map((q) => String(q ?? '').replace(/\s+/g, ' ').trim().slice(0, AI_VOICE_LIMITS.questionLength))
