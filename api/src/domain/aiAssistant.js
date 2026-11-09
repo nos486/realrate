@@ -4,7 +4,8 @@
  * One assistant, one door (POST /api/ai/voice): the model first names the INTENT of what was said, then
  * fills that intent's data. Intents: `records` (a spoken list of expenses and incomes), `edit` (change or
  * delete one record already saved: «آخرین هزینه‌ام را ۳۰۰ هزار کن»; the model names it and the change, the app
- * finds the record on the device and asks which one when several fit) and `question`
+ * finds the record on the device and asks which one when several fit), `create` (a new cheque or subscription:
+ * the model fills the type's fields, the app shows them as a form to complete and saves) and `question`
  * («این ماه چقدر خوراک خرج کردم؟ با پارسال مقایسه کن»: one to three plain Persian questions in the words
  * web/src/features/reports/askQuery.js reads). A new capability is a new row in AI_INTENTS plus its prompt
  * part (services/ai/assistant.service.js) and its handler in web/src/features/ai/aiIntents.js.
@@ -25,7 +26,11 @@ import { parseChequeScanJson } from './chequeScan.js';
 import { isValidIsoDate } from './isoDate.js';
 
 /** The intents the assistant understands (the model names one of these) */
-export const AI_INTENTS = ['records', 'question', 'edit'];
+export const AI_INTENTS = ['records', 'question', 'edit', 'create'];
+
+/** The things `create` can make (web/src/features/ai/aiCreate.js has the matching form) */
+export const AI_CREATE_TYPES = ['cheque', 'subscription'];
+export const SUBSCRIPTION_CYCLES = [1, 3, 6, 12];
 
 export const AI_VOICE_LIMITS = { questions: 3, questionLength: 120, items: 10, accounts: 40, nameLength: 60, titleLength: 120, maxAmount: 100_000_000_000 };
 
@@ -82,6 +87,59 @@ function normalizeEdit(data, { expense, income, accounts, today }) {
   return { understood, intent: 'edit', op, kind, target, changes };
 }
 
+const wholeAmount = (value) => {
+  const amount = Math.round(Number(String(value ?? '').replace(/[,،\s]/g, '')));
+  return Number.isFinite(amount) && amount > 0 && amount <= AI_VOICE_LIMITS.maxAmount ? amount : 0;
+};
+const anyDay = (value, fallback) => (isValidIsoDate(String(value ?? '').trim()) ? String(value).trim() : fallback);
+
+/**
+ * The `create` intent: the fields of a new cheque or subscription. A missing amount stays 0 (the app asks),
+ * a missing day is today, and the user checks everything in the form before it is saved.
+ */
+function normalizeCreate(data, { accounts, today }) {
+  const type = AI_CREATE_TYPES.includes(data.type) ? data.type : '';
+  const d = data.data || {};
+  const asked = String(d.accountId ?? '').trim();
+  const accountId = (accounts.find((a) => a.id === asked) || accounts.find((a) => a.name === asked))?.id || '';
+  if (type === 'cheque') {
+    const counterparty = cleanText(d.counterparty, AI_VOICE_LIMITS.nameLength);
+    return {
+      understood: Boolean(counterparty) && data.understood !== false,
+      intent: 'create',
+      type,
+      data: {
+        direction: d.direction === 'issued' ? 'issued' : 'received',
+        counterparty,
+        amount: wholeAmount(d.amount),
+        dueDate: anyDay(d.dueDate, today),
+        bankName: cleanText(d.bankName, AI_VOICE_LIMITS.nameLength),
+        chequeNumber: String(d.chequeNumber ?? '').replace(/\D/g, '').slice(0, 20),
+        accountId,
+        notes: cleanText(d.notes, 200),
+      },
+    };
+  }
+  if (type === 'subscription') {
+    const name = cleanText(d.name, AI_VOICE_LIMITS.nameLength);
+    const cycle = Number(d.cycleMonths);
+    return {
+      understood: Boolean(name) && data.understood !== false,
+      intent: 'create',
+      type,
+      data: {
+        name,
+        amount: wholeAmount(d.amount),
+        cycleMonths: SUBSCRIPTION_CYCLES.includes(cycle) ? cycle : 1,
+        startDate: anyDay(d.startDate, today),
+        autoRenew: d.autoRenew !== false,
+        accountId,
+      },
+    };
+  }
+  return { understood: false, intent: 'create', type: '', data: {} };
+}
+
 /**
  * Normalize the model's raw answer
  * @param {string|object|null} raw the answer text (or its parsed JSON)
@@ -93,6 +151,7 @@ function normalizeEdit(data, { expense, income, accounts, today }) {
 export function normalizeAiVoice(raw, { expense = [], income = [], accounts = [], today }) {
   const data = typeof raw === 'string' ? parseChequeScanJson(raw) : raw;
   if (data?.intent === 'edit') return normalizeEdit(data, { expense, income, accounts, today });
+  if (data?.intent === 'create') return normalizeCreate(data, { accounts, today });
   if (data?.intent === 'question') {
     const questions = (Array.isArray(data.questions) ? data.questions : [])
       .map((q) => String(q ?? '').replace(/\s+/g, ' ').trim().slice(0, AI_VOICE_LIMITS.questionLength))

@@ -26,12 +26,13 @@ export function buildAiVoicePrompt({ expense, income, accounts, today }) {
   const shamsi = `${j.jd} ${SHAMSI_MONTHS[j.jm - 1]} ${j.jy}`;
   return `تو دستیار یک برنامه‌ی مالی شخصی هستی. کاربر یک پیام صوتی داده (فارسی یا انگلیسی). اول «قصد» (intent) را تشخیص بده:
 - "records": کاربر یک یا چند هزینه یا درآمد خودش را می‌گوید تا ثبت شود.
+- "create": کاربر می‌خواهد یک «چک» (دریافتی یا صادره) یا یک «اشتراک» (مثل اینترنت، اپلیکیشن، فیلیمو) جدید تعریف کند.
 - "edit": کاربر می‌خواهد یک هزینه یا درآمدِ قبلاً ثبت‌شده را اصلاح یا پاک کند («آخرین هزینه‌ام را ۳۰۰ هزار کن»، «هزینه‌ی تیپاکس دیروز را پاک کن»).
 - "question": کاربر درباره‌ی هزینه‌ها یا درآمدهای ثبت‌شده‌اش سؤال می‌کند (چقدر، چند بار، بیشترین، میانگین، مقایسه).
 امروز ${day} ${today} میلادی و ${shamsi} شمسی (به وقت تهران) است.
 فقط یک شیء JSON برگردان، بدون هیچ متن دیگر:
-{ "understood": true|false, "intent": "records"|"question"|"edit", "items": [ { "kind": "expense"|"income", "amount": 0, "title": "...", "category": "...", "date": "YYYY-MM-DD", "accountId": "" } ], "questions": [ "..." ], "op": "update"|"delete", "kind": "expense"|"income", "target": { "which": "last"|"search", "text": "", "date": "" }, "changes": { "amount": 0, "title": "", "category": "", "date": "", "accountId": "" } }
-- اگر intent برابر records است فقط items را پر کن؛ اگر question است فقط questions را؛ اگر edit است فقط op و kind و target و changes را.
+{ "understood": true|false, "intent": "records"|"question"|"edit"|"create", "items": [ { "kind": "expense"|"income", "amount": 0, "title": "...", "category": "...", "date": "YYYY-MM-DD", "accountId": "" } ], "questions": [ "..." ], "op": "update"|"delete", "kind": "expense"|"income", "target": { "which": "last"|"search", "text": "", "date": "" }, "changes": { "amount": 0, "title": "", "category": "", "date": "", "accountId": "" }, "type": "cheque"|"subscription", "data": { } }
+- اگر intent برابر records است فقط items را پر کن؛ اگر question است فقط questions را؛ اگر edit است فقط op و kind و target و changes را؛ اگر create است فقط type و data را.
 - اگر صدا خالی یا نامفهوم بود یا هیچ‌کدام نبود: understood برابر false.
 
 قصد records:
@@ -47,6 +48,10 @@ export function buildAiVoicePrompt({ expense, income, accounts, today }) {
 - op: "update" برای اصلاح، "delete" برای پاک کردن. kind: نوع رکورد (expense یا income).
 - target.which: "last" برای «آخرین» رکورد؛ وگرنه "search" با target.text (یک کلمه‌ی کلیدی از عنوان، مثل تیپاکس) و/یا target.date (روز رکورد به میلادی، مثلاً از «دیروز»).
 - changes: فقط چیزهایی که گوینده خواسته عوض شود (amount به تومان، title، category از فهرست همان نوع، date، accountId از فهرست حساب‌ها)؛ برای delete خالی.
+
+قصد create:
+- type "cheque": data = { direction: "received" (چک دریافتی) یا "issued" (چک صادره/پرداختی)، counterparty: نام صادرکننده یا گیرنده، amount به تومان (نگفت: 0)، dueDate: سررسید YYYY-MM-DD، bankName، chequeNumber، accountId (اگر حسابی نام برد)، notes }.
+- type "subscription": data = { name، amount به تومان برای هر دوره (نگفت: 0)، cycleMonths: 1 یا 3 یا 6 یا 12 (ماهانه 1، سه‌ماهه 3، شش‌ماهه 6، سالانه 12)، startDate: YYYY-MM-DD (نگفت: امروز)، autoRenew: true مگر بگوید دستی تمدید می‌شود، accountId }.
 
 قصد question:
 - هر سؤال را به یک جمله‌ی کوتاه و ساده‌ی فارسی بازنویسی کن (نه بیشتر از ${AI_VOICE_LIMITS.questions} جمله در questions) با این قالب: «خرج|درآمد|چند بار|بیشترین خرج|میانگین خرج» + نام دسته یا کلمه (مثل رستوران، تاکسی، خوراک) + یک بازه از این‌ها: امروز، دیروز، این هفته، این ماه، ماه قبل، N ماه اخیر، امسال، پارسال، یا نام ماه شمسی با سال (مثل «مهر ۱۴۰۴»). اختیاری: «بیشتر از ۵ میلیون» یا «کمتر از ۲۰۰ هزار».

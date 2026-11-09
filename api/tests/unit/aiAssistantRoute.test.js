@@ -143,3 +143,21 @@ describe('normalizeAiVoice: edit', () => {
     expect(normalizeAiVoice({ intent: 'edit', op: 'update', target: { which: 'last' }, changes: { amount: 0 } }, ctx).understood).toBe(false);
   });
 });
+
+describe('normalizeAiVoice: create', () => {
+  const ctx = { ...CONTEXT, today: TODAY };
+  it('fills a cheque, defaulting the day and keeping a missing amount at 0', () => {
+    const r = normalizeAiVoice({ intent: 'create', type: 'cheque', data: { direction: 'issued', counterparty: ' علی ', amount: '5,000,000', dueDate: 'bad', chequeNumber: '12ab34', accountId: 'ملی' } }, ctx);
+    expect(r).toMatchObject({ understood: true, intent: 'create', type: 'cheque' });
+    expect(r.data).toMatchObject({ direction: 'issued', counterparty: 'علی', amount: 5000000, dueDate: TODAY, chequeNumber: '1234', accountId: 'acc_1' });
+    expect(normalizeAiVoice({ intent: 'create', type: 'cheque', data: { counterparty: 'x' } }, ctx).data.amount).toBe(0);
+  });
+  it('fills a subscription with a known cycle', () => {
+    const r = normalizeAiVoice({ intent: 'create', type: 'subscription', data: { name: 'اینترنت', amount: 200000, cycleMonths: 5, autoRenew: false } }, ctx);
+    expect(r.data).toMatchObject({ name: 'اینترنت', amount: 200000, cycleMonths: 1, startDate: TODAY, autoRenew: false });
+  });
+  it('is not understood for an unknown type or without a name', () => {
+    expect(normalizeAiVoice({ intent: 'create', type: 'loan', data: { name: 'x' } }, ctx).understood).toBe(false);
+    expect(normalizeAiVoice({ intent: 'create', type: 'subscription', data: { amount: 5 } }, ctx).understood).toBe(false);
+  });
+});
