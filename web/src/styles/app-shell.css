@@ -1598,3 +1598,21 @@ html.is-app-layout .budget-grid .ui-input-label {
 @media (prefers-reduced-motion: reduce) {
   .app-fab.is-hinting { animation: none; }
 }
+
+/* Spoken questions (features/ai/QuestionResult.jsx) */
+.ai-assistant-heading,
+.ai-question-text {
+  padding-inline-end: 28px;
+}
+.ai-questions {
+  display: grid;
+  gap: 16px;
+}
+.ai-question-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  color: var(--text-heading);
+  font-size: var(--fs-md);
+}

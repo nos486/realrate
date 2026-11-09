@@ -73,6 +73,12 @@ describe('normalizeAiVoice', () => {
     expect(none).toEqual({ understood: false, intent: 'records', items: [] });
     expect(normalizeAiVoice('not json', ctx).understood).toBe(false);
   });
+  it('reads a question: up to three cleaned sentences, no records', () => {
+    const r = normalizeAiVoice({ intent: 'question', questions: [' خرج خوراک این ماه ', '', 'خرج خوراک مهر ۱۴۰۴', 'سه', 'چهار'] }, ctx);
+    expect(r).toEqual({ understood: true, intent: 'question', questions: ['خرج خوراک این ماه', 'خرج خوراک مهر ۱۴۰۴', 'سه'] });
+    expect(normalizeAiVoice({ intent: 'question', questions: [] }, ctx).understood).toBe(false);
+    expect(normalizeAiVoice({ intent: 'question', understood: false, questions: ['x'] }, ctx).understood).toBe(false);
+  });
   it('cleans the account list', () => {
     expect(cleanAiAccounts([{ id: 'a', name: ' A ' }, { id: 'a', name: 'dup' }, { id: '', name: 'x' }, 7])).toEqual([{ id: 'a', name: 'A' }]);
   });
@@ -81,6 +87,8 @@ describe('normalizeAiVoice', () => {
     expect(prompt).toContain(TODAY);
     expect(prompt).toContain('salary: حقوق');
     expect(prompt).toContain('acc_2: نقد');
+    expect(prompt).toContain('question');
+    expect(prompt).toContain('آبان'); // today's Shamsi month, for «last year's same month»
   });
 });
 
