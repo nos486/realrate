@@ -29,10 +29,11 @@ const geminiReply = (obj) => new Response(
 const WEBM = new Uint8Array(200);
 WEBM.set([0x1a, 0x45, 0xdf, 0xa3]);
 
-function voiceRequest({ type = 'audio/webm;codecs=opus', bytes = WEBM, categories = CATEGORIES } = {}) {
+function voiceRequest({ type = 'audio/webm;codecs=opus', bytes = WEBM, categories = CATEGORIES, engine } = {}) {
   const form = new FormData();
   form.append('audio', new Blob([bytes], { type }), 'voice.webm');
   form.append('categories', JSON.stringify(categories));
+  if (engine) form.append('engine', engine);
   return new Request('https://api.realrate.ir/api/sms/voice', { method: 'POST', body: form });
 }
 
@@ -129,6 +130,45 @@ describe('voice model unavailable', () => {
     const body = await (await handleSmsVoiceRoute(voiceRequest(), env)).json();
     expect(body.title).toBe('تیپاکس');
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    vi.unstubAllGlobals();
+  });
+});
+
+describe('voice engines (admin comparison)', () => {
+  const makeEnv = (ai) => ({ ADMIN_EMAIL: 'admin@example.com', GEMINI_API_KEY: 'gkey', DB: memoryStateDb(), AI: { run: ai } });
+
+  it('runs a Cloudflare speech model then GLM, and shows what was heard to the admin', async () => {
+    getAuthenticatedUser.mockResolvedValue(ADMIN);
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const ai = vi.fn()
+      .mockResolvedValueOnce({ text: 'هزینه تیپاکس' })
+      .mockResolvedValueOnce({ response: JSON.stringify({ understood: true, title: 'هزینه تیپاکس', category: 'c_ship1234' }) });
+    const body = await (await handleSmsVoiceRoute(voiceRequest({ engine: 'cf-whisper-turbo' }), makeEnv(ai))).json();
+    expect(body).toMatchObject({ title: 'هزینه تیپاکس', category: 'c_ship1234', engine: 'cf-whisper-turbo' });
+    expect(ai.mock.calls[0][0]).toBe('@cf/openai/whisper-large-v3-turbo');
+    expect(typeof ai.mock.calls[0][1].audio).toBe('string');
+    expect(ai.mock.calls[1][1].messages[1].content).toContain('هزینه تیپاکس');
+    expect(fetchMock).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it('is not understood when the speech model hears nothing', async () => {
+    getAuthenticatedUser.mockResolvedValue(ADMIN);
+    const ai = vi.fn().mockResolvedValueOnce({ text: '  ' });
+    const body = await (await handleSmsVoiceRoute(voiceRequest({ engine: 'cf-whisper' }), makeEnv(ai))).json();
+    expect(body.understood).toBe(false);
+    expect(ai).toHaveBeenCalledTimes(1);
+    expect(Array.isArray(ai.mock.calls[0][1].audio)).toBe(true);
+  });
+
+  it('runs only the chosen Gemini model', async () => {
+    getAuthenticatedUser.mockResolvedValue(ADMIN);
+    const fetchMock = vi.fn(async () => geminiReply({ understood: true, title: 'x', category: 'food' }));
+    vi.stubGlobal('fetch', fetchMock);
+    const body = await (await handleSmsVoiceRoute(voiceRequest({ engine: 'gemini-3.8-flash' }), makeEnv(vi.fn()))).json();
+    expect(body.engine).toBe('gemini-3.8-flash');
+    expect(fetchMock.mock.calls[0][0]).toContain('gemini-3.8-flash');
     vi.unstubAllGlobals();
   });
 });

@@ -139,4 +139,5 @@ export default {
   'در حال آماده‌سازی میکروفون…': 'Getting the microphone ready…',
   'بگویید؛ مثلاً «هزینه تیپاکس». دسته را خودم از بین دسته‌های شما انتخاب می‌کنم.': 'Speak, e.g. "Tipax shipping". I pick the category from yours.',
   'در حال فهمیدن و ثبت هزینه…': 'Understanding and recording the expense…',
+  'مدل پردازش صدا': 'Voice processing model',
 };

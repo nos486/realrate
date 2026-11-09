@@ -2,14 +2,15 @@
  * smsVoiceRoutes.js — Route handler for the voice note on a bank SMS (experimental)
  *
  * POST /api/sms/voice — multipart `audio` (a few seconds of speech) and `categories` (JSON
- * `[{ value, label }]`, the user's expense categories); answers `{ understood, title, category }`.
+ * `[{ value, label }]`, the user's expense categories) and optionally `engine` (an id of
+ * config/voiceEngines.js, honored only for admins comparing engines); answers `{ understood, title, category }`.
  * Behind the `sms_voice` feature (admins only until opened to groups) and its daily `sms_voice`
  * limit. Nothing is stored; a failed call gives its use back.
  */
 
 import { requireFeature, hasFeature } from '../lib/features.js';
 import { consumeQuota, refundQuota } from '../lib/usageQuota.js';
-import { assertSmsVoiceReady, processSmsVoice } from '../services/ai/smsVoice.service.js';
+import { processSmsVoice } from '../services/ai/smsVoice.service.js';
 import { cleanVoiceCategories } from '../domain/smsVoice.js';
 import { jsonResponse } from '../lib/helpers.js';
 import { AppError } from '../lib/AppError.js';
@@ -67,12 +68,11 @@ export async function handleSmsVoiceRoute(request, env) {
   }
 
   const debug = await hasFeature(env, user, 'cheque_scan_debug');
-  assertSmsVoiceReady(env, { isAdmin: debug });
   const quota = await consumeQuota(env, user, 'sms_voice');
 
   let result;
   try {
-    result = await processSmsVoice(env, { audioBuffer: await audio.arrayBuffer(), mimeType, categories, debug });
+    result = await processSmsVoice(env, { audioBuffer: await audio.arrayBuffer(), mimeType, categories, debug, engine: String(formData.get('engine') || '') });
   } catch (err) {
     await refundQuota(env, user, 'sms_voice');
     throw err;

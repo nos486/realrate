@@ -1532,3 +1532,7 @@ tr.is-excluded td,
 @media (prefers-reduced-motion: reduce) {
   .sms-voice-wave.is-idle span { animation: none; transform: scaleY(0.4); }
 }
+.sms-voice-engine {
+  margin-bottom: 12px;
+  width: 100%;
+}
