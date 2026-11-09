@@ -12,6 +12,7 @@
  * - «تسویه بدهی اعتبار»: a withdrawal and the deposit it paid into a bank credit (found on their own,
  *   or the other side picked by hand) open the credit's settlement form, the difference the
  *   bank's interest and fee (CreditPaymentForm); both messages leave the list with it
+ * With the experimental `sms_voice` feature, a withdrawal can be recorded by a voice note (useSmsVoice.js).
  * With «نگه‌داشتن پیامک‌های ردشده» on (app settings), «رد» / «رد همه» record the messages in «رد شده»
  * (outside the totals, smsRecord.js recordSmsRejected) instead of dropping them.
  * Recording writes encrypted records, so the vault must be unlocked for it. Once it is, messages
@@ -32,6 +33,9 @@ import { usePricing } from '../market/index.js';
 import { markSmsHandled, restoreSms, readSmsDays, readSmsRange, smsPermission, getSmsSettings, smsOutcome, getPendingSms, MAX_READ_DAYS } from '../../shared/native/smsInbox.js';
 import SmsReadHistory from './SmsReadHistory.jsx';
 import { useSmsInbox } from '../../shared/native/useSmsInbox.js';
+import { useFeature } from '../../shared/features/index.js';
+import { useSmsVoice } from './useSmsVoice.js';
+import { canRecordVoice } from '../../shared/native/voiceRecorder.js';
 import { createIncome } from '../incomes/api/incomeApi.js';
 import ExpenseForm from '../expenses/components/ExpenseForm.jsx';
 import IncomeForm from '../incomes/components/IncomeForm.jsx';
@@ -160,6 +164,10 @@ export default function SmsInboxPage() {
     }
     return active;
   };
+
+  // «ثبت با صدا» (experimental): a voice note gives the title and category of a withdrawal
+  const voiceEnabled = useFeature('sms_voice') && canRecordVoice();
+  const { voice, toggle: toggleVoice } = useSmsVoice({ prepareAccounts: withMessageAccounts });
 
   const handleRecord = async (item) => {
     const active = await withMessageAccounts(item);
@@ -338,6 +346,8 @@ export default function SmsInboxPage() {
           onTransfer={accounts.filter((a) => !a.archived).length >= 2 ? handleTransfer : undefined}
           onCreditSettle={credits.length ? handleCreditSettle : undefined}
           onReject={smsSettings.keepRejected ? handleReject : undefined}
+          onVoice={voiceEnabled ? toggleVoice : undefined}
+          voice={voice}
           canRecord={!locked && !readOnly}
         />
       </Card>

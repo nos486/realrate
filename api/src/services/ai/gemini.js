@@ -1,5 +1,5 @@
 /**
- * gemini.js — Ask a Google Gemini model about one image (generateContent)
+ * gemini.js — Ask a Google Gemini model about one image or one audio clip (generateContent)
  *
  * Failures are GeminiError: `reason` is short (Google's status and error message, never the key
  * or the image) and is shown to admins only; `busy` marks Google being overloaded or out of quota
@@ -19,7 +19,7 @@ export class GeminiError extends Error {
   }
 }
 
-/** base64 of the image bytes (chunked: String.fromCharCode takes a bounded argument list) */
+/** base64 of the image or audio bytes (chunked: String.fromCharCode takes a bounded argument list) */
 export function toBase64(buffer) {
   const bytes = new Uint8Array(buffer);
   let binary = "";
@@ -38,7 +38,22 @@ const shortReason = (text) => String(text || "").replace(/\s+/g, " ").trim().sli
  * @param {{ systemPrompt: string, userText: string, imageBase64: string, mimeType: string }} req
  * @returns {Promise<string>}
  */
-export async function geminiDescribeImage(apiKey, modelId, req) {
+export function geminiDescribeImage(apiKey, modelId, req) {
+  return geminiDescribeMedia(apiKey, modelId, { ...req, mediaBase64: req.imageBase64 });
+}
+
+/**
+ * The model's text answer about a voice clip
+ * @param {string} apiKey
+ * @param {string} modelId
+ * @param {{ systemPrompt: string, userText: string, audioBase64: string, mimeType: string }} req
+ * @returns {Promise<string>}
+ */
+export function geminiDescribeAudio(apiKey, modelId, req) {
+  return geminiDescribeMedia(apiKey, modelId, { ...req, mediaBase64: req.audioBase64 });
+}
+
+async function geminiDescribeMedia(apiKey, modelId, req) {
   let res;
   try {
     res = await fetch(
@@ -51,7 +66,7 @@ export async function geminiDescribeImage(apiKey, modelId, req) {
           contents: [{
             role: "user",
             parts: [
-              { inlineData: { mimeType: req.mimeType, data: req.imageBase64 } },
+              { inlineData: { mimeType: req.mimeType, data: req.mediaBase64 } },
               { text: req.userText },
             ],
           }],

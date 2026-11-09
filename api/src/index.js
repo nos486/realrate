@@ -93,6 +93,7 @@ import {
   handleGetSharedPortfolio,
 } from "./handlers/portfolioRoutes.js";
 import { handleChequeScanRoute, handleChequeScanQuotaRoute } from "./handlers/chequeScanRoutes.js";
+import { handleSmsVoiceRoute } from "./handlers/smsVoiceRoutes.js";
 import {
   handleRegister,
   handleVerifyEmail,
@@ -494,6 +495,11 @@ async function handleRequest(request, env, ctx) {
   }
   if (normalizedPath === "/api/cheques/scan/quota" && request.method === "GET") {
     return wrap(handleChequeScanQuotaRoute)(request, env);
+  }
+
+  // ── Voice note on a bank SMS (AI audio; stores nothing) ──
+  if (normalizedPath === "/api/sms/voice" && request.method === "POST") {
+    return wrap(handleSmsVoiceRoute)(request, env);
   }
 
   // ── Custom Banks API Routes ─────────────────────────────────────────────

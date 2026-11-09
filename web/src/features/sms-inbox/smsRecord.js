@@ -41,14 +41,15 @@ export async function saveSmsExpense(input) {
 /**
  * Record a waiting withdrawal as it is, in `category`
  * @param {{ fingerprint: string, tx: object }} item a waiting message (getPendingSms)
- * @param {{ accounts?: object[]|null }} [options] `accounts`: the active accounts, grown by the one made for this message (null: not linked)
+ * @param {{ accounts?: object[]|null, category?: string, title?: string }} [options] `accounts`: the active accounts, grown by the one made for this message (null: not linked);
+ *   `title`: what the expense is titled (the category's name unless given, e.g. from a voice note)
  * @returns {Promise<object>} the expense
  */
-export async function recordSmsExpense(item, { accounts = [], category = getSmsSettings().recordCategory } = {}) {
+export async function recordSmsExpense(item, { accounts = [], category = getSmsSettings().recordCategory, title = '' } = {}) {
   // Tied to its account, made from the message when the user has none for it
   const accountId = accounts ? await ensureSmsAccount(item.tx, accounts) : '';
   // Titled after its category (the user's own categories too)
-  const { expense } = await saveSmsExpense({ ...smsExpenseDraft(item.tx, accounts || []), accountId, category, title: getExpenseCategory(category).label, currency: 'IRT' });
+  const { expense } = await saveSmsExpense({ ...smsExpenseDraft(item.tx, accounts || []), accountId, category, title: title || getExpenseCategory(category).label, currency: 'IRT' });
   markSmsHandled(item.fingerprint);
   return expense;
 }

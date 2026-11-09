@@ -125,4 +125,13 @@ export default {
   'تسویه اعتبار': 'Settle credit',
   'تسویه‌ی بدهی اعتبار ثبت شد.': 'Credit settlement recorded.',
   'پیامک طرف دیگر این تسویه کدام است؟ اختلاف برداشت و واریز، سود و کارمزد اعتبار ثبت می‌شود.': "Which SMS is the other side of this settlement? The gap between the withdrawal and the deposit is recorded as the credit's interest and fees.",
+  'پایان ضبط و ثبت': 'Stop and record',
+  'ثبت با صدا': 'Record by voice',
+  'بگویید این هزینه چه بوده؛ دسته را هوش مصنوعی انتخاب می‌کند': 'Say what this expense was; AI picks the category',
+  'ضبط صدا در این دستگاه ممکن نیست.': 'Recording audio is not possible on this device.',
+  'اجازه‌ی میکروفون داده نشد. از تنظیمات گوشی (برنامه‌ها ← RealRate ← مجوزها) آن را بدهید.': 'Microphone permission was not granted. Allow it in the phone settings (Apps ← RealRate ← Permissions).',
+  'میکروفون پیدا نشد.': 'No microphone found.',
+  'صدا واضح نبود؛ دوباره امتحان کنید.': 'The voice was not clear; try again.',
+  'هزینه‌ی «{title}» در «{category}» ثبت شد.': 'Expense "{title}" recorded in "{category}".',
+  'ثبت با صدا ممکن نشد.': 'Could not record by voice.',
 };

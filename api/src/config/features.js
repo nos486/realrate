@@ -116,6 +116,11 @@ export const FEATURES = {
     label: 'حساب‌ها',
     description: 'حساب‌های بانکی، نقد و کیف پول؛ منبع هر هزینه',
   },
+  sms_voice: {
+    stage: 'beta',
+    label: 'ثبت هزینه‌ی پیامکی با صدا',
+    description: 'آزمایشی: روی پیامک بانک در اپ اندروید یک پیام صوتی می‌دهید و هوش مصنوعی (Gemini) عنوان و دسته‌ی هزینه را می‌نویسد (محدودیت روزانه: config/usageLimits.js)',
+  },
   cheque_scan_debug: {
     stage: 'beta',
     label: 'ابزار بررسی دقت اسکن چک',
