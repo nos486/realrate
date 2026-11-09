@@ -10,12 +10,13 @@ export const GEMINI_TIMEOUT_MS = 45000;
 const MAX_OUTPUT_TOKENS = 4000;
 
 export class GeminiError extends Error {
-  constructor(reason, { status = 0 } = {}) {
+  constructor(reason, { status = 0, timedOut = false } = {}) {
     super(reason);
     this.name = "GeminiError";
     this.reason = reason;
     this.status = status;
     this.busy = status === 503 || status === 429;
+    this.timedOut = timedOut;
   }
 }
 
@@ -72,12 +73,12 @@ async function geminiDescribeMedia(apiKey, modelId, req) {
           }],
           generationConfig: { responseMimeType: "application/json", maxOutputTokens: MAX_OUTPUT_TOKENS },
         }),
-        signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
+        signal: AbortSignal.timeout(req.timeoutMs || GEMINI_TIMEOUT_MS),
       },
     );
   } catch (err) {
     if (err?.name === "TimeoutError" || err?.name === "AbortError") {
-      throw new GeminiError("پاسخ مدل بیش از حد طول کشید.");
+      throw new GeminiError("پاسخ مدل بیش از حد طول کشید.", { timedOut: true });
     }
     throw new GeminiError(shortReason(err?.message) || "اتصال به Gemini برقرار نشد.");
   }

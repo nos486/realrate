@@ -18,6 +18,14 @@ export const GEMINI_API_KEY_SECRET = "GEMINI_API_KEY";
 
 /**
  * The models that listen to a voice note on a bank SMS and turn it into an expense's title and
- * category (same key and fallback rule as above; flash models take audio and are cheap)
+ * category, in the order tried (a model that is busy or does not answer within SMS_VOICE_TIMEOUT_MS
+ * hands over to the next). A voice note is a few seconds of audio: it must answer quickly.
  */
-export const SMS_VOICE_MODELS = CHEQUE_SCAN_MODELS;
+export const SMS_VOICE_MODELS = [
+  { id: "gemini-3.6-flash", label: "Gemini 3.6 Flash" },
+  { id: "gemini-3.8-flash", label: "Gemini 3.8 Flash" },
+  { id: "gemini-3.7-flash", label: "Gemini 3.7 Flash" },
+  { id: "gemini-3.5-flash", label: "Gemini 3.5 Flash" },
+];
+
+export const SMS_VOICE_TIMEOUT_MS = 15000;
