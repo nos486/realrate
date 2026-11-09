@@ -81,6 +81,8 @@
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <!-- Voice note on a bank SMS (experimental «ثبت با صدا»): asked when the first note is recorded -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Capacitor's WebView asks for this together with RECORD_AUDIO and denies the microphone when it is not declared -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <!-- In-app update: hands the downloaded APK to Android's installer (AppUpdatePlugin) -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
