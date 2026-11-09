@@ -81,7 +81,7 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
-const recordButtons = () => screen.getAllByText('ثبت').map((el) => el.closest('button'));
+const recordButtons = () => screen.getAllByLabelText('ثبت').map((el) => el.closest('button'));
 
 describe('SmsInboxPage', () => {
   it('lists the waiting withdrawal and deposit', async () => {
@@ -89,6 +89,20 @@ describe('SmsInboxPage', () => {
     await waitFor(() => expect(screen.getByText('برداشت')).toBeTruthy());
     expect(screen.getByText('واریز')).toBeTruthy();
     expect(document.body.textContent).toMatch(/۲.۰۰۰.۰۰۰/);
+  });
+
+  it('shows the actions as icon-only buttons, each its own color', async () => {
+    render(<SmsInboxPage />);
+    await waitFor(() => expect(screen.getAllByLabelText('ثبت').length).toBeGreaterThan(0));
+    const record = screen.getAllByLabelText('ثبت')[0].closest('button');
+    const dismiss = screen.getAllByLabelText('رد')[0].closest('button');
+    const more = screen.getAllByLabelText('گزینه‌های این پیامک')[0].closest('button');
+    expect(record.className).toContain('sms-act-record');
+    expect(dismiss.className).toContain('sms-act-dismiss');
+    expect(more.className).toContain('sms-act-more');
+    // No words on them: the label is the tooltip and the screen-reader name
+    expect(record.textContent).toBe('');
+    expect(dismiss.textContent).toBe('');
   });
 
   it('reads a range of days, and records the small ones of it by themselves when asked', async () => {
@@ -243,8 +257,8 @@ describe('SmsInboxPage', () => {
 
   it('dismisses a message with «رد» beside the main action (not in the menu)', async () => {
     render(<SmsInboxPage />);
-    await waitFor(() => expect(screen.getAllByText('رد')).toHaveLength(2));
-    fireEvent.click(screen.getAllByText('رد')[0].closest('button'));
+    await waitFor(() => expect(screen.getAllByLabelText('رد')).toHaveLength(2));
+    fireEvent.click(screen.getAllByLabelText('رد')[0].closest('button'));
     await waitFor(() => expect(getPendingSms()).toHaveLength(1));
     // Off by default: dropped, nothing recorded
     expect(expenses.saveExpenses).not.toHaveBeenCalled();
@@ -255,14 +269,14 @@ describe('SmsInboxPage', () => {
   it('with «نگه‌داشتن پیامک‌های ردشده» on, «رد» records the message in «رد شده», tied to no account', async () => {
     setSmsSettings({ keepRejected: true });
     render(<SmsInboxPage />);
-    await waitFor(() => expect(screen.getAllByText('رد')).toHaveLength(2));
+    await waitFor(() => expect(screen.getAllByLabelText('رد')).toHaveLength(2));
     // The withdrawal (newest first), then the deposit
-    fireEvent.click(screen.getAllByText('رد')[0].closest('button'));
+    fireEvent.click(screen.getAllByLabelText('رد')[0].closest('button'));
     await waitFor(() => expect(getPendingSms()).toHaveLength(1));
     expect(expenses.saveExpenses.mock.calls[0][0]).toEqual([expect.objectContaining({
       amount: 2000000, category: 'rejected', accountId: '', title: 'برداشت بلو', smsKey: 'blu|debit|2000000|2026-09-28|10:47|7743673',
     })]);
-    fireEvent.click(screen.getAllByText('رد')[0].closest('button'));
+    fireEvent.click(screen.getAllByLabelText('رد')[0].closest('button'));
     await waitFor(() => expect(getPendingSms()).toHaveLength(0));
     expect(vaultIncomes.createIncomes.mock.calls[0][0]).toEqual([expect.objectContaining({ amount: 250000, category: 'rejected', accountId: '' })]);
     expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('«رد شده»'));
@@ -382,16 +396,16 @@ describe('«ثبت سریع» (no form)', () => {
   it('off by default: every message shows «ثبت»', async () => {
     addSmsMessages([{ address: '+989999987641', body: SMALL, date: RECEIVED + 1000 }]);
     render(<SmsInboxPage />);
-    await waitFor(() => expect(screen.getAllByText('ثبت')).toHaveLength(3));
-    expect(screen.queryByText('ثبت سریع')).toBeNull();
+    await waitFor(() => expect(screen.getAllByLabelText('ثبت')).toHaveLength(3));
+    expect(screen.queryByLabelText('ثبت سریع')).toBeNull();
   });
 
   it('turned on in the settings: only for a withdrawal up to 1 million tomans; records it in the settings category', async () => {
     addSmsMessages([{ address: '+989999987641', body: SMALL, date: RECEIVED + 1000 }]);
     localStorage.setItem('realrate_sms_settings', JSON.stringify({ recordCategory: 'dining', quickRecord: true }));
     render(<SmsInboxPage />);
-    await waitFor(() => expect(screen.getAllByText('ثبت سریع')).toHaveLength(1));
-    fireEvent.click(screen.getByText('ثبت سریع').closest('button'));
+    await waitFor(() => expect(screen.getAllByLabelText('ثبت سریع')).toHaveLength(1));
+    fireEvent.click(screen.getByLabelText('ثبت سریع').closest('button'));
     await waitFor(() => expect(expenses.saveExpense).toHaveBeenCalledTimes(1));
     // As saved (no project: the everyday expenses)
     expect((await expenses.saveExpense.mock.results[0].value).expense).toMatchObject({

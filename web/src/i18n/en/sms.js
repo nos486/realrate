@@ -137,7 +137,8 @@ export default {
   'انصراف': 'Cancel',
   'پایان و ثبت': 'Done and record',
   'در حال آماده‌سازی میکروفون…': 'Getting the microphone ready…',
-  'بگویید؛ مثلاً «هزینه تیپاکس». دسته را خودم از بین دسته‌های شما انتخاب می‌کنم.': 'Speak, e.g. "Tipax shipping". I pick the category from yours.',
+  'بگویید؛ مثلاً «هزینه تیپاکس». وقتی ساکت شدید خودکار ثبت می‌شود و دسته را خودم از بین دسته‌های شما انتخاب می‌کنم.': 'Speak, e.g. "Tipax shipping". It is recorded by itself when you pause, and I pick the category from yours.',
+  'صدایی شنیده نشد؛ دوباره امتحان کنید.': 'Nothing was heard; try again.',
   'در حال فهمیدن و ثبت هزینه…': 'Understanding and recording the expense…',
   'مدل پردازش صدا': 'Voice processing model',
 };

@@ -4,7 +4,8 @@
  * Until the app may read SMS: a card to turn automatic reading on (asks for the permission;
  * from then on each bank message is read as it arrives), or to decline it. Afterwards: the
  * withdrawals and deposits (smsInbox.js) neither recorded nor dismissed, newest first.
- * Each message shows one main action and a «⋮» menu with the rest (they don't fit a phone's row):
+ * Each message shows its actions as icon buttons in their own colors (record, voice, dismiss, «⋮»), so a
+ * small screen fits them and each is told apart at a glance; «⋮» holds the rest (they don't fit a phone's row):
  * «ثبت» hands the message to `onRecord` (the page opens the expense or income form); with «ثبت سریع»
  * turned on in the app's settings (`quickRecord`, off by default), a withdrawal up to
  * QUICK_RECORD_MAX shows «ثبت سریع» instead (`onQuickRecord`: recorded as it is, no form), with
@@ -26,8 +27,8 @@
 import { intlLocale, t } from '../../utils/i18n.js';
 import { toPersianDigits } from '../../shared/utils/formatters.js';
 import React, { useEffect, useMemo, useState } from 'react';
-import { MessageSquareText, Check, X, ArrowDownLeft, ArrowUpRight, BellRing, Inbox, Zap, Landmark, HandCoins, FolderOpen, ArrowLeftRight, CreditCard, Mic } from 'lucide-react';
-import { ActionMenu, Button, EmptyState } from '../../shared/ui/index.js';
+import { MessageSquareText, Check, X, ArrowDownLeft, ArrowUpRight, BellRing, Inbox, Zap, Landmark, HandCoins, FolderOpen, ArrowLeftRight, CreditCard, Mic, Loader2, MoreVertical } from 'lucide-react';
+import { ActionMenu, Button, EmptyState, IconButton } from '../../shared/ui/index.js';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { BankLogo, resolveBank } from '../../shared/banks/index.js';
 import { useSmsInbox } from '../../shared/native/useSmsInbox.js';
@@ -207,51 +208,55 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
               </span>
             </div>
             <div className="sms-inbox-actions">
-              {/* One main action; the rest in «⋮» (narrow phones) */}
+              {/* Icon buttons only, each its own color (record green, voice blue, dismiss red, the rest neutral), so a small
+                  screen fits them and they are told apart at a glance; the name is the tooltip and the screen-reader label */}
               {settle ? (
-                <Button size="sm" icon={<CreditCard size={14} />} onClick={() => onCreditSettle(item)} disabled={!canRecord}>
-                  {t('تسویه اعتبار')}
-                </Button>
+                <IconButton
+                  className="sms-act sms-act-record"
+                  icon={<CreditCard size={20} />}
+                  label={t('تسویه اعتبار')}
+                  onClick={() => onCreditSettle(item)}
+                  disabled={!canRecord}
+                />
               ) : quick ? (
-                <Button
-                  size="sm"
-                  icon={<Zap size={14} />}
-                  onClick={() => onQuickRecord(item)}
-                  loading={quickRecordingId === item.fingerprint}
-                  disabled={!canRecord || Boolean(quickRecordingId)}
+                <IconButton
+                  className="sms-act sms-act-record"
+                  icon={quickRecordingId === item.fingerprint ? <Loader2 size={20} className="spin-anim" /> : <Zap size={20} />}
+                  label={t('ثبت سریع')}
                   title={t('بدون فرم، با دسته‌ی تنظیمات اپ ثبت می‌شود')}
-                >
-                  {t('ثبت سریع')}
-                </Button>
+                  onClick={() => onQuickRecord(item)}
+                  disabled={!canRecord || Boolean(quickRecordingId)}
+                />
               ) : (
-                <Button size="sm" icon={<Check size={14} />} onClick={() => onRecord(item)} disabled={!canRecord}>
-                  {t('ثبت')}
-                </Button>
-              )}
-              {onVoice && isDebit && (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  icon={<Mic size={14} />}
-                  className="sms-inbox-voice"
-                  onClick={() => onVoice(item)}
-                  disabled={!canRecord || Boolean(voice)}
-                  aria-label={t('ثبت با صدا')}
-                  title={t('بگویید این هزینه چه بوده؛ دسته را هوش مصنوعی انتخاب می‌کند')}
+                <IconButton
+                  className="sms-act sms-act-record"
+                  icon={<Check size={20} />}
+                  label={t('ثبت')}
+                  onClick={() => onRecord(item)}
+                  disabled={!canRecord}
                 />
               )}
-              <Button
-                size="sm"
-                variant="secondary"
-                icon={<X size={14} />}
-                className="sms-inbox-dismiss"
-                onClick={() => (onReject ? onReject([item]) : dismissSms(item.fingerprint))}
+              {onVoice && isDebit && (
+                <IconButton
+                  className="sms-act sms-act-voice"
+                  icon={<Mic size={20} />}
+                  label={t('ثبت با صدا')}
+                  title={t('بگویید این هزینه چه بوده؛ دسته را هوش مصنوعی انتخاب می‌کند')}
+                  onClick={() => onVoice(item)}
+                  disabled={!canRecord || Boolean(voice)}
+                />
+              )}
+              <IconButton
+                className="sms-act sms-act-dismiss"
+                icon={<X size={20} />}
+                label={t('رد')}
                 title={onReject ? t('این پیامک در دسته‌ی «رد شده» ثبت شود (جزو جمع‌ها نیست)') : t('این پیامک کنار گذاشته شود (ثبت نمی‌شود)')}
-              >
-                {t('رد')}
-              </Button>
+                onClick={() => (onReject ? onReject([item]) : dismissSms(item.fingerprint))}
+              />
               <ActionMenu
                 label={t('گزینه‌های این پیامک')}
+                triggerClassName="ui-icon-btn sms-act sms-act-more"
+                trigger={<MoreVertical size={20} />}
                 items={[
                   (quick || settle) && { key: 'record', label: quick ? t('ثبت با فرم') : t('ثبت'), icon: <Check size={16} />, onClick: () => onRecord(item), disabled: !canRecord },
                   onRecordToProject && isDebit && {

@@ -3,7 +3,8 @@
  *
  * Opens when the microphone of a message is tapped (useSmsVoice.js). While it listens, a row of bars
  * at the bottom moves with the loudness of the voice (`level`, read every frame); once the clip is
- * sent it ripples by itself until the expense is recorded. «پایان و ثبت» ends the recording.
+ * sent it ripples by itself until the expense is recorded. The note is sent by itself when the speaker
+ * pauses after speaking; «پایان و ثبت» ends it by hand.
  */
 
 import { t } from '../../utils/i18n.js';
@@ -76,7 +77,7 @@ export default function VoiceExpenseModal({ voice, level, onStop, onCancel, engi
     >
       <p className="sms-voice-hint">
         {voice.stage === 'starting' && t('در حال آماده‌سازی میکروفون…')}
-        {voice.stage === 'recording' && t('بگویید؛ مثلاً «هزینه تیپاکس». دسته را خودم از بین دسته‌های شما انتخاب می‌کنم.')}
+        {voice.stage === 'recording' && t('بگویید؛ مثلاً «هزینه تیپاکس». وقتی ساکت شدید خودکار ثبت می‌شود و دسته را خودم از بین دسته‌های شما انتخاب می‌کنم.')}
         {processing && t('در حال فهمیدن و ثبت هزینه…')}
       </p>
       {engines && (

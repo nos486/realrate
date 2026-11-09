@@ -1536,3 +1536,32 @@ tr.is-excluded td,
   margin-bottom: 12px;
   width: 100%;
 }
+
+/* Bank SMS rows: icon-only actions, each its own color (features/sms-inbox/SmsInboxList.jsx) */
+.sms-inbox-actions {
+  gap: 8px;
+}
+.ui-icon-btn.sms-act {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  border-radius: var(--radius-md);
+}
+.sms-act-record {
+  color: var(--color-positive-text);
+  border-color: var(--color-positive-border);
+  background: var(--color-positive-soft);
+}
+.sms-act-voice {
+  color: var(--color-primary-text);
+  border-color: var(--color-primary-tint);
+  background: var(--color-primary-soft);
+}
+.sms-act-dismiss {
+  color: var(--color-negative-text);
+  border-color: var(--color-negative-border);
+  background: var(--color-negative-soft);
+}
+.ui-icon-btn.sms-act-record:hover:not(:disabled) { border-color: var(--color-positive-border-strong); color: var(--color-positive-text); }
+.ui-icon-btn.sms-act-voice:hover:not(:disabled) { border-color: var(--color-primary-text); color: var(--color-primary-text); }
+.ui-icon-btn.sms-act-dismiss:hover:not(:disabled) { border-color: var(--color-negative-border-strong); color: var(--color-negative-text); }
