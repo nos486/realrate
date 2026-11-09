@@ -64,8 +64,12 @@ describe('normalizeAiVoice', () => {
     const { items } = normalizeAiVoice({ items: [{ kind: 'income', amount: 5, title: 'x', category: 'حقوق', date: '2030-01-01', accountId: 'ملی' }] }, ctx);
     expect(items[0]).toMatchObject({ category: 'salary', date: TODAY, accountId: 'acc_1' });
   });
-  it('drops items without a kind, amount or title, and is not understood when none is left', () => {
-    const none = normalizeAiVoice({ items: [{ kind: 'x', amount: 5, title: 't' }, { kind: 'expense', amount: 0, title: 't' }, { kind: 'expense', amount: 5, title: '' }] }, ctx);
+  it('keeps an item whose amount was not understood as 0, for the user to fill in', () => {
+    const { items } = normalizeAiVoice({ items: [{ kind: 'expense', amount: null, title: 'نان' }, { kind: 'expense', amount: -5, title: 'شیر' }] }, ctx);
+    expect(items.map((i) => i.amount)).toEqual([0, 0]);
+  });
+  it('drops items without a kind or title, and is not understood when none is left', () => {
+    const none = normalizeAiVoice({ items: [{ kind: 'x', amount: 5, title: 't' }, { kind: 'expense', amount: 5, title: '' }] }, ctx);
     expect(none).toEqual({ understood: false, intent: 'records', items: [] });
     expect(normalizeAiVoice('not json', ctx).understood).toBe(false);
   });
