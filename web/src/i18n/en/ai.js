@@ -22,4 +22,11 @@ export default {
   'مبلغ را وارد کنید': 'Enter the amount',
   'کدام حساب؟ (بدون حساب)': 'Which account? (no account)',
   'روز': 'Day',
+  'در حال یافتن رکورد': 'Finding the record',
+  'رکوردی که بشود با صدا تغییرش داد پیدا نشد.': 'No record that can be changed by voice was found.',
+  'کدام یکی؟': 'Which one?',
+  'این مورد پاک می‌شود.': 'This item will be deleted.',
+  'بدون حساب': 'No account',
+  '«{title}» پاک شد': '"{title}" was deleted',
+  '«{title}» اصلاح شد': '"{title}" was updated',
 };

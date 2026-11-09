@@ -16,6 +16,9 @@
 import RecordsResult from './RecordsResult.jsx';
 import RecordsReview from './RecordsReview.jsx';
 import QuestionResult from './QuestionResult.jsx';
+import EditReview from './EditReview.jsx';
+import EditResult from './EditResult.jsx';
+import { applyEdit, undoEdit } from './aiEdit.js';
 import { saveVoiceItems, undoVoiceItems } from './aiRecords.js';
 
 export const AI_INTENTS = {
@@ -29,5 +32,12 @@ export const AI_INTENTS = {
   question: {
     readOnly: true,
     Result: QuestionResult,
+  },
+  edit: {
+    Review: EditReview,
+    ready: (answer) => Boolean(answer.chosenId) && (answer.op === 'delete' || Object.keys(answer.changes).length > 0),
+    apply: (answer) => applyEdit(answer),
+    undo: (handle) => undoEdit(handle),
+    Result: EditResult,
   },
 };

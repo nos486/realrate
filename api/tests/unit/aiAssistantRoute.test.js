@@ -127,3 +127,19 @@ describe('POST /api/ai/voice', () => {
     await expect(handleAiVoiceRoute(new Request('https://x/api/ai/voice', { method: 'POST', body: form }), env)).rejects.toMatchObject({ statusCode: 400 });
   });
 });
+
+describe('normalizeAiVoice: edit', () => {
+  const ctx = { ...CONTEXT, today: TODAY };
+  it('reads the last record and its change', () => {
+    const r = normalizeAiVoice({ intent: 'edit', op: 'update', kind: 'expense', target: { which: 'last' }, changes: { amount: '300,000', category: 'خوراک', accountId: 'نقد', date: '2030-01-01' } }, ctx);
+    expect(r).toEqual({ understood: true, intent: 'edit', op: 'update', kind: 'expense', target: { which: 'last', text: '', date: '' }, changes: { amount: 300000, category: 'food', accountId: 'acc_2' } });
+  });
+  it('finds by word and day, and deletes without changes', () => {
+    const r = normalizeAiVoice({ intent: 'edit', op: 'delete', kind: 'expense', target: { which: 'search', text: ' تیپاکس ', date: '2026-11-08' }, changes: { amount: 5 } }, ctx);
+    expect(r).toMatchObject({ understood: true, op: 'delete', target: { which: 'search', text: 'تیپاکس', date: '2026-11-08' }, changes: {} });
+  });
+  it('is not understood without a target or without a change', () => {
+    expect(normalizeAiVoice({ intent: 'edit', op: 'delete', target: { which: 'search' } }, ctx).understood).toBe(false);
+    expect(normalizeAiVoice({ intent: 'edit', op: 'update', target: { which: 'last' }, changes: { amount: 0 } }, ctx).understood).toBe(false);
+  });
+});

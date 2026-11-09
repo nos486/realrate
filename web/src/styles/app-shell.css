@@ -1616,3 +1616,38 @@ html.is-app-layout .budget-grid .ui-input-label {
   color: var(--text-heading);
   font-size: var(--fs-md);
 }
+
+/* Change or delete a saved record by voice (features/ai/EditReview.jsx) */
+.ai-edit-list {
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+.ai-edit-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.ai-edit-item.is-chosen {
+  border-color: var(--color-primary-text);
+}
+.ai-edit-change {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--text-heading);
+}
+.ai-edit-change ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ai-edit-change.is-delete {
+  color: var(--color-negative-text);
+}
