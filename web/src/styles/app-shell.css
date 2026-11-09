@@ -1651,3 +1651,19 @@ html.is-app-layout .budget-grid .ui-input-label {
 .ai-edit-change.is-delete {
   color: var(--color-negative-text);
 }
+
+/* A new cheque or subscription by voice (features/ai/CreateReview.jsx) */
+.ai-create {
+  display: grid;
+  gap: 10px;
+}
+.ai-create-row {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+}
+.ai-create-row .ui-input-control.is-missing {
+  border-color: var(--color-warning);
+}

@@ -18,6 +18,9 @@ import RecordsReview from './RecordsReview.jsx';
 import QuestionResult from './QuestionResult.jsx';
 import EditReview from './EditReview.jsx';
 import EditResult from './EditResult.jsx';
+import CreateReview from './CreateReview.jsx';
+import CreateResult from './CreateResult.jsx';
+import { createReady, applyCreate, undoCreate } from './aiCreate.js';
 import { applyEdit, undoEdit } from './aiEdit.js';
 import { saveVoiceItems, undoVoiceItems } from './aiRecords.js';
 
@@ -39,5 +42,12 @@ export const AI_INTENTS = {
     apply: (answer) => applyEdit(answer),
     undo: (handle) => undoEdit(handle),
     Result: EditResult,
+  },
+  create: {
+    Review: CreateReview,
+    ready: createReady,
+    apply: applyCreate,
+    undo: undoCreate,
+    Result: CreateResult,
   },
 };
