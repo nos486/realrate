@@ -101,6 +101,25 @@ describe('POST /api/sms/voice', () => {
   });
 });
 
+describe('a note on a deposit', () => {
+  it('asks about an income and sends the income categories', async () => {
+    getAuthenticatedUser.mockResolvedValue(ADMIN);
+    const fetchMock = vi.fn(async () => geminiReply({ understood: true, title: 'فروش لپ‌تاپ', category: 'sale' }));
+    vi.stubGlobal('fetch', fetchMock);
+    const env = { ADMIN_EMAIL: 'admin@example.com', GEMINI_API_KEY: 'gkey', DB: memoryStateDb() };
+    const form = new FormData();
+    form.append('audio', new Blob([WEBM], { type: 'audio/webm' }), 'v.webm');
+    form.append('categories', JSON.stringify([{ value: 'sale', label: 'فروش' }, { value: 'other', label: 'سایر' }]));
+    form.append('kind', 'income');
+    const body = await (await handleSmsVoiceRoute(new Request('https://x/api/sms/voice', { method: 'POST', body: form }), env)).json();
+    expect(body).toMatchObject({ understood: true, category: 'sale' });
+    const prompt = JSON.parse(fetchMock.mock.calls[0][1].body).systemInstruction.parts[0].text;
+    expect(prompt).toContain('درآمد');
+    expect(prompt).toContain('sale: فروش');
+    vi.unstubAllGlobals();
+  });
+});
+
 describe('voice model fallback', () => {
   it('tries the next model when one times out', async () => {
     getAuthenticatedUser.mockResolvedValue(ADMIN);

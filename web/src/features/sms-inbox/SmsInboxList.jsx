@@ -236,12 +236,12 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
                   disabled={!canRecord}
                 />
               )}
-              {onVoice && isDebit && (
+              {onVoice && (
                 <IconButton
                   className="sms-act sms-act-voice"
                   icon={<Mic size={20} />}
                   label={t('ثبت با صدا')}
-                  title={t('بگویید این هزینه چه بوده؛ دسته را هوش مصنوعی انتخاب می‌کند')}
+                  title={isDebit ? t('بگویید این هزینه چه بوده؛ دسته را هوش مصنوعی انتخاب می‌کند') : t('بگویید این واریز بابت چه بوده؛ دسته را هوش مصنوعی انتخاب می‌کند')}
                   onClick={() => onVoice(item)}
                   disabled={!canRecord || Boolean(voice)}
                 />

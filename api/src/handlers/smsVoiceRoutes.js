@@ -2,7 +2,7 @@
  * smsVoiceRoutes.js — Route handler for the voice note on a bank SMS (experimental)
  *
  * POST /api/sms/voice — multipart `audio` (a few seconds of speech) and `categories` (JSON
- * `[{ value, label }]`, the user's expense categories) and optionally `engine` (an id of
+ * `[{ value, label }]`, the user's expense categories — or income categories with `kind=income`, for a deposit) and optionally `engine` (an id of
  * config/voiceEngines.js, honored only for admins comparing engines); answers `{ understood, title, category }`.
  * Behind the `sms_voice` feature (admins only until opened to groups) and its daily `sms_voice`
  * limit. Nothing is stored; a failed call gives its use back.
@@ -79,7 +79,7 @@ export async function handleSmsVoiceRoute(request, env) {
 
   let result;
   try {
-    result = await processSmsVoice(env, { audioBuffer: await audio.arrayBuffer(), mimeType, categories, debug, engine: String(formData.get('engine') || '') });
+    result = await processSmsVoice(env, { audioBuffer: await audio.arrayBuffer(), mimeType, categories, kind: formData.get('kind') === 'income' ? 'income' : 'expense', debug, engine: String(formData.get('engine') || '') });
   } catch (err) {
     await refundQuota(env, user, 'sms_voice');
     throw err;
