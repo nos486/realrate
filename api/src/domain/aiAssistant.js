@@ -2,11 +2,12 @@
  * aiAssistant.js — Turning the model's answer to what the user said to the AI assistant into data
  *
  * One assistant, one door (POST /api/ai/voice): the model first names the INTENT of what was said, then
- * fills that intent's data. Today the only intent is `records` (a spoken list of expenses and incomes);
- * a report, a summary or a question about the user's own spending («این ماه چقدر خوراک خرج کردم؟»)
- * is a new row in AI_INTENTS plus its prompt part and its handler in web/src/features/ai/aiIntents.js.
- * The data is encrypted and only the browser can read it, so such an intent returns a structured
- * query for the app to run on the decrypted records — never the user's data going to the server.
+ * fills that intent's data. Intents: `records` (a spoken list of expenses and incomes) and `question`
+ * («این ماه چقدر خوراک خرج کردم؟ با پارسال مقایسه کن»: one to three plain Persian questions in the words
+ * web/src/features/reports/askQuery.js reads). A new capability is a new row in AI_INTENTS plus its prompt
+ * part (services/ai/assistant.service.js) and its handler in web/src/features/ai/aiIntents.js.
+ * The data is encrypted and only the browser can read it, so a question is only REWRITTEN here; the app
+ * answers it on the decrypted records — never the user's data going to the server.
  *
  * Records: every item is an expense or an income
  *
@@ -22,9 +23,9 @@ import { parseChequeScanJson } from './chequeScan.js';
 import { isValidIsoDate } from './isoDate.js';
 
 /** The intents the assistant understands (the model names one of these) */
-export const AI_INTENTS = ['records'];
+export const AI_INTENTS = ['records', 'question'];
 
-export const AI_VOICE_LIMITS = { items: 10, accounts: 40, nameLength: 60, titleLength: 120, maxAmount: 100_000_000_000 };
+export const AI_VOICE_LIMITS = { questions: 3, questionLength: 120, items: 10, accounts: 40, nameLength: 60, titleLength: 120, maxAmount: 100_000_000_000 };
 
 /**
  * The accounts a client sent, cleaned: `[{ id, name }]`, bounded, no duplicates
@@ -51,11 +52,18 @@ export function cleanAiAccounts(input) {
  * @param {string|object|null} raw the answer text (or its parsed JSON)
  * @param {{ expense: Array<{value: string, label: string}>, income: Array<{value: string, label: string}>,
  *   accounts: Array<{id: string, name: string}>, today: string }} context the user's lists and today (YYYY-MM-DD)
- * @returns {{ understood: boolean, intent: 'records', items: Array<{ kind: 'expense'|'income', amount: number, title: string,
+ * @returns {{ understood: boolean, intent: 'records'|'question', questions?: string[], items?: Array<{ kind: 'expense'|'income', amount: number, title: string,
  *   category: string, date: string, accountId: string }> }}
  */
 export function normalizeAiVoice(raw, { expense = [], income = [], accounts = [], today }) {
   const data = typeof raw === 'string' ? parseChequeScanJson(raw) : raw;
+  if (data?.intent === 'question') {
+    const questions = (Array.isArray(data.questions) ? data.questions : [])
+      .map((q) => String(q ?? '').replace(/\s+/g, ' ').trim().slice(0, AI_VOICE_LIMITS.questionLength))
+      .filter(Boolean)
+      .slice(0, AI_VOICE_LIMITS.questions);
+    return { understood: questions.length > 0 && data.understood !== false, intent: 'question', questions };
+  }
   const items = [];
   for (const row of Array.isArray(data?.items) ? data.items : []) {
     const kind = row?.kind === 'income' ? 'income' : row?.kind === 'expense' ? 'expense' : null;

@@ -19,7 +19,7 @@ export default function AiAssistantOverlay({ assistant }) {
   if (!state) return null;
   const { stage } = state;
   return (
-    <div className={`ai-assistant ${cancelling ? 'is-cancelling' : ''} ${stage === 'review' ? 'is-review' : ''}`} role="status" aria-live="polite">
+    <div className={`ai-assistant ${cancelling ? 'is-cancelling' : ''} ${stage === 'review' || stage === 'done' ? 'is-review' : ''}`} role="status" aria-live="polite">
       {stage === 'review' ? (
         <>
           <strong className="ai-assistant-heading">{t('درست فهمیدم؟ اصلاح کنید و تأیید بزنید')}</strong>
@@ -37,16 +37,16 @@ export default function AiAssistantOverlay({ assistant }) {
             <Mic size={16} aria-hidden="true" />
             {stage === 'starting' && t('در حال آماده‌سازی میکروفون…')}
             {stage === 'recording' && cancelling && t('رها کنید تا لغو شود.')}
-            {stage === 'recording' && !cancelling && t('بگویید؛ مثلاً «۵۰ هزار تومان نان و ۲۰۰ هزار تومان قبض برق، دیروز از حساب ملی». رها کنید تا ارسال شود؛ برای لغو، دکمه را به بالا بکشید.')}
-            {stage === 'processing' && t('در حال فهمیدن و ثبت…')}
+            {stage === 'recording' && !cancelling && t('بگویید؛ مثلاً «۵۰ هزار تومان نان و ۲۰۰ هزار تومان قبض برق، دیروز از حساب ملی» یا بپرسید «این ماه چقدر خوراک خرج کردم؟». رها کنید تا ارسال شود؛ برای لغو، دکمه را به بالا بکشید.')}
+            {stage === 'processing' && t('در حال فهمیدن…')}
           </p>
           <VoiceWave level={level} active={stage === 'recording'} />
         </>
       ) : (
         <>
           <button type="button" className="ai-assistant-close" onClick={dismiss} aria-label={t('بستن')}><X size={18} /></button>
-          <state.intent.Result answer={state.answer} />
-          <button type="button" className="ai-assistant-undo" onClick={undo}><Undo2 size={16} />{t('برگرداندن')}</button>
+          <div className="ai-assistant-scroll"><state.intent.Result answer={state.answer} /></div>
+          {!state.intent.readOnly && <button type="button" className="ai-assistant-undo" onClick={undo}><Undo2 size={16} />{t('برگرداندن')}</button>}
         </>
       )}
     </div>

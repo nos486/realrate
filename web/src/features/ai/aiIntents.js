@@ -8,12 +8,14 @@
  *   ready(answer)   → whether the answer is complete enough to confirm (the rest is asked of the user)
  *   apply(answer)   → a handle for undo (or null when nothing can be undone); Result: how the saved answer shows
  *   undo(handle)  → takes the effect back
- * Next rows (not built): `report` / `question` — the model returns a structured query (period, category,
- * comparison with last year) that the app runs on the decrypted records and shows as a figure or a table.
+ * `readOnly` intents change nothing: there is no review and no undo, the answer is shown at once.
+ * `question`: the model only rewrites the question in the words reports/askQuery.js reads; the answer is
+ * computed here, on the decrypted records. Next rows: reports and summaries, corrections, more records.
  */
 
 import RecordsResult from './RecordsResult.jsx';
 import RecordsReview from './RecordsReview.jsx';
+import QuestionResult from './QuestionResult.jsx';
 import { saveVoiceItems, undoVoiceItems } from './aiRecords.js';
 
 export const AI_INTENTS = {
@@ -23,5 +25,9 @@ export const AI_INTENTS = {
     apply: (answer) => saveVoiceItems(answer.items),
     undo: (handle) => undoVoiceItems(handle),
     Result: RecordsResult,
+  },
+  question: {
+    readOnly: true,
+    Result: QuestionResult,
   },
 };

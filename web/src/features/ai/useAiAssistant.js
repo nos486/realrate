@@ -69,14 +69,15 @@ export function useAiAssistant() {
       try { engine = canPickEngine ? localStorage.getItem('realrate:voiceEngine') || '' : ''; } catch { /* no storage */ }
       const context = await aiContext();
       const answer = await askAiByVoice(clip, context, voiceEngineById(engine) ? engine : '');
-      const intent = AI_INTENTS[answer?.intent];
+      const intent = Object.hasOwn(AI_INTENTS, answer?.intent) ? AI_INTENTS[answer.intent] : null;
       if (!answer?.understood || !intent) {
         setState(null);
         toast.error(t('متوجه نشدم؛ دوباره امتحان کنید.'));
         return;
       }
-      // Shown for the user to correct and confirm; saved only then (confirm)
-      setState({ stage: 'review', intent, answer, context });
+      // A question changes nothing: answered at once. Anything else is shown for the user to correct and
+      // confirm, and saved only then (confirm)
+      setState(intent.readOnly ? { stage: 'done', intent, answer } : { stage: 'review', intent, answer, context });
     } catch (err) {
       setState(null);
       toast.error(err?.message || t('ثبت با صدا ممکن نشد.'));
