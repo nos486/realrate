@@ -15,3 +15,9 @@ export const CHEQUE_SCAN_MODELS = [
 ];
 
 export const GEMINI_API_KEY_SECRET = "GEMINI_API_KEY";
+
+/**
+ * The models that listen to a voice note on a bank SMS and turn it into an expense's title and
+ * category (same key and fallback rule as above; flash models take audio and are cheap)
+ */
+export const SMS_VOICE_MODELS = CHEQUE_SCAN_MODELS;
