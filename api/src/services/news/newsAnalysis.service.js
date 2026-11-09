@@ -21,7 +21,7 @@ import { NEWS_ANALYSIS } from "../../config/news.config.js";
 import { buildAnalysisPrompt, parseAnalysis, tehranDayStart, hasForeignText } from "../../domain/news.js";
 import { dbTopNewsSince, dbNewsStatsSince } from "../../repositories/news.repository.js";
 import { getStateStore } from "../../repositories/stateStore.repository.js";
-import { askWorkersAi, hasWorkersAi } from "./workersAi.js";
+import { resolveNewsModel } from "./newsModel.js";
 import { logger } from "../../lib/logger.js";
 
 const ANALYSIS_KEY = "news:analysis";
@@ -79,7 +79,8 @@ async function saveAnalysis(store, analysis, { dayStart, at, newsCount, lastSave
 export async function maybeUpdateNewsAnalysis(env, { now = Date.now(), force = false } = {}) {
   const store = getStateStore(env);
   if (!store) return { updated: false, reason: "no-store" };
-  if (!hasWorkersAi(env)) return { updated: false, reason: "no-model" };
+  const newsModel = await resolveNewsModel(env, NEWS_ANALYSIS.model);
+  if (!newsModel.available) return { updated: false, reason: "no-model" };
 
   const dayStart = tehranDayStart(now);
   const [stats, current] = await Promise.all([dbNewsStatsSince(env, dayStart), getNewsAnalysis(env)]);
@@ -96,11 +97,11 @@ export async function maybeUpdateNewsAnalysis(env, { now = Date.now(), force = f
   const input = await buildAnalysisInput(env, { now });
   await store.increment(countKey(dayStart), 1, { expirationTtl: 2 * 86400 });
   // The chosen model only; a failure is kept for the panel and the last analysis stays
-  const model = NEWS_ANALYSIS.model.id;
+  const model = newsModel.id;
   let analysis = null;
   let error = "";
   try {
-    const answer = await askWorkersAi(env, NEWS_ANALYSIS.model, input.messages, {
+    const answer = await newsModel.ask(input.messages, {
       maxTokens: NEWS_ANALYSIS.maxTokens,
       temperature: NEWS_ANALYSIS.temperature,
     });

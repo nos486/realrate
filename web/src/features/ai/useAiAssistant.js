@@ -6,7 +6,7 @@
  * several at once, each with an amount in tomans, a category of the user's, a day and an account —
  * and they are created at once (aiRecords.js) and listed with an undo. There is no silence
  * detection: the hand decides when the note ends. A clip shorter than MIN_CLIP_MS is dropped (an
- * accidental press). An admin (`cheque_scan_debug`) uses the engine chosen in the SMS voice window.
+ * accidental press).
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -16,7 +16,6 @@ import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { startVoiceRecording, canRecordVoice } from '../../shared/native/voiceRecorder.js';
 import { bumpVaultEpoch } from '../../shared/vault/vaultStore.js';
 import { impact } from '../../shared/native/haptics.js';
-import { voiceEngineById } from '../../config/voiceEngines.js';
 import { t } from '../../utils/i18n.js';
 import { askAiByVoice, aiContext } from './aiApi.js';
 import { AI_INTENTS } from './aiIntents.js';
@@ -40,7 +39,6 @@ const heldBefore = () => { try { return Number(localStorage.getItem(HINT_KEY)) |
 export function useAiAssistant() {
   const { toast } = useFeedback();
   const allowed = useFeature('ai_assistant');
-  const canPickEngine = useFeature('cheque_scan_debug');
   const vault = useVault();
   const enabled = allowed && vault.status === 'unlocked' && canRecordVoice();
 
@@ -65,10 +63,8 @@ export function useAiAssistant() {
     setState({ stage: 'processing' });
     try {
       const clip = await recorder.stop();
-      let engine = '';
-      try { engine = canPickEngine ? localStorage.getItem('realrate:voiceEngine') || '' : ''; } catch { /* no storage */ }
       const context = await aiContext();
-      const answer = await askAiByVoice(clip, context, voiceEngineById(engine) ? engine : '');
+      const answer = await askAiByVoice(clip, context);
       const intent = Object.hasOwn(AI_INTENTS, answer?.intent) ? AI_INTENTS[answer.intent] : null;
       if (!answer?.understood || !intent) {
         setState(null);
@@ -82,7 +78,7 @@ export function useAiAssistant() {
       setState(null);
       toast.error(err?.message || t('ثبت با صدا ممکن نشد.'));
     }
-  }, [toast, canPickEngine]);
+  }, [toast]);
 
   const begin = useCallback(async () => {
     const p = press.current;

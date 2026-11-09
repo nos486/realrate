@@ -1,6 +1,6 @@
 /**
  * AdminSettingsPage.jsx — The site's own settings (/admin/settings): maintenance mode and its
- * message, the announcement at the top of the site, and the demo account
+ * message, the announcement at the top of the site, the AI models and the demo account
  *
  * The settings are read from the price book's globalSettings; each card saves only its own fields.
  */
@@ -14,6 +14,7 @@ import { AdminDemoCard } from '../../demo/index.js';
 import AdminPage from './AdminPage.jsx';
 import MaintenanceCard from './MaintenanceCard.jsx';
 import SiteSettingsCard from './SiteSettingsCard.jsx';
+import AiModelsCard from './AiModelsCard.jsx';
 
 export default function AdminSettingsPage() {
   const { setMaintenance } = useAuth();
@@ -53,6 +54,7 @@ export default function AdminSettingsPage() {
         <div className="admin-stack">
           <MaintenanceCard settings={settings} onSave={saveSettings} />
           <SiteSettingsCard settings={settings} onSave={saveSettings} />
+          <AiModelsCard />
         </div>
         <AdminDemoCard />
       </div>

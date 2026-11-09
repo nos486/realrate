@@ -5,14 +5,14 @@
  * (or the 30 s limit) sends the clip to the server, which answers a title and a category of the
  * user's, and the withdrawal is recorded as an everyday expense with them (recordSmsExpense);
  * `cancel()` drops the recording. The note also ends by itself when the speaker stops (speech, then
- * a pause: voiceActivity.js), and is dropped when nothing is said. One message at a time. An admin (`cheque_scan_debug`) can pick the
- * engine that listens (`engine`, remembered on the device) to compare them, and sees which engine
- * answered, how long it took and what it heard.
+ * a pause: voiceActivity.js), and is dropped when nothing is said. One message at a time. The engine that listens is the admin's
+ * choice in the site settings; an admin (`cheque_scan_debug`) sees which engine answered, how long it
+ * took and what it heard.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFeature } from '../../shared/features/index.js';
-import { DEFAULT_VOICE_ENGINE, voiceEngineById } from '../../config/voiceEngines.js';
+import { voiceEngineById } from '../../config/voiceEngines.js';
 import { t } from '../../utils/i18n.js';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { startVoiceRecording } from '../../shared/native/voiceRecorder.js';
@@ -27,21 +27,12 @@ import { recordSmsExpense, recordSmsIncome } from './smsRecord.js';
  *   onAction?: (item: object, answer: object) => void }} options `prepareAccounts`: the accounts to record into, the one for
  *   the message made when needed (the page's withMessageAccounts); `offer`: what else the note may ask for (a transfer,
  *   a project…); `onAction`: opens that flow for the message, where the user confirms it
- * @returns {{ engine: string, setEngine: (id: string) => void, canPickEngine: boolean, voice: { item: object, stage: 'starting'|'recording'|'processing' }|null,
+ * @returns {{ voice: { item: object, stage: 'starting'|'recording'|'processing' }|null,
  *   start: (item: object) => Promise<void>, stop: () => Promise<void>, cancel: () => void, level: () => number }}
  */
 export function useSmsVoice({ prepareAccounts, offer, onAction }) {
   const { toast } = useFeedback();
   const canPickEngine = useFeature('cheque_scan_debug');
-  const [engine, setEngineState] = useState(() => {
-    try { return voiceEngineById(localStorage.getItem('realrate:voiceEngine')) ? localStorage.getItem('realrate:voiceEngine') : DEFAULT_VOICE_ENGINE; } catch { return DEFAULT_VOICE_ENGINE; }
-  });
-  const engineRef = useRef(engine);
-  const setEngine = useCallback((id) => {
-    engineRef.current = id;
-    setEngineState(id);
-    try { localStorage.setItem('realrate:voiceEngine', id); } catch { /* no storage: lasts this page */ }
-  }, []);
   const [voice, setVoice] = useState(null);
   const session = useRef(null); // { item, recorder, stopping }
   const startCancelled = useRef(false);
@@ -64,7 +55,7 @@ export function useSmsVoice({ prepareAccounts, offer, onAction }) {
     try {
       const clip = await s.recorder.stop();
       const offered = (await offerRef.current?.(s.item)) || { actions: [], projects: [] };
-      const answer = await describeExpenseByVoice(clip, canPickEngine ? engineRef.current : '', s.item.tx.direction === 'credit' ? 'income' : 'expense', offered);
+      const answer = await describeExpenseByVoice(clip, s.item.tx.direction === 'credit' ? 'income' : 'expense', offered);
       if (!answer?.understood || (!answer.title && !answer.action)) {
         toast.error(t('صدا واضح نبود؛ دوباره امتحان کنید.'));
         return;
@@ -133,5 +124,5 @@ export function useSmsVoice({ prepareAccounts, offer, onAction }) {
 
   const level = useCallback(() => session.current?.recorder.level() ?? 0, []);
 
-  return { voice, start, stop, cancel, level, engine, setEngine, canPickEngine };
+  return { voice, start, stop, cancel, level };
 }

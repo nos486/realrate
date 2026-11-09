@@ -11,6 +11,7 @@ import { SMS_VOICE_MODELS, SMS_VOICE_TIMEOUT_MS, GEMINI_API_KEY_SECRET } from '.
 import { geminiDescribeAudio, toBase64, GeminiError } from './gemini.js';
 import { normalizeSmsVoice } from '../../domain/smsVoice.js';
 import { DEFAULT_VOICE_ENGINE, voiceEngineById } from '../../config/voiceEngines.js';
+import { loadAiSettings } from './aiSettings.service.js';
 import { NEWS_AI_MODEL } from '../../config/news.config.js';
 import { askWorkersAi, hasWorkersAi } from '../news/workersAi.js';
 import { AppError } from '../../lib/AppError.js';
@@ -110,11 +111,11 @@ async function runWorkers(env, engine, { audioBuffer, systemPrompt }, { debug })
  * Let the chosen engine hear a clip and answer under a system prompt (shared by every voice feature)
  * @param {object} env
  * @param {{ audioBuffer: ArrayBuffer, mimeType: string, systemPrompt: string, userText?: string, debug?: boolean,
- *   engine?: string }} params `engine`: an id of config/voiceEngines.js, honored only with `debug` (admins)
+ *   }} params the engine is the admin's choice (aiSettings.service.js)
  * @returns {Promise<{ answer: string|object|null, model: string, engineId: string, durationMs: number, audioBytes: number, heard?: string }>}
  */
-export async function listenToVoice(env, { audioBuffer, mimeType, systemPrompt, userText = 'این پیام صوتی را طبق دستورالعمل به JSON تبدیل کن.', debug = false, engine = DEFAULT_VOICE_ENGINE }) {
-  const chosen = (debug && voiceEngineById(engine)) || voiceEngineById(DEFAULT_VOICE_ENGINE);
+export async function listenToVoice(env, { audioBuffer, mimeType, systemPrompt, userText = 'این پیام صوتی را طبق دستورالعمل به JSON تبدیل کن.', debug = false }) {
+  const chosen = voiceEngineById((await loadAiSettings(env)).voiceEngine) || voiceEngineById(DEFAULT_VOICE_ENGINE);
   if (chosen.kind === 'workers') {
     if (!hasWorkersAi(env)) throw new AppError('Workers AI در این محیط تنظیم نشده است.', 503, 'VOICE_NOT_CONFIGURED');
   } else {
@@ -137,11 +138,11 @@ export async function listenToVoice(env, { audioBuffer, mimeType, systemPrompt, 
 /**
  * @param {object} env
  * @param {{ audioBuffer: ArrayBuffer, mimeType: string, categories: Array<{value: string, label: string}>,
- *   kind?: 'expense'|'income', actions?: string[], projects?: Array<{id: string, name: string}>, debug?: boolean, engine?: string }} params `kind`: a withdrawal or a deposit; `engine`: an id of config/voiceEngines.js, honored only with `debug` (admins)
+ *   kind?: 'expense'|'income', actions?: string[], projects?: Array<{id: string, name: string}>, debug?: boolean }} params `kind`: a withdrawal or a deposit
  * @returns {Promise<{ understood: boolean, title: string, category: string, model: string, engine: string, durationMs: number, heard?: string }>}
  */
-export async function processSmsVoice(env, { audioBuffer, mimeType, categories, kind = 'expense', actions = [], projects = [], debug = false, engine = DEFAULT_VOICE_ENGINE }) {
-  const run = await listenToVoice(env, { audioBuffer, mimeType, systemPrompt: buildSmsVoicePrompt(categories, kind, { actions, projects }), debug, engine });
+export async function processSmsVoice(env, { audioBuffer, mimeType, categories, kind = 'expense', actions = [], projects = [], debug = false }) {
+  const run = await listenToVoice(env, { audioBuffer, mimeType, systemPrompt: buildSmsVoicePrompt(categories, kind, { actions, projects }), debug });
   const result = normalizeSmsVoice(run.answer, categories, { actions, projects });
   logger.info('[SmsVoice] Completed', { engine: run.engineId, model: run.model, durationMs: run.durationMs, audioBytes: run.audioBytes, understood: result.understood });
   return { ...result, model: run.model, engine: run.engineId, durationMs: run.durationMs, ...(debug && run.heard !== undefined ? { heard: run.heard } : {}) };

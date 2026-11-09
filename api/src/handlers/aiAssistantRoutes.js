@@ -3,7 +3,7 @@
  *
  * POST /api/ai/voice — multipart `audio` (a few sentences), `context` (JSON
  * `{ expense: [{ value, label }], income: [{ value, label }], accounts: [{ id, name }] }`, the user's own
- * lists) and optionally `engine` (honored only for admins comparing engines); answers
+ * lists) (the engine that hears it is the admin's choice, aiSettings.service.js); answers
  * `{ understood, items: [{ kind, amount, title, category, date, accountId }] }`. Behind the `ai_assistant`
  * feature (admins only until opened to groups) and its daily `ai_assistant` limit. Nothing is stored;
  * a failed call gives its use back.
@@ -40,7 +40,7 @@ export async function handleAiVoiceRoute(request, env) {
 
   let result;
   try {
-    result = await processAiVoice(env, { audioBuffer: await audio.arrayBuffer(), mimeType, ...context, debug, engine: String(formData.get('engine') || '') });
+    result = await processAiVoice(env, { audioBuffer: await audio.arrayBuffer(), mimeType, ...context, debug });
   } catch (err) {
     await refundQuota(env, user, 'ai_assistant');
     throw err;

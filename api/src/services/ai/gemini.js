@@ -56,6 +56,17 @@ export function geminiDescribeAudio(apiKey, modelId, req) {
   return geminiDescribeMedia(apiKey, modelId, { ...req, mediaBase64: req.audioBase64 });
 }
 
+/**
+ * The model's text answer to a text-only prompt (the news section's models)
+ * @param {string} apiKey
+ * @param {string} modelId
+ * @param {{ systemPrompt: string, userText: string, maxTokens?: number, temperature?: number, timeoutMs?: number }} req
+ * @returns {Promise<string>}
+ */
+export function geminiAskText(apiKey, modelId, req) {
+  return geminiDescribeMedia(apiKey, modelId, { ...req, mediaBase64: "" });
+}
+
 async function geminiDescribeMedia(apiKey, modelId, req) {
   let res;
   try {
@@ -69,11 +80,15 @@ async function geminiDescribeMedia(apiKey, modelId, req) {
           contents: [{
             role: "user",
             parts: [
-              { inlineData: { mimeType: req.mimeType, data: req.mediaBase64 } },
+              ...(req.mediaBase64 ? [{ inlineData: { mimeType: req.mimeType, data: req.mediaBase64 } }] : []),
               { text: req.userText },
             ],
           }],
-          generationConfig: { responseMimeType: "application/json", maxOutputTokens: MAX_OUTPUT_TOKENS },
+          generationConfig: {
+            responseMimeType: "application/json",
+            maxOutputTokens: req.maxTokens || MAX_OUTPUT_TOKENS,
+            ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
+          },
         }),
         signal: AbortSignal.timeout(req.timeoutMs || GEMINI_TIMEOUT_MS),
       },

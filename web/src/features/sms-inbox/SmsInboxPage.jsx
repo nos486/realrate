@@ -204,7 +204,7 @@ export default function SmsInboxPage() {
       setProjectDraft({ project: group, draft: { ...smsProjectExpenseDraft(item.tx, active), ...(answer.title ? { title: answer.title } : {}) } });
     }
   };
-  const { voice, start: startVoice, stop: stopVoice, cancel: cancelVoice, level: voiceLevel, engine: voiceEngine, setEngine: setVoiceEngine, canPickEngine } = useSmsVoice({ prepareAccounts: withMessageAccounts, offer: voiceOffer, onAction: voiceAction });
+  const { voice, start: startVoice, stop: stopVoice, cancel: cancelVoice, level: voiceLevel } = useSmsVoice({ prepareAccounts: withMessageAccounts, offer: voiceOffer, onAction: voiceAction });
 
   const handleRecord = async (item) => {
     const active = await withMessageAccounts(item);
@@ -468,7 +468,7 @@ export default function SmsInboxPage() {
           onSubmit={record(saveSmsExpense, expenseDraft, t('هزینه ثبت شد.'))}
         />
       )}
-      <VoiceExpenseModal voice={voice} level={voiceLevel} onStop={stopVoice} onCancel={cancelVoice} engines={canPickEngine ? { value: voiceEngine, onChange: setVoiceEngine } : null} />
+      <VoiceExpenseModal voice={voice} level={voiceLevel} onStop={stopVoice} onCancel={cancelVoice} />
       {loanItem && <LoanDepositSheet item={loanItem} onClose={() => setLoanItem(null)} />}
       {projectItem && (
         <ProjectPickSheet
