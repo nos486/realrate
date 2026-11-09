@@ -35,6 +35,7 @@ import SmsReadHistory from './SmsReadHistory.jsx';
 import { useSmsInbox } from '../../shared/native/useSmsInbox.js';
 import { useFeature } from '../../shared/features/index.js';
 import { useSmsVoice } from './useSmsVoice.js';
+import VoiceExpenseModal from './VoiceExpenseModal.jsx';
 import { canRecordVoice } from '../../shared/native/voiceRecorder.js';
 import { createIncome } from '../incomes/api/incomeApi.js';
 import ExpenseForm from '../expenses/components/ExpenseForm.jsx';
@@ -167,7 +168,7 @@ export default function SmsInboxPage() {
 
   // «ثبت با صدا» (experimental): a voice note gives the title and category of a withdrawal
   const voiceEnabled = useFeature('sms_voice') && canRecordVoice();
-  const { voice, toggle: toggleVoice } = useSmsVoice({ prepareAccounts: withMessageAccounts });
+  const { voice, start: startVoice, stop: stopVoice, cancel: cancelVoice, level: voiceLevel } = useSmsVoice({ prepareAccounts: withMessageAccounts });
 
   const handleRecord = async (item) => {
     const active = await withMessageAccounts(item);
@@ -346,7 +347,7 @@ export default function SmsInboxPage() {
           onTransfer={accounts.filter((a) => !a.archived).length >= 2 ? handleTransfer : undefined}
           onCreditSettle={credits.length ? handleCreditSettle : undefined}
           onReject={smsSettings.keepRejected ? handleReject : undefined}
-          onVoice={voiceEnabled ? toggleVoice : undefined}
+          onVoice={voiceEnabled ? startVoice : undefined}
           voice={voice}
           canRecord={!locked && !readOnly}
         />
@@ -431,6 +432,7 @@ export default function SmsInboxPage() {
           onSubmit={record(saveSmsExpense, expenseDraft, t('هزینه ثبت شد.'))}
         />
       )}
+      <VoiceExpenseModal voice={voice} level={voiceLevel} onStop={stopVoice} onCancel={cancelVoice} />
       {loanItem && <LoanDepositSheet item={loanItem} onClose={() => setLoanItem(null)} />}
       {projectItem && (
         <ProjectPickSheet

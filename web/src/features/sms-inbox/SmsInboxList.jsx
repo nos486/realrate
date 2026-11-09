@@ -15,7 +15,7 @@
  * accounts — neither expense nor income) or «تسویه بدهی اعتبار» (`onCreditSettle`: paying a bank
  * credit's debt, the bank's interest and fee the difference — the main action of a message of a
  * credit account). With `onVoice` (the experimental `sms_voice` feature) a withdrawal has a
- * microphone button: tap, say what it was for, tap again — it is recorded with that title and a
+ * microphone button: tap, say what it was for in the window that opens (VoiceExpenseModal) — it is recorded with that title and a
  * category picked from the user's own (useSmsVoice.js). «رد همه» above the list drops every message on show (after a
  * confirmation). «رد» (beside the main action, not in the menu) drops it
  * for good — or, when the page gives `onReject` (the «رد شده» setting on), hands the messages to it
@@ -26,7 +26,7 @@
 import { intlLocale, t } from '../../utils/i18n.js';
 import { toPersianDigits } from '../../shared/utils/formatters.js';
 import React, { useEffect, useMemo, useState } from 'react';
-import { MessageSquareText, Check, X, ArrowDownLeft, ArrowUpRight, BellRing, Inbox, Zap, Landmark, HandCoins, FolderOpen, ArrowLeftRight, CreditCard, Mic, Square } from 'lucide-react';
+import { MessageSquareText, Check, X, ArrowDownLeft, ArrowUpRight, BellRing, Inbox, Zap, Landmark, HandCoins, FolderOpen, ArrowLeftRight, CreditCard, Mic } from 'lucide-react';
 import { ActionMenu, Button, EmptyState } from '../../shared/ui/index.js';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { BankLogo, resolveBank } from '../../shared/banks/index.js';
@@ -228,23 +228,18 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
                   {t('ثبت')}
                 </Button>
               )}
-              {onVoice && isDebit && (() => {
-                const mine = voice?.id === item.fingerprint;
-                const recording = mine && voice.stage === 'recording';
-                return (
-                  <Button
-                    size="sm"
-                    variant={recording ? 'danger' : 'secondary'}
-                    icon={recording ? <Square size={14} /> : <Mic size={14} />}
-                    className="sms-inbox-voice"
-                    onClick={() => onVoice(item)}
-                    loading={mine && voice.stage === 'processing'}
-                    disabled={!canRecord || Boolean(voice && !mine)}
-                    aria-label={recording ? t('پایان ضبط و ثبت') : t('ثبت با صدا')}
-                    title={recording ? t('پایان ضبط و ثبت') : t('بگویید این هزینه چه بوده؛ دسته را هوش مصنوعی انتخاب می‌کند')}
-                  />
-                );
-              })()}
+              {onVoice && isDebit && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  icon={<Mic size={14} />}
+                  className="sms-inbox-voice"
+                  onClick={() => onVoice(item)}
+                  disabled={!canRecord || Boolean(voice)}
+                  aria-label={t('ثبت با صدا')}
+                  title={t('بگویید این هزینه چه بوده؛ دسته را هوش مصنوعی انتخاب می‌کند')}
+                />
+              )}
               <Button
                 size="sm"
                 variant="secondary"
