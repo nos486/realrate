@@ -34,6 +34,7 @@ import { markSmsHandled, restoreSms, readSmsDays, readSmsRange, smsPermission, g
 import SmsReadHistory from './SmsReadHistory.jsx';
 import { useSmsInbox } from '../../shared/native/useSmsInbox.js';
 import { useFeature } from '../../shared/features/index.js';
+import * as expensesApi from '../../shared/vault/vaultExpenses.js';
 import { useSmsVoice } from './useSmsVoice.js';
 import VoiceExpenseModal from './VoiceExpenseModal.jsx';
 import { canRecordVoice } from '../../shared/native/voiceRecorder.js';
@@ -168,7 +169,42 @@ export default function SmsInboxPage() {
 
   // «ثبت با صدا» (experimental): a voice note gives the title and category of a withdrawal
   const voiceEnabled = useFeature('sms_voice') && canRecordVoice();
-  const { voice, start: startVoice, stop: stopVoice, cancel: cancelVoice, level: voiceLevel, engine: voiceEngine, setEngine: setVoiceEngine, canPickEngine } = useSmsVoice({ prepareAccounts: withMessageAccounts });
+  // What else a voice note may ask for, by the message and the user's setup; each opens the message's own flow
+  const voiceOffer = async (item) => {
+    const debit = item.tx.direction === 'debit';
+    const actions = [];
+    if (accounts.filter((a) => !a.archived).length >= 2) actions.push('transfer');
+    if (debit) {
+      actions.push('project');
+      if (credits.length) actions.push('credit_settle');
+    } else {
+      actions.push('loan', 'share');
+    }
+    let projects = [];
+    if (debit) {
+      try {
+        projects = (await expensesApi.getExpenseGroups()).groups.filter((g) => g.type !== 'daily' && !g.archived).map((g) => ({ id: g.id, name: g.name }));
+      } catch { /* no projects to name */ }
+    }
+    return { actions: projects.length || !debit ? actions : actions.filter((a) => a !== 'project'), projects };
+  };
+  const voiceAction = async (item, answer) => {
+    toast.info(t('بر اساس صدای شما باز شد؛ بررسی و تأیید کنید.'));
+    if (answer.action === 'transfer') await handleTransfer(item);
+    else if (answer.action === 'credit_settle') await handleCreditSettle(item);
+    else if (answer.action === 'loan') setLoanItem(item);
+    else if (answer.action === 'share') setShareItem(item);
+    else if (answer.action === 'project') {
+      const group = answer.projectId && (await expensesApi.getExpenseGroups()).groups.find((g) => g.id === answer.projectId);
+      if (!group) {
+        setProjectItem(item);
+        return;
+      }
+      const active = await withMessageAccounts(item);
+      setProjectDraft({ project: group, draft: { ...smsProjectExpenseDraft(item.tx, active), ...(answer.title ? { title: answer.title } : {}) } });
+    }
+  };
+  const { voice, start: startVoice, stop: stopVoice, cancel: cancelVoice, level: voiceLevel, engine: voiceEngine, setEngine: setVoiceEngine, canPickEngine } = useSmsVoice({ prepareAccounts: withMessageAccounts, offer: voiceOffer, onAction: voiceAction });
 
   const handleRecord = async (item) => {
     const active = await withMessageAccounts(item);

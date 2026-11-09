@@ -146,4 +146,7 @@ export default {
   'توضیح بدهید این واریز بابت چیست': 'Tell me what this deposit is for',
   'بگویید؛ مثلاً «فروش لپ‌تاپ». وقتی ساکت شدید خودکار ثبت می‌شود و دسته را خودم از بین دسته‌های درآمد شما انتخاب می‌کنم.': 'Speak, e.g. "laptop sale". It is recorded by itself when you stop talking, and I pick the category from your income categories.',
   'در حال فهمیدن و ثبت درآمد…': 'Understanding and recording the income…',
+  'بر اساس صدای شما باز شد؛ بررسی و تأیید کنید.': 'Opened from your voice note; review and confirm.',
+  'بگویید؛ مثلاً «فروش لپ‌تاپ». وقتی ساکت شدید خودکار ثبت می‌شود و دسته را خودم از بین دسته‌های درآمد شما انتخاب می‌کنم. یا بگویید «انتقال بین حساب‌هام است» یا «واریز وام است».': 'Speak, e.g. "laptop sale". It is recorded by itself when you stop talking, and I pick the category from your income categories. Or say "it is a transfer between my accounts" or "it is a loan deposit".',
+  'بگویید؛ مثلاً «هزینه تیپاکس». وقتی ساکت شدید خودکار ثبت می‌شود و دسته را خودم از بین دسته‌های شما انتخاب می‌کنم. یا بگویید «انتقال بین حساب‌هام است» یا «برای پروژه‌ی خانه است».': 'Speak, e.g. "Tipax shipping". It is recorded by itself when you stop talking, and I pick the category from your categories. Or say "it is a transfer between my accounts" or "it is for the house project".',
 };

@@ -3,7 +3,7 @@
  *
  * POST /api/sms/voice — multipart `audio` (a few seconds of speech) and `categories` (JSON
  * `[{ value, label }]`, the user's expense categories — or income categories with `kind=income`, for a deposit) and optionally `engine` (an id of
- * config/voiceEngines.js, honored only for admins comparing engines); answers `{ understood, title, category }`.
+ * config/voiceEngines.js, honored only for admins comparing engines); answers `{ understood, title, category, action, projectId }` (`action`: '' to record it, or one of `actions` — an optional JSON list of what the app offers, with `projects` `[{id,name}]`).
  * Behind the `sms_voice` feature (admins only until opened to groups) and its daily `sms_voice`
  * limit. Nothing is stored; a failed call gives its use back.
  */
@@ -11,7 +11,8 @@
 import { requireFeature, hasFeature } from '../lib/features.js';
 import { consumeQuota, refundQuota } from '../lib/usageQuota.js';
 import { processSmsVoice } from '../services/ai/smsVoice.service.js';
-import { cleanVoiceCategories } from '../domain/smsVoice.js';
+import { cleanVoiceCategories, cleanVoiceActions } from '../domain/smsVoice.js';
+import { cleanAiAccounts } from '../domain/aiAssistant.js';
 import { jsonResponse } from '../lib/helpers.js';
 import { AppError } from '../lib/AppError.js';
 
@@ -74,12 +75,22 @@ export async function handleSmsVoiceRoute(request, env) {
     throw AppError.badRequest('فهرست دسته‌ها نامعتبر است.');
   }
 
+  // What else the note may ask for (the app offers only what fits the message) and the user's projects
+  let actions = [];
+  let projects = [];
+  try {
+    actions = cleanVoiceActions(JSON.parse(String(formData.get('actions') || '[]')));
+    projects = cleanAiAccounts(JSON.parse(String(formData.get('projects') || '[]')));
+  } catch {
+    throw AppError.badRequest('فهرست کارهای پیشنهادی نامعتبر است.');
+  }
+
   const debug = await hasFeature(env, user, 'cheque_scan_debug');
   const quota = await consumeQuota(env, user, 'sms_voice');
 
   let result;
   try {
-    result = await processSmsVoice(env, { audioBuffer: await audio.arrayBuffer(), mimeType, categories, kind: formData.get('kind') === 'income' ? 'income' : 'expense', debug, engine: String(formData.get('engine') || '') });
+    result = await processSmsVoice(env, { audioBuffer: await audio.arrayBuffer(), mimeType, categories, kind: formData.get('kind') === 'income' ? 'income' : 'expense', actions, projects, debug, engine: String(formData.get('engine') || '') });
   } catch (err) {
     await refundQuota(env, user, 'sms_voice');
     throw err;
