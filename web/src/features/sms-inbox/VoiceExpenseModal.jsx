@@ -11,6 +11,7 @@ import React, { useEffect, useRef } from 'react';
 import { Mic, Check } from 'lucide-react';
 import { Button, Modal } from '../../shared/ui/index.js';
 import { formatAmount } from '../expenses/utils/format.js';
+import { VOICE_ENGINES } from '../../config/voiceEngines.js';
 
 const BARS = 28;
 
@@ -48,9 +49,10 @@ function VoiceWave({ level, active }) {
 
 /**
  * @param {{ voice: { item: object, stage: 'starting'|'recording'|'processing' }|null, level: () => number,
- *   onStop: () => void, onCancel: () => void }} props
+ *   onStop: () => void, onCancel: () => void, engines?: { value: string, onChange: (id: string) => void }|null }} props
+ *   `engines`: for an admin comparing engines, a list to pick the one that listens
  */
-export default function VoiceExpenseModal({ voice, level, onStop, onCancel }) {
+export default function VoiceExpenseModal({ voice, level, onStop, onCancel, engines = null }) {
   if (!voice) return null;
   const { tx } = voice.item;
   const processing = voice.stage === 'processing';
@@ -77,6 +79,17 @@ export default function VoiceExpenseModal({ voice, level, onStop, onCancel }) {
         {voice.stage === 'recording' && t('بگویید؛ مثلاً «هزینه تیپاکس». دسته را خودم از بین دسته‌های شما انتخاب می‌کنم.')}
         {processing && t('در حال فهمیدن و ثبت هزینه…')}
       </p>
+      {engines && (
+        <select
+          className="ui-input-control sms-voice-engine"
+          aria-label={t('مدل پردازش صدا')}
+          value={engines.value}
+          disabled={processing}
+          onChange={(e) => engines.onChange(e.target.value)}
+        >
+          {VOICE_ENGINES.map((e) => <option key={e.id} value={e.id}>{e.label}</option>)}
+        </select>
+      )}
       <VoiceWave level={level} active={voice.stage === 'recording'} />
     </Modal>
   );

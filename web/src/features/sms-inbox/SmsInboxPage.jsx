@@ -168,7 +168,7 @@ export default function SmsInboxPage() {
 
   // «ثبت با صدا» (experimental): a voice note gives the title and category of a withdrawal
   const voiceEnabled = useFeature('sms_voice') && canRecordVoice();
-  const { voice, start: startVoice, stop: stopVoice, cancel: cancelVoice, level: voiceLevel } = useSmsVoice({ prepareAccounts: withMessageAccounts });
+  const { voice, start: startVoice, stop: stopVoice, cancel: cancelVoice, level: voiceLevel, engine: voiceEngine, setEngine: setVoiceEngine, canPickEngine } = useSmsVoice({ prepareAccounts: withMessageAccounts });
 
   const handleRecord = async (item) => {
     const active = await withMessageAccounts(item);
@@ -432,7 +432,7 @@ export default function SmsInboxPage() {
           onSubmit={record(saveSmsExpense, expenseDraft, t('هزینه ثبت شد.'))}
         />
       )}
-      <VoiceExpenseModal voice={voice} level={voiceLevel} onStop={stopVoice} onCancel={cancelVoice} />
+      <VoiceExpenseModal voice={voice} level={voiceLevel} onStop={stopVoice} onCancel={cancelVoice} engines={canPickEngine ? { value: voiceEngine, onChange: setVoiceEngine } : null} />
       {loanItem && <LoanDepositSheet item={loanItem} onClose={() => setLoanItem(null)} />}
       {projectItem && (
         <ProjectPickSheet

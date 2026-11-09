@@ -4,10 +4,14 @@
  * `start(item)` opens the recording (the page shows VoiceExpenseModal while `voice` is set); `stop()`
  * (or the 30 s limit) sends the clip to the server, which answers a title and a category of the
  * user's, and the withdrawal is recorded as an everyday expense with them (recordSmsExpense);
- * `cancel()` drops the recording. One message at a time.
+ * `cancel()` drops the recording. One message at a time. An admin (`cheque_scan_debug`) can pick the
+ * engine that listens (`engine`, remembered on the device) to compare them, and sees which engine
+ * answered, how long it took and what it heard.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useFeature } from '../../shared/features/index.js';
+import { DEFAULT_VOICE_ENGINE, voiceEngineById } from '../../config/voiceEngines.js';
 import { t } from '../../utils/i18n.js';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { startVoiceRecording } from '../../shared/native/voiceRecorder.js';
@@ -19,11 +23,21 @@ import { recordSmsExpense } from './smsRecord.js';
 /**
  * @param {{ prepareAccounts: (item: object) => Promise<object[]> }} options `prepareAccounts`: the
  *   accounts to record into, the one for the message made when needed (the page's withMessageAccounts)
- * @returns {{ voice: { item: object, stage: 'starting'|'recording'|'processing' }|null,
+ * @returns {{ engine: string, setEngine: (id: string) => void, canPickEngine: boolean, voice: { item: object, stage: 'starting'|'recording'|'processing' }|null,
  *   start: (item: object) => Promise<void>, stop: () => Promise<void>, cancel: () => void, level: () => number }}
  */
 export function useSmsVoice({ prepareAccounts }) {
   const { toast } = useFeedback();
+  const canPickEngine = useFeature('cheque_scan_debug');
+  const [engine, setEngineState] = useState(() => {
+    try { return voiceEngineById(localStorage.getItem('realrate:voiceEngine')) ? localStorage.getItem('realrate:voiceEngine') : DEFAULT_VOICE_ENGINE; } catch { return DEFAULT_VOICE_ENGINE; }
+  });
+  const engineRef = useRef(engine);
+  const setEngine = useCallback((id) => {
+    engineRef.current = id;
+    setEngineState(id);
+    try { localStorage.setItem('realrate:voiceEngine', id); } catch { /* no storage: lasts this page */ }
+  }, []);
   const [voice, setVoice] = useState(null);
   const session = useRef(null); // { item, recorder, stopping }
   const startCancelled = useRef(false);
@@ -42,21 +56,26 @@ export function useSmsVoice({ prepareAccounts }) {
     setVoice({ item: s.item, stage: 'processing' });
     try {
       const clip = await s.recorder.stop();
-      const answer = await describeExpenseByVoice(clip);
+      const answer = await describeExpenseByVoice(clip, canPickEngine ? engineRef.current : '');
       if (!answer?.understood) {
         toast.error(t('صدا واضح نبود؛ دوباره امتحان کنید.'));
         return;
       }
       await recordSmsExpense(s.item, { accounts: await prepare.current(s.item), category: answer.category, title: answer.title });
       bumpVaultEpoch();
-      toast.success(t('هزینه‌ی «{title}» در «{category}» ثبت شد.', { title: answer.title, category: getExpenseCategory(answer.category).label }));
+      const done = t('هزینه‌ی «{title}» در «{category}» ثبت شد.', { title: answer.title, category: getExpenseCategory(answer.category).label });
+      // For the comparison: the engine, its time, and the words it heard
+      const detail = canPickEngine && answer.engine
+        ? ` (${voiceEngineById(answer.engine)?.label || answer.engine} · ${((answer.durationMs || 0) / 1000).toFixed(1)}s${answer.heard ? ` · «${answer.heard}»` : ''})`
+        : '';
+      toast.success(done + detail, detail ? { duration: 10000 } : undefined);
     } catch (err) {
       toast.error(err?.message || t('ثبت با صدا ممکن نشد.'));
     } finally {
       session.current = null;
       setVoice(null);
     }
-  }, [toast]);
+  }, [toast, canPickEngine]);
   useEffect(() => { stopRef.current = stop; }, [stop]);
 
   const start = useCallback(async (item) => {
@@ -87,5 +106,5 @@ export function useSmsVoice({ prepareAccounts }) {
 
   const level = useCallback(() => session.current?.recorder.level() ?? 0, []);
 
-  return { voice, start, stop, cancel, level };
+  return { voice, start, stop, cancel, level, engine, setEngine, canPickEngine };
 }

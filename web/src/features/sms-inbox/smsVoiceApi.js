@@ -17,11 +17,13 @@ export function voiceCategories() {
 
 /**
  * @param {Blob} audio the recorded clip
- * @returns {Promise<{ understood: boolean, title: string, category: string }>}
+ * @param {string} [engine] an engine of config/voiceEngines.js (the server honors it for admins only)
+ * @returns {Promise<{ understood: boolean, title: string, category: string, engine?: string, model?: string, durationMs?: number, heard?: string }>}
  */
-export async function describeExpenseByVoice(audio) {
+export async function describeExpenseByVoice(audio, engine = '') {
   const form = new FormData();
   form.append('audio', audio, 'voice.webm');
   form.append('categories', JSON.stringify(voiceCategories()));
+  if (engine) form.append('engine', engine);
   return httpClient.post('/api/sms/voice', form);
 }
