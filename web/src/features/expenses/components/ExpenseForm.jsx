@@ -462,6 +462,7 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           maxLength={EXPENSE_LIMITS.titleLength}
+          onDictate={(text) => setTitle((prev) => (prev ? `${prev} ${text}` : text))}
           required={!category}
         />
 
@@ -574,6 +575,7 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             maxLength={EXPENSE_LIMITS.notesLength}
+            onDictate={(text) => setNotes((prev) => (prev ? `${prev} ${text}` : text))}
             rows={2}
           />
         </MoreDetails>

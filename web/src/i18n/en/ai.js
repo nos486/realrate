@@ -3,6 +3,11 @@
  */
 
 export default {
+  'تبدیل صدا به متن': 'Voice to text',
+  'تبدیل صدا به متن ممکن نشد.': 'Could not turn the voice into text.',
+  'ضبط صدا ممکن نشد.': 'Could not record.',
+  'پایان گفتن': 'Stop speaking',
+  'گفتن با صدا': 'Speak instead of typing',
   'دکمه را نگه دارید و حرف بزنید؛ رها کنید تا ارسال شود.': 'Hold the button and speak; release to send.',
   'متوجه نشدم؛ دوباره امتحان کنید.': "I didn't understand; please try again.",
   'ثبت با صدا ممکن نشد.': 'Voice entry failed.',

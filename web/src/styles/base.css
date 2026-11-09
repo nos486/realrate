@@ -1667,3 +1667,29 @@ input.search-bar-input:focus-visible {
   white-space: nowrap;
   border: 0;
 }
+
+/* Dictation: the microphone inside a text field (DictateButton.jsx) */
+.ui-dictate-slot {
+  position: absolute;
+  inset-inline-end: 6px;
+  display: flex;
+}
+.ui-dictate-slot.is-top { top: 6px; }
+.ui-input-control.has-dictate-btn { padding-inline-end: 38px; }
+.ui-dictate-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+.ui-dictate-btn:hover:not(:disabled) { color: var(--text-primary); background: var(--bg-control-hover); }
+.ui-dictate-btn.is-recording { color: var(--text-primary); background: var(--bg-control-hover); }
+.ui-dictate-spin { animation: ui-dictate-turn 0.9s linear infinite; }
+@keyframes ui-dictate-turn { to { transform: rotate(360deg); } }
