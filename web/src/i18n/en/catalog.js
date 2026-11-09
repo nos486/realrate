@@ -232,6 +232,8 @@ export default {
   // ── Usage limits and tiers (usageLimits.js) ──
   'اسکن چک با هوش مصنوعی': "AI cheque scan",
   'ثبت هزینه‌ی پیامکی با صدا': 'Record bank SMS expenses by voice',
+  'دستیار هوش مصنوعی (صدا)': 'AI assistant (voice)',
+  'آزمایشی: دکمه‌ی + را نگه دارید و با صدا هزینه و درآمد ثبت کنید؛ هوش مصنوعی (Gemini) هر مورد را با مبلغ، دسته، روز و حساب می‌سازد (بعداً: گزارش و پرسش درباره‌ی خرج‌ها). محدودیت روزانه: config/usageLimits.js': 'Experimental: hold the + button and record expenses and incomes by voice; the AI (Gemini) builds each with amount, category, day and account (later: reports and questions about spending). Daily limit: config/usageLimits.js',
   'پیام صوتی': 'voice note',
   'آزمایشی: روی پیامک بانک در اپ اندروید یک پیام صوتی می‌دهید و هوش مصنوعی (Gemini) عنوان و دسته‌ی هزینه را می‌نویسد (محدودیت روزانه: config/usageLimits.js)': 'Experimental: on a bank SMS in the Android app you say a voice note and AI (Gemini) writes the expense title and picks its category (daily limit: config/usageLimits.js)',
   مدیر: 'Admin',

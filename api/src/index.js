@@ -94,6 +94,7 @@ import {
 } from "./handlers/portfolioRoutes.js";
 import { handleChequeScanRoute, handleChequeScanQuotaRoute } from "./handlers/chequeScanRoutes.js";
 import { handleSmsVoiceRoute } from "./handlers/smsVoiceRoutes.js";
+import { handleAiVoiceRoute } from "./handlers/aiAssistantRoutes.js";
 import {
   handleRegister,
   handleVerifyEmail,
@@ -500,6 +501,11 @@ async function handleRequest(request, env, ctx) {
   // ── Voice note on a bank SMS (AI audio; stores nothing) ──
   if (normalizedPath === "/api/sms/voice" && request.method === "POST") {
     return wrap(handleSmsVoiceRoute)(request, env);
+  }
+
+  // ── Voice assistant: spoken expenses and incomes (AI audio; stores nothing) ──
+  if (normalizedPath === "/api/ai/voice" && request.method === "POST") {
+    return wrap(handleAiVoiceRoute)(request, env);
   }
 
   // ── Custom Banks API Routes ─────────────────────────────────────────────

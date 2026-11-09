@@ -37,10 +37,11 @@ async function audioType(file) {
   return check(bytes) ? type : null;
 }
 
-/** POST /api/sms/voice */
-export async function handleSmsVoiceRoute(request, env) {
-  const user = await requireFeature(request, env, 'sms_voice');
-
+/**
+ * The multipart form of a voice request, with its clip checked (size, and the bytes match the type)
+ * @returns {Promise<{ formData: FormData, audio: File, mimeType: string }>}
+ */
+export async function readVoiceForm(request) {
   if (!(request.headers.get('content-type') || '').includes('multipart/form-data')) {
     throw AppError.badRequest('درخواست باید شامل فرم چندبخشی (multipart/form-data) باشد.');
   }
@@ -53,12 +54,18 @@ export async function handleSmsVoiceRoute(request, env) {
   } catch {
     throw AppError.badRequest('خطا در پردازش فرم چندبخشی ارسالی.');
   }
-
   const audio = formData.get('audio');
   if (!audio || typeof audio === 'string' || !audio.size) throw AppError.badRequest('ارسال فایل صدا الزامی است.');
   if (audio.size > MAX_AUDIO_BYTES) throw new AppError('حجم صدا بیش از حد مجاز است.', 413, 'PAYLOAD_TOO_LARGE');
   const mimeType = await audioType(audio);
   if (!mimeType) throw new AppError('فرمت صدا نامعتبر است.', 400, 'INVALID_FILE_TYPE');
+  return { formData, audio, mimeType };
+}
+
+/** POST /api/sms/voice */
+export async function handleSmsVoiceRoute(request, env) {
+  const user = await requireFeature(request, env, 'sms_voice');
+  const { formData, audio, mimeType } = await readVoiceForm(request);
 
   let categories = [];
   try {

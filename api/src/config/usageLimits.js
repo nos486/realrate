@@ -14,11 +14,12 @@
 export const USAGE_LIMITS = {
   cheque_scan: { label: "اسکن چک با هوش مصنوعی", unit: "اسکن" },
   sms_voice: { label: "ثبت هزینه‌ی پیامکی با صدا", unit: "پیام صوتی" },
+  ai_assistant: { label: "دستیار هوش مصنوعی (صدا)", unit: "پیام صوتی" },
 };
 
 export const USER_TIERS = {
   admin: { label: "مدیر", unlimited: true, limits: {} },
-  user: { label: "کاربر", limits: { cheque_scan: 10, sms_voice: 20 } },
+  user: { label: "کاربر", limits: { cheque_scan: 10, sms_voice: 20, ai_assistant: 20 } },
 };
 
 /** The tier of a signed-in user (the admin role comes from ADMIN_EMAIL, on the server) */

@@ -1458,3 +1458,81 @@ html.is-app-layout .budget-grid .ui-input-label {
   justify-content: flex-end;
   margin-bottom: 8px;
 }
+
+/* ── Hold «+» to talk (features/ai/AiAssistantOverlay.jsx) ───────────── */
+.app-fab {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.app-fab.is-listening {
+  background: var(--color-negative);
+}
+.ai-assistant {
+  position: fixed;
+  inset-inline: 12px;
+  bottom: calc(var(--app-nav-h) + env(safe-area-inset-bottom, 0px) + 20px);
+  z-index: 75;
+  padding: 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}
+.ai-assistant-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  color: var(--text-secondary);
+  line-height: 1.8;
+}
+.ai-assistant-heading {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-heading);
+}
+.ai-assistant-close {
+  position: absolute;
+  top: 10px;
+  inset-inline-end: 10px;
+}
+.ai-assistant-close,
+.ai-assistant-undo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--color-primary-text);
+  cursor: pointer;
+}
+.ai-assistant-list {
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+  max-height: 40dvh;
+  overflow-y: auto;
+}
+.ai-assistant-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.ai-assistant-list li.is-expense svg { color: var(--color-negative); }
+.ai-assistant-list li.is-income svg { color: var(--color-positive); }
+.ai-assistant-title {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-heading);
+}
+.ai-assistant-title small {
+  display: block;
+  color: var(--text-secondary);
+}
+.ai-assistant-amount {
+  font-weight: 700;
+  color: var(--text-heading);
+}
