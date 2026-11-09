@@ -10,7 +10,7 @@
 import React from 'react';
 import { HandCoins, Wallet, Trash2 } from 'lucide-react';
 import { t } from '../../utils/i18n.js';
-import { NumericInput } from '../../shared/ui/index.js';
+import { NumericInput, IconButton, Input } from '../../shared/ui/index.js';
 import DateField from '../../shared/form/DateField.jsx';
 import { listCategories } from '../../shared/categories/categoryStore.js';
 import { gregorianToShamsi, shamsiToGregorian } from '../portfolio/components/ShamsiDatePicker.jsx';
@@ -40,8 +40,8 @@ export default function RecordsReview({ answer, onChange, context }) {
               <select className="ui-input-control ai-review-kind" aria-label={t('نوع')} value={item.kind} onChange={(e) => setItem(i, { kind: e.target.value, category: FALLBACK_CATEGORY })}>
                 {KINDS.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
               </select>
-              <input className="ui-input-control" aria-label={t('عنوان')} value={item.title} maxLength={120} onChange={(e) => setItem(i, { title: e.target.value })} />
-              <button type="button" className="ai-assistant-close" onClick={() => removeItem(i)} aria-label={t('حذف این مورد')}><Trash2 size={16} /></button>
+              <Input size="sm" aria-label={t('عنوان')} value={item.title} maxLength={120} onChange={(e) => setItem(i, { title: e.target.value })} />
+              <IconButton icon={<Trash2 size={16} />} label={t('حذف این مورد')} onClick={() => removeItem(i)} />
             </div>
             <NumericInput
               className={`ui-input-control ${needsAmount ? 'is-missing' : ''}`}
