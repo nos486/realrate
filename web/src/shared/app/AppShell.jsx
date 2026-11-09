@@ -31,6 +31,8 @@ import AppSheet from './AppSheet.jsx';
 import AlertCenterButton from '../alerts/AlertCenter.jsx';
 import PageRefreshButton from '../refresh/PageRefreshButton.jsx';
 import { APP_PRIVATE_VALUE_TABS } from './privacyTabs.js';
+import AiAssistantOverlay from '../../features/ai/AiAssistantOverlay.jsx';
+import { useAiAssistant } from '../../features/ai/useAiAssistant.js';
 import { BOTTOM_NAV_GROUPS, NAV_SECTION_CARDS, buildNavGroups, groupOfTab } from './navGroups.js';
 
 /** The bottom bar's three groups: the preferred ones the user has, then the next ones; the rest
@@ -106,6 +108,7 @@ export function AppBottomNav({ activeTab, navItems = [], onSelect }) {
   const hideValues = usePrivacyMode();
   const vault = useVault();
   const pendingSms = usePendingSmsCount();
+  const assistant = useAiAssistant();
   const [sheet, setSheet] = useState(null); // null | 'add' | 'more' | a group's key
   const closeSheet = useCallback(() => setSheet(null), [setSheet]);
 
@@ -160,8 +163,10 @@ export function AppBottomNav({ activeTab, navItems = [], onSelect }) {
         <div className="app-bottom-nav-center">
           <button
             type="button"
-            className={`app-fab ${sheet === 'add' ? 'is-open' : ''}`}
+            className={`app-fab ${sheet === 'add' ? 'is-open' : ''} ${assistant.state?.stage === 'recording' ? 'is-listening' : ''}`}
+            {...assistant.fabProps}
             onClick={() => {
+              if (assistant.takeClick()) return; // the end of a hold to talk, not a tap
               impact();
               setSheet((s) => (s === 'add' ? null : 'add'));
             }}
@@ -184,6 +189,8 @@ export function AppBottomNav({ activeTab, navItems = [], onSelect }) {
           }}
         />
       </nav>
+
+      <AiAssistantOverlay assistant={assistant} />
 
       <AppSheet open={sheet === 'add'} onClose={closeSheet} title={t('ثبت سریع')}>
         <div className="app-quick-add">

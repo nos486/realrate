@@ -17,7 +17,7 @@ import { VOICE_ENGINES } from '../../config/voiceEngines.js';
 const BARS = 28;
 
 /** Bars of the live wave: each shows the loudness a few frames ago, so the wave travels sideways */
-function VoiceWave({ level, active }) {
+export function VoiceWave({ level, active }) {
   const bars = useRef([]);
   useEffect(() => {
     if (!active) return undefined;
