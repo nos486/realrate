@@ -23,12 +23,14 @@ import { describeExpenseByVoice } from './smsVoiceApi.js';
 import { recordSmsExpense, recordSmsIncome } from './smsRecord.js';
 
 /**
- * @param {{ prepareAccounts: (item: object) => Promise<object[]> }} options `prepareAccounts`: the
- *   accounts to record into, the one for the message made when needed (the page's withMessageAccounts)
+ * @param {{ prepareAccounts: (item: object) => Promise<object[]>, offer?: (item: object) => Promise<{ actions: string[], projects: object[] }>,
+ *   onAction?: (item: object, answer: object) => void }} options `prepareAccounts`: the accounts to record into, the one for
+ *   the message made when needed (the page's withMessageAccounts); `offer`: what else the note may ask for (a transfer,
+ *   a project…); `onAction`: opens that flow for the message, where the user confirms it
  * @returns {{ engine: string, setEngine: (id: string) => void, canPickEngine: boolean, voice: { item: object, stage: 'starting'|'recording'|'processing' }|null,
  *   start: (item: object) => Promise<void>, stop: () => Promise<void>, cancel: () => void, level: () => number }}
  */
-export function useSmsVoice({ prepareAccounts }) {
+export function useSmsVoice({ prepareAccounts, offer, onAction }) {
   const { toast } = useFeedback();
   const canPickEngine = useFeature('cheque_scan_debug');
   const [engine, setEngineState] = useState(() => {
@@ -44,10 +46,12 @@ export function useSmsVoice({ prepareAccounts }) {
   const session = useRef(null); // { item, recorder, stopping }
   const startCancelled = useRef(false);
   const prepare = useRef(prepareAccounts);
+  const offerRef = useRef(offer);
+  const actionRef = useRef(onAction);
   const stopRef = useRef(null);
   const cancelRef = useRef(null);
 
-  useEffect(() => { prepare.current = prepareAccounts; });
+  useEffect(() => { prepare.current = prepareAccounts; offerRef.current = offer; actionRef.current = onAction; });
 
   // Leaving the page drops a recording in progress
   useEffect(() => () => session.current?.recorder.cancel(), []);
@@ -59,9 +63,15 @@ export function useSmsVoice({ prepareAccounts }) {
     setVoice({ item: s.item, stage: 'processing' });
     try {
       const clip = await s.recorder.stop();
-      const answer = await describeExpenseByVoice(clip, canPickEngine ? engineRef.current : '', s.item.tx.direction === 'credit' ? 'income' : 'expense');
-      if (!answer?.understood) {
+      const offered = (await offerRef.current?.(s.item)) || { actions: [], projects: [] };
+      const answer = await describeExpenseByVoice(clip, canPickEngine ? engineRef.current : '', s.item.tx.direction === 'credit' ? 'income' : 'expense', offered);
+      if (!answer?.understood || (!answer.title && !answer.action)) {
         toast.error(t('صدا واضح نبود؛ دوباره امتحان کنید.'));
+        return;
+      }
+      // Asked for something else than recording: the message's own flow opens, where it is confirmed
+      if (answer.action && actionRef.current) {
+        actionRef.current(s.item, answer);
         return;
       }
       const deposit = s.item.tx.direction === 'credit';

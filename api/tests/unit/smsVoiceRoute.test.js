@@ -13,7 +13,7 @@ vi.mock('../../src/lib/auth.js', () => ({
 
 import { getAuthenticatedUser } from '../../src/lib/auth.js';
 import { handleSmsVoiceRoute } from '../../src/handlers/smsVoiceRoutes.js';
-import { normalizeSmsVoice, cleanVoiceCategories } from '../../src/domain/smsVoice.js';
+import { normalizeSmsVoice, cleanVoiceCategories, cleanVoiceActions } from '../../src/domain/smsVoice.js';
 import { isFeatureEnabled } from '../../src/config/features.js';
 
 const ADMIN = { id: 'a1', role: 'admin', email: 'admin@example.com' };
@@ -46,7 +46,7 @@ describe('sms_voice feature', () => {
 
 describe('normalizeSmsVoice', () => {
   it('keeps a category the user has, by key or by name, and falls back to other', () => {
-    expect(normalizeSmsVoice({ title: 'هزینه تیپاکس', category: 'c_ship1234' }, CATEGORIES)).toEqual({ understood: true, title: 'هزینه تیپاکس', category: 'c_ship1234' });
+    expect(normalizeSmsVoice({ title: 'هزینه تیپاکس', category: 'c_ship1234' }, CATEGORIES)).toEqual({ understood: true, title: 'هزینه تیپاکس', category: 'c_ship1234', action: '', projectId: '' });
     expect(normalizeSmsVoice({ title: 'x', category: 'خوراک' }, CATEGORIES).category).toBe('food');
     expect(normalizeSmsVoice({ title: 'x', category: 'invented' }, CATEGORIES).category).toBe('other');
   });
@@ -189,5 +189,23 @@ describe('voice engines (admin comparison)', () => {
     expect(body.engine).toBe('gemini-3.8-flash');
     expect(fetchMock.mock.calls[0][0]).toContain('gemini-3.8-flash');
     vi.unstubAllGlobals();
+  });
+});
+
+describe('a note that asks for more than recording', () => {
+  const PROJECTS = [{ id: 'grp_1', name: 'خانه' }];
+  it('keeps only offered actions and known projects', () => {
+    const ok = normalizeSmsVoice({ understood: true, title: '', action: 'project', projectId: 'خانه' }, CATEGORIES, { actions: ['project', 'transfer'], projects: PROJECTS });
+    expect(ok).toMatchObject({ understood: true, action: 'project', projectId: 'grp_1' });
+    expect(normalizeSmsVoice({ title: 'x', action: 'loan' }, CATEGORIES, { actions: ['transfer'] }).action).toBe('');
+    expect(normalizeSmsVoice({ title: 'x', action: 'project', projectId: 'nope' }, CATEGORIES, { actions: ['project'], projects: PROJECTS }).projectId).toBe('');
+    expect(cleanVoiceActions(['transfer', 'rm -rf', 'transfer'])).toEqual(['transfer']);
+  });
+  it('offers the actions to the model', async () => {
+    const { buildSmsVoicePrompt } = await import('../../src/services/ai/smsVoice.service.js');
+    const prompt = buildSmsVoicePrompt(CATEGORIES, 'expense', { actions: ['project', 'transfer'], projects: PROJECTS });
+    expect(prompt).toContain('transfer:');
+    expect(prompt).toContain('grp_1: خانه');
+    expect(buildSmsVoicePrompt(CATEGORIES)).not.toContain('action: ""');
   });
 });
