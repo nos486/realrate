@@ -1469,6 +1469,16 @@ html.is-app-layout .budget-grid .ui-input-label {
 .app-fab.is-listening {
   background: var(--color-negative);
 }
+.ai-assistant-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 74;
+  background: var(--bg-modal-backdrop);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  pointer-events: none;
+  animation: modalBackdropFade 0.2s ease;
+}
 .ai-assistant {
   position: fixed;
   inset-inline: 12px;
@@ -1491,21 +1501,6 @@ html.is-app-layout .budget-grid .ui-input-label {
   display: block;
   margin-bottom: 8px;
   color: var(--text-heading);
-}
-.ai-assistant-close {
-  position: absolute;
-  top: 10px;
-  inset-inline-end: 10px;
-}
-.ai-assistant-close,
-.ai-assistant-undo {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: 0;
-  background: transparent;
-  color: var(--color-primary-text);
-  cursor: pointer;
 }
 .ai-assistant-list {
   margin: 0 0 8px;
@@ -1544,20 +1539,6 @@ html.is-app-layout .budget-grid .ui-input-label {
 .ai-assistant.is-cancelling .ai-assistant-hint {
   color: var(--color-negative-text);
 }
-.ai-assistant.is-review {
-  max-height: 72dvh;
-  display: flex;
-  flex-direction: column;
-}
-.ai-assistant-scroll {
-  overflow-y: auto;
-  margin-bottom: 10px;
-}
-.ai-assistant-actions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-}
 .ai-review {
   margin: 0;
   padding: 0;
@@ -1579,7 +1560,8 @@ html.is-app-layout .budget-grid .ui-input-label {
   align-items: center;
   gap: 8px;
 }
-.ai-review-row > .ui-input-control { flex: 1; min-width: 0; }
+.ai-review-row > .ui-input-control,
+.ai-review-row > .ui-input-group { flex: 1; min-width: 0; }
 .ai-review-row > .ai-review-kind { flex: 0 0 88px; }
 .ai-review .is-missing {
   border-color: var(--color-warning);
@@ -1600,10 +1582,6 @@ html.is-app-layout .budget-grid .ui-input-label {
 }
 
 /* Spoken questions (features/ai/QuestionResult.jsx) */
-.ai-assistant-heading,
-.ai-question-text {
-  padding-inline-end: 28px;
-}
 .ai-questions {
   display: grid;
   gap: 16px;
