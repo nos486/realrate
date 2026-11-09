@@ -6,7 +6,7 @@
  * said are never stored (database or logs); logs keep the model, duration, clip size and outcome.
  */
 
-import { SMS_VOICE_MODELS, GEMINI_API_KEY_SECRET } from '../../config/ai.config.js';
+import { SMS_VOICE_MODELS, SMS_VOICE_TIMEOUT_MS, GEMINI_API_KEY_SECRET } from '../../config/ai.config.js';
 import { geminiDescribeAudio, toBase64, GeminiError } from './gemini.js';
 import { normalizeSmsVoice } from '../../domain/smsVoice.js';
 import { AppError } from '../../lib/AppError.js';
@@ -50,6 +50,7 @@ export async function processSmsVoice(env, { audioBuffer, mimeType, categories, 
     userText: 'این پیام صوتی را طبق دستورالعمل به JSON تبدیل کن.',
     audioBase64: toBase64(audioBuffer),
     mimeType,
+    timeoutMs: SMS_VOICE_TIMEOUT_MS,
   };
 
   // The first model; the next only when Google says the previous one is busy
@@ -64,14 +65,14 @@ export async function processSmsVoice(env, { audioBuffer, mimeType, categories, 
     } catch (err) {
       lastError = err;
       logger.error('[SmsVoice] Model inference failed:', { model: model.id, durationMs: Date.now() - startTime, audioBytes, error: err.message });
-      if (!(err instanceof GeminiError && err.busy)) break;
+      if (!(err instanceof GeminiError && (err.busy || err.timedOut))) break;
     }
   }
 
   if (answer === undefined) {
     const reason = debug && lastError instanceof GeminiError ? lastError.reason : '';
-    if (lastError instanceof GeminiError && lastError.busy) {
-      throw new AppError('سرویس هوش مصنوعی گوگل الان شلوغ است؛ چند دقیقه دیگر دوباره امتحان کنید.', 503, 'AI_BUSY');
+    if (lastError instanceof GeminiError && (lastError.busy || lastError.timedOut)) {
+      throw new AppError('سرویس هوش مصنوعی گوگل الان پاسخ نمی‌دهد یا شلوغ است؛ چند دقیقه دیگر دوباره امتحان کنید.', 503, 'AI_BUSY');
     }
     throw new AppError(reason ? `پردازش صدا ناموفق بود (${reason})` : 'پردازش صدا ناموفق بود.', 502, 'AI_GATEWAY_ERROR');
   }

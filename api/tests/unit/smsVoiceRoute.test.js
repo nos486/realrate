@@ -99,3 +99,20 @@ describe('POST /api/sms/voice', () => {
     await expect(handleSmsVoiceRoute(voiceRequest({ type: 'image/png' }), env)).rejects.toMatchObject({ statusCode: 400 });
   });
 });
+
+describe('voice model fallback', () => {
+  it('tries the next model when one times out', async () => {
+    getAuthenticatedUser.mockResolvedValue(ADMIN);
+    const timeout = Object.assign(new Error('timeout'), { name: 'TimeoutError' });
+    const fetchMock = vi.fn()
+      .mockRejectedValueOnce(timeout)
+      .mockResolvedValueOnce(geminiReply({ understood: true, title: 'تیپاکس', category: 'other' }));
+    vi.stubGlobal('fetch', fetchMock);
+    const env = { ADMIN_EMAIL: 'admin@example.com', GEMINI_API_KEY: 'gkey', DB: memoryStateDb() };
+    const body = await (await handleSmsVoiceRoute(voiceRequest(), env)).json();
+    expect(body.title).toBe('تیپاکس');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[0][0]).toContain('gemini-3.6-flash');
+    vi.unstubAllGlobals();
+  });
+});
