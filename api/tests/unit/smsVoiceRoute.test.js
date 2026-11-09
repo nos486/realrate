@@ -112,8 +112,23 @@ describe('voice model fallback', () => {
     const body = await (await handleSmsVoiceRoute(voiceRequest(), env)).json();
     expect(body.title).toBe('تیپاکس');
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(fetchMock.mock.calls[0][0]).toContain('gemini-2.5-flash-lite')
+    expect(fetchMock.mock.calls[0][0]).toContain('gemini-3.5-flash-lite')
     expect(fetchMock.mock.calls[1][0]).toContain('gemini-3.6-flash');
+    vi.unstubAllGlobals();
+  });
+});
+
+describe('voice model unavailable', () => {
+  it('tries the next model when Google answers 404 for one', async () => {
+    getAuthenticatedUser.mockResolvedValue(ADMIN);
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: { message: 'no longer available' } }), { status: 404 }))
+      .mockResolvedValueOnce(geminiReply({ understood: true, title: 'تیپاکس', category: 'other' }));
+    vi.stubGlobal('fetch', fetchMock);
+    const env = { ADMIN_EMAIL: 'admin@example.com', GEMINI_API_KEY: 'gkey', DB: memoryStateDb() };
+    const body = await (await handleSmsVoiceRoute(voiceRequest(), env)).json();
+    expect(body.title).toBe('تیپاکس');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     vi.unstubAllGlobals();
   });
 });
