@@ -1498,3 +1498,37 @@ tr.is-excluded td,
 .expense-payment-parts small {
   color: var(--text-secondary);
 }
+
+/* ── «ثبت با صدا»: the voice note window (VoiceExpenseModal.jsx) ───────────── */
+.sms-voice-hint {
+  margin: 0 0 16px;
+  color: var(--text-secondary);
+  line-height: 1.8;
+  text-align: center;
+}
+.sms-voice-wave {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 72px;
+}
+.sms-voice-wave span {
+  width: 5px;
+  height: 100%;
+  border-radius: var(--radius-xs);
+  background: var(--color-primary-text);
+  transform: scaleY(0.12);
+  transform-origin: center;
+  transition: transform 80ms linear;
+}
+.sms-voice-wave.is-idle span {
+  animation: sms-voice-ripple 1s ease-in-out infinite;
+}
+@keyframes sms-voice-ripple {
+  0%, 100% { transform: scaleY(0.15); }
+  50% { transform: scaleY(0.7); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sms-voice-wave.is-idle span { animation: none; transform: scaleY(0.4); }
+}

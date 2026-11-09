@@ -1,9 +1,10 @@
 /**
  * useSmsVoice.js — «ثبت با صدا» on a waiting bank withdrawal (experimental, `sms_voice`)
  *
- * One tap starts the recording of that message, a second tap stops it; the clip is sent to the
- * server, which answers a title and a category of the user's, and the withdrawal is recorded as
- * an everyday expense with them (recordSmsExpense). One message at a time.
+ * `start(item)` opens the recording (the page shows VoiceExpenseModal while `voice` is set); `stop()`
+ * (or the 30 s limit) sends the clip to the server, which answers a title and a category of the
+ * user's, and the withdrawal is recorded as an everyday expense with them (recordSmsExpense);
+ * `cancel()` drops the recording. One message at a time.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -18,53 +19,73 @@ import { recordSmsExpense } from './smsRecord.js';
 /**
  * @param {{ prepareAccounts: (item: object) => Promise<object[]> }} options `prepareAccounts`: the
  *   accounts to record into, the one for the message made when needed (the page's withMessageAccounts)
- * @returns {{ voice: { id: string, stage: 'recording'|'processing' }|null, toggle: (item: object) => Promise<void> }}
+ * @returns {{ voice: { item: object, stage: 'starting'|'recording'|'processing' }|null,
+ *   start: (item: object) => Promise<void>, stop: () => Promise<void>, cancel: () => void, level: () => number }}
  */
 export function useSmsVoice({ prepareAccounts }) {
   const { toast } = useFeedback();
   const [voice, setVoice] = useState(null);
-  const session = useRef(null);
+  const session = useRef(null); // { item, recorder, stopping }
+  const startCancelled = useRef(false);
+  const prepare = useRef(prepareAccounts);
+  const stopRef = useRef(null);
+
+  useEffect(() => { prepare.current = prepareAccounts; });
 
   // Leaving the page drops a recording in progress
   useEffect(() => () => session.current?.recorder.cancel(), []);
 
-  const finish = useCallback(async (item, recorder) => {
-    setVoice({ id: item.fingerprint, stage: 'processing' });
+  const stop = useCallback(async () => {
+    const s = session.current;
+    if (!s || s.stopping) return;
+    s.stopping = true;
+    setVoice({ item: s.item, stage: 'processing' });
     try {
-      const clip = await recorder.stop();
+      const clip = await s.recorder.stop();
       const answer = await describeExpenseByVoice(clip);
       if (!answer?.understood) {
         toast.error(t('صدا واضح نبود؛ دوباره امتحان کنید.'));
         return;
       }
-      await recordSmsExpense(item, { accounts: await prepareAccounts(item), category: answer.category, title: answer.title });
+      await recordSmsExpense(s.item, { accounts: await prepare.current(s.item), category: answer.category, title: answer.title });
       bumpVaultEpoch();
       toast.success(t('هزینه‌ی «{title}» در «{category}» ثبت شد.', { title: answer.title, category: getExpenseCategory(answer.category).label }));
     } catch (err) {
-      if (err?.message !== 'cancelled') toast.error(err?.message || t('ثبت با صدا ممکن نشد.'));
+      toast.error(err?.message || t('ثبت با صدا ممکن نشد.'));
     } finally {
       session.current = null;
       setVoice(null);
     }
-  }, [prepareAccounts, toast]);
+  }, [toast]);
+  useEffect(() => { stopRef.current = stop; }, [stop]);
 
-  const toggle = useCallback(async (item) => {
-    if (session.current) {
-      // Second tap on the message being recorded stops it; taps elsewhere wait
-      if (session.current.id === item.fingerprint && !session.current.stopping) {
-        session.current.stopping = true;
-        await finish(item, session.current.recorder);
-      }
-      return;
-    }
+  const start = useCallback(async (item) => {
+    if (session.current || voice) return;
+    startCancelled.current = false;
+    setVoice({ item, stage: 'starting' });
     try {
-      const recorder = await startVoiceRecording({ onLimit: () => { if (session.current?.id === item.fingerprint && !session.current.stopping) { session.current.stopping = true; finish(item, recorder); } } });
-      session.current = { id: item.fingerprint, recorder, stopping: false };
-      setVoice({ id: item.fingerprint, stage: 'recording' });
+      const recorder = await startVoiceRecording({ onLimit: () => stopRef.current?.() });
+      if (startCancelled.current) {
+        recorder.cancel();
+        return;
+      }
+      session.current = { item, recorder, stopping: false };
+      setVoice({ item, stage: 'recording' });
     } catch (err) {
       toast.error(err.message, { duration: 8000 });
+      setVoice(null);
     }
-  }, [finish, toast]);
+  }, [toast, voice]);
 
-  return { voice, toggle };
+  const cancel = useCallback(() => {
+    if (session.current?.stopping) return; // already sending
+    startCancelled.current = true;
+    session.current?.recorder.cancel();
+    session.current = null;
+    setVoice(null);
+  }, []);
+
+  const level = useCallback(() => session.current?.recorder.level() ?? 0, []);
+
+  return { voice, start, stop, cancel, level };
 }

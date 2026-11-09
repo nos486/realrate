@@ -21,7 +21,8 @@ export function canRecordVoice() {
 /**
  * Start recording
  * @param {{ onLimit?: () => void }} [options] `onLimit`: called when MAX_VOICE_MS stops it; `stop()` then still gives the clip
- * @returns {Promise<{ stop: () => Promise<Blob>, cancel: () => void }>}
+ * @returns {Promise<{ stop: () => Promise<Blob>, cancel: () => void, level: () => number }>} `level()`: how loud it is
+ *   right now, 0 to 1 (for the live wave while speaking)
  * @throws {Error} with a message for the user when the microphone is not allowed or not there
  */
 export async function startVoiceRecording({ onLimit } = {}) {
@@ -41,10 +42,26 @@ export async function startVoiceRecording({ onLimit } = {}) {
   const finished = new Promise((resolve) => {
     recorder.onstop = () => {
       stream.getTracks().forEach((track) => track.stop());
+      closeMeter();
       resolve(new Blob(chunks, { type: recorder.mimeType || mimeType || 'audio/webm' }));
     };
   });
   recorder.ondataavailable = (e) => { if (e.data?.size) chunks.push(e.data); };
+  // The loudness, read from the same stream (an analyser; none where the WebView has no AudioContext)
+  let audioCtx = null;
+  let analyser = null;
+  let samples = null;
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (Ctx) {
+      audioCtx = new Ctx();
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      audioCtx.createMediaStreamSource(stream).connect(analyser);
+      samples = new Uint8Array(analyser.fftSize);
+    }
+  } catch { analyser = null; }
+  const closeMeter = () => { try { audioCtx?.close(); } catch { /* already closed */ } };
   recorder.start();
   const timer = setTimeout(() => {
     if (recorder.state === 'recording') {
@@ -54,6 +71,13 @@ export async function startVoiceRecording({ onLimit } = {}) {
   }, MAX_VOICE_MS);
 
   return {
+    level() {
+      if (!analyser) return 0;
+      analyser.getByteTimeDomainData(samples);
+      let sum = 0;
+      for (const v of samples) sum += ((v - 128) / 128) ** 2;
+      return Math.min(1, Math.sqrt(sum / samples.length) * 4);
+    },
     async stop() {
       clearTimeout(timer);
       if (recorder.state === 'recording') recorder.stop();
@@ -66,6 +90,7 @@ export async function startVoiceRecording({ onLimit } = {}) {
       clearTimeout(timer);
       if (recorder.state === 'recording') recorder.stop();
       else stream.getTracks().forEach((track) => track.stop());
+      closeMeter();
     },
   };
 }

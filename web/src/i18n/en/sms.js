@@ -125,7 +125,6 @@ export default {
   'تسویه اعتبار': 'Settle credit',
   'تسویه‌ی بدهی اعتبار ثبت شد.': 'Credit settlement recorded.',
   'پیامک طرف دیگر این تسویه کدام است؟ اختلاف برداشت و واریز، سود و کارمزد اعتبار ثبت می‌شود.': "Which SMS is the other side of this settlement? The gap between the withdrawal and the deposit is recorded as the credit's interest and fees.",
-  'پایان ضبط و ثبت': 'Stop and record',
   'ثبت با صدا': 'Record by voice',
   'بگویید این هزینه چه بوده؛ دسته را هوش مصنوعی انتخاب می‌کند': 'Say what this expense was; AI picks the category',
   'ضبط صدا در این دستگاه ممکن نیست.': 'Recording audio is not possible on this device.',
@@ -134,4 +133,10 @@ export default {
   'صدا واضح نبود؛ دوباره امتحان کنید.': 'The voice was not clear; try again.',
   'هزینه‌ی «{title}» در «{category}» ثبت شد.': 'Expense "{title}" recorded in "{category}".',
   'ثبت با صدا ممکن نشد.': 'Could not record by voice.',
+  'توضیح بدهید این هزینه چیست': 'Tell me what this expense is',
+  'انصراف': 'Cancel',
+  'پایان و ثبت': 'Done and record',
+  'در حال آماده‌سازی میکروفون…': 'Getting the microphone ready…',
+  'بگویید؛ مثلاً «هزینه تیپاکس». دسته را خودم از بین دسته‌های شما انتخاب می‌کنم.': 'Speak, e.g. "Tipax shipping". I pick the category from yours.',
+  'در حال فهمیدن و ثبت هزینه…': 'Understanding and recording the expense…',
 };
