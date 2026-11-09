@@ -55,6 +55,20 @@ export async function recordSmsExpense(item, { accounts = [], category = getSmsS
 }
 
 /**
+ * Record a waiting deposit as an income, in `category` (the user's own too), titled `title`
+ * @param {{ fingerprint: string, tx: object }} item a waiting message
+ * @param {{ accounts?: object[]|null, category?: string, title?: string }} [options] as recordSmsExpense
+ * @returns {Promise<object>} the income
+ */
+export async function recordSmsIncome(item, { accounts = [], category = getSmsSettings().incomeCategory, title = '' } = {}) {
+  const accountId = accounts ? await ensureSmsAccount(item.tx, accounts) : '';
+  const draft = smsIncomeDraft(item.tx, accounts || []);
+  const { income } = await createIncome({ ...draft, accountId, category, title: (title || draft.title).slice(0, 120), currency: 'IRT' });
+  markSmsHandled(item.fingerprint);
+  return income;
+}
+
+/**
  * Record a waiting deposit that is a received loan: an income in «دریافت وام», which is outside
  * the income totals (a debt, not earnings) but keeps the account's balance right
  * @param {{ fingerprint: string, tx: object }} item a waiting message

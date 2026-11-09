@@ -17,9 +17,10 @@ import { t } from '../../utils/i18n.js';
 import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { startVoiceRecording } from '../../shared/native/voiceRecorder.js';
 import { getExpenseCategory } from '../expenses/constants/expenseCategories.js';
+import { getIncomeCategory } from '../incomes/constants/incomeCategories.js';
 import { bumpVaultEpoch } from '../../shared/vault/vaultStore.js';
 import { describeExpenseByVoice } from './smsVoiceApi.js';
-import { recordSmsExpense } from './smsRecord.js';
+import { recordSmsExpense, recordSmsIncome } from './smsRecord.js';
 
 /**
  * @param {{ prepareAccounts: (item: object) => Promise<object[]> }} options `prepareAccounts`: the
@@ -58,14 +59,18 @@ export function useSmsVoice({ prepareAccounts }) {
     setVoice({ item: s.item, stage: 'processing' });
     try {
       const clip = await s.recorder.stop();
-      const answer = await describeExpenseByVoice(clip, canPickEngine ? engineRef.current : '');
+      const answer = await describeExpenseByVoice(clip, canPickEngine ? engineRef.current : '', s.item.tx.direction === 'credit' ? 'income' : 'expense');
       if (!answer?.understood) {
         toast.error(t('صدا واضح نبود؛ دوباره امتحان کنید.'));
         return;
       }
-      await recordSmsExpense(s.item, { accounts: await prepare.current(s.item), category: answer.category, title: answer.title });
+      const deposit = s.item.tx.direction === 'credit';
+      const options = { accounts: await prepare.current(s.item), category: answer.category, title: answer.title };
+      await (deposit ? recordSmsIncome : recordSmsExpense)(s.item, options);
       bumpVaultEpoch();
-      const done = t('هزینه‌ی «{title}» در «{category}» ثبت شد.', { title: answer.title, category: getExpenseCategory(answer.category).label });
+      const done = deposit
+        ? t('درآمد «{title}» در «{category}» ثبت شد.', { title: answer.title, category: getIncomeCategory(answer.category).label })
+        : t('هزینه‌ی «{title}» در «{category}» ثبت شد.', { title: answer.title, category: getExpenseCategory(answer.category).label });
       // For the comparison: the engine, its time, and the words it heard
       const detail = canPickEngine && answer.engine
         ? ` (${voiceEngineById(answer.engine)?.label || answer.engine} · ${((answer.durationMs || 0) / 1000).toFixed(1)}s${answer.heard ? ` · «${answer.heard}»` : ''})`

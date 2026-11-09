@@ -57,11 +57,12 @@ export default function VoiceExpenseModal({ voice, level, onStop, onCancel, engi
   if (!voice) return null;
   const { tx } = voice.item;
   const processing = voice.stage === 'processing';
+  const deposit = tx.direction === 'credit';
   return (
     <Modal
       isOpen
       onClose={processing ? () => {} : onCancel}
-      title={t('توضیح بدهید این هزینه چیست')}
+      title={deposit ? t('توضیح بدهید این واریز بابت چیست') : t('توضیح بدهید این هزینه چیست')}
       icon={<Mic size={18} />}
       subtitle={`${formatAmount(tx.amount)} ${t('تومان')}`}
       maxWidth="420px"
@@ -77,8 +78,8 @@ export default function VoiceExpenseModal({ voice, level, onStop, onCancel, engi
     >
       <p className="sms-voice-hint">
         {voice.stage === 'starting' && t('در حال آماده‌سازی میکروفون…')}
-        {voice.stage === 'recording' && t('بگویید؛ مثلاً «هزینه تیپاکس». وقتی ساکت شدید خودکار ثبت می‌شود و دسته را خودم از بین دسته‌های شما انتخاب می‌کنم.')}
-        {processing && t('در حال فهمیدن و ثبت هزینه…')}
+        {voice.stage === 'recording' && (deposit ? t('بگویید؛ مثلاً «فروش لپ‌تاپ». وقتی ساکت شدید خودکار ثبت می‌شود و دسته را خودم از بین دسته‌های درآمد شما انتخاب می‌کنم.') : t('بگویید؛ مثلاً «هزینه تیپاکس». وقتی ساکت شدید خودکار ثبت می‌شود و دسته را خودم از بین دسته‌های شما انتخاب می‌کنم.'))}
+        {processing && (deposit ? t('در حال فهمیدن و ثبت درآمد…') : t('در حال فهمیدن و ثبت هزینه…'))}
       </p>
       {engines && (
         <select

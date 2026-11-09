@@ -141,4 +141,9 @@ export default {
   'صدایی شنیده نشد؛ دوباره امتحان کنید.': 'Nothing was heard; try again.',
   'در حال فهمیدن و ثبت هزینه…': 'Understanding and recording the expense…',
   'مدل پردازش صدا': 'Voice processing model',
+  'درآمد «{title}» در «{category}» ثبت شد.': 'Income "{title}" recorded in "{category}".',
+  'بگویید این واریز بابت چه بوده؛ دسته را هوش مصنوعی انتخاب می‌کند': 'Say what this deposit was for; the AI picks the category',
+  'توضیح بدهید این واریز بابت چیست': 'Tell me what this deposit is for',
+  'بگویید؛ مثلاً «فروش لپ‌تاپ». وقتی ساکت شدید خودکار ثبت می‌شود و دسته را خودم از بین دسته‌های درآمد شما انتخاب می‌کنم.': 'Speak, e.g. "laptop sale". It is recorded by itself when you stop talking, and I pick the category from your income categories.',
+  'در حال فهمیدن و ثبت درآمد…': 'Understanding and recording the income…',
 };

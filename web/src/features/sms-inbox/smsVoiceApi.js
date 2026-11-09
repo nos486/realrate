@@ -8,9 +8,9 @@
 import { httpClient } from '../../shared/api/httpClient.js';
 import { listCategories } from '../../shared/categories/categoryStore.js';
 
-/** The user's expense categories the voice may pick from: the shown ones that count in the totals */
-export function voiceCategories() {
-  return listCategories('expense')
+/** The user's categories of a kind the voice may pick from: the shown ones that count in the totals */
+export function voiceCategories(kind = 'expense') {
+  return listCategories(kind)
     .filter((c) => !c.excluded)
     .map((c) => ({ value: c.value, label: c.label }));
 }
@@ -18,12 +18,14 @@ export function voiceCategories() {
 /**
  * @param {Blob} audio the recorded clip
  * @param {string} [engine] an engine of config/voiceEngines.js (the server honors it for admins only)
+ * @param {'expense'|'income'} [kind] a withdrawal's note picks an expense category, a deposit's an income one
  * @returns {Promise<{ understood: boolean, title: string, category: string, engine?: string, model?: string, durationMs?: number, heard?: string }>}
  */
-export async function describeExpenseByVoice(audio, engine = '') {
+export async function describeExpenseByVoice(audio, engine = '', kind = 'expense') {
   const form = new FormData();
   form.append('audio', audio, 'voice.webm');
-  form.append('categories', JSON.stringify(voiceCategories()));
+  form.append('categories', JSON.stringify(voiceCategories(kind)));
+  form.append('kind', kind);
   if (engine) form.append('engine', engine);
   return httpClient.post('/api/sms/voice', form);
 }
