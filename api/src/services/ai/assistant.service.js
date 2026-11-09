@@ -11,7 +11,6 @@ import { listenToVoice } from './smsVoice.service.js';
 import { normalizeAiVoice, AI_VOICE_LIMITS } from '../../domain/aiAssistant.js';
 import { gregorianToJalali } from '../../domain/loanCalculator.js';
 import { tehranToday } from '../../domain/isoDate.js';
-import { DEFAULT_VOICE_ENGINE } from '../../config/voiceEngines.js';
 import { logger } from '../../lib/logger.js';
 
 const SHAMSI_MONTHS = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
@@ -70,10 +69,10 @@ ${accounts.map((a) => `- ${a.id}: ${a.name}`).join('\n') || '- (هیچ)'}`;
  * @param {object} env
  * @param {{ audioBuffer: ArrayBuffer, mimeType: string, expense: Array<{value: string, label: string}>,
  *   income: Array<{value: string, label: string}>, accounts: Array<{id: string, name: string}>,
- *   debug?: boolean, engine?: string, now?: Date }} params
+ *   debug?: boolean, now?: Date }} params
  * @returns {Promise<{ understood: boolean, intent: string, items?: object[], questions?: string[], model: string, engine: string, durationMs: number, heard?: string }>}
  */
-export async function processAiVoice(env, { audioBuffer, mimeType, expense, income, accounts, debug = false, engine = DEFAULT_VOICE_ENGINE, now = new Date() }) {
+export async function processAiVoice(env, { audioBuffer, mimeType, expense, income, accounts, debug = false, now = new Date() }) {
   const today = tehranToday(now);
   const run = await listenToVoice(env, {
     audioBuffer,
@@ -81,7 +80,6 @@ export async function processAiVoice(env, { audioBuffer, mimeType, expense, inco
     systemPrompt: buildAiVoicePrompt({ expense, income, accounts, today }),
     userText: 'این پیام صوتی را طبق دستورالعمل به JSON تبدیل کن.',
     debug,
-    engine,
   });
   const result = normalizeAiVoice(run.answer, { expense, income, accounts, today });
   logger.info('[AiAssistant] Completed', { engine: run.engineId, model: run.model, durationMs: run.durationMs, audioBytes: run.audioBytes, items: result.items?.length ?? 0, questions: result.questions?.length ?? 0 });

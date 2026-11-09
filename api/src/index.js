@@ -10,6 +10,7 @@
  * The frontend (React + Vite) is hosted separately on Cloudflare Pages.
  */
 
+import { handleAdminGetAiSettings, handleAdminSaveAiSettings } from "./handlers/aiSettingsRoutes.js";
 import { getCorsHeaders, isOriginAllowed, PREFLIGHT_MAX_AGE_SEC, withServerTiming } from "./lib/helpers.js";
 import { validateEnv } from "./config/env.js";
 import { withErrorHandler } from "./middlewares/errorHandler.js";
@@ -327,6 +328,8 @@ async function handleRequest(request, env, ctx) {
   }
 
   if (normalizedPath === "/api/admin/users/groups" && request.method === "POST") return wrap(handleAdminBulkUserGroups)(request, env);
+  if (normalizedPath === "/api/admin/ai-settings" && request.method === "GET") return wrap(handleAdminGetAiSettings)(request, env);
+  if (normalizedPath === "/api/admin/ai-settings" && request.method === "PUT") return wrap(handleAdminSaveAiSettings)(request, env);
   if (normalizedPath === "/api/admin/signup-group" && request.method === "PUT") return wrap(handleAdminSaveSignupGroup)(request, env);
   if (normalizedPath === "/api/admin/plan-limits" && request.method === "GET") return wrap(handleAdminGetPlanLimits)(request, env);
   const adminPlanLimitsMatch = normalizedPath.match(/^\/api\/admin\/plan-limits\/([a-z0-9_-]+)$/);

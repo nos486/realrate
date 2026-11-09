@@ -12,7 +12,6 @@ import React, { useEffect, useRef } from 'react';
 import { Mic, Check } from 'lucide-react';
 import { Button, Modal } from '../../shared/ui/index.js';
 import { formatAmount } from '../expenses/utils/format.js';
-import { VOICE_ENGINES } from '../../config/voiceEngines.js';
 
 const BARS = 28;
 
@@ -50,10 +49,9 @@ export function VoiceWave({ level, active }) {
 
 /**
  * @param {{ voice: { item: object, stage: 'starting'|'recording'|'processing' }|null, level: () => number,
- *   onStop: () => void, onCancel: () => void, engines?: { value: string, onChange: (id: string) => void }|null }} props
- *   `engines`: for an admin comparing engines, a list to pick the one that listens
+ *   onStop: () => void, onCancel: () => void }} props
  */
-export default function VoiceExpenseModal({ voice, level, onStop, onCancel, engines = null }) {
+export default function VoiceExpenseModal({ voice, level, onStop, onCancel }) {
   if (!voice) return null;
   const { tx } = voice.item;
   const processing = voice.stage === 'processing';
@@ -81,17 +79,6 @@ export default function VoiceExpenseModal({ voice, level, onStop, onCancel, engi
         {voice.stage === 'recording' && (deposit ? t('بگویید؛ مثلاً «فروش لپ‌تاپ». وقتی ساکت شدید خودکار ثبت می‌شود و دسته را خودم از بین دسته‌های درآمد شما انتخاب می‌کنم. یا بگویید «انتقال بین حساب‌هام است» یا «واریز وام است».') : t('بگویید؛ مثلاً «هزینه تیپاکس». وقتی ساکت شدید خودکار ثبت می‌شود و دسته را خودم از بین دسته‌های شما انتخاب می‌کنم. یا بگویید «انتقال بین حساب‌هام است» یا «برای پروژه‌ی خانه است».'))}
         {processing && (deposit ? t('در حال فهمیدن و ثبت درآمد…') : t('در حال فهمیدن و ثبت هزینه…'))}
       </p>
-      {engines && (
-        <select
-          className="ui-input-control sms-voice-engine"
-          aria-label={t('مدل پردازش صدا')}
-          value={engines.value}
-          disabled={processing}
-          onChange={(e) => engines.onChange(e.target.value)}
-        >
-          {VOICE_ENGINES.map((e) => <option key={e.id} value={e.id}>{e.label}</option>)}
-        </select>
-      )}
       <VoiceWave level={level} active={voice.stage === 'recording'} />
     </Modal>
   );

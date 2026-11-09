@@ -8,7 +8,6 @@
 
 import { listenToVoice } from './smsVoice.service.js';
 import { parseChequeScanJson } from '../../domain/chequeScan.js';
-import { DEFAULT_VOICE_ENGINE } from '../../config/voiceEngines.js';
 import { logger } from '../../lib/logger.js';
 
 export const DICTATION_MAX_CHARS = 500;
@@ -27,11 +26,11 @@ export function normalizeDictation(raw) {
 
 /**
  * @param {object} env
- * @param {{ audioBuffer: ArrayBuffer, mimeType: string, debug?: boolean, engine?: string }} params
+ * @param {{ audioBuffer: ArrayBuffer, mimeType: string, debug?: boolean }} params
  * @returns {Promise<{ understood: boolean, text: string, model: string, engine: string, durationMs: number }>}
  */
-export async function processDictation(env, { audioBuffer, mimeType, debug = false, engine = DEFAULT_VOICE_ENGINE }) {
-  const run = await listenToVoice(env, { audioBuffer, mimeType, systemPrompt: PROMPT, userText: 'این پیام صوتی را رونویسی کن و طبق دستورالعمل JSON بده.', debug, engine });
+export async function processDictation(env, { audioBuffer, mimeType, debug = false }) {
+  const run = await listenToVoice(env, { audioBuffer, mimeType, systemPrompt: PROMPT, userText: 'این پیام صوتی را رونویسی کن و طبق دستورالعمل JSON بده.', debug });
   // A speech-to-text engine already wrote the words: they are the text when the model returned none
   const result = normalizeDictation(run.answer);
   const text = result.text || (run.heard ? normalizeDictation({ text: run.heard }).text : '');

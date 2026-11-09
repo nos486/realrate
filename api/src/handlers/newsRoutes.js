@@ -15,6 +15,7 @@
  *   POST   /api/admin/news/:id/hidden    — Take an item down or put it back ({ hidden }) (admin)
  */
 
+import { resolveNewsModel } from "../services/news/newsModel.js";
 import { getAuthenticatedUser } from "../lib/auth.js";
 import { requireFeature } from "../lib/features.js";
 import { jsonResponse } from "../lib/helpers.js";
@@ -106,12 +107,14 @@ async function requireAdmin(request, env) {
 
 export async function handleAdminGetNewsChannels(request, env) {
   await requireAdmin(request, env);
-  const [channels, feeds, status, analysisStatus, latest] = await Promise.all([
+  const [channels, feeds, status, analysisStatus, latest, newsModel, analysisModel] = await Promise.all([
     getNewsChannels(env),
     getNewsFeeds(env),
     getNewsStatus(env),
     getNewsAnalysisStatus(env),
     dbListNews(env, { limit: ADMIN_LATEST }),
+    resolveNewsModel(env, NEWS_AI_MODEL),
+    resolveNewsModel(env, NEWS_ANALYSIS.model),
   ]);
   return jsonResponse({
     success: true,
@@ -121,9 +124,9 @@ export async function handleAdminGetNewsChannels(request, env) {
     defaults: DEFAULT_NEWS_CHANNELS,
     feedDefaults: DEFAULT_NEWS_FEEDS,
     limits: { maxChannels: NEWS_LIMITS.maxChannels, maxFeeds: NEWS_LIMITS.maxFeeds, aiCallsPerDay: NEWS_LIMITS.aiCallsPerDay },
-    aiConfigured: typeof env.AI?.run === "function",
-    model: NEWS_AI_MODEL.label,
-    analysisModel: NEWS_ANALYSIS.model.label,
+    aiConfigured: newsModel.available,
+    model: newsModel.label,
+    analysisModel: analysisModel.label,
     analysisStatus,
     latest: latest.items,
   }, 200, request);
@@ -176,6 +179,6 @@ export async function handleAdminGetNewsAiLog(request, env) {
     reasons: NEWS_AI_LOG_REASONS,
     hours: NEWS_LIMITS.aiLogHours,
     limit: NEWS_LIMITS.aiLogPage,
-    model: NEWS_AI_MODEL.label,
+    model: (await resolveNewsModel(env, NEWS_AI_MODEL)).label,
   }, 200, request);
 }

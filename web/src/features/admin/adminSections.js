@@ -50,7 +50,7 @@ export const ADMIN_GROUPS = [
     key: 'system',
     label: 'سیستم',
     sections: [
-      { key: 'settings', path: '/admin/settings', label: 'تنظیمات سایت', icon: Settings, title: 'تنظیمات سایت', subtitle: 'حالت توسعه، اطلاعیه‌ی بالای سایت و حساب دمو' },
+      { key: 'settings', path: '/admin/settings', label: 'تنظیمات سایت', icon: Settings, title: 'تنظیمات سایت', subtitle: 'حالت توسعه، اطلاعیه‌ی بالای سایت، مدل‌های هوش مصنوعی و حساب دمو' },
     ],
   },
 ];

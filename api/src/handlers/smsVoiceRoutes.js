@@ -2,8 +2,8 @@
  * smsVoiceRoutes.js — Route handler for the voice note on a bank SMS (experimental)
  *
  * POST /api/sms/voice — multipart `audio` (a few seconds of speech) and `categories` (JSON
- * `[{ value, label }]`, the user's expense categories — or income categories with `kind=income`, for a deposit) and optionally `engine` (an id of
- * config/voiceEngines.js, honored only for admins comparing engines); answers `{ understood, title, category, action, projectId }` (`action`: '' to record it, or one of `actions` — an optional JSON list of what the app offers, with `projects` `[{id,name}]`).
+ * `[{ value, label }]`, the user's expense categories — or income categories with `kind=income`, for a deposit);
+ * the engine that hears it is the admin's choice (services/ai/aiSettings.service.js); answers `{ understood, title, category, action, projectId }` (`action`: '' to record it, or one of `actions` — an optional JSON list of what the app offers, with `projects` `[{id,name}]`).
  * Behind the `sms_voice` feature (admins only until opened to groups) and its daily `sms_voice`
  * limit. Nothing is stored; a failed call gives its use back.
  */
@@ -90,7 +90,7 @@ export async function handleSmsVoiceRoute(request, env) {
 
   let result;
   try {
-    result = await processSmsVoice(env, { audioBuffer: await audio.arrayBuffer(), mimeType, categories, kind: formData.get('kind') === 'income' ? 'income' : 'expense', actions, projects, debug, engine: String(formData.get('engine') || '') });
+    result = await processSmsVoice(env, { audioBuffer: await audio.arrayBuffer(), mimeType, categories, kind: formData.get('kind') === 'income' ? 'income' : 'expense', actions, projects, debug });
   } catch (err) {
     await refundQuota(env, user, 'sms_voice');
     throw err;

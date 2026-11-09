@@ -53,7 +53,7 @@ import { parseNewsFeed, normalizeFeed } from "../../domain/newsFeeds.js";
 import { dbInsertNews, dbInsertNewsAiLog, dbRecentNewsTexts } from "../../repositories/news.repository.js";
 import { getStateStore } from "../../repositories/stateStore.repository.js";
 import { USER_AGENT } from "../market/sources/parsingUtils.js";
-import { askWorkersAi, hasWorkersAi } from "./workersAi.js";
+import { resolveNewsModel } from "./newsModel.js";
 import { maybeUpdateNewsAnalysis } from "./newsAnalysis.service.js";
 import { notifyImportantNews } from "./newsPush.service.js";
 import { enqueueChannelNews } from "../bot/messengers.js";
@@ -418,7 +418,9 @@ async function pollChannels(env, store, now, fetchPage, fetchFeed) {
   // 4. The model, within the run's and the day's budget
   const usedToday = parseInt((await store.get(aiDayKey(now))) || "0", 10) || 0;
   const callsLeft = Math.max(0, Math.min(NEWS_LIMITS.aiCallsPerRun, NEWS_LIMITS.aiCallsPerDay - usedToday));
-  const hasModel = hasWorkersAi(env);
+  const newsModel = await resolveNewsModel(env, NEWS_AI_MODEL);
+  status.aiModel = newsModel.label;
+  const hasModel = newsModel.available;
   // Posts whose request already failed: set aside after NEWS_LIMITS.aiMaxTries, else tried alone
   // and last, so a post the model can't take never holds the others back
   // The posts the model was sent and that weren't published, for the admin (one write per run)
@@ -468,7 +470,7 @@ async function pollChannels(env, store, now, fetchPage, fetchFeed) {
     const requestId = `${now}-${b + 1}`;
     try {
       status.aiCalls++;
-      answer = await askWorkersAi(env, NEWS_AI_MODEL, buildNewsPrompt(batch), { maxTokens: newsMaxTokens(batch.length) + NEWS_AI_MODEL.reasoningTokens, temperature: 0 });
+      answer = await newsModel.ask(buildNewsPrompt(batch), { maxTokens: newsMaxTokens(batch.length) + NEWS_AI_MODEL.reasoningTokens, temperature: 0 });
       verdicts = parseNewsVerdicts(answer, batch.length);
       // An answer that says nothing about any post: the model failed
       if (verdicts.size === 0) {
@@ -481,7 +483,7 @@ async function pollChannels(env, store, now, fetchPage, fetchFeed) {
       // wait for the next run, and the error is logged and shown in the admin's panel
       status.aiError = String(err?.message || err).slice(0, 240);
       logger.error("[News] model failed — nothing published, posts kept for the next run", {
-        model: NEWS_AI_MODEL.id,
+        model: newsModel.id,
         posts: batches.slice(b).flat().length,
         error: status.aiError,
       });

@@ -1532,11 +1532,6 @@ tr.is-excluded td,
 @media (prefers-reduced-motion: reduce) {
   .sms-voice-wave.is-idle span { animation: none; transform: scaleY(0.4); }
 }
-.sms-voice-engine {
-  margin-bottom: 12px;
-  width: 100%;
-}
-
 /* Bank SMS rows: icon-only actions, each its own color (features/sms-inbox/SmsInboxList.jsx) */
 .sms-inbox-actions {
   gap: 8px;

@@ -14,6 +14,7 @@ vi.mock('../../src/lib/auth.js', () => ({
 import { getAuthenticatedUser } from '../../src/lib/auth.js';
 import { handleSmsVoiceRoute } from '../../src/handlers/smsVoiceRoutes.js';
 import { normalizeSmsVoice, cleanVoiceCategories, cleanVoiceActions } from '../../src/domain/smsVoice.js';
+import { saveAiSettings } from '../../src/services/ai/aiSettings.service.js';
 import { isFeatureEnabled } from '../../src/config/features.js';
 
 const ADMIN = { id: 'a1', role: 'admin', email: 'admin@example.com' };
@@ -29,11 +30,10 @@ const geminiReply = (obj) => new Response(
 const WEBM = new Uint8Array(200);
 WEBM.set([0x1a, 0x45, 0xdf, 0xa3]);
 
-function voiceRequest({ type = 'audio/webm;codecs=opus', bytes = WEBM, categories = CATEGORIES, engine } = {}) {
+function voiceRequest({ type = 'audio/webm;codecs=opus', bytes = WEBM, categories = CATEGORIES } = {}) {
   const form = new FormData();
   form.append('audio', new Blob([bytes], { type }), 'voice.webm');
   form.append('categories', JSON.stringify(categories));
-  if (engine) form.append('engine', engine);
   return new Request('https://api.realrate.ir/api/sms/voice', { method: 'POST', body: form });
 }
 
@@ -153,8 +153,12 @@ describe('voice model unavailable', () => {
   });
 });
 
-describe('voice engines (admin comparison)', () => {
-  const makeEnv = (ai) => ({ ADMIN_EMAIL: 'admin@example.com', GEMINI_API_KEY: 'gkey', DB: memoryStateDb(), AI: { run: ai } });
+describe('voice engines (the admin picks one in the settings)', () => {
+  const makeEnv = async (ai, voiceEngine) => {
+    const env = { ADMIN_EMAIL: 'admin@example.com', GEMINI_API_KEY: 'gkey', DB: memoryStateDb(), AI: { run: ai } };
+    await saveAiSettings(env, { voiceEngine });
+    return env;
+  };
 
   it('runs a Cloudflare speech model then GLM, and shows what was heard to the admin', async () => {
     getAuthenticatedUser.mockResolvedValue(ADMIN);
@@ -163,7 +167,7 @@ describe('voice engines (admin comparison)', () => {
     const ai = vi.fn()
       .mockResolvedValueOnce({ text: 'هزینه تیپاکس' })
       .mockResolvedValueOnce({ response: JSON.stringify({ understood: true, title: 'هزینه تیپاکس', category: 'c_ship1234' }) });
-    const body = await (await handleSmsVoiceRoute(voiceRequest({ engine: 'cf-whisper-turbo' }), makeEnv(ai))).json();
+    const body = await (await handleSmsVoiceRoute(voiceRequest(), await makeEnv(ai, 'cf-whisper-turbo'))).json();
     expect(body).toMatchObject({ title: 'هزینه تیپاکس', category: 'c_ship1234', engine: 'cf-whisper-turbo' });
     expect(ai.mock.calls[0][0]).toBe('@cf/openai/whisper-large-v3-turbo');
     expect(typeof ai.mock.calls[0][1].audio).toBe('string');
@@ -175,7 +179,7 @@ describe('voice engines (admin comparison)', () => {
   it('is not understood when the speech model hears nothing', async () => {
     getAuthenticatedUser.mockResolvedValue(ADMIN);
     const ai = vi.fn().mockResolvedValueOnce({ text: '  ' });
-    const body = await (await handleSmsVoiceRoute(voiceRequest({ engine: 'cf-whisper' }), makeEnv(ai))).json();
+    const body = await (await handleSmsVoiceRoute(voiceRequest(), await makeEnv(ai, 'cf-whisper'))).json();
     expect(body.understood).toBe(false);
     expect(ai).toHaveBeenCalledTimes(1);
     expect(Array.isArray(ai.mock.calls[0][1].audio)).toBe(true);
@@ -185,7 +189,7 @@ describe('voice engines (admin comparison)', () => {
     getAuthenticatedUser.mockResolvedValue(ADMIN);
     const fetchMock = vi.fn(async () => geminiReply({ understood: true, title: 'x', category: 'food' }));
     vi.stubGlobal('fetch', fetchMock);
-    const body = await (await handleSmsVoiceRoute(voiceRequest({ engine: 'gemini-3.8-flash' }), makeEnv(vi.fn()))).json();
+    const body = await (await handleSmsVoiceRoute(voiceRequest(), await makeEnv(vi.fn(), 'gemini-3.8-flash'))).json();
     expect(body.engine).toBe('gemini-3.8-flash');
     expect(fetchMock.mock.calls[0][0]).toContain('gemini-3.8-flash');
     vi.unstubAllGlobals();

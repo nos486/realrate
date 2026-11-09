@@ -17,13 +17,12 @@ export function voiceCategories(kind = 'expense') {
 
 /**
  * @param {Blob} audio the recorded clip
- * @param {string} [engine] an engine of config/voiceEngines.js (the server honors it for admins only)
  * @param {'expense'|'income'} [kind] a withdrawal's note picks an expense category, a deposit's an income one
  * @param {{ actions?: string[], projects?: Array<{ id: string, name: string }> }} [offer] what else the note may ask for
  *   instead of recording (api/src/domain/smsVoice.js SMS_VOICE_ACTIONS), and the open projects
  * @returns {Promise<{ understood: boolean, title: string, category: string, action: string, projectId: string, engine?: string, model?: string, durationMs?: number, heard?: string }>}
  */
-export async function describeExpenseByVoice(audio, engine = '', kind = 'expense', offer = {}) {
+export async function describeExpenseByVoice(audio, kind = 'expense', offer = {}) {
   const form = new FormData();
   form.append('audio', audio, 'voice.webm');
   form.append('categories', JSON.stringify(voiceCategories(kind)));
@@ -32,6 +31,5 @@ export async function describeExpenseByVoice(audio, engine = '', kind = 'expense
     form.append('actions', JSON.stringify(offer.actions));
     form.append('projects', JSON.stringify(offer.projects || []));
   }
-  if (engine) form.append('engine', engine);
   return httpClient.post('/api/sms/voice', form);
 }

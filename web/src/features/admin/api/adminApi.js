@@ -255,3 +255,13 @@ export async function runRubikaNow() {
 export async function newRubikaLinkCode() {
   return httpClient.post('/api/admin/rubika/link', {});
 }
+
+/** Which engine hears the voice features and which model the news section uses, with the lists to pick from */
+export async function getAiSettings() {
+  return httpClient.get('/api/admin/ai-settings');
+}
+
+/** @param {{ voiceEngine?: string, newsModel?: string }} patch */
+export async function saveAiSettings(patch) {
+  return httpClient.put('/api/admin/ai-settings', patch);
+}

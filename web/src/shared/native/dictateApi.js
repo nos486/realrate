@@ -8,12 +8,10 @@ import { httpClient } from '../api/httpClient.js';
 
 /**
  * @param {Blob} audio the recorded clip
- * @param {string} [engine] an engine of config/voiceEngines.js (the server honors it for admins only)
  * @returns {Promise<{ understood: boolean, text: string }>}
  */
-export async function dictateByVoice(audio, engine = '') {
+export async function dictateByVoice(audio) {
   const form = new FormData();
   form.append('audio', audio, 'voice.webm');
-  if (engine) form.append('engine', engine);
   return httpClient.post('/api/ai/dictate', form);
 }
