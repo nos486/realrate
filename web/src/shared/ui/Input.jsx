@@ -2,6 +2,7 @@ import { t } from '../../utils/i18n.js';
 import React, { forwardRef } from 'react';
 import { X } from 'lucide-react';
 import { useTypedText } from './useTypedText.js';
+import { DictateButton } from './DictateButton.jsx';
 
 /**
  * Universal Minimalist Input Component
@@ -15,6 +16,7 @@ import { useTypedText } from './useTypedText.js';
  * @param {() => void} [onClear]
  * @param {'sm' | 'md' | 'lg'} [size='md']
  * @param {'input' | 'textarea'} [as='input']
+ * @param {(text: string) => void} [onDictate] shows a microphone that types what is said (DictateButton.jsx)
  *
  * Typed text always reaches `onChange`, whatever the phone keyboard (useTypedText.js).
  */
@@ -26,6 +28,7 @@ export const Input = forwardRef(function Input(
     icon = null,
     clearable = false,
     onClear,
+    onDictate,
     size = 'md',
     as = 'input',
     className = '',
@@ -59,12 +62,16 @@ export const Input = forwardRef(function Input(
         <Component
           ref={ref}
           id={id}
-          className={`ui-input-control ${icon ? 'has-leading-icon' : ''} ${clearable && hasValue ? 'has-clear-btn' : ''}`}
+          className={`ui-input-control ${icon ? 'has-leading-icon' : ''} ${clearable && hasValue ? 'has-clear-btn' : ''} ${onDictate ? 'has-dictate-btn' : ''}`}
           disabled={disabled}
           value={value}
           {...props}
           {...typed}
         />
+
+        {onDictate && !disabled && (
+          <span className={`ui-dictate-slot ${as === 'textarea' ? 'is-top' : ''}`}><DictateButton onText={onDictate} /></span>
+        )}
 
         {clearable && hasValue && !disabled && (
           <button

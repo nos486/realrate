@@ -279,6 +279,7 @@ export default function IncomeForm({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           maxLength={120}
+          onDictate={(text) => setTitle((prev) => (prev ? `${prev} ${text}` : text))}
           required
         />
 
@@ -329,6 +330,7 @@ export default function IncomeForm({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             maxLength={500}
+            onDictate={(text) => setNotes((prev) => (prev ? `${prev} ${text}` : text))}
             rows={2}
           />
         </MoreDetails>
