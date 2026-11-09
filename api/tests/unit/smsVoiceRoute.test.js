@@ -112,7 +112,8 @@ describe('voice model fallback', () => {
     const body = await (await handleSmsVoiceRoute(voiceRequest(), env)).json();
     expect(body.title).toBe('تیپاکس');
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(fetchMock.mock.calls[0][0]).toContain('gemini-3.6-flash');
+    expect(fetchMock.mock.calls[0][0]).toContain('gemini-2.5-flash-lite')
+    expect(fetchMock.mock.calls[1][0]).toContain('gemini-3.6-flash');
     vi.unstubAllGlobals();
   });
 });
