@@ -7,6 +7,7 @@
  */
 
 import { t } from '../../utils/i18n.js';
+import { createVoiceActivity } from './voiceActivity.js';
 
 /** A voice note is a few words; a recording stops by itself after this long */
 export const MAX_VOICE_MS = 30_000;
@@ -20,12 +21,14 @@ export function canRecordVoice() {
 
 /**
  * Start recording
- * @param {{ onLimit?: () => void }} [options] `onLimit`: called when MAX_VOICE_MS stops it; `stop()` then still gives the clip
+ * @param {{ onLimit?: () => void, onSilence?: () => void, onNoSpeech?: () => void }} [options] `onLimit`: called when
+ *   MAX_VOICE_MS stops it (`stop()` then still gives the clip); `onSilence`: the speaker finished (speech, then a
+ *   pause: voiceActivity.js) — the recording keeps running until `stop()`; `onNoSpeech`: nothing but quiet for a while
  * @returns {Promise<{ stop: () => Promise<Blob>, cancel: () => void, level: () => number }>} `level()`: how loud it is
  *   right now, 0 to 1 (for the live wave while speaking)
  * @throws {Error} with a message for the user when the microphone is not allowed or not there
  */
-export async function startVoiceRecording({ onLimit } = {}) {
+export async function startVoiceRecording({ onLimit, onSilence, onNoSpeech } = {}) {
   if (!canRecordVoice()) throw new Error(t('ضبط صدا در این دستگاه ممکن نیست.'));
   let stream;
   try {
@@ -62,8 +65,29 @@ export async function startVoiceRecording({ onLimit } = {}) {
     }
   } catch { analyser = null; }
   const closeMeter = () => { try { audioCtx?.close(); } catch { /* already closed */ } };
+  const level = () => {
+    if (!analyser) return 0;
+    analyser.getByteTimeDomainData(samples);
+    let sum = 0;
+    for (const v of samples) sum += ((v - 128) / 128) ** 2;
+    return Math.min(1, Math.sqrt(sum / samples.length) * 4);
+  };
   recorder.start();
+  // Watching for the end of the speech (needs the meter; without it the user ends the note)
+  let watcher = null;
+  if (analyser && (onSilence || onNoSpeech)) {
+    const activity = createVoiceActivity();
+    watcher = setInterval(() => {
+      const verdict = activity.feed(level(), Date.now());
+      if (!verdict) return;
+      clearInterval(watcher);
+      watcher = null;
+      (verdict === 'end' ? onSilence : onNoSpeech)?.();
+    }, 100);
+  }
+  const stopWatching = () => { if (watcher) clearInterval(watcher); watcher = null; };
   const timer = setTimeout(() => {
+    stopWatching();
     if (recorder.state === 'recording') {
       recorder.stop();
       onLimit?.();
@@ -71,15 +95,10 @@ export async function startVoiceRecording({ onLimit } = {}) {
   }, MAX_VOICE_MS);
 
   return {
-    level() {
-      if (!analyser) return 0;
-      analyser.getByteTimeDomainData(samples);
-      let sum = 0;
-      for (const v of samples) sum += ((v - 128) / 128) ** 2;
-      return Math.min(1, Math.sqrt(sum / samples.length) * 4);
-    },
+    level,
     async stop() {
       clearTimeout(timer);
+      stopWatching();
       if (recorder.state === 'recording') recorder.stop();
       const blob = await finished;
       if (cancelled) throw new Error('cancelled');
@@ -88,6 +107,7 @@ export async function startVoiceRecording({ onLimit } = {}) {
     cancel() {
       cancelled = true;
       clearTimeout(timer);
+      stopWatching();
       if (recorder.state === 'recording') recorder.stop();
       else stream.getTracks().forEach((track) => track.stop());
       closeMeter();

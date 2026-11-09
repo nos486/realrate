@@ -4,7 +4,8 @@
  * `start(item)` opens the recording (the page shows VoiceExpenseModal while `voice` is set); `stop()`
  * (or the 30 s limit) sends the clip to the server, which answers a title and a category of the
  * user's, and the withdrawal is recorded as an everyday expense with them (recordSmsExpense);
- * `cancel()` drops the recording. One message at a time. An admin (`cheque_scan_debug`) can pick the
+ * `cancel()` drops the recording. The note also ends by itself when the speaker stops (speech, then
+ * a pause: voiceActivity.js), and is dropped when nothing is said. One message at a time. An admin (`cheque_scan_debug`) can pick the
  * engine that listens (`engine`, remembered on the device) to compare them, and sees which engine
  * answered, how long it took and what it heard.
  */
@@ -43,6 +44,7 @@ export function useSmsVoice({ prepareAccounts }) {
   const startCancelled = useRef(false);
   const prepare = useRef(prepareAccounts);
   const stopRef = useRef(null);
+  const cancelRef = useRef(null);
 
   useEffect(() => { prepare.current = prepareAccounts; });
 
@@ -83,7 +85,15 @@ export function useSmsVoice({ prepareAccounts }) {
     startCancelled.current = false;
     setVoice({ item, stage: 'starting' });
     try {
-      const recorder = await startVoiceRecording({ onLimit: () => stopRef.current?.() });
+      const recorder = await startVoiceRecording({
+        onLimit: () => stopRef.current?.(),
+        // The speaker finished: sent by itself
+        onSilence: () => stopRef.current?.(),
+        onNoSpeech: () => {
+          toast.error(t('صدایی شنیده نشد؛ دوباره امتحان کنید.'));
+          cancelRef.current?.();
+        },
+      });
       if (startCancelled.current) {
         recorder.cancel();
         return;
@@ -103,6 +113,8 @@ export function useSmsVoice({ prepareAccounts }) {
     session.current = null;
     setVoice(null);
   }, []);
+
+  useEffect(() => { cancelRef.current = cancel; }, [cancel]);
 
   const level = useCallback(() => session.current?.recorder.level() ?? 0, []);
 
