@@ -18,15 +18,22 @@ import { bumpVaultEpoch } from '../../shared/vault/vaultStore.js';
 import { impact } from '../../shared/native/haptics.js';
 import { voiceEngineById } from '../../config/voiceEngines.js';
 import { t } from '../../utils/i18n.js';
-import { askAiByVoice } from './aiApi.js';
+import { askAiByVoice, aiContext } from './aiApi.js';
 import { AI_INTENTS } from './aiIntents.js';
 
 export const HOLD_MS = 350;
 export const MIN_CLIP_MS = 700;
+/** Dragging the held button this far up (px) cancels the note */
+export const CANCEL_DRAG_PX = 70;
+const HINT_KEY = 'realrate:aiHoldUses';
+/** The button hints (a bounce) how to use it until it was held this many times */
+const HINT_UNTIL = 3;
+
+const heldBefore = () => { try { return Number(localStorage.getItem(HINT_KEY)) || 0; } catch { return HINT_UNTIL; } };
 
 /**
- * @returns {{ enabled: boolean, state: { stage: 'starting'|'recording'|'processing'|'done', intent?: object, answer?: object }|null,
- *   level: () => number, undo: () => Promise<void>, dismiss: () => void,
+ * @returns {{ enabled: boolean, state: { stage: 'starting'|'recording'|'processing'|'review'|'done', context?: object, intent?: object, answer?: object }|null,
+ *   cancelling: boolean, hinting: boolean, level: () => number, edit: (answer: object) => void, confirm: () => Promise<void>, undo: () => Promise<void>, dismiss: () => void,
  *   fabProps: object, takeClick: () => boolean }} `fabProps`: spread on the «+» button; `takeClick()`: true when
  *   the click that follows a hold must be ignored
  */
@@ -38,7 +45,9 @@ export function useAiAssistant() {
   const enabled = allowed && vault.status === 'unlocked' && canRecordVoice();
 
   const [state, setState] = useState(null);
-  const press = useRef({ pressed: false, timer: null, active: false, recorder: null, startedAt: 0, ignoreClick: false });
+  const [cancelling, setCancelling] = useState(false); // the held button is dragged up: letting go cancels
+  const [uses, setUses] = useState(heldBefore);
+  const press = useRef({ pressed: false, timer: null, active: false, recorder: null, startedAt: 0, ignoreClick: false, startY: 0, cancelling: false });
   const saved = useRef(null);
 
   useEffect(() => () => {
@@ -58,16 +67,16 @@ export function useAiAssistant() {
       const clip = await recorder.stop();
       let engine = '';
       try { engine = canPickEngine ? localStorage.getItem('realrate:voiceEngine') || '' : ''; } catch { /* no storage */ }
-      const answer = await askAiByVoice(clip, voiceEngineById(engine) ? engine : '');
+      const context = await aiContext();
+      const answer = await askAiByVoice(clip, context, voiceEngineById(engine) ? engine : '');
       const intent = AI_INTENTS[answer?.intent];
       if (!answer?.understood || !intent) {
         setState(null);
         toast.error(t('متوجه نشدم؛ دوباره امتحان کنید.'));
         return;
       }
-      saved.current = { intent, handle: await intent.apply(answer) };
-      bumpVaultEpoch();
-      setState({ stage: 'done', intent, answer });
+      // Shown for the user to correct and confirm; saved only then (confirm)
+      setState({ stage: 'review', intent, answer, context });
     } catch (err) {
       setState(null);
       toast.error(err?.message || t('ثبت با صدا ممکن نشد.'));
@@ -109,6 +118,20 @@ export function useAiAssistant() {
       const recorder = p.recorder;
       p.recorder = null;
       p.active = false;
+      if (p.cancelling) {
+        // Dragged up and let go: nothing is sent
+        p.cancelling = false;
+        setCancelling(false);
+        recorder.cancel();
+        setState(null);
+        impact();
+        return;
+      }
+      setUses((n) => {
+        const next = n + 1;
+        try { localStorage.setItem(HINT_KEY, String(next)); } catch { /* no storage */ }
+        return next;
+      });
       send(recorder, p.startedAt);
     }
   }, [send]);
@@ -119,9 +142,21 @@ export function useAiAssistant() {
       const p = press.current;
       p.pressed = true;
       p.ignoreClick = false;
+      p.startY = e.clientY;
+      p.cancelling = false;
       try { e.currentTarget.setPointerCapture?.(e.pointerId); } catch { /* not capturable */ }
       clearTimeout(p.timer);
       p.timer = setTimeout(begin, HOLD_MS);
+    },
+    onPointerMove(e) {
+      const p = press.current;
+      if (!p.active) return;
+      const up = p.startY - e.clientY > CANCEL_DRAG_PX;
+      if (up !== p.cancelling) {
+        p.cancelling = up;
+        setCancelling(up);
+        if (up) impact();
+      }
     },
     onPointerUp: release,
     onPointerCancel: release,
@@ -134,6 +169,21 @@ export function useAiAssistant() {
     p.ignoreClick = false;
     return ignore;
   }, []);
+
+  const edit = useCallback((answer) => setState((s) => (s?.stage === 'review' ? { ...s, answer } : s)), []);
+  const confirm = useCallback(async () => {
+    if (state?.stage !== 'review' || !state.intent.ready(state.answer)) return;
+    const { intent, answer } = state;
+    setState({ ...state, saving: true });
+    try {
+      saved.current = { intent, handle: await intent.apply(answer) };
+      bumpVaultEpoch();
+      setState({ stage: 'done', intent, answer });
+    } catch (err) {
+      setState({ ...state, saving: false });
+      toast.error(err?.message || t('ثبت با صدا ممکن نشد.'));
+    }
+  }, [state, toast]);
 
   const level = useCallback(() => press.current.recorder?.level() ?? 0, []);
   const dismiss = useCallback(() => { saved.current = null; setState(null); }, []);
@@ -151,5 +201,6 @@ export function useAiAssistant() {
     }
   }, [toast]);
 
-  return { enabled, state, level, undo, dismiss, fabProps, takeClick };
+  const hinting = enabled && uses < HINT_UNTIL && !state;
+  return { enabled, state, cancelling, hinting, level, edit, confirm, undo, dismiss, fabProps, takeClick };
 }

@@ -163,7 +163,7 @@ export function AppBottomNav({ activeTab, navItems = [], onSelect }) {
         <div className="app-bottom-nav-center">
           <button
             type="button"
-            className={`app-fab ${sheet === 'add' ? 'is-open' : ''} ${assistant.state?.stage === 'recording' ? 'is-listening' : ''}`}
+            className={`app-fab ${sheet === 'add' ? 'is-open' : ''} ${assistant.state?.stage === 'recording' ? 'is-listening' : ''} ${assistant.hinting && sheet !== 'add' ? 'is-hinting' : ''}`}
             {...assistant.fabProps}
             onClick={() => {
               if (assistant.takeClick()) return; // the end of a hold to talk, not a tap

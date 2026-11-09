@@ -1536,3 +1536,65 @@ html.is-app-layout .budget-grid .ui-input-label {
   font-weight: 700;
   color: var(--text-heading);
 }
+
+/* Cancelling by dragging the held button up; the review card; the bounce hint */
+.ai-assistant.is-cancelling {
+  border-color: var(--color-negative);
+}
+.ai-assistant.is-cancelling .ai-assistant-hint {
+  color: var(--color-negative-text);
+}
+.ai-assistant.is-review {
+  max-height: 72dvh;
+  display: flex;
+  flex-direction: column;
+}
+.ai-assistant-scroll {
+  overflow-y: auto;
+  margin-bottom: 10px;
+}
+.ai-assistant-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.ai-review {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 12px;
+}
+.ai-review-item {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+.ai-review-item.is-expense { border-inline-start: 3px solid var(--color-negative); }
+.ai-review-item.is-income { border-inline-start: 3px solid var(--color-positive); }
+.ai-review-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ai-review-row > .ui-input-control { flex: 1; min-width: 0; }
+.ai-review-row > .ai-review-kind { flex: 0 0 88px; }
+.ai-review .is-missing {
+  border-color: var(--color-warning);
+}
+/* A bounce now and then, until the button was held a few times, to show it can be held */
+.app-fab.is-hinting {
+  animation: app-fab-bounce 6s ease-in-out 3s infinite;
+}
+@keyframes app-fab-bounce {
+  0%, 12%, 100% { transform: translateY(0); }
+  3% { transform: translateY(-12px); }
+  6% { transform: translateY(0); }
+  8% { transform: translateY(-6px); }
+  10% { transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-fab.is-hinting { animation: none; }
+}

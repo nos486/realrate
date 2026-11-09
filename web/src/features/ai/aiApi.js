@@ -26,14 +26,15 @@ export async function aiContext() {
 
 /**
  * @param {Blob} audio the recorded clip
+ * @param {object} context what aiContext() gave (the lists the model may pick from)
  * @param {string} [engine] an engine of config/voiceEngines.js (the server honors it for admins only)
  * @returns {Promise<{ understood: boolean, items: Array<{ kind: 'expense'|'income', amount: number, title: string,
  *   category: string, date: string, accountId: string }>, engine?: string, durationMs?: number, heard?: string }>}
  */
-export async function askAiByVoice(audio, engine = '') {
+export async function askAiByVoice(audio, context, engine = '') {
   const form = new FormData();
   form.append('audio', audio, 'voice.webm');
-  form.append('context', JSON.stringify(await aiContext()));
+  form.append('context', JSON.stringify(context));
   if (engine) form.append('engine', engine);
   return httpClient.post('/api/ai/voice', form);
 }

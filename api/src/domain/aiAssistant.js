@@ -10,7 +10,8 @@
  *
  * Records: every item is an expense or an income
  *
- * Pure: every item is an expense or an income with a positive whole amount in tomans; its category
+ * An item is kept even when its amount was not understood (amount 0): the app shows every item for
+ * the user to confirm and complete before anything is saved. Pure: every item is an expense or an income with a positive whole amount in tomans; its category
  * must be one of the user's own (the lists sent with the clip), else the fallback («سایر»); its
  * account one of the user's accounts, else none; its day a real day not after today (Tehran), else
  * today. Nothing here knows a bank, a category or an account by name.
@@ -58,8 +59,10 @@ export function normalizeAiVoice(raw, { expense = [], income = [], accounts = []
   const items = [];
   for (const row of Array.isArray(data?.items) ? data.items : []) {
     const kind = row?.kind === 'income' ? 'income' : row?.kind === 'expense' ? 'expense' : null;
-    const amount = Math.round(Number(String(row?.amount ?? '').replace(/[,،\s]/g, '')));
-    if (!kind || !Number.isFinite(amount) || amount <= 0 || amount > AI_VOICE_LIMITS.maxAmount) continue;
+    const said = Math.round(Number(String(row?.amount ?? '').replace(/[,،\s]/g, '')));
+    if (!kind || said > AI_VOICE_LIMITS.maxAmount) continue;
+    // An amount that was not said (or not understood) stays 0: the app asks the user for it
+    const amount = Number.isFinite(said) && said > 0 ? said : 0;
     const title = String(row?.title ?? '').replace(/\s+/g, ' ').trim().slice(0, AI_VOICE_LIMITS.titleLength);
     if (!title) continue;
     const asked = String(row?.category ?? '').trim();
