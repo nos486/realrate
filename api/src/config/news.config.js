@@ -120,8 +120,6 @@ export const NEWS_LIMITS = {
   aiMaxTries: 3,
   /** Model requests in one run (posts beyond this wait for the next minute) */
   aiCallsPerRun: 3,
-  /** Model requests in one (UTC) day; past it the keywords alone decide */
-  aiCallsPerDay: 600,
   /** A post's text sent to the model, in characters (the rest rarely changes the verdict) */
   aiTextChars: 1500,
   /** A post's text kept, in characters */

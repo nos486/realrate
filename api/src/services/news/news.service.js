@@ -54,6 +54,7 @@ import { dbInsertNews, dbInsertNewsAiLog, dbRecentNewsTexts } from "../../reposi
 import { getStateStore } from "../../repositories/stateStore.repository.js";
 import { USER_AGENT } from "../market/sources/parsingUtils.js";
 import { resolveNewsModel } from "./newsModel.js";
+import { loadAiSettings } from "../ai/aiSettings.service.js";
 import { maybeUpdateNewsAnalysis } from "./newsAnalysis.service.js";
 import { notifyImportantNews } from "./newsPush.service.js";
 import { enqueueChannelNews } from "../bot/messengers.js";
@@ -417,7 +418,9 @@ async function pollChannels(env, store, now, fetchPage, fetchFeed) {
 
   // 4. The model, within the run's and the day's budget
   const usedToday = parseInt((await store.get(aiDayKey(now))) || "0", 10) || 0;
-  const callsLeft = Math.max(0, Math.min(NEWS_LIMITS.aiCallsPerRun, NEWS_LIMITS.aiCallsPerDay - usedToday));
+  // The day's budget is the admin's (site settings → AI models)
+  const { newsDailyCalls: dayBudget } = await loadAiSettings(env);
+  const callsLeft = Math.max(0, Math.min(NEWS_LIMITS.aiCallsPerRun, dayBudget - usedToday));
   const newsModel = await resolveNewsModel(env, NEWS_AI_MODEL);
   status.aiModel = newsModel.label;
   const hasModel = newsModel.available;
@@ -569,7 +572,7 @@ async function pollChannels(env, store, now, fetchPage, fetchFeed) {
   status.published = published.length;
   status.aiCallsToday = usedToday + status.aiCalls;
   // The day's budget used up is not a model error: a note for the panel (logged once a day)
-  status.budgetUsedUp = hasModel && deferred.length > 0 && usedToday + status.aiCalls >= NEWS_LIMITS.aiCallsPerDay;
+  status.budgetUsedUp = hasModel && deferred.length > 0 && usedToday + status.aiCalls >= dayBudget;
   if (status.budgetUsedUp && !previous.budgetUsedUp) {
     logger.warn("[News] the day's model budget is used up — posts wait in the queue", { waiting: waiting.length });
   }

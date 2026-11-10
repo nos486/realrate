@@ -18,3 +18,16 @@ export const DEFAULT_NEWS_MODEL_CHOICE = NEWS_MODEL_CHOICES[0].id;
 
 /** The choice with this id, or null */
 export const newsModelChoiceById = (id) => NEWS_MODEL_CHOICES.find((m) => m.id === id) || null;
+
+/**
+ * The model requests the news section may make in one day (the admin can raise or lower it in the site
+ * settings): once it is used up the keywords alone decide until the next day. The run itself sends at most
+ * `NEWS_LIMITS.aiCallsPerRun` per minute, so the top is what a day can use.
+ */
+export const NEWS_DAILY_CALLS = { default: 600, min: 50, max: 4000 };
+
+/** A saved daily limit made valid: a whole number within the bounds, else the default */
+export function cleanNewsDailyCalls(value) {
+  const n = Math.round(Number(value));
+  return Number.isFinite(n) && n >= NEWS_DAILY_CALLS.min && n <= NEWS_DAILY_CALLS.max ? n : NEWS_DAILY_CALLS.default;
+}
