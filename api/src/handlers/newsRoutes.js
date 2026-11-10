@@ -16,6 +16,7 @@
  */
 
 import { resolveNewsModel } from "../services/news/newsModel.js";
+import { loadAiSettings } from "../services/ai/aiSettings.service.js";
 import { getAuthenticatedUser } from "../lib/auth.js";
 import { requireFeature } from "../lib/features.js";
 import { jsonResponse } from "../lib/helpers.js";
@@ -123,7 +124,7 @@ export async function handleAdminGetNewsChannels(request, env) {
     status,
     defaults: DEFAULT_NEWS_CHANNELS,
     feedDefaults: DEFAULT_NEWS_FEEDS,
-    limits: { maxChannels: NEWS_LIMITS.maxChannels, maxFeeds: NEWS_LIMITS.maxFeeds, aiCallsPerDay: NEWS_LIMITS.aiCallsPerDay },
+    limits: { maxChannels: NEWS_LIMITS.maxChannels, maxFeeds: NEWS_LIMITS.maxFeeds, aiCallsPerDay: (await loadAiSettings(env)).newsDailyCalls },
     aiConfigured: newsModel.available,
     model: newsModel.label,
     analysisModel: analysisModel.label,

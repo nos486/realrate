@@ -24,16 +24,26 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe('AI settings', () => {
   it('defaults to automatic voice and GLM news', async () => {
-    expect(await loadAiSettings(makeEnv())).toEqual({ voiceEngine: 'auto', newsModel: 'glm-5.3-flash' });
+    expect(await loadAiSettings(makeEnv())).toEqual({ voiceEngine: 'auto', newsModel: 'glm-5.3-flash', newsDailyCalls: 600 });
   });
 
   it('saves only the fields given and refuses unknown ids', async () => {
     const env = makeEnv();
     await saveAiSettings(env, { newsModel: 'gemini-3.5-flash' });
     await saveAiSettings(env, { voiceEngine: 'cf-whisper' });
-    expect(await loadAiSettings(env)).toEqual({ voiceEngine: 'cf-whisper', newsModel: 'gemini-3.5-flash' });
+    expect(await loadAiSettings(env)).toEqual({ voiceEngine: 'cf-whisper', newsModel: 'gemini-3.5-flash', newsDailyCalls: 600 });
     await expect(saveAiSettings(env, { newsModel: 'nope' })).rejects.toThrow();
     await expect(saveAiSettings(env, { voiceEngine: 'nope' })).rejects.toThrow();
+  });
+});
+
+describe('the news daily limit', () => {
+  it('can be raised by the admin within bounds, and a bad value is refused', async () => {
+    const env = makeEnv();
+    await saveAiSettings(env, { newsDailyCalls: 1500 });
+    expect((await loadAiSettings(env)).newsDailyCalls).toBe(1500);
+    for (const bad of [10, 5000, 2.5, 'abc']) await expect(saveAiSettings(env, { newsDailyCalls: bad })).rejects.toThrow();
+    expect((await loadAiSettings(env)).newsDailyCalls).toBe(1500);
   });
 });
 

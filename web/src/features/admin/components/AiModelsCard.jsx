@@ -17,24 +17,25 @@ import { AdminCard } from './AdminPage.jsx';
 export default function AiModelsCard() {
   const { toast } = useFeedback();
   const [data, setData] = useState(null);
-  const [form, setForm] = useState({ voiceEngine: '', newsModel: '' });
+  const [form, setForm] = useState({ voiceEngine: '', newsModel: '', newsDailyCalls: '' });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     getAiSettings()
-      .then((res) => { setData(res); setForm({ voiceEngine: res.voiceEngine, newsModel: res.newsModel }); })
+      .then((res) => { setData(res); setForm({ voiceEngine: res.voiceEngine, newsModel: res.newsModel, newsDailyCalls: String(res.newsDailyCalls) }); })
       .catch((err) => toast.error(err.message || 'خواندن تنظیمات مدل‌ها ناموفق بود.'));
   }, [toast]);
 
   const set = (key) => (e) => setForm((prev) => ({ ...prev, [key]: e.target.value }));
-  const dirty = data && (form.voiceEngine !== data.voiceEngine || form.newsModel !== data.newsModel);
+  const dirty = data && (form.voiceEngine !== data.voiceEngine || form.newsModel !== data.newsModel || Number(form.newsDailyCalls) !== data.newsDailyCalls);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
     try {
-      const res = await saveAiSettings(form);
+      const res = await saveAiSettings({ ...form, newsDailyCalls: Number(form.newsDailyCalls) });
       setData(res);
+      setForm((prev) => ({ ...prev, newsDailyCalls: String(res.newsDailyCalls) }));
       toast.success(res.message || 'ذخیره شد.');
     } catch (err) {
       toast.error(err.message || 'ذخیره نشد.');
@@ -56,6 +57,24 @@ export default function AiModelsCard() {
         <select id="aiNewsModel" className="ui-input-control" value={form.newsModel} onChange={set('newsModel')} disabled={!data}>
           {(data?.newsModels || []).map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
         </select>
+      </div>
+      <div className="ui-input-group">
+        <label htmlFor="aiNewsDailyCalls" className="ui-input-label">سهمیه‌ی روزانه‌ی مدل اخبار (تعداد درخواست در روز)</label>
+        <input
+          id="aiNewsDailyCalls"
+          type="number"
+          inputMode="numeric"
+          className="ui-input-control"
+          min={data?.newsDailyCallsRange?.min}
+          max={data?.newsDailyCallsRange?.max}
+          step="1"
+          value={form.newsDailyCalls}
+          onChange={set('newsDailyCalls')}
+          disabled={!data}
+        />
+        <span className="ui-input-hint">
+          وقتی تمام شود خبرها تا روز بعد فقط با کلیدواژه بررسی می‌شوند. بین {data?.newsDailyCallsRange?.min} و {data?.newsDailyCallsRange?.max}؛ هر دقیقه حداکثر ۳ درخواست فرستاده می‌شود.
+        </span>
       </div>
       <Button type="submit" size="sm" icon={<Save size={14} />} loading={saving} disabled={!dirty}>
         ذخیره مدل‌ها

@@ -70,6 +70,7 @@ function NewsReport({ status, latest, model, dayBudget }) {
       {status?.budgetUsedUp && (
         <AdminNotice tone="warn">
           <strong>سهمیه‌ی امروز مدل ({fa(dayBudget)} درخواست) تمام شده است.</strong>
+          <small>برای بیشتر کردنش: تنظیمات سایت ← مدل‌های هوش مصنوعی ← سهمیه‌ی روزانه‌ی مدل اخبار.</small>
           <small>{fa(status.run?.waiting)} پست در صف منتظر است و با شروع روز بعد (تهران) بررسی می‌شود؛ پست‌های قدیمی‌تر از ۶ ساعت از صف حذف می‌شوند.</small>
         </AdminNotice>
       )}

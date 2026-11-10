@@ -25,6 +25,7 @@ import { dbListNews, dbSetNewsHidden, dbPurgeOldNews, dbListNewsAiLog, dbPurgeNe
 import { resetD1SchemaCache } from '../../src/repositories/d1Schema.js';
 import { DEFAULT_NEWS_CHANNELS, DEFAULT_NEWS_FEEDS, NEWS_LIMITS, NEWS_AI_MODEL } from '../../src/config/news.config.js';
 import { sqliteD1 } from '../helpers/sqliteD1.js';
+import { saveAiSettings } from '../../src/services/ai/aiSettings.service.js';
 
 const post = (channel, id, text, time = '2026-10-05T08:00:00+00:00', extra = '') => `
 <div class="tgme_widget_message_wrap js-widget_message_wrap"><div class="tgme_widget_message text_not_supported_wrap js-widget_message" data-post="${channel}/${id}" data-view="x">
@@ -527,7 +528,9 @@ describe('runNewsPolling', () => {
       const report = await getNewsStatus(env);
       expect(report.today).toMatchObject({ checked: 8, sent: 8, rejected: 8 });
       // A day's budget used up: they keep waiting, and the panel says why
-      NEWS_LIMITS.aiCallsPerDay = 2;
+      // (the admin's daily limit, at its lowest, is used up)
+      await saveAiSettings(env, { newsDailyCalls: 50 });
+      await env.DB.prepare("UPDATE app_state SET value = '50' WHERE key LIKE 'news:ai:%'").run();
       const third = await runNewsPolling(env, { now: NOW + 120000, fetchPage });
       expect(third).toMatchObject({ checked: 0, waiting: 12, aiCalls: 0 });
       // Not a model error, and an idle run doesn't fill the report
