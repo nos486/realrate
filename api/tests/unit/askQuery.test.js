@@ -77,3 +77,31 @@ describe('answerQuestion', () => {
     expect(answerQuestion(ask('خرج میوه'), records, helpers).total).toBe(100);
   });
 });
+
+describe('salary months and filler words', () => {
+  const CATS = { expense: [{ value: 'food', label: 'خوراک' }], income: [] };
+  // Salary days: the 25th of each Shamsi month, so a month runs from the 25th to the 24th
+  const starts = ['2026-11-16', '2026-10-17', '2026-09-17'];
+
+  it('takes «این ماه» from the salary day when the salary view is on', () => {
+    const calendar = parseQuestion('این ماه چقدر خرج کردم', { today: '2026-11-20', categories: CATS });
+    const salary = parseQuestion('این ماه چقدر خرج کردم', { today: '2026-11-20', categories: CATS, starts });
+    expect(salary.period.key).toBe('thisMonth');
+    expect(salary.period.from).toBe('2026-11-16');
+    expect(salary.period.to).toBe('2026-11-20');
+    expect(calendar.period.from).not.toBe('2026-11-16');
+  });
+
+  it('takes «ماه قبل» as the previous salary month', () => {
+    const q = parseQuestion('ماه قبل چقدر خرج کردم', { today: '2026-11-20', categories: CATS, starts });
+    expect(q.period.from).toBe('2026-10-17');
+    expect(q.period.to).toBe('2026-11-15');
+  });
+
+  it('does not let filler words zero an answer', () => {
+    for (const text of ['امروز چقدر پول خرج کردم', 'هزینه‌ی امروزم چقدر شد', 'تا الان امروز چقدر خرج کردم', 'مجموع هزینه ها در ماه جاری']) {
+      expect(parseQuestion(text, { today: '2026-11-10', categories: CATS }).terms).toEqual([]);
+    }
+    expect(parseQuestion('ماه جاری چقدر خرج کردم', { today: '2026-11-10', categories: CATS }).period.explicit).toBe(true);
+  });
+});

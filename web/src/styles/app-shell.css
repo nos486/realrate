@@ -1645,3 +1645,42 @@ html.is-app-layout .budget-grid .ui-input-label {
 .ai-create-row .ui-input-control.is-missing {
   border-color: var(--color-warning);
 }
+
+/* What the voice AI can do (features/ai/AiHelpModal.jsx) */
+.ai-help-steps {
+  margin: 0 0 16px;
+  padding-inline-start: 20px;
+  display: grid;
+  gap: 6px;
+  color: var(--text-secondary);
+  line-height: 1.8;
+}
+.ai-help-list {
+  display: grid;
+  gap: 12px;
+}
+.ai-help-item {
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+.ai-help-item h4 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 4px;
+  color: var(--text-heading);
+}
+.ai-help-item p {
+  margin: 0 0 6px;
+  color: var(--text-secondary);
+  line-height: 1.8;
+}
+.ai-help-item ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 4px;
+  color: var(--text-heading);
+}

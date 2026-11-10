@@ -33,7 +33,10 @@ export default function AskAnswer({ answer, query, money }) {
         ? { value: money(answer.top[0].amount), unit: `${t('تومان')} — ${answer.top[0].title}` }
         : { value: money(answer.total), unit: t('تومان') };
   if (answer.count === 0) {
-    return <EmptyState title={t('موردی پیدا نشد')} description={t('در {period} چیزی با این شرایط ثبت نشده است.', { period: periodLabel(query.period) })} />;
+    return <EmptyState title={t('موردی پیدا نشد')} description={query.terms?.length
+      ? t('در {period} چیزی با «{terms}» ثبت نشده است.', { period: periodLabel(query.period), terms: query.terms.join(' ') })
+      : t('در {period} چیزی با این شرایط ثبت نشده است.', { period: periodLabel(query.period) })}
+    />;
   }
   return (
     <div className="ask-answer" role="status">

@@ -13,7 +13,8 @@
 
 import { toEnglishDigits } from '../../shared/utils/formatters.js';
 import { jalaliToGregorian, gregorianToJalali } from '../../utils/loanCalculator.js';
-import { shamsiMonthRange, shiftShamsiMonth } from '../../utils/expenseDocument.js';
+import { shiftShamsiMonth } from '../../utils/expenseDocument.js';
+import { salaryMonthRange, currentSalaryMonth, salaryYearRange } from '../../utils/salaryMonth.js';
 
 /** Shamsi month names, in order */
 export const MONTH_NAMES = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند']; // i18n-ignore
@@ -28,7 +29,9 @@ const STOP_WORDS = new Set([
   'مجموع', 'میانگین', 'بیشترین', 'گران‌ترین', 'بار', 'تا', 'مورد', 'تعداد', 'بود', 'بوده', 'است', 'کردم', 'کرده‌ام', // i18n-ignore
   'داشتم', 'من', 'م', 'در', 'از', 'به', 'برای', 'با', 'و', 'این', 'ان', 'آن', 'اخیر', 'گذشته', 'قبل', 'پیش', 'ماه', 'سال', // i18n-ignore
   'هفته', 'روز', 'امروز', 'دیروز', 'امسال', 'پارسال', 'بیشتر', 'کمتر', 'تومان', 'میلیون', 'هزار', 'میلیارد', 'مبلغ', 'خرید', // i18n-ignore
-  'چقد', 'کدام', 'کدوم', 'هر', 'روزانه', 'ماهانه', // i18n-ignore
+  'چقد', 'کدام', 'کدوم', 'هر', 'روزانه', 'ماهانه', 'پول', 'الان', 'تاالان', 'شد', 'شده', 'شدم', 'جاری', 'حقوقی', 'کردیم', // i18n-ignore
+  'میشه', 'می‌شود', 'میشود', 'می‌شه', 'خرجی', 'مصرف', 'پرداخت', 'پرداختم', 'گفتم', 'بگو', 'بگویید', 'بده', 'بدهید', 'لطفا', 'مثلا', // i18n-ignore
+  'همین', 'ام', 'اش', 'مان', 'هام', 'هایم', 'های', 'ها', 'کل', 'اون', 'اين', 'کنم', 'کردن', 'ثبت', 'شمسی', // i18n-ignore
 ]);
 
 /** Letters, digits and spacing made uniform so patterns need one spelling */
@@ -60,20 +63,24 @@ function countBefore(text, unit) {
 }
 
 /**
- * The period a question asks about
+ * The period a question asks about. Months are salary months when `starts` (the marked salary days) is
+ * given, like everywhere else in the app (utils/salaryMonth.js); without it they are calendar months.
  * @param {string} text normalized question
  * @param {string} today YYYY-MM-DD
+ * @param {string[]} [starts] the marked salary days while the salary view is on
  * @returns {{ from: string, to: string, key: string, params?: object, explicit: boolean }}
  */
-export function parsePeriod(text, today) {
-  const now = shamsiOf(today);
-  const monthRange = (jy, jm) => { const r = shamsiMonthRange(jy, jm); return { from: r.from, to: r.to }; };
+export function parsePeriod(text, today, starts = []) {
+  const calendarNow = shamsiOf(today);
+  const now = currentSalaryMonth(today, starts) || calendarNow;
+  const monthRange = (jy, jm) => { const r = salaryMonthRange(jy, jm, starts); return { from: r.from, to: r.to }; };
+  const yearRange = (jy) => salaryYearRange(jy, starts);
 
   if (/دیروز/.test(text)) { const d = addDays(today, -1); return { from: d, to: d, key: 'yesterday', explicit: true }; } // i18n-ignore
   if (/امروز/.test(text)) return { from: today, to: today, key: 'today', explicit: true }; // i18n-ignore
 
   const weeks = countBefore(text, 'هفته (اخیر|گذشته|پیش)'); // i18n-ignore
-  if (/هفته (اخیر|گذشته|پیش)/.test(text) || /این هفته/.test(text)) { // i18n-ignore
+  if (/هفته (اخیر|گذشته|پیش)/.test(text) || /(این|همین) هفته/.test(text)) { // i18n-ignore
     const n = weeks || 1;
     return { from: addDays(today, -7 * n + 1), to: today, key: 'weeks', params: { n }, explicit: true };
   }
@@ -89,13 +96,12 @@ export function parsePeriod(text, today) {
     return { ...monthRange(prev.jy, prev.jm), key: 'month', params: { month: MONTH_NAMES[prev.jm - 1] }, explicit: true };
   }
 
-  const yearsAgo = /(پارسال|سال (قبل|گذشته|پیش))/.test(text); // i18n-ignore
-  if (yearsAgo) {
+  if (/(پارسال|سال (قبل|گذشته|پیش))/.test(text)) { // i18n-ignore
     const jy = now.jy - 1;
-    return { from: jalaliIso(jy, 1, 1), to: jalaliIso(jy, 12, shamsiMonthRange(jy, 12).days), key: 'year', params: { year: jy }, explicit: true };
+    return { ...yearRange(jy), key: 'year', params: { year: jy }, explicit: true };
   }
   if (/(امسال|این سال|سال جاری)/.test(text)) { // i18n-ignore
-    return { from: jalaliIso(now.jy, 1, 1), to: today, key: 'year', params: { year: now.jy }, explicit: true };
+    return { from: yearRange(now.jy).from, to: today, key: 'year', params: { year: now.jy }, explicit: true };
   }
 
   // A named month, optionally with a year («آبان ۱۴۰۴»); a month still ahead means last year's
@@ -107,8 +113,9 @@ export function parsePeriod(text, today) {
     return { ...monthRange(jy, named + 1), key: 'month', params: { month: MONTH_NAMES[named], year: jy }, explicit: true };
   }
 
-  // «این ماه» and the default
-  return { ...monthRange(now.jy, now.jm), to: today, key: 'thisMonth', explicit: /این ماه/.test(text) }; // i18n-ignore
+  // «این ماه» / «ماه جاری» and the default: the month today falls in, up to today
+  const range = monthRange(now.jy, now.jm);
+  return { from: range.from, to: today < range.to ? today : range.to, key: 'thisMonth', explicit: /(این|همین) ماه|ماه جاری/.test(text) }; // i18n-ignore
 }
 
 /** «بیشتر از ۵ میلیون» → { min: 5_000_000 }; «کمتر از ۲۰۰ هزار» → { max: 200_000 } */
@@ -124,17 +131,23 @@ export function parseAmountBounds(text) {
   return bounds;
 }
 
+/** A word without a possessive or plural ending («خرجم» → خرج, «هزینه‌ی» → هزینه, «امروزم» → امروز) */
+function stem(word) {
+  return word.replace(/(‌ی|‌ها|ها|ی|م|ت|ش)$/, ''); // i18n-ignore
+}
+
 /** The words of a category label that can be matched on («رستوران و کافه» → رستوران, کافه) */
 const labelWords = (label) => normalizeText(label).split(' ').filter((w) => w.length >= 3 && !STOP_WORDS.has(w));
 
 /**
  * Read a question
  * @param {string} question
- * @param {{ today: string, categories?: { expense?: Array<{ value: string, label: string }>, income?: Array<{ value: string, label: string }> } }} context
+ * @param {{ today: string, categories?: { expense?: Array<{ value: string, label: string }>, income?: Array<{ value: string, label: string }> },
+ *   starts?: string[] }} context `starts`: the marked salary days while the salary-month view is on (months then follow the salary)
  * @returns {{ kind: 'expense'|'income', intent: 'sum'|'count'|'average'|'top', period: object,
  *   categories: string[], terms: string[], min?: number, max?: number }}
  */
-export function parseQuestion(question, { today, categories = {} }) {
+export function parseQuestion(question, { today, categories = {}, starts = [] }) {
   const text = normalizeText(question);
   const kind = /(درآمد|حقوق|دریافتی|واریزی|دریافت کردم)/.test(text) && !/(خرج|هزینه)/.test(text) ? 'income' : 'expense'; // i18n-ignore
 
@@ -143,7 +156,7 @@ export function parseQuestion(question, { today, categories = {} }) {
   else if (/میانگین/.test(text)) intent = 'average'; // i18n-ignore
   else if (/(بیشترین|گران‌ترین|گرانترین|بزرگ‌ترین|بزرگترین)/.test(text)) intent = 'top'; // i18n-ignore
 
-  const period = parsePeriod(text, today);
+  const period = parsePeriod(text, today, starts);
   const bounds = parseAmountBounds(text);
 
   // Categories whose name (or any word of it) the question says
@@ -159,6 +172,7 @@ export function parseQuestion(question, { today, categories = {} }) {
   const terms = text.split(' ').filter((w) => (
     w.length >= 3
     && !STOP_WORDS.has(w)
+    && !STOP_WORDS.has(stem(w))
     && !/^\d+$/.test(w)
     && !MONTH_NAMES.includes(w)
     && !used.has(w)
