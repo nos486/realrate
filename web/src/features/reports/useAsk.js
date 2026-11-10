@@ -18,6 +18,7 @@ import { useUsdAt } from '../market/dailyHistory.js';
 import { useFxRates } from '../market/useFxRates.js';
 import { useCategories } from '../../shared/categories/useCategories.js';
 import { t } from '../../utils/i18n.js';
+import { useSalaryMonths } from '../../shared/salary/useSalaryMonths.js';
 import { parseQuestion, answerQuestion } from './askQuery.js';
 
 /** Load the question's period: everyday expenses or incomes */
@@ -42,11 +43,13 @@ export function useAsk() {
   const rates = useMemo(() => ({ usdToman, usdAt, ...fx }), [usdToman, usdAt, fx]);
   const expenseCats = useCategories('expense', { includeHidden: true });
   const incomeCats = useCategories('income', { includeHidden: true });
+  // A month is the salary month while that view is on, like everywhere else in the app
+  const { activeStarts } = useSalaryMonths();
 
   const ask = async (question) => {
     const q = String(question ?? '').trim();
     if (!q) return;
-    const query = parseQuestion(q, { today: todayIso(), categories: { expense: expenseCats, income: incomeCats } });
+    const query = parseQuestion(q, { today: todayIso(), categories: { expense: expenseCats, income: incomeCats }, starts: activeStarts });
     setState({ status: 'loading', query, records: [], error: '' });
     try {
       setState({ status: 'done', query, records: await loadRecords(query), error: '' });

@@ -25,13 +25,15 @@ export const MIN_CLIP_MS = 700;
 /** Dragging the held button this far up (px) cancels the note */
 export const CANCEL_DRAG_PX = 70;
 const HINT_KEY = 'realrate:aiHoldUses';
+const HELP_KEY = 'realrate:aiHelpSeen';
 /** The button hints (a bounce) how to use it until it was held this many times */
 const HINT_UNTIL = 3;
 
+const helpSeen = () => { try { return localStorage.getItem(HELP_KEY) === '1'; } catch { return true; } };
 const heldBefore = () => { try { return Number(localStorage.getItem(HINT_KEY)) || 0; } catch { return HINT_UNTIL; } };
 
 /**
- * @returns {{ enabled: boolean, state: { stage: 'starting'|'recording'|'processing'|'review'|'done', context?: object, intent?: object, answer?: object }|null,
+ * @returns {{ enabled: boolean, helpOpen: boolean, openHelp: () => void, closeHelp: () => void, helpFirst: () => boolean, state: { stage: 'starting'|'recording'|'processing'|'review'|'done', context?: object, intent?: object, answer?: object }|null,
  *   cancelling: boolean, hinting: boolean, level: () => number, edit: (answer: object) => void, confirm: () => Promise<void>, undo: () => Promise<void>, dismiss: () => void,
  *   fabProps: object, takeClick: () => boolean }} `fabProps`: spread on the «+» button; `takeClick()`: true when
  *   the click that follows a hold must be ignored
@@ -45,6 +47,7 @@ export function useAiAssistant() {
   const [state, setState] = useState(null);
   const [cancelling, setCancelling] = useState(false); // the held button is dragged up: letting go cancels
   const [uses, setUses] = useState(heldBefore);
+  const [helpOpen, setHelpOpen] = useState(false);
   const press = useRef({ pressed: false, timer: null, active: false, recorder: null, startedAt: 0, ignoreClick: false, startY: 0, cancelling: false });
   const saved = useRef(null);
 
@@ -198,6 +201,18 @@ export function useAiAssistant() {
     }
   }, [toast]);
 
+  const openHelp = useCallback(() => {
+    try { localStorage.setItem(HELP_KEY, '1'); } catch { /* no storage */ }
+    setHelpOpen(true);
+  }, []);
+  const closeHelp = useCallback(() => setHelpOpen(false), []);
+  /** True (and the help opens) on the first tap of «+» for someone who can use the assistant: they learn what it does before anything else */
+  const helpFirst = useCallback(() => {
+    if (!enabled || helpSeen()) return false;
+    openHelp();
+    return true;
+  }, [enabled, openHelp]);
+
   const hinting = enabled && uses < HINT_UNTIL && !state;
-  return { enabled, state, cancelling, hinting, level, edit, confirm, undo, dismiss, fabProps, takeClick };
+  return { enabled, helpOpen, openHelp, closeHelp, helpFirst, state, cancelling, hinting, level, edit, confirm, undo, dismiss, fabProps, takeClick };
 }

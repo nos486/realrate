@@ -18,7 +18,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   HandCoins, Wallet, Briefcase, LayoutGrid, Plus, Eye, EyeOff, Lock,
-  MessageSquareText, ChevronLeft,
+  MessageSquareText, ChevronLeft, Mic,
 } from 'lucide-react';
 import { useAuth } from '../../features/auth/index.js';
 import { usePrivacyMode, setPrivacyMode } from '../../hooks/usePrivacyMode.js';
@@ -32,6 +32,7 @@ import AlertCenterButton from '../alerts/AlertCenter.jsx';
 import PageRefreshButton from '../refresh/PageRefreshButton.jsx';
 import { APP_PRIVATE_VALUE_TABS } from './privacyTabs.js';
 import AiAssistantOverlay from '../../features/ai/AiAssistantOverlay.jsx';
+import AiHelpModal from '../../features/ai/AiHelpModal.jsx';
 import { useAiAssistant } from '../../features/ai/useAiAssistant.js';
 import { BOTTOM_NAV_GROUPS, NAV_SECTION_CARDS, buildNavGroups, groupOfTab } from './navGroups.js';
 
@@ -168,6 +169,7 @@ export function AppBottomNav({ activeTab, navItems = [], onSelect }) {
             onClick={() => {
               if (assistant.takeClick()) return; // the end of a hold to talk, not a tap
               impact();
+              if (sheet !== 'add' && assistant.helpFirst()) return; // the first tap: what the voice AI can do
               setSheet((s) => (s === 'add' ? null : 'add'));
             }}
             aria-label={t('ثبت سریع')}
@@ -191,6 +193,7 @@ export function AppBottomNav({ activeTab, navItems = [], onSelect }) {
       </nav>
 
       <AiAssistantOverlay assistant={assistant} />
+      <AiHelpModal open={assistant.helpOpen} onClose={assistant.closeHelp} />
 
       <AppSheet open={sheet === 'add'} onClose={closeSheet} title={t('ثبت سریع')}>
         <div className="app-quick-add">
@@ -202,6 +205,13 @@ export function AppBottomNav({ activeTab, navItems = [], onSelect }) {
             </button>
           ))}
         </div>
+        {assistant.enabled && (
+          <button type="button" className="app-sheet-row" onClick={() => { closeSheet(); assistant.openHelp(); }}>
+            <Mic size={20} />
+            <span>{t('دستیار صوتی چه کارهایی می‌کند؟')}</span>
+            <ChevronLeft size={18} className="app-sheet-row-chevron" />
+          </button>
+        )}
         {has('sms') && pendingSms > 0 && (
           <button type="button" className="app-sheet-row is-highlight" onClick={() => open('/sms')}>
             <MessageSquareText size={20} />

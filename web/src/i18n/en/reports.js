@@ -17,6 +17,7 @@ export default {
   'بپرس': 'Ask',
   'در حال یافتن پاسخ': 'Finding the answer',
   'موردی پیدا نشد': 'Nothing found',
+  'در {period} چیزی با «{terms}» ثبت نشده است.': 'Nothing matching "{terms}" was recorded in {period}.',
   'در {period} چیزی با این شرایط ثبت نشده است.': 'Nothing matching was recorded in {period}.',
   '{period} · {count} مورد': '{period} · {count} items',
   'جمع {amount} تومان': 'total {amount} toman',
