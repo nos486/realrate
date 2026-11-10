@@ -30,7 +30,7 @@ export function normalizeDictation(raw) {
  * @returns {Promise<{ understood: boolean, text: string, model: string, engine: string, durationMs: number }>}
  */
 export async function processDictation(env, { audioBuffer, mimeType, debug = false }) {
-  const run = await listenToVoice(env, { audioBuffer, mimeType, systemPrompt: PROMPT, userText: 'این پیام صوتی را رونویسی کن و طبق دستورالعمل JSON بده.', debug });
+  const run = await listenToVoice(env, { audioBuffer, mimeType, systemPrompt: PROMPT, userText: 'این پیام صوتی را رونویسی کن و طبق دستورالعمل JSON بده.', debug, transcribeOnly: true });
   // A speech-to-text engine already wrote the words: they are the text when the model returned none
   const result = normalizeDictation(run.answer);
   const text = result.text || (run.heard ? normalizeDictation({ text: run.heard }).text : '');

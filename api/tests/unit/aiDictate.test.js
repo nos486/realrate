@@ -13,6 +13,7 @@ vi.mock('../../src/lib/auth.js', () => ({
 
 import { getAuthenticatedUser } from '../../src/lib/auth.js';
 import { handleAiDictateRoute } from '../../src/handlers/aiDictateRoutes.js';
+import { processDictation } from '../../src/services/ai/dictate.service.js';
 import { normalizeDictation, DICTATION_MAX_CHARS } from '../../src/services/ai/dictate.service.js';
 
 const ADMIN = { id: 'a1', role: 'admin', email: 'admin@example.com' };
@@ -62,5 +63,40 @@ describe('POST /api/ai/dictate', () => {
     fetchMock.mockResolvedValue(reply({ text: '' }));
     const body = await (await handleAiDictateRoute(request(), env)).json();
     expect(body.understood).toBe(false);
+  });
+});
+
+describe('Cloudflare engines', () => {
+  const makeEnv = async (ai, voiceEngine) => {
+    const { memoryStateDb } = await import('../helpers/memoryStateDb.js');
+    const { saveAiSettings } = await import('../../src/services/ai/aiSettings.service.js');
+    const env = { DB: memoryStateDb(), AI: { run: ai } };
+    await saveAiSettings(env, { voiceEngine });
+    return env;
+  };
+
+  it('dictation stops after the speech model and asks no second one', async () => {
+    const ai = vi.fn().mockResolvedValueOnce({ text: ' سلام دنیا ' });
+    const out = await processDictation(await makeEnv(ai, 'cf-whisper-turbo'), { audioBuffer: new ArrayBuffer(8), mimeType: 'audio/webm' });
+    expect(out).toMatchObject({ understood: true, text: 'سلام دنیا' });
+    expect(ai).toHaveBeenCalledTimes(1);
+    expect(ai.mock.calls[0][1]).toMatchObject({ language: 'fa' });
+  });
+
+  it('gives the GLM step room for its reasoning on top of the answer', async () => {
+    const { processAiVoice } = await import('../../src/services/ai/assistant.service.js');
+    const { NEWS_AI_MODEL } = await import('../../src/config/news.config.js');
+    const ai = vi.fn()
+      .mockResolvedValueOnce({ text: 'امروز چقدر خرج کردم' })
+      .mockResolvedValueOnce({ response: JSON.stringify({ understood: true, intent: 'question', questions: ['خرج امروز'] }) });
+    const out = await processAiVoice(await makeEnv(ai, 'cf-whisper-turbo'), { audioBuffer: new ArrayBuffer(8), mimeType: 'audio/webm', expense: [], income: [], accounts: [] });
+    expect(out).toMatchObject({ understood: true, intent: 'question', questions: ['خرج امروز'] });
+    expect(ai.mock.calls[1][1].max_tokens).toBeGreaterThanOrEqual(2000 + NEWS_AI_MODEL.reasoningTokens);
+  });
+
+  it('the older Whisper is not given a language it does not take', async () => {
+    const ai = vi.fn().mockResolvedValueOnce({ text: 'متن' });
+    await processDictation(await makeEnv(ai, 'cf-whisper'), { audioBuffer: new ArrayBuffer(8), mimeType: 'audio/webm' });
+    expect(ai.mock.calls[0][1].language).toBeUndefined();
   });
 });
