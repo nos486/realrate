@@ -71,7 +71,10 @@ export function useAiAssistant() {
       const intent = Object.hasOwn(AI_INTENTS, answer?.intent) ? AI_INTENTS[answer.intent] : null;
       if (!answer?.understood || !intent) {
         setState(null);
-        toast.error(t('متوجه نشدم؛ دوباره امتحان کنید.'));
+        // An admin (the server sends `heard` only to them) sees what the engine heard, to tell a bad hearing from a bad reading
+        toast.error(answer?.heard !== undefined
+          ? t('متوجه نشدم؛ دوباره امتحان کنید. (شنیده شد: «{heard}»)', { heard: answer.heard || '—' })
+          : t('متوجه نشدم؛ دوباره امتحان کنید.'));
         return;
       }
       // A question changes nothing: answered at once. Anything else is shown for the user to correct and

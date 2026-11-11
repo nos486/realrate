@@ -3,11 +3,12 @@
  *
  * In the Android app the WebView asks for the microphone permission by itself on the first
  * recording (RECORD_AUDIO is in the manifest of the full build). The clip stays in memory: it
- * is sent once to the server for the voice note on a bank SMS and never saved.
+ * is sent once to the server for the voice note on a bank SMS and never saved. It is sent as 16 kHz mono WAV (wavClip.js).
  */
 
 import { t } from '../../utils/i18n.js';
 import { createVoiceActivity } from './voiceActivity.js';
+import { toWavClip } from './wavClip.js';
 
 /** A voice note is a few words; a recording stops by itself after this long */
 export const MAX_VOICE_MS = 30_000;
@@ -102,7 +103,8 @@ export async function startVoiceRecording({ onLimit, onSilence, onNoSpeech } = {
       if (recorder.state === 'recording') recorder.stop();
       const blob = await finished;
       if (cancelled) throw new Error('cancelled');
-      return blob;
+      // 16 kHz mono WAV: every speech engine reads it (WebM/Opus fails on some); the clip itself when it cannot be decoded here
+      return toWavClip(blob);
     },
     cancel() {
       cancelled = true;
