@@ -360,7 +360,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                   <SearchBar
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder={t('جستجو در عنوان، دسته یا یادداشت...')}
+                    placeholder={t('جستجو در عنوان، دسته یا یادداشت…')}
                     badge={t('{n} مورد', { n: listed.length.toLocaleString(intlLocale()) })}
                     className="incomes-search"
                   />
@@ -428,7 +428,7 @@ export default function DailyExpensesView({ usdToman = 0, hideValues = false }) 
                 <EmptyState
                   icon={<Coins size={40} strokeWidth={1.5} />}
                   title={t('هزینه‌ای در {month} ثبت نشده', { month: formatShamsiMonth(month.jy, month.jm) })}
-                  description={t('خرید روزانه، قبض، رفت‌وآمد و ... را با دسته‌بندی ثبت کنید تا ببینید پولتان کجا خرج می‌شود.')}
+                  description={t('خرید روزانه، قبض، رفت‌وآمد و … را با دسته‌بندی ثبت کنید تا ببینید پولتان کجا خرج می‌شود.')}
                   action={!readOnly && (
                     <Button icon={<Plus size={16} />} onClick={() => setForm({ expense: null })}>{t('ثبت اولین هزینه')}</Button>
                   )}

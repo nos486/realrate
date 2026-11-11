@@ -571,7 +571,7 @@ export default function ExpenseForm({ group = null, daily = false, projects = []
             id="expense-notes"
             as="textarea"
             label={t('یادداشت')}
-            placeholder={t('فروشنده، شماره فاکتور، توضیحات...')}
+            placeholder={t('فروشنده، شماره فاکتور، توضیحات…')}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             maxLength={EXPENSE_LIMITS.notesLength}

@@ -10,7 +10,7 @@ export default function SearchBar({
   value,
   onChange,
   onClear = null,
-  placeholder = t('جستجو...'),
+  placeholder = t('جستجو…'),
   className = '',
   style = {},
   disabled = false,

@@ -31,9 +31,9 @@ export default {
   '{amount} تومان': '{amount} toman',
   '({count} ریال)': '({count} rial)',
   'نام دارایی شخصی': 'Personal asset name',
-  'مثلاً زمین دماوند، خودرو، نقاشی...': 'e.g. land, car, painting...',
+  'مثلاً زمین دماوند، خودرو، نقاشی…': 'e.g. land, car, painting…',
   'واحد شمارش': 'Counting unit',
-  'مثلاً متر، عدد، تن، سهم...': 'e.g. meter, piece, ton, share...',
+  'مثلاً متر، عدد، تن، سهم…': 'e.g. meter, piece, ton, share…',
   مقدار: "Amount",
   'مثلاً {example}': 'e.g. {example}',
   '۵۰۰': '500',
@@ -53,7 +53,7 @@ export default {
   'تأمین از': 'Funded by',
   'پول خودم': 'My own money',
   'یادداشت یا توضیحات': 'Note or description',
-  'مثلاً خرید از بورس یا بازار تهران...': 'e.g. bought on the exchange or in the Tehran market...',
+  'مثلاً خرید از بورس یا بازار تهران…': 'e.g. bought on the exchange or in the Tehran market…',
 
   // Allocation targets
   '{count}٪': '{count}%',
@@ -136,7 +136,7 @@ export default {
   'این فایل ستون «منبع» را ندارد (خروجی نسخه‌های قدیمی‌تر). اگر اقلام محاسبه‌شده از تراکنش‌ها هم در آن بوده باشد، ممکن است پس از درون‌ریزی به‌صورت تکراری دیده شوند.':
     'This file has no "source" column (an export from an older version). If it also contains items computed from transactions, they may appear duplicated after the import.',
   'هیچ قلم قابل درون‌ریزی‌ای در این فایل یافت نشد.': 'No importable item was found in this file.',
-  'در حال درون‌ریزی... ({done} از {total})': 'Importing... ({done} of {total})',
+  'در حال درون‌ریزی… ({done} از {total})': 'Importing… ({done} of {total})',
   '{count} ثبت با موفقیت اضافه شد.': '{count} added successfully.',
   '{count} مورد با خطا مواجه شد:': '{count} failed:',
 
@@ -212,7 +212,7 @@ export default {
   'حذف پورتفو': 'Delete portfolio',
   'آیا از حذف این پورتفو اطمینان دارید؟ تمام دارایی‌ها و تراکنش‌های آن حذف خواهد شد و این کار قابل بازگشت نیست.':
     'Are you sure you want to delete this portfolio? All its assets and transactions will be deleted and this cannot be undone.',
-  'جستجو در اقلام پورتفو...': 'Search portfolio items...',
+  'جستجو در اقلام پورتفو…': 'Search portfolio items…',
   'پاک کردن جستجو': 'Clear search',
   'در نسخه دمو غیرفعال است': 'Disabled in the demo',
   'پایان شخصی‌سازی دسته‌ها': 'Finish customizing categories',
@@ -318,10 +318,10 @@ export default {
   'خطا در ساخت پورتفو': 'Error creating the portfolio',
   'دارایی‌ها با خرید، فروش و سود و زیان هرکدام، بر پایه نرخ لحظه‌ای': 'Assets with each one\'s buys, sells and profit and loss, based on live rates',
   'پورتفوی جدید': 'New portfolio',
-  'در حال ایجاد...': 'Creating...',
+  'در حال ایجاد…': 'Creating…',
   ایجاد: 'Create',
   'نام پورتفو': 'Portfolio name',
-  'مثلاً: پس‌انداز طلا، سبد ارزی...': 'e.g. gold savings, currency basket...',
+  'مثلاً: پس‌انداز طلا، سبد ارزی…': 'e.g. gold savings, currency basket…',
   'امکان تنظیم رمز و لینک اشتراک اختصاصی در تنظیمات وجود دارد.': 'You can set a password and a dedicated sharing link in the settings.',
   'نمایش مقادیر عددی': 'Show numeric values',
   'مخفی کردن مقادیر (حالت حریم خصوصی)': 'Hide values (privacy mode)',
@@ -333,10 +333,10 @@ export default {
   اشتراک‌گذاری: 'Share',
 
   // Reference asset (pay / swap with another asset)
-  'پرداخت یا تهاتر با دارایی دیگر (دلار، طلا، سهام و ...)': 'Pay or swap with another asset (dollar, gold, stocks, ...)',
+  'پرداخت یا تهاتر با دارایی دیگر (دلار، طلا، سهام و …)': 'Pay or swap with another asset (dollar, gold, stocks, …)',
   'پرداخت / تهاتر با دارایی دیگر': 'Pay / swap with another asset',
   'لغو و بازگشت به ثبت تومانی ساده': 'Cancel and go back to a plain toman record',
-  'جستجوی دارایی پرداختی (دلار، طلا، سهام و ...)': 'Search the asset paid with (dollar, gold, stocks, ...)',
+  'جستجوی دارایی پرداختی (دلار، طلا، سهام و …)': 'Search the asset paid with (dollar, gold, stocks, …)',
   'تغییر دارایی مرجع': 'Change reference asset',
   'مقدار کل {name} پرداخت‌شده ({unit})': 'Total {name} paid ({unit})',
   'مثلاً ۵': 'e.g. 5',
@@ -363,10 +363,10 @@ export default {
   'برای دسترسی به اطلاعات، رمز عبور پورتفوی «{portfolioName}» را وارد کنید.': 'Enter the password of the portfolio "{portfolioName}" to access its data.',
   'برای دسترسی به اطلاعات، رمز عبور پورتفو را وارد کنید.': 'Enter the portfolio password to access its data.',
   'خطا در رمزگشایی گاوصندوق.': 'Error decrypting the vault.',
-  'رمز عبور...': 'Password...',
+  'رمز عبور…': 'Password…',
   'مخفی کردن': 'Hide',
   'نمایش رمز': 'Show password',
-  'در حال بررسی...': 'Checking...',
+  'در حال بررسی…': 'Checking…',
   بازگشایی: 'Unlock',
   'رمزگشایی در مرورگر انجام می‌شود و رمز در سرور ذخیره نمی‌گردد.': 'Decryption happens in the browser and the password is never stored on the server.',
   'رمز عبور رمزنگاری حساب اشتباه است.': 'The account encryption password is wrong.',
@@ -405,7 +405,7 @@ export default {
   'ثبت تراکنش': 'Save transaction',
   '«{saved}» ثبت شد؛ تراکنش بعدی را وارد کنید.': '"{saved}" saved; enter the next transaction.',
   'دارایی *': 'Asset *',
-  'جستجو و انتخاب دارایی...': 'Search and choose an asset...',
+  'جستجو و انتخاب دارایی…': 'Search and choose an asset…',
   'مثلاً ۱.۵ یا ۱۰۰': 'e.g. 1.5 or 100',
   'قیمت هر {unit}': 'Price per {unit}',
   'قیمت هر واحد در لحظه معامله': 'Price per unit at trade time',
@@ -414,7 +414,7 @@ export default {
   'توجه: مقدار فروش ({count} {unit}) بیشتر از موجودی محاسبه‌شده فعلی این دارایی ({available} {unit}) است. (غیرمسدودکننده)':
     'Note: the sold amount ({count} {unit}) is more than the currently computed balance of this asset ({available} {unit}). (Not blocking)',
   'تاریخ معامله *': 'Trade date *',
-  'مثلاً: خرید پله‌ای، صرافی فلان، کارمزد و...': 'e.g. staged purchase, a certain exchange, fees...',
+  'مثلاً: خرید پله‌ای، صرافی فلان، کارمزد و…': 'e.g. staged purchase, a certain exchange, fees…',
 
   // Flow views (monthly / yearly)
   درآمد: "Income",

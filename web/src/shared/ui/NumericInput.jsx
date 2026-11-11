@@ -1,5 +1,6 @@
 import React, { forwardRef, useRef, useImperativeHandle } from 'react';
 import { formatThousands } from '../utils/formatters.js';
+import { canAutoFocus } from './fieldDefaults.js';
 
 /**
  * Universal NumericInput Component
@@ -108,6 +109,7 @@ export const NumericInput = forwardRef(function NumericInput(
       style={style}
       autoComplete="off"
       {...rest}
+      autoFocus={Boolean(rest.autoFocus) && canAutoFocus()}
     />
   );
 

@@ -6,11 +6,13 @@
 
 import React, { forwardRef } from 'react';
 import { useTypedText } from './useTypedText.js';
+import { fieldDefaults } from './fieldDefaults.js';
 
 const TextField = forwardRef(function TextField({ as = 'input', value, onChange, onInput, onCompositionEnd, onBlur, ...props }, ref) {
   const typed = useTypedText(value, onChange, { onInput, onCompositionEnd, onBlur });
   const Component = as === 'textarea' ? 'textarea' : 'input';
-  return <Component ref={ref} value={value} {...props} {...typed} />;
+  const defaults = fieldDefaults(props);
+  return <Component ref={ref} value={value} {...defaults} {...props} autoFocus={defaults.autoFocus} {...typed} />;
 });
 
 export default TextField;

@@ -282,7 +282,7 @@ export default function SharedPortfolioPage() {
                 <div className="password-input-wrapper">
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    placeholder={t('رمز عبور مشاهده پورتفو...')}
+                    placeholder={t('رمز عبور مشاهده پورتفو…')}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     autoFocus
@@ -298,7 +298,7 @@ export default function SharedPortfolioPage() {
                 </div>
 
                 <button type="submit" className="btn-unlock-shared" disabled={unlocking}>
-                  {unlocking ? t('در حال بررسی...') : t('مشاهده')}
+                  {unlocking ? t('در حال بررسی…') : t('مشاهده')}
                 </button>
               </form>
 

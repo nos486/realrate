@@ -506,7 +506,7 @@ function LimitsCard({ limits, groups, onSave, onReset }) {
   const customized = isFree ? limits.customized.free : limits.customized.groups.includes(scope);
   const scopes = [{ key: 'free', name: 'پلن رایگان' }, ...groups.map((g) => ({ key: g.key, name: g.name }))];
   return (
-    <AdminCard icon={<Crown size={18} />} title="محدودیت‌ها و سهمیه‌ها" subtitle="حداکثر تعداد حساب، وام، پیامک خوانده‌شده و ... برای پلن رایگان و هر گروه؛ سرور همین را اجرا می‌کند و اپ اندروید سهمیه‌ی پیامک را از آن می‌خواند.">
+    <AdminCard icon={<Crown size={18} />} title="محدودیت‌ها و سهمیه‌ها" subtitle="حداکثر تعداد حساب، وام، پیامک خوانده‌شده و … برای پلن رایگان و هر گروه؛ سرور همین را اجرا می‌کند و اپ اندروید سهمیه‌ی پیامک را از آن می‌خواند.">
       <div className="admin-feature-groups" role="tablist" aria-label="محدوده">
         {scopes.map((o) => (
           <button key={o.key} type="button" role="tab" aria-selected={scope === o.key} className={`admin-chip-toggle ${scope === o.key ? 'is-on' : ''}`} onClick={() => setScope(o.key)}>

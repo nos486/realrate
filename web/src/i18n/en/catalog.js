@@ -264,7 +264,7 @@ export default {
   'ورود از همراه بانک': "Import from bank app",
   'ورود گردش حساب از فایل اکسل بانک (پارسیان) به هزینه‌ها، درآمدها و انتقال‌ها، با دسته‌بندی خودکار و پرسش از کاربر': "Imports the account statement from the bank's Excel file (Parsian) into expenses, incomes and transfers, with automatic categorization and questions to the user",
   'هزینه‌ها': "Expenses",
-  'بخش‌های هزینه (پروژه‌ها و ...) با ثبت هزینه به تومان یا دلار': 'Expense sections (projects, etc.) with expenses recorded in tomans or dollars',
+  'بخش‌های هزینه (پروژه‌ها و …) با ثبت هزینه به تومان یا دلار': 'Expense sections (projects, etc.) with expenses recorded in tomans or dollars',
   'حساب‌ها': 'Accounts',
   'حساب‌های بانکی، نقد و کیف پول؛ منبع هر هزینه': 'Bank, cash and wallet accounts; the source of each expense',
   'ابزار بررسی دقت اسکن چک': 'Cheque scan accuracy tool',

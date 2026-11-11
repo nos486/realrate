@@ -14,7 +14,7 @@ export default function LanguagePicker() {
     <main className="language-picker" dir="ltr">
       <div className="language-picker-card">
         <img className="language-picker-logo" src="/icons/apple-touch-icon.png" alt="" width="64" height="64" />
-        <h1 className="language-picker-title">RealRate</h1>
+        <h1 className="language-picker-title" translate="no">RealRate</h1>
         <p className="language-picker-hint">
           <span lang="fa" dir="rtl">زبان خود را انتخاب کنید</span>{/* i18n-ignore */}
           <span lang="en">Choose your language</span>

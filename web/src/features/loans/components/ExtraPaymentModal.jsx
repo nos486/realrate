@@ -203,7 +203,7 @@ export default function ExtraPaymentModal({
           <Input
             id="extra-payment-notes"
             label={t('توضیحات یا منبع واریزی')}
-            placeholder={t('مثلاً: پاداش، فروش طلا، تسویه پیش از موعد...')}
+            placeholder={t('مثلاً: پاداش، فروش طلا، تسویه پیش از موعد…')}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
           />

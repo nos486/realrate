@@ -230,7 +230,7 @@ export default function TransactionForm({
             mode="picker"
             selectedAssetId={assetId}
             onSelect={handleAssetSelect}
-            placeholder={t('جستجو و انتخاب دارایی...')}
+            placeholder={t('جستجو و انتخاب دارایی…')}
           />
         </div>
 
@@ -297,7 +297,7 @@ export default function TransactionForm({
           <Input
             id="tx-notes"
             label={t('یادداشت')}
-            placeholder={t('مثلاً: خرید پله‌ای، صرافی فلان، کارمزد و...')}
+            placeholder={t('مثلاً: خرید پله‌ای، صرافی فلان، کارمزد و…')}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
           />

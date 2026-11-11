@@ -200,7 +200,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
                 className="btn-primary"
                 disabled={saving}
               >
-                {saving ? t('در حال ذخیره...') : t('ذخیره')}
+                {saving ? t('در حال ذخیره…') : t('ذخیره')}
               </button>
             </div>
           </div>
@@ -210,7 +210,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
       {loading ? (
         <div className="settings-loading">
           <div className="spinner-glow"></div>
-          <span>{t('در حال بارگذاری تنظیمات...')}</span>
+          <span>{t('در حال بارگذاری تنظیمات…')}</span>
         </div>
       ) : (
         <>
@@ -228,7 +228,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
               <TextField
                 type="text"
                 id="settingsPortfolioName"
-                placeholder={t('نام پورتفو...')}
+                placeholder={t('نام پورتفو…')}
                 value={portfolioName}
                 onChange={(e) => setPortfolioName(e.target.value)}
                 required
@@ -321,7 +321,7 @@ export default function UserSettingsModal({ isOpen, portfolio, onClose, onSaved,
                 <input
                   type={showPassword ? 'text' : 'password'}
                   id="settingsSharePassword"
-                  placeholder={hasExistingPassword && !removePassword ? t('رمز تنظیم شده — برای تغییر، رمز جدید وارد کنید') : t('رمز دلخواه...')}
+                  placeholder={hasExistingPassword && !removePassword ? t('رمز تنظیم شده — برای تغییر، رمز جدید وارد کنید') : t('رمز دلخواه…')}
                   value={sharePassword}
                   disabled={removePassword}
                   onChange={(e) => setSharePassword(e.target.value)}

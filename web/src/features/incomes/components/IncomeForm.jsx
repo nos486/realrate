@@ -326,7 +326,7 @@ export default function IncomeForm({
             id="income-notes"
             as="textarea"
             label={t('یادداشت')}
-            placeholder={t('توضیحات تکمیلی، نام کارفرما، شماره فاکتور و...')}
+            placeholder={t('توضیحات تکمیلی، نام کارفرما، شماره فاکتور و…')}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             maxLength={500}

@@ -35,7 +35,7 @@ export default function FullscreenLoader() {
   return (
     <BlockingOverlay
       title={t('در حال بارگذاری اطلاعات از سرور')}
-      subtitle={t('لطفاً شکیبا باشید، در حال پردازش و همگام‌سازی داده‌ها...')}
+      subtitle={t('لطفاً شکیبا باشید، در حال پردازش و همگام‌سازی داده‌ها…')}
     />
   );
 }

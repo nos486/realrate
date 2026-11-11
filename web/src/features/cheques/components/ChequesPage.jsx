@@ -193,7 +193,7 @@ export default function ChequesPage() {
                 <SearchBar
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={t('جستجو در نام، شماره، شناسه صیادی یا یادداشت...')}
+                  placeholder={t('جستجو در نام، شماره، شناسه صیادی یا یادداشت…')}
                   badge={t('{n} مورد', { n: visibleCheques.length.toLocaleString(intlLocale()) })}
                   className="incomes-search"
                 />

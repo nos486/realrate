@@ -569,7 +569,7 @@ export default function AddLoanForm({
             id="loan-notes"
             as="textarea"
             label={t('توضیحات و شرایط')}
-            placeholder={t('شماره قرارداد، ضامن‌ها، وثیقه‌ها، نحوه پرداخت...')}
+            placeholder={t('شماره قرارداد، ضامن‌ها، وثیقه‌ها، نحوه پرداخت…')}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={2}

@@ -3,6 +3,7 @@ import React, { forwardRef } from 'react';
 import { X } from 'lucide-react';
 import { useTypedText } from './useTypedText.js';
 import { DictateButton } from './DictateButton.jsx';
+import { fieldDefaults } from './fieldDefaults.js';
 
 /**
  * Universal Minimalist Input Component
@@ -65,7 +66,9 @@ export const Input = forwardRef(function Input(
           className={`ui-input-control ${icon ? 'has-leading-icon' : ''} ${clearable && hasValue ? 'has-clear-btn' : ''} ${onDictate ? 'has-dictate-btn' : ''}`}
           disabled={disabled}
           value={value}
+          {...fieldDefaults(props)}
           {...props}
+          autoFocus={fieldDefaults(props).autoFocus}
           {...typed}
         />
 

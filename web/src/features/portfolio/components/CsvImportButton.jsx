@@ -194,7 +194,7 @@ export default function CsvImportButton({ addHolding, addTransaction, disabled =
         {step === 'importing' && (
           <div className="csv-import-progress">
             <div className="spinner-glow"></div>
-            <p>{t('در حال درون‌ریزی... ({done} از {total})', { done: progress.done.toLocaleString(intlLocale()), total: progress.total.toLocaleString(intlLocale()) })}</p>
+            <p>{t('در حال درون‌ریزی… ({done} از {total})', { done: progress.done.toLocaleString(intlLocale()), total: progress.total.toLocaleString(intlLocale()) })}</p>
           </div>
         )}
 
