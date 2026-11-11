@@ -1656,7 +1656,7 @@
   border: 1px solid var(--border-medium);
   border-radius: var(--radius-md);
   padding: 4px 10px;
-  transition: all 0.2s ease;
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
   width: 200px;
 }
 
@@ -1698,7 +1698,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  transition: all 0.2s ease;
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
 }
 
 .portfolio-search-clear:hover {
@@ -1771,7 +1771,7 @@
   color: var(--text-secondary);
   font-size: var(--fs-sm);
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: color 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, opacity 0.18s ease, transform 0.18s ease;
   user-select: none;
 }
 
@@ -1866,7 +1866,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  transition: all 0.2s ease;
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
 }
 
 .asset-search-clear-btn:hover {
@@ -1964,7 +1964,7 @@
   background: transparent;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
   text-align: start;
 }
 
@@ -2111,7 +2111,7 @@
   padding: 3px 8px;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
 }
 
 .btn-change-selected-stock:hover {

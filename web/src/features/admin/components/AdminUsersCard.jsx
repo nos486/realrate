@@ -111,7 +111,7 @@ export default function AdminUsersCard({ list, filterCounts = {}, onOpenUser }) 
         />
         <button type="button" className="admin-user-cell" onClick={() => onOpenUser(u)}>
           {u.picture ? (
-            <img src={u.picture} alt="" className="admin-user-avatar" onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }} />
+            <img src={u.picture} alt="" width="32" height="32" className="admin-user-avatar" onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }} />
           ) : (
             <span className="admin-user-avatar is-fallback" aria-hidden="true">{displayName(u).charAt(0)}</span>
           )}
@@ -202,7 +202,7 @@ export default function AdminUsersCard({ list, filterCounts = {}, onOpenUser }) 
           value={list.search}
           onChange={(e) => list.setSearch(e.target.value)}
           onClear={() => list.setSearch('')}
-          placeholder="جستجو در نام، ایمیل، شناسه یا اسلاگ..."
+          placeholder="جستجو در نام، ایمیل، شناسه یا اسلاگ…"
           badge={`${faNum(total)} نفر`}
           className="incomes-search"
         />

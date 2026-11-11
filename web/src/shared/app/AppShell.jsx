@@ -249,7 +249,7 @@ export function AppBottomNav({ activeTab, navItems = [], onSelect }) {
         {user && (
           <div className="app-more-user">
             {user.picture ? (
-              <img src={user.picture} alt="" className="app-more-avatar" onError={(e) => { e.target.style.display = 'none'; }} />
+              <img src={user.picture} alt="" width="42" height="42" className="app-more-avatar" onError={(e) => { e.target.style.display = 'none'; }} />
             ) : (
               <span className="app-more-avatar is-fallback">{(user.customName || user.name || user.email || 'U')[0]}</span>
             )}

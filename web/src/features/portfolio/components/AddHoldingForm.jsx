@@ -378,7 +378,7 @@ export default function AddHoldingForm({
               id="holding-custom-name"
               className="flex-1"
               label={t('نام دارایی شخصی')}
-              placeholder={t('مثلاً زمین دماوند، خودرو، نقاشی...')}
+              placeholder={t('مثلاً زمین دماوند، خودرو، نقاشی…')}
               value={customName}
               onChange={(e) => setCustomName(e.target.value)}
               required
@@ -387,7 +387,7 @@ export default function AddHoldingForm({
               id="holding-custom-unit"
               className="flex-1"
               label={t('واحد شمارش')}
-              placeholder={t('مثلاً متر، عدد، تن، سهم...')}
+              placeholder={t('مثلاً متر، عدد، تن، سهم…')}
               value={customUnit}
               onChange={(e) => setCustomUnit(e.target.value)}
               required
@@ -484,7 +484,7 @@ export default function AddHoldingForm({
           <Input
             id="holding-notes"
             label={t('یادداشت یا توضیحات')}
-            placeholder={t('مثلاً خرید از بورس یا بازار تهران...')}
+            placeholder={t('مثلاً خرید از بورس یا بازار تهران…')}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
           />

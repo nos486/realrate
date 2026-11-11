@@ -77,7 +77,7 @@ export default function UniversalAssetSearch({
   selectedAsset = null,
   selectedAssetId = null,
   onSelect = () => {},
-  placeholder = t('جستجو در تمامی دارایی‌ها و سورس‌ها...'),
+  placeholder = t('جستجو در تمامی دارایی‌ها و سورس‌ها…'),
   title = '',
   subtitle = '',
   autoFocus = false,

@@ -153,7 +153,7 @@ export default function PortfolioTracker({
               className="btn-primary"
               disabled={creatingPortfolio || !newPortfolioName.trim()}
             >
-              {creatingPortfolio ? t('در حال ایجاد...') : t('ایجاد')}
+              {creatingPortfolio ? t('در حال ایجاد…') : t('ایجاد')}
             </button>
           </div>
         }
@@ -162,7 +162,7 @@ export default function PortfolioTracker({
           <label>{t('نام پورتفو')}</label>
           <TextField
             type="text"
-            placeholder={t('مثلاً: پس‌انداز طلا، سبد ارزی...')}
+            placeholder={t('مثلاً: پس‌انداز طلا، سبد ارزی…')}
             value={newPortfolioName}
             onChange={(e) => setNewPortfolioName(e.target.value)}
             className="form-input"

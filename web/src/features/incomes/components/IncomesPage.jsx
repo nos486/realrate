@@ -270,7 +270,7 @@ export default function IncomesPage() {
             <SearchBar
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t('جستجو در عنوان، دسته یا یادداشت...')}
+              placeholder={t('جستجو در عنوان، دسته یا یادداشت…')}
               badge={t('{n} مورد', { n: listed.length.toLocaleString(intlLocale()) })}
               className="incomes-search"
             />
@@ -309,7 +309,7 @@ export default function IncomesPage() {
           <EmptyState
             icon={<Wallet size={40} strokeWidth={1.5} />}
             title={t('درآمدی در {month} ثبت نشده', { month: monthLabel })}
-            description={t('حقوق، فروش، اجاره و ... را با دسته‌بندی ثبت کنید تا ببینید درآمدتان از کجاست و چطور تغییر می‌کند.')}
+            description={t('حقوق، فروش، اجاره و … را با دسته‌بندی ثبت کنید تا ببینید درآمدتان از کجاست و چطور تغییر می‌کند.')}
             action={!readOnly && <Button icon={<Plus size={16} />} onClick={() => openForm()}>{t('ثبت درآمد')}</Button>}
           />
         ) : searching && listed.length === 0 ? (

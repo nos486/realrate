@@ -93,7 +93,7 @@ export default function ReferenceAssetInputs({
     return (
       <button type="button" className="btn-add-reference-asset" onClick={() => setExpanded(true)}>
         <ArrowLeftRight size={13} />
-        <span>{t('پرداخت یا تهاتر با دارایی دیگر (دلار، طلا، سهام و ...)')}</span>
+        <span>{t('پرداخت یا تهاتر با دارایی دیگر (دلار، طلا، سهام و …)')}</span>
       </button>
     );
   }
@@ -124,7 +124,7 @@ export default function ReferenceAssetInputs({
         <UniversalAssetSearch
           mode="picker"
           onSelect={handlePick}
-          placeholder={t('جستجوی دارایی پرداختی (دلار، طلا، سهام و ...)')}
+          placeholder={t('جستجوی دارایی پرداختی (دلار، طلا، سهام و …)')}
         />
       ) : (
         <>

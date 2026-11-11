@@ -24,9 +24,16 @@ export default function ShareLinkToggle({ portfolio, onOpenSettings }) {
   return (
     <div className="share-link-toggle-widget">
       {portfolio.shareEnabled ? (
-        <div className="share-active-pill" onClick={onOpenSettings} title={t('مدیریت تنظیمات اشتراک')}>
-          <Share2 size={13} className="share-icon active" />
-          <span className="share-slug-text">{t('لینک اشتراک فعال است')}</span>
+        <div className="share-active-pill">
+          <button
+            type="button"
+            className="share-pill-open"
+            onClick={onOpenSettings}
+            title={t('مدیریت تنظیمات اشتراک')}
+          >
+            <Share2 size={13} className="share-icon active" aria-hidden="true" />
+            <span className="share-slug-text">{t('لینک اشتراک فعال است')}</span>
+          </button>
           <button
             type="button"
             className="btn-copy-share-url"

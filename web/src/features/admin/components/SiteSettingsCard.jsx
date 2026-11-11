@@ -45,7 +45,7 @@ export default function SiteSettingsCard({ settings, onSave }) {
         id="adminAnnouncement"
         rows={2}
         label="متن اطلاعیه"
-        placeholder="متن اطلاعیه..."
+        placeholder="متن اطلاعیه…"
         value={form.announcement}
         maxLength={500}
         onChange={set('announcement')}

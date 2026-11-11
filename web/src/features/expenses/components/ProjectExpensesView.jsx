@@ -255,7 +255,7 @@ export default function ProjectExpensesView({ groupId = null, onSelectGroup, usd
                       <SearchBar
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder={t('جستجو در عنوان، یادداشت یا برچسب...')}
+                        placeholder={t('جستجو در عنوان، یادداشت یا برچسب…')}
                         badge={t('{n} مورد', { n: listed.length.toLocaleString(intlLocale()) })}
                         className="incomes-search"
                       />

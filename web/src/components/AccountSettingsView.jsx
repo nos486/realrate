@@ -166,7 +166,7 @@ export default function AccountSettingsView() {
         <Input
           label={t('نام مستعار نمایشی (Nickname)')}
           id="userCustomNickname"
-          placeholder={t('مثلاً: آریا، سرمایه‌گذار...')}
+          placeholder={t('مثلاً: آریا، سرمایه‌گذار…')}
           value={customName}
           onChange={(e) => setCustomName(e.target.value)}
           maxLength={40}

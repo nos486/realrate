@@ -320,7 +320,7 @@ export default function ChequeForm({
             id="cheque-notes"
             as="textarea"
             label={t('یادداشت')}
-            placeholder={t('بابت چه چیزی، شرایط، شماره حساب و...')}
+            placeholder={t('بابت چه چیزی، شرایط، شماره حساب و…')}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             maxLength={CHEQUE_LIMITS.notesLength}

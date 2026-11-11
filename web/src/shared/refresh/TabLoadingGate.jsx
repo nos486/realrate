@@ -60,7 +60,7 @@ export default function TabLoadingGate({ tab }) {
   return (
     <BlockingOverlay
       title={t('در حال باز کردن صفحه')}
-      subtitle={t('اطلاعات این صفحه در حال دریافت است...')}
+      subtitle={t('اطلاعات این صفحه در حال دریافت است…')}
     />
   );
 }

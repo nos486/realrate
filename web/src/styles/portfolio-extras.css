@@ -1590,3 +1590,16 @@
   font-size: var(--fs-sm);
   color: var(--text-muted);
 }
+
+/* The shared-link pill's open-settings control is a real button (keyboard reachable) that looks like the pill's text */
+.share-pill-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}

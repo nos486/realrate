@@ -343,7 +343,7 @@ const HoldingsView = forwardRef(function HoldingsView(
           <Search size={14} className="portfolio-search-icon" />
           <TextField
             type="text"
-            placeholder={t('جستجو در اقلام پورتفو...')}
+            placeholder={t('جستجو در اقلام پورتفو…')}
             value={holdingsFilterQuery}
             onChange={(e) => setHoldingsFilterQuery(e.target.value)}
             className="portfolio-search-input"

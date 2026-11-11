@@ -39,7 +39,8 @@ export default function YearMonthTable({ series, kind, onOpenMonth, hideValues =
           </thead>
           <tbody>
             {[...series].reverse().map((m) => (
-              <tr key={m.key} className={onOpenMonth ? 'is-clickable' : ''} onClick={onOpenMonth ? () => onOpenMonth(m.jm) : undefined}>
+              <tr key={m.key} className={onOpenMonth ? 'is-clickable' : ''} onClick={onOpenMonth ? () => onOpenMonth(m.jm) : undefined}
+                {...(onOpenMonth ? { tabIndex: 0, role: 'button', onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenMonth(m.jm); } } } : {})}>
                 <td><strong>{m.monthLabel}</strong></td>
                 <td className="num">{m.total > 0 ? formatAmountMasked(m.total, hideValues) : '—'}</td>
                 <td className={`num ${m.change !== null ? tone(m.change) : ''}`}>

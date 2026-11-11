@@ -107,7 +107,7 @@ function LoanDetailModal({ loanId, onClose, onRefreshLoans, readOnly = false }) 
       subtitle={
         loan
           ? loanSubtitle(loan, hideValues)
-          : t('در حال دریافت اطلاعات...')
+          : t('در حال دریافت اطلاعات…')
       }
       icon={<Landmark size={20} className="text-amber-500" />}
       maxWidth="min(1320px, 94vw)"

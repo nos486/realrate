@@ -492,7 +492,7 @@ export default function LoanInstallmentsTable({
                                 onClick={() => handleConfirmPay(inst)}
                                 disabled={isActionLoading}
                               >
-                                {isActionLoading ? '...' : t('تأیید')}
+                                {isActionLoading ? '…' : t('تأیید')}
                               </button>
                               <button
                                 type="button"
@@ -679,7 +679,7 @@ export default function LoanInstallmentsTable({
                         onClick={() => handleConfirmPay(inst)}
                         disabled={isActionLoading}
                       >
-                        {isActionLoading ? t('در حال ثبت...') : t('تأیید پرداخت')}
+                        {isActionLoading ? t('در حال ثبت…') : t('تأیید پرداخت')}
                       </button>
                       <button
                         type="button"

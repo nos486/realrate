@@ -198,7 +198,7 @@ export function ChequeScanModal({ isOpen, onClose, onFillForm }) {
         {status === 'resizing' && (
           <div className="scan-processing-box">
             <Loader2 size={32} className="spin-anim text-primary" />
-            <p className="processing-title">{t('در حال آماده‌سازی و بهینه‌سازی تصویر...')}</p>
+            <p className="processing-title">{t('در حال آماده‌سازی و بهینه‌سازی تصویر…')}</p>
             <span className="processing-subtitle">{t('تصحیح چرخش EXIF و کاهش حجم تصویر جهت ارسال سریع‌تر')}</span>
           </div>
         )}
@@ -224,7 +224,7 @@ export function ChequeScanModal({ isOpen, onClose, onFillForm }) {
               <div className="uploading-state-container">
                 <div className="uploading-spinner-row">
                   <Loader2 size={20} className="spin-anim text-primary" />
-                  <span className="uploading-text">{t('هوش مصنوعی در حال تحلیل چک و استخراج فیلدهاست...')}</span>
+                  <span className="uploading-text">{t('هوش مصنوعی در حال تحلیل چک و استخراج فیلدهاست…')}</span>
                 </div>
                 <Button variant="secondary" size="sm" onClick={cancelScan}>
                   {t('لغو پردازش')}

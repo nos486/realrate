@@ -109,7 +109,7 @@ export const FEATURES = {
   expenses: {
     stage: 'ga',
     label: 'هزینه‌ها',
-    description: 'بخش‌های هزینه (پروژه‌ها و ...) با ثبت هزینه به تومان یا دلار',
+    description: 'بخش‌های هزینه (پروژه‌ها و …) با ثبت هزینه به تومان یا دلار',
   },
   bank_accounts: {
     stage: 'ga',

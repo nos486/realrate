@@ -72,7 +72,7 @@ export default function VaultLockCard({
             <input
               type={showPass ? 'text' : 'password'}
               className="vault-unlock-input"
-              placeholder={t('رمز عبور...')}
+              placeholder={t('رمز عبور…')}
               value={passphrase}
               onChange={(e) => {
                 setPassphrase(e.target.value);
@@ -109,7 +109,7 @@ export default function VaultLockCard({
               className="btn-vault-unlock"
               disabled={isBusy || !passphrase.trim()}
             >
-              {isBusy ? t('در حال بررسی...') : t('بازگشایی')}
+              {isBusy ? t('در حال بررسی…') : t('بازگشایی')}
             </button>
             {extraAction}
           </div>

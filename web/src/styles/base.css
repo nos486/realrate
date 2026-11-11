@@ -495,7 +495,7 @@ textarea:focus {
   font-weight: 600;
   padding: 10px 14px;
   outline: none;
-  transition: all var(--transition-fast);
+  transition: color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
   box-sizing: border-box;
 }
 
@@ -1152,7 +1152,7 @@ input.search-bar-input:focus-visible {
   white-space: nowrap !important;
   flex-shrink: 0;
   line-height: 1;
-  transition: all var(--transition-fast);
+  transition: color var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
   font-family: inherit;
   box-sizing: border-box;
 }
@@ -1281,7 +1281,7 @@ input.search-bar-input:focus-visible {
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .ui-filter-pills.variant-segmented .filter-pill-btn:hover {

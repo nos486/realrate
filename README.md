@@ -95,6 +95,7 @@ Full guide (D1 and KV, Google sign-in, email, Pages, Workers, the Android signin
 | [BANK_STATEMENT_IMPORT.md](docs/en/BANK_STATEMENT_IMPORT.md) | Mobile-bank statement import and adding a bank |
 | [EXPENSES.md](docs/en/EXPENSES.md) | Expense, account, budget and loan-funding data model |
 | [DESIGN.md](docs/en/DESIGN.md) | Color and layout standard |
+| [WEB_INTERFACE_GUIDELINES.md](docs/en/WEB_INTERFACE_GUIDELINES.md) | Accessibility, forms, motion and touch checklist |
 | [ADDING_NEW_ASSET.md](docs/en/ADDING_NEW_ASSET.md) | Adding an asset |
 | [ADDING_NEW_PRICE_SOURCE.md](docs/en/ADDING_NEW_PRICE_SOURCE.md) | Adding a price source |
 
