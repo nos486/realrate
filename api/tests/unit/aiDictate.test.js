@@ -100,3 +100,16 @@ describe('Cloudflare engines', () => {
     expect(ai.mock.calls[0][1].language).toBeUndefined();
   });
 });
+
+describe('Cloudflare engine output', () => {
+  it('shows the admin what Whisper heard when the model could not read it', async () => {
+    const { memoryStateDb } = await import('../helpers/memoryStateDb.js');
+    const { saveAiSettings } = await import('../../src/services/ai/aiSettings.service.js');
+    const { processAiVoice } = await import('../../src/services/ai/assistant.service.js');
+    const ai = vi.fn().mockResolvedValueOnce({ text: 'متن شنیده' }).mockResolvedValueOnce({ response: 'not json' });
+    const env = { DB: memoryStateDb(), AI: { run: ai } };
+    await saveAiSettings(env, { voiceEngine: 'cf-whisper-turbo' });
+    const out = await processAiVoice(env, { audioBuffer: new ArrayBuffer(8), mimeType: 'audio/wav', expense: [], income: [], accounts: [], debug: true });
+    expect(out).toMatchObject({ understood: false, heard: 'متن شنیده' });
+  });
+});

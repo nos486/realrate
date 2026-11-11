@@ -3,6 +3,7 @@
  */
 
 export default {
+  'متوجه نشدم؛ دوباره امتحان کنید. (شنیده شد: «{heard}»)': 'I didn\'t understand; please try again. (Heard: "{heard}")',
   'دستیار صوتی چه کارهایی می‌کند؟': 'What can the voice assistant do?',
   'متوجه شدم': 'Got it',
   'دکمه‌ی «+» را نگه دارید و حرف بزنید؛ با رها کردن، ارسال می‌شود.': 'Hold the "+" button and speak; letting go sends it.',
