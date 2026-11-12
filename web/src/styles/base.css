@@ -449,6 +449,25 @@ textarea:focus {
   gap: 10px;
 }
 
+/* Touch screens: every button is at least 44px tall (docs/en/WEB_INTERFACE_GUIDELINES.md) */
+@media (pointer: coarse) {
+  .btn,
+  .btn-primary,
+  .btn-secondary,
+  .btn-cancel,
+  .btn-danger,
+  .btn-ghost,
+  .btn-modal-submit,
+  .btn-modal-cancel,
+  .btn-modal-delete,
+  .btn-save-primary,
+  .btn-cancel-modal,
+  .ui-btn-sm,
+  .ui-btn-md {
+    min-height: 44px;
+  }
+}
+
 .ui-btn-block {
   width: 100%;
 }

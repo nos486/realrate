@@ -15,7 +15,7 @@ A condensed checklist adapted from [vercel-labs/web-interface-guidelines](https:
 
 ## Motion and touch
 - Never `transition: all`; list the properties. Animate `transform`/`opacity`; honour `prefers-reduced-motion`.
-- Hit targets are at least 44px on phones; modals and sheets use `overscroll-behavior: contain`; full-bleed layouts respect `env(safe-area-inset-*)`.
+- Hit targets are at least 44px on touch screens; modals and sheets use `overscroll-behavior: contain`; full-bleed layouts respect `env(safe-area-inset-*)`.
 
 ## Content and layout
 - Use `…`, not `...`, in loading texts and placeholders.
