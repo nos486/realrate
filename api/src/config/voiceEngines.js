@@ -2,8 +2,8 @@
  * voiceEngines.js — The engines that can understand a voice note on a bank SMS
  *
  * `auto` is what everyone gets: Gemini, trying the models of config/ai.config.js in turn. The others
- * run ONE engine so they can be compared: an admin picks one in the voice window (and the server
- * honors the pick only for them: the `cheque_scan_debug` feature). A `gemini` engine hears the clip
+ * run ONE engine so they can be compared: the admin picks one in the site settings (the assistant and
+ * dictation use it; the quick note on a bank SMS always uses SMS_STT_ENGINE). A `gemini` engine hears the clip
  * itself; a `workers` engine is Cloudflare Workers AI: a speech-to-text model writes what was said,
  * then the news section's GLM model (config/news.config.js) picks the title and category from the
  * text. `input` is how the speech model wants the audio: `base64` or `bytes` (an array of numbers); `language` is told to
@@ -21,6 +21,9 @@ export const VOICE_ENGINES = [
   { id: "cf-whisper-turbo", label: "Cloudflare: Whisper Large v3 Turbo + GLM", kind: "workers", stt: "@cf/openai/whisper-large-v3-turbo", input: "base64", language: "fa" },
   { id: "cf-whisper", label: "Cloudflare: Whisper + GLM", kind: "workers", stt: "@cf/openai/whisper", input: "bytes" },
 ];
+
+/** The engine of the quick voice note on a bank SMS: only the speech model runs (no GLM), the words are read by tables */
+export const SMS_STT_ENGINE = "cf-whisper-turbo";
 
 /** The engine with this id, or null */
 export const voiceEngineById = (id) => VOICE_ENGINES.find((e) => e.id === id) || null;
