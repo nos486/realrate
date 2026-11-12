@@ -1,8 +1,9 @@
 /**
  * smsVoiceApi.js — Send a voice note about a bank SMS to the server (experimental `sms_voice`)
  *
- * The server hands the clip to Gemini with the names of the user's expense categories and answers
- * the expense's title and one of those categories (or «سایر»); nothing is stored there.
+ * The server only transcribes the clip (Whisper, no language model) and reads the words with the names of
+ * the user's categories: the title is what was said and the category one of those (or «سایر»), found by the
+ * word table (api/src/domain/voiceCategory.js); nothing is stored there.
  */
 
 import { httpClient } from '../../shared/api/httpClient.js';

@@ -1,6 +1,6 @@
 /**
- * smsVoiceRoute.test.js — POST /api/sms/voice: admin-only while experimental, what is sent to
- * Gemini, the category fallback, and the daily limit
+ * smsVoiceRoute.test.js — POST /api/sms/voice: admin-only while experimental, Whisper only (no language
+ * model), the category read from the words, the offered actions, and the request cleaning
  */
 
 import { memoryStateDb } from '../helpers/memoryStateDb.js';
@@ -13,18 +13,12 @@ vi.mock('../../src/lib/auth.js', () => ({
 
 import { getAuthenticatedUser } from '../../src/lib/auth.js';
 import { handleSmsVoiceRoute } from '../../src/handlers/smsVoiceRoutes.js';
-import { normalizeSmsVoice, cleanVoiceCategories, cleanVoiceActions } from '../../src/domain/smsVoice.js';
-import { saveAiSettings } from '../../src/services/ai/aiSettings.service.js';
+import { cleanVoiceCategories, cleanVoiceActions } from '../../src/domain/smsVoice.js';
 import { isFeatureEnabled } from '../../src/config/features.js';
 
 const ADMIN = { id: 'a1', role: 'admin', email: 'admin@example.com' };
 const USER = { id: 'u1', role: 'user', email: 'user@example.com', groups: ['pro'] };
 const CATEGORIES = [{ value: 'c_ship1234', label: 'ارسال و پست' }, { value: 'food', label: 'خوراک' }, { value: 'other', label: 'سایر' }];
-
-const geminiReply = (obj) => new Response(
-  JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(obj) }] } }] }),
-  { status: 200, headers: { 'Content-Type': 'application/json' } },
-);
 
 /** The first bytes of a WebM file (EBML header), then filler */
 const WEBM = new Uint8Array(200);
@@ -44,15 +38,10 @@ describe('sms_voice feature', () => {
   });
 });
 
-describe('normalizeSmsVoice', () => {
-  it('keeps a category the user has, by key or by name, and falls back to other', () => {
-    expect(normalizeSmsVoice({ title: 'هزینه تیپاکس', category: 'c_ship1234' }, CATEGORIES)).toEqual({ understood: true, title: 'هزینه تیپاکس', category: 'c_ship1234', action: '', projectId: '' });
-    expect(normalizeSmsVoice({ title: 'x', category: 'خوراک' }, CATEGORIES).category).toBe('food');
-    expect(normalizeSmsVoice({ title: 'x', category: 'invented' }, CATEGORIES).category).toBe('other');
-  });
-  it('is not understood without a title', () => {
-    expect(normalizeSmsVoice({ understood: false, title: '', category: 'food' }, CATEGORIES).understood).toBe(false);
-    expect(normalizeSmsVoice('not json', CATEGORIES).understood).toBe(false);
+
+describe('cleaning the request', () => {
+  it('keeps only known actions', () => {
+    expect(cleanVoiceActions(['transfer', 'rm -rf', 'transfer'])).toEqual(['transfer']);
   });
   it('cleans the category list', () => {
     expect(cleanVoiceCategories([{ value: 'a', label: ' A ' }, { value: 'a', label: 'dup' }, { value: '', label: 'x' }, 5])).toEqual([{ value: 'a', label: 'A' }]);
@@ -60,38 +49,95 @@ describe('normalizeSmsVoice', () => {
 });
 
 describe('POST /api/sms/voice', () => {
-  let env;
+  const PROJECTS = [{ id: 'grp_1', name: 'خانه' }];
+  let ai;
   let fetchMock;
+  let env;
+  const say = (text) => ai.mockResolvedValue({ text });
 
   beforeEach(() => {
     vi.clearAllMocks();
-    fetchMock = vi.fn(async () => geminiReply({ understood: true, title: 'هزینه تیپاکس', category: 'c_ship1234' }));
+    fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
-    env = { ADMIN_EMAIL: 'admin@example.com', GEMINI_API_KEY: 'gkey', DB: memoryStateDb() };
+    ai = vi.fn();
+    env = { ADMIN_EMAIL: 'admin@example.com', DB: memoryStateDb(), AI: { run: ai } };
   });
   afterEach(() => vi.unstubAllGlobals());
+
+  const ask = async (text, extra = {}, user = ADMIN) => {
+    getAuthenticatedUser.mockResolvedValue(user);
+    say(text);
+    const request = voiceRequest(extra);
+    return (await handleSmsVoiceRoute(request, env)).json();
+  };
 
   it('hides the route from an ordinary user', async () => {
     getAuthenticatedUser.mockResolvedValue(USER);
     await expect(handleSmsVoiceRoute(voiceRequest(), env)).rejects.toMatchObject({ statusCode: 404 });
+    expect(ai).not.toHaveBeenCalled();
+  });
+
+  it('transcribes with Whisper only and reads the category from the words: no language model, no Gemini', async () => {
+    const body = await ask('پیتزا', { categories: [{ value: 'groceries', label: 'خوراک' }, { value: 'dining', label: 'رستوران و کافه' }, { value: 'other', label: 'سایر' }] });
+    expect(body).toMatchObject({ understood: true, title: 'پیتزا', category: 'dining', engine: 'cf-whisper-turbo' });
+    expect(ai).toHaveBeenCalledTimes(1);
+    expect(ai.mock.calls[0][0]).toBe('@cf/openai/whisper-large-v3-turbo');
+    expect(ai.mock.calls[0][1]).toMatchObject({ language: 'fa' });
+    expect(typeof ai.mock.calls[0][1].audio).toBe('string');
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('sends the clip and the user categories to Gemini and returns title and category', async () => {
-    getAuthenticatedUser.mockResolvedValue(ADMIN);
-    const res = await handleSmsVoiceRoute(voiceRequest(), env);
-    const body = await res.json();
-    expect(body).toMatchObject({ understood: true, title: 'هزینه تیپاکس', category: 'c_ship1234' });
-    const sent = JSON.parse(fetchMock.mock.calls[0][1].body);
-    expect(sent.contents[0].parts[0].inlineData.mimeType).toBe('audio/webm');
-    expect(sent.systemInstruction.parts[0].text).toContain('c_ship1234: ارسال و پست');
+  it('ignores the admin voice-engine setting', async () => {
+    const { saveAiSettings } = await import('../../src/services/ai/aiSettings.service.js');
+    await saveAiSettings(env, { voiceEngine: 'gemini-3.8-flash' });
+    const body = await ask('قهوه');
+    expect(body.engine).toBe('cf-whisper-turbo');
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('falls back to other for a category the model invented', async () => {
+  it('uses the name of a custom category before the word table', async () => {
+    const body = await ask('تیپاکس', { categories: [{ value: 'c_ship1234', label: 'تیپاکس و پست' }, { value: 'running_costs', label: 'هزینه‌های جاری' }, { value: 'other', label: 'سایر' }] });
+    expect(body.category).toBe('c_ship1234');
+  });
+
+  it('falls back to other for a word nobody knows, and for a category the user no longer has', async () => {
+    expect((await ask('چیزی عجیب')).category).toBe('other');
+    expect((await ask('پیتزا', { categories: [{ value: 'other', label: 'سایر' }] })).category).toBe('other');
+  });
+
+  it('is not understood when nothing is heard, and says what it heard to an admin', async () => {
+    const body = await ask('  ');
+    expect(body.understood).toBe(false);
+    const heard = await ask('کافه');
+    expect(heard.heard).toBe('کافه');
+  });
+
+  it('reads a deposit against the income categories', async () => {
     getAuthenticatedUser.mockResolvedValue(ADMIN);
-    fetchMock.mockResolvedValue(geminiReply({ understood: true, title: 'چیزی', category: 'nope' }));
-    const body = await (await handleSmsVoiceRoute(voiceRequest(), env)).json();
-    expect(body.category).toBe('other');
+    say('فروش لپ‌تاپ');
+    const form = new FormData();
+    form.append('audio', new Blob([WEBM], { type: 'audio/webm' }), 'v.webm');
+    form.append('categories', JSON.stringify([{ value: 'business', label: 'کسب‌وکار' }, { value: 'asset_sale', label: 'فروش دارایی' }, { value: 'other', label: 'سایر' }]));
+    form.append('kind', 'income');
+    const body = await (await handleSmsVoiceRoute(new Request('https://x/api/sms/voice', { method: 'POST', body: form }), env)).json();
+    expect(body).toMatchObject({ understood: true, category: 'asset_sale' });
+  });
+
+  it('answers an offered action, and a project by its name', async () => {
+    getAuthenticatedUser.mockResolvedValue(ADMIN);
+    const post = async (text, actions, projects = []) => {
+      say(text);
+      const form = new FormData();
+      form.append('audio', new Blob([WEBM], { type: 'audio/webm' }), 'v.webm');
+      form.append('categories', JSON.stringify(CATEGORIES));
+      form.append('actions', JSON.stringify(actions));
+      form.append('projects', JSON.stringify(projects));
+      return (await handleSmsVoiceRoute(new Request('https://x/api/sms/voice', { method: 'POST', body: form }), env)).json();
+    };
+    expect(await post('انتقال بین حساب‌هام است', ['transfer', 'project'])).toMatchObject({ action: 'transfer', projectId: '' });
+    expect(await post('برای پروژه خانه است', ['transfer', 'project'], PROJECTS)).toMatchObject({ action: 'project', projectId: 'grp_1' });
+    // Not offered for this message: only recorded
+    expect((await post('انتقال بین حساب‌هام است', ['project'])).action).toBe('');
   });
 
   it('refuses a file whose bytes are not audio of the declared type', async () => {
@@ -99,117 +145,9 @@ describe('POST /api/sms/voice', () => {
     await expect(handleSmsVoiceRoute(voiceRequest({ bytes: new Uint8Array(50) }), env)).rejects.toMatchObject({ statusCode: 400, code: 'INVALID_FILE_TYPE' });
     await expect(handleSmsVoiceRoute(voiceRequest({ type: 'image/png' }), env)).rejects.toMatchObject({ statusCode: 400 });
   });
-});
 
-describe('a note on a deposit', () => {
-  it('asks about an income and sends the income categories', async () => {
+  it('says so when Cloudflare Workers AI is not configured', async () => {
     getAuthenticatedUser.mockResolvedValue(ADMIN);
-    const fetchMock = vi.fn(async () => geminiReply({ understood: true, title: 'فروش لپ‌تاپ', category: 'sale' }));
-    vi.stubGlobal('fetch', fetchMock);
-    const env = { ADMIN_EMAIL: 'admin@example.com', GEMINI_API_KEY: 'gkey', DB: memoryStateDb() };
-    const form = new FormData();
-    form.append('audio', new Blob([WEBM], { type: 'audio/webm' }), 'v.webm');
-    form.append('categories', JSON.stringify([{ value: 'sale', label: 'فروش' }, { value: 'other', label: 'سایر' }]));
-    form.append('kind', 'income');
-    const body = await (await handleSmsVoiceRoute(new Request('https://x/api/sms/voice', { method: 'POST', body: form }), env)).json();
-    expect(body).toMatchObject({ understood: true, category: 'sale' });
-    const prompt = JSON.parse(fetchMock.mock.calls[0][1].body).systemInstruction.parts[0].text;
-    expect(prompt).toContain('درآمد');
-    expect(prompt).toContain('sale: فروش');
-    vi.unstubAllGlobals();
-  });
-});
-
-describe('voice model fallback', () => {
-  it('tries the next model when one times out', async () => {
-    getAuthenticatedUser.mockResolvedValue(ADMIN);
-    const timeout = Object.assign(new Error('timeout'), { name: 'TimeoutError' });
-    const fetchMock = vi.fn()
-      .mockRejectedValueOnce(timeout)
-      .mockResolvedValueOnce(geminiReply({ understood: true, title: 'تیپاکس', category: 'other' }));
-    vi.stubGlobal('fetch', fetchMock);
-    const env = { ADMIN_EMAIL: 'admin@example.com', GEMINI_API_KEY: 'gkey', DB: memoryStateDb() };
-    const body = await (await handleSmsVoiceRoute(voiceRequest(), env)).json();
-    expect(body.title).toBe('تیپاکس');
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(fetchMock.mock.calls[0][0]).toContain('gemini-3.5-flash-lite')
-    expect(fetchMock.mock.calls[1][0]).toContain('gemini-3.6-flash');
-    vi.unstubAllGlobals();
-  });
-});
-
-describe('voice model unavailable', () => {
-  it('tries the next model when Google answers 404 for one', async () => {
-    getAuthenticatedUser.mockResolvedValue(ADMIN);
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify({ error: { message: 'no longer available' } }), { status: 404 }))
-      .mockResolvedValueOnce(geminiReply({ understood: true, title: 'تیپاکس', category: 'other' }));
-    vi.stubGlobal('fetch', fetchMock);
-    const env = { ADMIN_EMAIL: 'admin@example.com', GEMINI_API_KEY: 'gkey', DB: memoryStateDb() };
-    const body = await (await handleSmsVoiceRoute(voiceRequest(), env)).json();
-    expect(body.title).toBe('تیپاکس');
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    vi.unstubAllGlobals();
-  });
-});
-
-describe('voice engines (the admin picks one in the settings)', () => {
-  const makeEnv = async (ai, voiceEngine) => {
-    const env = { ADMIN_EMAIL: 'admin@example.com', GEMINI_API_KEY: 'gkey', DB: memoryStateDb(), AI: { run: ai } };
-    await saveAiSettings(env, { voiceEngine });
-    return env;
-  };
-
-  it('runs a Cloudflare speech model then GLM, and shows what was heard to the admin', async () => {
-    getAuthenticatedUser.mockResolvedValue(ADMIN);
-    const fetchMock = vi.fn();
-    vi.stubGlobal('fetch', fetchMock);
-    const ai = vi.fn()
-      .mockResolvedValueOnce({ text: 'هزینه تیپاکس' })
-      .mockResolvedValueOnce({ response: JSON.stringify({ understood: true, title: 'هزینه تیپاکس', category: 'c_ship1234' }) });
-    const body = await (await handleSmsVoiceRoute(voiceRequest(), await makeEnv(ai, 'cf-whisper-turbo'))).json();
-    expect(body).toMatchObject({ title: 'هزینه تیپاکس', category: 'c_ship1234', engine: 'cf-whisper-turbo' });
-    expect(ai.mock.calls[0][0]).toBe('@cf/openai/whisper-large-v3-turbo');
-    expect(typeof ai.mock.calls[0][1].audio).toBe('string');
-    expect(ai.mock.calls[1][1].messages[1].content).toContain('هزینه تیپاکس');
-    expect(fetchMock).not.toHaveBeenCalled();
-    vi.unstubAllGlobals();
-  });
-
-  it('is not understood when the speech model hears nothing', async () => {
-    getAuthenticatedUser.mockResolvedValue(ADMIN);
-    const ai = vi.fn().mockResolvedValueOnce({ text: '  ' });
-    const body = await (await handleSmsVoiceRoute(voiceRequest(), await makeEnv(ai, 'cf-whisper'))).json();
-    expect(body.understood).toBe(false);
-    expect(ai).toHaveBeenCalledTimes(1);
-    expect(Array.isArray(ai.mock.calls[0][1].audio)).toBe(true);
-  });
-
-  it('runs only the chosen Gemini model', async () => {
-    getAuthenticatedUser.mockResolvedValue(ADMIN);
-    const fetchMock = vi.fn(async () => geminiReply({ understood: true, title: 'x', category: 'food' }));
-    vi.stubGlobal('fetch', fetchMock);
-    const body = await (await handleSmsVoiceRoute(voiceRequest(), await makeEnv(vi.fn(), 'gemini-3.8-flash'))).json();
-    expect(body.engine).toBe('gemini-3.8-flash');
-    expect(fetchMock.mock.calls[0][0]).toContain('gemini-3.8-flash');
-    vi.unstubAllGlobals();
-  });
-});
-
-describe('a note that asks for more than recording', () => {
-  const PROJECTS = [{ id: 'grp_1', name: 'خانه' }];
-  it('keeps only offered actions and known projects', () => {
-    const ok = normalizeSmsVoice({ understood: true, title: '', action: 'project', projectId: 'خانه' }, CATEGORIES, { actions: ['project', 'transfer'], projects: PROJECTS });
-    expect(ok).toMatchObject({ understood: true, action: 'project', projectId: 'grp_1' });
-    expect(normalizeSmsVoice({ title: 'x', action: 'loan' }, CATEGORIES, { actions: ['transfer'] }).action).toBe('');
-    expect(normalizeSmsVoice({ title: 'x', action: 'project', projectId: 'nope' }, CATEGORIES, { actions: ['project'], projects: PROJECTS }).projectId).toBe('');
-    expect(cleanVoiceActions(['transfer', 'rm -rf', 'transfer'])).toEqual(['transfer']);
-  });
-  it('offers the actions to the model', async () => {
-    const { buildSmsVoicePrompt } = await import('../../src/services/ai/smsVoice.service.js');
-    const prompt = buildSmsVoicePrompt(CATEGORIES, 'expense', { actions: ['project', 'transfer'], projects: PROJECTS });
-    expect(prompt).toContain('transfer:');
-    expect(prompt).toContain('grp_1: خانه');
-    expect(buildSmsVoicePrompt(CATEGORIES)).not.toContain('action: ""');
+    await expect(handleSmsVoiceRoute(voiceRequest(), { ...env, AI: undefined })).rejects.toMatchObject({ statusCode: 503 });
   });
 });

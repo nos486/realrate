@@ -5,9 +5,8 @@
  * (or the 30 s limit) sends the clip to the server, which answers a title and a category of the
  * user's, and the withdrawal is recorded as an everyday expense with them (recordSmsExpense);
  * `cancel()` drops the recording. The note also ends by itself when the speaker stops (speech, then
- * a pause: voiceActivity.js), and is dropped when nothing is said. One message at a time. The engine that listens is the admin's
- * choice in the site settings; an admin (`cheque_scan_debug`) sees which engine answered, how long it
- * took and what it heard.
+ * a pause: voiceActivity.js), and is dropped when nothing is said. One message at a time. Only Whisper listens
+ * (no language model); an admin (`cheque_scan_debug`) sees how long it took and what it heard.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';

@@ -3,7 +3,7 @@
  *
  * POST /api/sms/voice — multipart `audio` (a few seconds of speech) and `categories` (JSON
  * `[{ value, label }]`, the user's expense categories — or income categories with `kind=income`, for a deposit);
- * the engine that hears it is the admin's choice (services/ai/aiSettings.service.js); answers `{ understood, title, category, action, projectId }` (`action`: '' to record it, or one of `actions` — an optional JSON list of what the app offers, with `projects` `[{id,name}]`).
+ * Whisper (Cloudflare Workers AI) writes what was said and tables read it (domain/voiceCategory.js): no language model; answers `{ understood, title, category, action, projectId }` (`action`: '' to record it, or one of `actions` — an optional JSON list of what the app offers, with `projects` `[{id,name}]`).
  * Behind the `sms_voice` feature (admins only until opened to groups) and its daily `sms_voice`
  * limit. Nothing is stored; a failed call gives its use back.
  */
@@ -66,7 +66,7 @@ export async function readVoiceForm(request) {
 /** POST /api/sms/voice */
 export async function handleSmsVoiceRoute(request, env) {
   const user = await requireFeature(request, env, 'sms_voice');
-  const { formData, audio, mimeType } = await readVoiceForm(request);
+  const { formData, audio } = await readVoiceForm(request);
 
   let categories = [];
   try {
@@ -90,7 +90,7 @@ export async function handleSmsVoiceRoute(request, env) {
 
   let result;
   try {
-    result = await processSmsVoice(env, { audioBuffer: await audio.arrayBuffer(), mimeType, categories, kind: formData.get('kind') === 'income' ? 'income' : 'expense', actions, projects, debug });
+    result = await processSmsVoice(env, { audioBuffer: await audio.arrayBuffer(), categories, kind: formData.get('kind') === 'income' ? 'income' : 'expense', actions, projects, debug });
   } catch (err) {
     await refundQuota(env, user, 'sms_voice');
     throw err;
