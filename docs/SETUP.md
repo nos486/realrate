@@ -68,7 +68,7 @@ npx wrangler kv namespace create realrate-prices
    [vars]
    EMAIL_FROM = "RealRate <no-reply@geekio.org>"
    # اختیاری: آدرس فرانت‌اند برای لینک‌ها وقتی درخواست Origin ندارد
-   # FRONTEND_URL = "https://realrate.geekio.org"
+   # FRONTEND_URL = "https://realrate.ir"
    ```
 
 تا وقتی ارسال ایمیل تنظیم نشده، ثبت‌نام و بازیابی رمز با پیام «ارسال ایمیل تنظیم نشده است» رد می‌شوند و ورود با گوگل

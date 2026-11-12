@@ -724,7 +724,7 @@ export default function AppSettingsView({ onOpenSms }) {
             </>
           )}
           <dt>{t('حریم خصوصی')}</dt>
-          <dd dir="ltr"><a href={`https://realrate.geekio.org${publicPath('/privacy')}`} target="_blank" rel="noopener noreferrer">{`realrate.geekio.org${publicPath('/privacy')}`}</a></dd>
+          <dd dir="ltr"><a href={`https://realrate.ir${publicPath('/privacy')}`} target="_blank" rel="noopener noreferrer">{`realrate.ir${publicPath('/privacy')}`}</a></dd>
           {packageId && (
             <>
               <dt>{t('نام پکیج')}</dt>

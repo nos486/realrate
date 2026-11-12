@@ -76,8 +76,8 @@ describe('Built English pages (dist/en)', () => {
 
   it('Persian pages link their English twin', () => {
     const html = readFileSync(resolve(distDir, 'privacy.html'), 'utf-8');
-    assert.ok(html.includes('hreflang="en" href="https://realrate.geekio.org/en/privacy"'));
+    assert.ok(html.includes('hreflang="en" href="https://realrate.ir/en/privacy"'));
     const landing = readFileSync(resolve(distDir, 'index.html'), 'utf-8');
-    assert.ok(landing.includes('hreflang="en" href="https://realrate.geekio.org/en/"'));
+    assert.ok(landing.includes('hreflang="en" href="https://realrate.ir/en/"'));
   });
 });

@@ -17,7 +17,7 @@ import { Capacitor } from '@capacitor/core';
 import { API_BASE } from '../api/httpClient.js';
 import { t } from '../../utils/i18n.js';
 
-export const PUBLIC_SITE_ORIGIN = 'https://realrate.geekio.org';
+export const PUBLIC_SITE_ORIGIN = 'https://realrate.ir';
 // The store ("nosms") build has its own application id and link scheme, so it installs next to the full one
 const APP_AUTH_SCHEME = import.meta.env?.VITE_NO_SMS === '1' ? 'ir.realrate.store' : 'ir.realrate.app';
 const APP_AUTH_LINK = `${APP_AUTH_SCHEME}://auth`;
