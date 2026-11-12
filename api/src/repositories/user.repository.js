@@ -70,15 +70,20 @@ export async function dbRecordUserClient(env, userId, client) {
 }
 
 /**
- * Generate a random alphanumeric slug for shared URLs
+ * Generate a random alphanumeric slug for shared URLs (cryptographically random)
  * @param {number} len
  * @returns {string}
  */
 export function generateRandomSlug(len = 8) {
   const chars = '23456789abcdefghjkmnpqrstuvwxyz';
+  // Share slugs are capabilities in public URLs, so draw them from the CSPRNG, not Math.random.
+  // 248 is the largest multiple of the alphabet size (31) that fits a byte; higher bytes are skipped to avoid modulo bias.
+  const limit = 256 - (256 % chars.length);
   let slug = '';
-  for (let i = 0; i < len; i++) {
-    slug += chars.charAt(Math.floor(Math.random() * chars.length));
+  while (slug.length < len) {
+    for (const byte of crypto.getRandomValues(new Uint8Array(len * 2))) {
+      if (byte < limit && slug.length < len) slug += chars[byte % chars.length];
+    }
   }
   return slug;
 }
