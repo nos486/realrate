@@ -8,12 +8,12 @@
 import { DEMO_ENABLED } from '../shared/routes.js';
 
 export const SITE = {
-  origin: 'https://realrate.geekio.org',
+  origin: 'https://realrate.ir',
   name: 'RealRate',
   nameFa: 'RealRate',
   slogan: 'Intrinsic value analysis of gold and coins, plus personal finance management',
   description: 'An independent, end-to-end encrypted platform for analyzing the intrinsic value and bubble of gold and coins, and managing multi-asset portfolios, loans and income — completely free and open source.',
-  ogImage: 'https://realrate.geekio.org/og/default.png',
+  ogImage: 'https://realrate.ir/og/default.png',
 };
 
 const ALL_FEATURE_PAGES = [
@@ -94,7 +94,7 @@ const ALL_FEATURE_PAGES = [
       },
     ],
     related: ['portfolio', 'transactions', 'personal-dashboard'],
-    ogImage: 'https://realrate.geekio.org/og/gold-coin-bubble.png',
+    ogImage: 'https://realrate.ir/og/gold-coin-bubble.png',
   },
 
   {
@@ -174,7 +174,7 @@ const ALL_FEATURE_PAGES = [
       },
     ],
     related: ['transactions', 'gold-coin-bubble', 'encryption'],
-    ogImage: 'https://realrate.geekio.org/og/portfolio.png',
+    ogImage: 'https://realrate.ir/og/portfolio.png',
   },
 
   {
@@ -254,7 +254,7 @@ const ALL_FEATURE_PAGES = [
       },
     ],
     related: ['portfolio', 'gold-coin-bubble', 'income'],
-    ogImage: 'https://realrate.geekio.org/og/transactions.png',
+    ogImage: 'https://realrate.ir/og/transactions.png',
   },
 
   {
@@ -334,7 +334,7 @@ const ALL_FEATURE_PAGES = [
       },
     ],
     related: ['cheques', 'income', 'personal-dashboard'],
-    ogImage: 'https://realrate.geekio.org/og/loans.png',
+    ogImage: 'https://realrate.ir/og/loans.png',
   },
 
   {
@@ -394,7 +394,7 @@ const ALL_FEATURE_PAGES = [
       },
     ],
     related: ['loans', 'portfolio', 'transactions'],
-    ogImage: 'https://realrate.geekio.org/og/income.png',
+    ogImage: 'https://realrate.ir/og/income.png',
   },
 
   {
@@ -474,7 +474,7 @@ const ALL_FEATURE_PAGES = [
       },
     ],
     related: ['ai-cheque-scan', 'loans', 'encryption'],
-    ogImage: 'https://realrate.geekio.org/og/cheques.png',
+    ogImage: 'https://realrate.ir/og/cheques.png',
   },
 
   {
@@ -554,7 +554,7 @@ const ALL_FEATURE_PAGES = [
       },
     ],
     related: ['cheques', 'encryption', 'personal-dashboard'],
-    ogImage: 'https://realrate.geekio.org/og/ai-cheque-scan.png',
+    ogImage: 'https://realrate.ir/og/ai-cheque-scan.png',
   },
 
   {
@@ -634,7 +634,7 @@ const ALL_FEATURE_PAGES = [
       },
     ],
     related: ['portfolio', 'personal-dashboard', 'cheques'],
-    ogImage: 'https://realrate.geekio.org/og/encryption.png',
+    ogImage: 'https://realrate.ir/og/encryption.png',
   },
 
   {
@@ -702,7 +702,7 @@ const ALL_FEATURE_PAGES = [
       },
     ],
     related: ['portfolio', 'gold-coin-bubble', 'loans'],
-    ogImage: 'https://realrate.geekio.org/og/personal-dashboard.png',
+    ogImage: 'https://realrate.ir/og/personal-dashboard.png',
   },
 
   {
@@ -782,7 +782,7 @@ const ALL_FEATURE_PAGES = [
       },
     ],
     related: ['portfolio', 'gold-coin-bubble', 'personal-dashboard'],
-    ogImage: 'https://realrate.geekio.org/og/demo.png',
+    ogImage: 'https://realrate.ir/og/demo.png',
   },
 ];
 
@@ -796,7 +796,7 @@ export const STATIC_PAGES = {
     description: 'The complete toolkit for gold and coin valuation, multi-asset portfolio management, loans, cheques and income in the RealRate personal finance software.',
     h1: 'Features and Capabilities of the RealRate Finance Platform',
     intro: 'RealRate is independent, open-source, encrypted personal finance software that puts an integrated set of tools at your disposal: analytics, multi-asset portfolio monitoring, loan installment management, Sayad cheque control and cash flow evaluation. All of these features are offered free, with no ads and with your privacy fully protected.',
-    ogImage: 'https://realrate.geekio.org/og/default.png',
+    ogImage: 'https://realrate.ir/og/default.png',
   },
 
   about: {
@@ -843,7 +843,7 @@ export const STATIC_PAGES = {
         ],
       },
     ],
-    ogImage: 'https://realrate.geekio.org/og/default.png',
+    ogImage: 'https://realrate.ir/og/default.png',
   },
 
   privacy: {
@@ -910,7 +910,7 @@ export const STATIC_PAGES = {
         paragraphs: ['Do you have a question or request about your data? Write on GitHub (github.com/nos486/realrate/issues); please do not put any personal or financial information in it.'],
       },
     ],
-    ogImage: 'https://realrate.geekio.org/og/default.png',
+    ogImage: 'https://realrate.ir/og/default.png',
   },
 
   deleteAccount: {
@@ -951,7 +951,7 @@ export const STATIC_PAGES = {
         paragraphs: ['If you have lost access to your account, write on GitHub (github.com/nos486/realrate/issues) with your account email and we will tell you how to verify ownership and delete it. Please do not put any financial information in it.'],
       },
     ],
-    ogImage: 'https://realrate.geekio.org/og/default.png',
+    ogImage: 'https://realrate.ir/og/default.png',
   },
 
   android: {
@@ -1032,7 +1032,7 @@ export const STATIC_PAGES = {
         a: 'Publishing on Google Play is not possible for Iranian developers, and publishing on domestic app stores is under review. Until then, downloading directly from this page is the official way.',
       },
     ],
-    ogImage: 'https://realrate.geekio.org/og/default.png',
+    ogImage: 'https://realrate.ir/og/default.png',
   },
 
   faq: {
@@ -1064,7 +1064,7 @@ export const STATIC_PAGES = {
       },
       {
         q: 'Can RealRate be installed on a mobile phone?',
-        a: 'Yes. For Android, the official signed app can be downloaded from the "Android app" page (realrate.geekio.org/android), and it also records expenses automatically from bank text messages and unlocks with your fingerprint. On iPhone, you can add the website to your home screen from the browser as a PWA.',
+        a: 'Yes. For Android, the official signed app can be downloaded from the "Android app" page (realrate.ir/android), and it also records expenses automatically from bank text messages and unlocks with your fingerprint. On iPhone, you can add the website to your home screen from the browser as a PWA.',
       },
       {
         q: 'How does AI cheque scanning work?',
@@ -1091,6 +1091,6 @@ export const STATIC_PAGES = {
         a: 'The project is open source on GitHub; you can take part by starring it, reporting bugs, suggesting new features or sending a pull request.',
       },
     ],
-    ogImage: 'https://realrate.geekio.org/og/default.png',
+    ogImage: 'https://realrate.ir/og/default.png',
   },
 };

@@ -56,7 +56,7 @@ describe('the message', () => {
     expect(html).toContain('نکته یک');
     expect(html).toContain('نشست فردا');
     expect(html).not.toContain('t.me');
-    expect(html).toContain('<a href="https://realrate.geekio.org">');
+    expect(html).toContain('<a href="https://realrate.ir">');
   });
 });
 

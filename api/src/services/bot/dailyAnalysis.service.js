@@ -49,7 +49,7 @@ export function analysisSegments(analysis) {
   if (analysis.risk) segments.push("\n\n", { text: "زیر نظر بگیرید: ", bold: true }, analysis.risk);
   segments.push(
     "\n\nاین تحلیل را هوش مصنوعی از خبرهای روز نوشته است و توصیه‌ی خرید یا فروش نیست.\n",
-    { text: "realrate.geekio.org", link: SITE_ORIGIN },
+    { text: "realrate.ir", link: SITE_ORIGIN },
   );
   return segments;
 }
