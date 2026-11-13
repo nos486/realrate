@@ -733,6 +733,10 @@
   color: var(--text-secondary);
 }
 
+.sms-inbox-suggest {
+  color: var(--color-primary);
+}
+
 .sms-inbox-info span {
   font-size: var(--fs-base);
   color: var(--text-secondary);

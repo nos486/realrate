@@ -151,4 +151,8 @@ export default {
   'بر اساس صدای شما باز شد؛ بررسی و تأیید کنید.': 'Opened from your voice note; review and confirm.',
   'بگویید؛ مثلاً «فروش لپ‌تاپ». وقتی ساکت شدید می‌فهمم چه گفتید و برای تأیید یا اصلاح پایین نشان می‌دهم؛ دسته را خودم از بین دسته‌های درآمد شما انتخاب می‌کنم. یا بگویید «انتقال بین حساب‌هام است» یا «واریز وام است».': 'Speak, e.g. "laptop sale". When you pause I work out what you said and show it below to confirm or correct; I pick the category from your income categories. Or say "it is a transfer between my accounts" or "it is a loan deposit".',
   'بگویید؛ مثلاً «هزینه تیپاکس». وقتی ساکت شدید می‌فهمم چه گفتید و برای تأیید یا اصلاح پایین نشان می‌دهم؛ دسته را خودم از بین دسته‌های شما انتخاب می‌کنم. یا بگویید «انتقال بین حساب‌هام است» یا «برای پروژه‌ی خانه است».': 'Speak, e.g. "Tipax shipping". When you pause I work out what you said and show it below to confirm or correct; I pick the category from your categories. Or say "it is a transfer between my accounts" or "it is for the house project".',
+  'تأیید قسط': 'Confirm installment',
+  'پرداخت قسط {name} است؛ ثبت می‌شود و قسط پرداخت‌شده علامت می‌خورد': 'This pays an installment of {name}; it is recorded and the installment is marked paid',
+  'به‌نظر قسط «{name}» است — «تأیید قسط» را بزنید': 'Looks like an installment of "{name}" — tap "Confirm installment"',
+  'قسط «{name}» ثبت و پرداخت‌شده علامت خورد.': 'The installment of "{name}" was recorded and marked paid.',
 };

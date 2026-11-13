@@ -2,7 +2,8 @@
  * smsRecord.js — Recording a bank withdrawal as an everyday expense without the form
  *
  * - «ثبت سریع» (a withdrawal up to QUICK_RECORD_MAX): one tap records it in the category chosen in
- *   the app settings (`recordCategory`, «سایر» by default)
+ *   the app settings (`recordCategory`, «سایر» by default) — or the one its own description points
+ *   to (a loan installment goes to «پرداخت قسط», see SMS_DESCRIPTION_CATEGORIES)
  * - automatic recording (app settings, off by default): every waiting withdrawal up to
  *   `autoRecordMax` is recorded by itself, as soon as the encrypted data is open
  * Either way the expense carries the transaction's key (`smsKey`), like one recorded through the
@@ -23,8 +24,10 @@ import { getIncomeCategory } from '../incomes/constants/incomeCategories.js';
 import { getAccounts } from '../../shared/vault/vaultAccounts.js';
 import { getPendingSms, getSmsSettings, markSmsHandled, markSmsHandledMany, dropRecordedSms, SMS_TWINS_KEY } from '../../shared/native/smsInbox.js';
 import { REJECTED_SMS_CATEGORY } from '../../utils/categoryDocument.js';
-import { smsExpenseDraft, smsIncomeDraft, smsProjectExpenseDraft } from './smsDrafts.js';
+import { smsExpenseDraft, smsIncomeDraft, smsProjectExpenseDraft, smsDescribedCategory } from './smsDrafts.js';
 import { ensureSmsAccount } from './smsAccounts.js';
+import { getLoans } from '../loans/api/loanApi.js';
+import { matchSmsLoanInstallment } from './smsLoanMatch.js';
 import { findRecorded, sameDayKey } from './recordedCheck.js';
 
 /** Messages recorded per stored chunk */
@@ -42,14 +45,32 @@ export async function saveSmsExpense(input) {
  * Record a waiting withdrawal as it is, in `category`
  * @param {{ fingerprint: string, tx: object }} item a waiting message (getPendingSms)
  * @param {{ accounts?: object[]|null, category?: string, title?: string }} [options] `accounts`: the active accounts, grown by the one made for this message (null: not linked);
+ *   `category`: the one the message's own description points to (a loan installment: «پرداخت قسط») unless given;
  *   `title`: what the expense is titled (the category's name unless given, e.g. from a voice note)
  * @returns {Promise<object>} the expense
  */
-export async function recordSmsExpense(item, { accounts = [], category = getSmsSettings().recordCategory, title = '' } = {}) {
+export async function recordSmsExpense(item, { accounts = [], category = smsDescribedCategory(item.tx) || getSmsSettings().recordCategory, title = '' } = {}) {
   // Tied to its account, made from the message when the user has none for it
   const accountId = accounts ? await ensureSmsAccount(item.tx, accounts) : '';
   // Titled after its category (the user's own categories too)
   const { expense } = await saveSmsExpense({ ...smsExpenseDraft(item.tx, accounts || []), accountId, category, title: title || getExpenseCategory(category).label, currency: 'IRT' });
+  markSmsHandled(item.fingerprint);
+  return expense;
+}
+
+/**
+ * «تأیید قسط»: record a waiting withdrawal as the payment of a loan's installment the user
+ * confirmed (smsLoanMatch.js) — an expense in «پرداخت قسط» linked to it, which marks the
+ * installment paid (recordLinks.js)
+ * @param {{ fingerprint: string, tx: object }} item a waiting message
+ * @param {{ loan: object, installment: object }} match
+ * @param {{ accounts?: object[]|null }} [options] as recordSmsExpense
+ * @returns {Promise<object>} the expense
+ */
+export async function recordSmsLoanInstallment(item, match, { accounts = [] } = {}) {
+  const accountId = accounts ? await ensureSmsAccount(item.tx, accounts) : '';
+  const draft = smsExpenseDraft(item.tx, accounts || [], match);
+  const { expense } = await saveSmsExpense({ ...draft, accountId, currency: 'IRT' });
   markSmsHandled(item.fingerprint);
   return expense;
 }
@@ -92,11 +113,12 @@ export async function recordSmsLoanDeposit(item, loan) {
  * Record several waiting withdrawals together, each as `recordSmsExpense` would (its account, the
  * category's title), but stored in batches rather than one request each
  * @param {Array<{ fingerprint: string, tx: object }>} items waiting messages
- * @param {{ accounts?: object[]|null, category?: string, title?: (tx: object) => string }} [options]
- *   `title`: each expense's title (the category's name unless given)
+ * @param {{ accounts?: object[]|null, category?: string, byDescription?: boolean, title?: (tx: object, category: string) => string }} [options]
+ *   `byDescription`: a message whose description points to a category (a loan installment) goes there
+ *   instead of `category`; `title`: each expense's title (its category's name unless given)
  * @returns {Promise<number>} how many were recorded
  */
-async function recordSmsExpenses(items, { accounts = [], category = getSmsSettings().recordCategory, title = () => getExpenseCategory(category).label } = {}) {
+async function recordSmsExpenses(items, { accounts = [], category = getSmsSettings().recordCategory, byDescription = false, title = (tx, own) => getExpenseCategory(own).label } = {}) {
   let recorded = 0;
   // A chunk at a time, each leaving the inbox once stored: a long run never holds the screen, and
   // one that fails midway keeps the rest waiting
@@ -105,7 +127,8 @@ async function recordSmsExpenses(items, { accounts = [], category = getSmsSettin
     const inputs = [];
     for (const item of chunk) {
       const accountId = accounts ? await ensureSmsAccount(item.tx, accounts) : '';
-      inputs.push({ ...smsExpenseDraft(item.tx, accounts || []), accountId, category, title: title(item.tx), currency: 'IRT' });
+      const own = (byDescription && smsDescribedCategory(item.tx)) || category;
+      inputs.push({ ...smsExpenseDraft(item.tx, accounts || []), accountId, category: own, title: title(item.tx, own), currency: 'IRT' });
     }
     await expensesApi.saveExpenses(inputs);
     markSmsHandledMany(chunk.map((item) => item.fingerprint));
@@ -159,6 +182,14 @@ async function accountsOrNone() {
   } catch {
     // No accounts feature (or they cannot be read): recorded without an account, and none is made
     return null;
+  }
+}
+
+async function loansOrNone() {
+  try {
+    return (await getLoans()).loans;
+  } catch {
+    return [];
   }
 }
 
@@ -236,11 +267,14 @@ export function autoRecordSms(rule) {
     await dropAlreadyRecorded();
 
     const accounts = await accountsOrNone();
+    // A withdrawal that matches a loan's installment waits for the user's confirmation (smsLoanMatch.js)
+    const loans = await loansOrNone();
+    const unmatched = (p) => !matchSmsLoanInstallment(p.tx, loans);
     // The inbox is newest first: recorded in the order they happened, stored together (a long
     // read of earlier messages is a few requests, not one per message)
     const pending = getPendingSms();
     let recorded = 0;
-    if (expense) recorded += await recordSmsExpenses(small(pending, 'debit', expense).reverse(), { accounts, category: expense.category });
+    if (expense) recorded += await recordSmsExpenses(small(pending, 'debit', expense).filter(unmatched).reverse(), { accounts, category: expense.category, byDescription: true });
     if (income) recorded += await recordSmsIncomes(small(pending, 'credit', income).reverse(), { accounts, category: income.category });
     return recorded;
   })().finally(() => {

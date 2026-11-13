@@ -44,6 +44,8 @@ import ExpenseForm from '../expenses/components/ExpenseForm.jsx';
 import IncomeForm from '../incomes/components/IncomeForm.jsx';
 import SmsInboxList from './SmsInboxList.jsx';
 import LoanDepositSheet from './LoanDepositSheet.jsx';
+import { useOptionalLoans } from '../loans/context/LoansContext.jsx';
+import { matchSmsLoanInstallment } from './smsLoanMatch.js';
 import ShareDepositSheet from './ShareDepositSheet.jsx';
 import ProjectPickSheet from './ProjectPickSheet.jsx';
 import TransferPairSheet from './TransferPairSheet.jsx';
@@ -57,7 +59,7 @@ import {
 } from './smsDrafts.js';
 import { formatAmount } from '../expenses/utils/format.js';
 import { ensureSmsAccount } from './smsAccounts.js';
-import { saveSmsExpense, recordSmsExpense, recordSmsRejected, dropAlreadyRecorded, autoRecordSms } from './smsRecord.js';
+import { saveSmsExpense, recordSmsExpense, recordSmsLoanInstallment, recordSmsRejected, dropAlreadyRecorded, autoRecordSms } from './smsRecord.js';
 import { getExpenseCategory } from '../expenses/constants/expenseCategories.js';
 import { bumpVaultEpoch } from '../../shared/vault/vaultStore.js';
 import { DateField } from '../../shared/form/index.js';
@@ -134,6 +136,7 @@ export default function SmsInboxPage() {
   const [pairItem, setPairItem] = useState(null);
   const [pairFor, setPairFor] = useState('transfer');
 
+  const loans = useOptionalLoans();
   const locked = vaultStatus === 'locked';
   const { pending, settings: smsSettings } = useSmsInbox();
   const pendingIds = pending.map((p) => p.fingerprint).join(',');
@@ -209,8 +212,22 @@ export default function SmsInboxPage() {
 
   const handleRecord = async (item) => {
     const active = await withMessageAccounts(item);
-    if (item.tx.direction === 'debit') setExpenseDraft(smsExpenseDraft(item.tx, active));
+    if (item.tx.direction === 'debit') setExpenseDraft(smsExpenseDraft(item.tx, active, matchSmsLoanInstallment(item.tx, loans)));
     else setIncomeDraft(smsIncomeDraft(item.tx, active));
+  };
+
+  /** «تأیید قسط»: the user says this withdrawal pays the suggested loan installment */
+  const handlePayInstallment = async (item, match) => {
+    setQuickId(item.fingerprint);
+    try {
+      await recordSmsLoanInstallment(item, match, { accounts: await withMessageAccounts(item) });
+      bumpVaultEpoch();
+      toast.success(t('قسط «{name}» ثبت و پرداخت‌شده علامت خورد.', { name: match.loan.title }));
+    } catch (err) {
+      toast.error(err?.message || t('ثبت هزینه ممکن نشد.'));
+    } finally {
+      setQuickId(null);
+    }
   };
 
   /** «ثبت سریع»: recorded as it is, in the category of the app settings — no form */
@@ -377,6 +394,8 @@ export default function SmsInboxPage() {
           accounts={accounts}
           onRecord={handleRecord}
           onQuickRecord={handleQuickRecord}
+          loans={loans}
+          onPayInstallment={handlePayInstallment}
           quickRecordingId={quickId}
           onLoanDeposit={setLoanItem}
           onShareDeposit={setShareItem}

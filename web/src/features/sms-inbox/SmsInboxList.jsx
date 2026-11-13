@@ -15,7 +15,8 @@
  * either kind can be «انتقال بین حساب‌های خودم» (`onTransfer`: money moved between the user's own
  * accounts — neither expense nor income) or «تسویه بدهی اعتبار» (`onCreditSettle`: paying a bank
  * credit's debt, the bank's interest and fee the difference — the main action of a message of a
- * credit account). With `onVoice` (the experimental `sms_voice` feature) a withdrawal has a
+ * credit account). A withdrawal equal to a loan's next installment (smsLoanMatch.js) is suggested
+ * as its payment: «تأیید قسط» (`onPayInstallment`) is then its main action, and the user's tap is the confirmation. With `onVoice` (the experimental `sms_voice` feature) a withdrawal has a
  * microphone button: tap, say what it was for in the window that opens (VoiceExpenseModal) — it is recorded with that title and a
  * category picked from the user's own (useSmsVoice.js). «رد همه» above the list drops every message on show (after a
  * confirmation). «رد» (beside the main action, not in the menu) drops it
@@ -33,6 +34,7 @@ import { useFeedback } from '../../shared/ui/FeedbackProvider.jsx';
 import { BankLogo, resolveBank } from '../../shared/banks/index.js';
 import { useSmsInbox } from '../../shared/native/useSmsInbox.js';
 import { dismissSms, dismissSmsMany, smsPermission, enableSmsReading, setSmsSettings, SMS_SENDERS, QUICK_RECORD_MAX } from '../../shared/native/smsInbox.js';
+import { matchSmsLoanInstallment } from './smsLoanMatch.js';
 import { matchSmsAccount } from '../../utils/bankSms.js';
 import { isCreditAccount } from '../../utils/accountDocument.js';
 import { formatShamsiDisplay } from '../portfolio/components/ShamsiDatePicker.jsx';
@@ -95,7 +97,7 @@ function EnableCard({ onChange }) {
  *   onReject?: (items: object[]) => Promise<void>|void }} props `onReject`: what «رد» / «رد همه» do
  *   in place of dropping the messages (kept in «رد شده»)
  */
-export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, quickRecordingId = null, onLoanDeposit, onShareDeposit, onRecordToProject, onTransfer, onCreditSettle, onReject, onVoice, voice = null, canRecord = true }) {
+export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, quickRecordingId = null, onLoanDeposit, onShareDeposit, onRecordToProject, onTransfer, onCreditSettle, onReject, onVoice, voice = null, loans = [], onPayInstallment, canRecord = true }) {
   const { pending, settings } = useSmsInbox();
   const { confirm, toast } = useFeedback();
   const [permission, setPermission] = useState(null);
@@ -188,6 +190,8 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
         // «ثبت سریع» only when turned on in the app's settings; «ثبت» otherwise
         // A message of a credit account most likely pays its debt
         const settle = Boolean(onCreditSettle) && isCreditAccount(account);
+        // A withdrawal equal to a loan's next installment is suggested as its payment, for the user to confirm
+        const loanMatch = onPayInstallment && !settle ? matchSmsLoanInstallment(tx, loans) : null;
         const quick = !settle && Boolean(onQuickRecord) && settings.quickRecord && isDebit && tx.amount <= QUICK_RECORD_MAX;
         return (
           <li key={item.fingerprint} className={`sms-inbox-item ${isDebit ? 'is-debit' : 'is-credit'}`}>
@@ -206,6 +210,11 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
                 {' · '}
                 {account ? accountLabel(account) : bank.shortName}
               </span>
+              {loanMatch && (
+                <small className="sms-inbox-suggest">
+                  {t('به‌نظر قسط «{name}» است — «تأیید قسط» را بزنید', { name: loanMatch.loan.title })}
+                </small>
+              )}
             </div>
             <div className="sms-inbox-actions">
               {/* Icon buttons only, each its own color (record green, voice blue, dismiss red, the rest neutral), so a small
@@ -217,6 +226,15 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
                   label={t('تسویه اعتبار')}
                   onClick={() => onCreditSettle(item)}
                   disabled={!canRecord}
+                />
+              ) : loanMatch ? (
+                <IconButton
+                  className="sms-act sms-act-record"
+                  icon={quickRecordingId === item.fingerprint ? <Loader2 size={20} className="spin-anim" /> : <Landmark size={20} />}
+                  label={t('تأیید قسط')}
+                  title={t('پرداخت قسط {name} است؛ ثبت می‌شود و قسط پرداخت‌شده علامت می‌خورد', { name: loanMatch.loan.title })}
+                  onClick={() => onPayInstallment(item, loanMatch)}
+                  disabled={!canRecord || Boolean(quickRecordingId)}
                 />
               ) : quick ? (
                 <IconButton
@@ -258,7 +276,7 @@ export default function SmsInboxList({ accounts = [], onRecord, onQuickRecord, q
                 triggerClassName="ui-icon-btn sms-act sms-act-more"
                 trigger={<MoreVertical size={20} />}
                 items={[
-                  (quick || settle) && { key: 'record', label: quick ? t('ثبت با فرم') : t('ثبت'), icon: <Check size={16} />, onClick: () => onRecord(item), disabled: !canRecord },
+                  (quick || settle || loanMatch) && { key: 'record', label: quick || loanMatch ? t('ثبت با فرم') : t('ثبت'), icon: <Check size={16} />, onClick: () => onRecord(item), disabled: !canRecord },
                   onRecordToProject && isDebit && {
                     key: 'project', label: t('ثبت در یک پروژه'), icon: <FolderOpen size={16} />, onClick: () => onRecordToProject(item), disabled: !canRecord,
                   },
