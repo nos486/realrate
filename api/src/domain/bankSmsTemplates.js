@@ -37,6 +37,8 @@ const re = (source) => new RegExp(source, 'u');
 export const SMS_DESCRIPTION_CATEGORIES = [
   // The bank's interest on a deposit account
   { direction: 'credit', words: ['سود'], category: 'investment' }, // i18n-ignore
+  // A loan's installment (Mellat «پرداخت بدهی ش.ق», Blu «بازپرداخت بدهی وام», Post Bank «شماره تسهیلات»)
+  { direction: 'debit', words: ['بدهی', 'قسط', 'تسهیلات'], category: 'installments' }, // i18n-ignore
 ];
 
 /** @type {import('./bankSms.js').BankSmsBank[]} */

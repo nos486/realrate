@@ -24,16 +24,35 @@ function smsNote(tx) {
   return [t('پیامک {bank}', { bank: bank.shortName }), tx.time && t('ساعت {time}', { time: faTime(tx.time) })].filter(Boolean).join(' · ');
 }
 
+/** The fields that make a draft the payment of `loanMatch`'s installment */
+function loanInstallmentDraft({ loan, installment }) {
+  return {
+    category: 'installments',
+    title: t('قسط {name}', { name: loan.title }).slice(0, 120),
+    loanInstallment: { loanId: loan.id, installmentId: String(installment.id || installment.installmentNumber || '') },
+  };
+}
+
 /** The category a message starts in, from its own description (a rule of SMS_DESCRIPTION_CATEGORIES) */
 function categoryOf(tx) {
   const category = smsCategoryOf(tx, SMS_DESCRIPTION_CATEGORIES);
   return category ? { category } : {};
 }
 
-/** The expense form's draft for a withdrawal */
-export function smsExpenseDraft(tx, accounts = []) {
+/** The category a message's own description points to ('' when none), for recording without the form */
+export function smsDescribedCategory(tx) {
+  return smsCategoryOf(tx, SMS_DESCRIPTION_CATEGORIES);
+}
+
+/**
+ * The expense form's draft for a withdrawal. With `loanMatch` (smsLoanMatch.js) it is that loan's
+ * installment: «پرداخت قسط», titled after the loan and linked to the installment — the user
+ * confirms it in the form (or with «تأیید قسط»), which then marks the installment paid.
+ */
+export function smsExpenseDraft(tx, accounts = [], loanMatch = null) {
   return {
     ...categoryOf(tx),
+    ...(loanMatch ? loanInstallmentDraft(loanMatch) : {}),
     amount: Math.round(tx.amount),
     date: tx.date,
     accountId: matchSmsAccount(tx, accounts),

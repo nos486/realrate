@@ -456,6 +456,17 @@ describe('the category a message starts in, from its own description', () => {
     }
   });
 
+  it('loan installment messages (Mellat, Blu, Post Bank) start as installment expenses', () => {
+    const texts = [
+      ['بانک ملت\nمشتری گرامی، پرداخت بدهی ش.ق 1402243881821 بمبلغ 31,250,000 ریال از محل حساب بشماره 1848394556 انجام شد.\n1405/08/22 05:58', { today: new Date(2026, 10, 13) }],
+    ];
+    for (const [text, options] of texts) {
+      expect(smsCategoryOf(parse(text, options), SMS_DESCRIPTION_CATEGORIES)).toBe('installments');
+    }
+    expect(smsCategoryOf({ direction: 'debit', description: 'بازپرداخت بدهی وام قرض الحسنه ازدواج' }, SMS_DESCRIPTION_CATEGORIES)).toBe('installments');
+    expect(smsCategoryOf({ direction: 'debit', description: 'شماره تسهیلات' }, SMS_DESCRIPTION_CATEGORIES)).toBe('installments');
+  });
+
   it("Shahr's interest deposit starts as investment income", () => {
     const tx = parse('*بانک شهر*\nسود\nواريز به:700814110204\nمبلغ:377,743ريال\nموجودي:89,371,480ريال\n1405/07/1 00:41:16');
     expect(smsCategoryOf(tx, SMS_DESCRIPTION_CATEGORIES)).toBe('investment');
