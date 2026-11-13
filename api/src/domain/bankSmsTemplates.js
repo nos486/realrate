@@ -160,6 +160,18 @@ export const BANK_SMS_TEMPLATES = [
         direction: { debit: ['برداشت', 'خرید', 'پرداخت', 'انتقال'], credit: ['واریز'] }, // i18n-ignore
         pattern: re(String.raw`^حساب\s?:?\s?(?<account>${P.digits})\n(?<kind>[^\d\n+-]+?)\s?:?\s?(?<amount>${P.amount})\nمانده\s?:?\s?(?<balance>${P.balance})\n(?<date>${P.date})-(?<time>${P.time})$`), // i18n-ignore
       },
+      {
+        // بانک ملت
+        // مشتری گرامی، پرداخت بدهی ش.ق 1402243881821 بمبلغ 31,250,000 ریال از محل حساب بشماره 1848394556 انجام شد.
+        // 1405/08/22 05:58
+        // (a loan installment paid from the account, no balance in the message; «ش.ق» is the
+        // facility number's label, «بشماره» may be written «به شماره»; the description keeps the
+        // facility so the installment can be told from other payments)
+        id: 'mellat-loan-payment',
+        unit: 'rial',
+        direction: { debit: ['پرداخت'] }, // i18n-ignore
+        pattern: re(String.raw`^بانک ملت\nمشتری گرامی[،,]?\s?(?<kind>پرداخت)\s(?<desc>بدهی ش\.?\s?ق\s?\d+)\s?(?:به|ب)\s?مبلغ\s?(?<amount>${P.amount})\s?ریال\s?از محل حساب\s?(?:به|ب)\s?شماره\s?(?<account>${P.digits})\s?انجام شد\.?\n(?<date>${P.date})\s(?<time>${P.time})$`), // i18n-ignore
+      },
     ],
   },
   {
