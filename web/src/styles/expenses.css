@@ -1506,6 +1506,46 @@ tr.is-excluded td,
   line-height: 1.8;
   text-align: center;
 }
+/* The bar waiting for «ثبت» or «اصلاح» after a note (VoiceConfirmBar.jsx): above the bottom navigation */
+.sms-voice-confirm {
+  position: fixed;
+  inset-inline: 12px;
+  bottom: calc(var(--app-nav-h, 0px) + 12px + env(safe-area-inset-bottom, 0px));
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  max-width: 460px;
+  margin-inline: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  background: var(--bg-modal);
+  color: var(--text-primary);
+}
+.sms-voice-confirm-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+.sms-voice-confirm-title {
+  overflow: hidden;
+  font-size: var(--fs-base);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sms-voice-confirm-category {
+  color: var(--text-secondary);
+  font-size: var(--fs-sm);
+}
+.sms-voice-confirm-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+}
 .sms-voice-wave {
   display: flex;
   align-items: center;

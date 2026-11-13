@@ -82,7 +82,7 @@ describe('POST /api/sms/voice', () => {
     expect(body).toMatchObject({ understood: true, title: 'پیتزا', category: 'dining', engine: 'cf-whisper-turbo' });
     expect(ai).toHaveBeenCalledTimes(1);
     expect(ai.mock.calls[0][0]).toBe('@cf/openai/whisper-large-v3-turbo');
-    expect(ai.mock.calls[0][1]).toMatchObject({ language: 'fa' });
+    expect(ai.mock.calls[0][1]).toMatchObject({ language: 'fa', task: 'transcribe' });
     expect(typeof ai.mock.calls[0][1].audio).toBe('string');
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -138,6 +138,10 @@ describe('POST /api/sms/voice', () => {
     expect(await post('برای پروژه خانه است', ['transfer', 'project'], PROJECTS)).toMatchObject({ action: 'project', projectId: 'grp_1' });
     // Not offered for this message: only recorded
     expect((await post('انتقال بین حساب‌هام است', ['project'])).action).toBe('');
+  });
+
+  it('does not understand a transcript in another language', async () => {
+    expect((await ask('пицца')).understood).toBe(false);
   });
 
   it('refuses a file whose bytes are not audio of the declared type', async () => {

@@ -150,6 +150,17 @@ export function matchVoiceAction(text, actions = [], projects = []) {
   return { action: best.action, projectId: '' };
 }
 
+/**
+ * Did the speech model hear another language? The note is Persian (or Latin brand/English words), so a
+ * transcript with letters of another script (Cyrillic, Devanagari, CJK…) or Urdu-only letters (ٹ ڈ ڑ ں ے ھ ہ)
+ * is a wrong guess of the language and must not be recorded.
+ */
+export function isForeignScript(text) {
+  const s = String(text ?? '');
+  if (/[ٹڈڑںےھہۃ]/.test(s)) return true;
+  return /\p{L}/u.test(s.replace(/[\p{Script=Arabic}\p{Script=Latin}]/gu, ''));
+}
+
 /** The title: what was said, cleaned (no trailing punctuation, one space between words, bounded) */
 export function cleanVoiceTitle(text) {
   return String(text ?? '').replace(/\s+/g, ' ').replace(/^[\s.,،؛;:!؟?…-]+|[\s.,،؛;:!؟?…-]+$/gu, '').slice(0, VOICE_TITLE_LENGTH).trim();
@@ -164,7 +175,7 @@ export function cleanVoiceTitle(text) {
  */
 export function parseSmsVoice(heard, categories = [], { kind = 'expense', actions = [], projects = [] } = {}) {
   const title = cleanVoiceTitle(heard);
-  if (!title) return { understood: false, title: '', category: FALLBACK_CATEGORY, action: '', projectId: '' };
+  if (!title || isForeignScript(title)) return { understood: false, title: '', category: FALLBACK_CATEGORY, action: '', projectId: '' };
   const { action, projectId } = matchVoiceAction(title, actions, projects);
   return { understood: true, title, category: matchVoiceCategory(title, categories, kind), action, projectId };
 }

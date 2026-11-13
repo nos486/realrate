@@ -3,8 +3,9 @@
  *
  * `start(item)` opens the recording (the page shows VoiceExpenseModal while `voice` is set); `stop()`
  * (or the 30 s limit) sends the clip to the server, which answers a title and a category of the
- * user's, and the withdrawal is recorded as an everyday expense with them (recordSmsExpense);
- * `cancel()` drops the recording. The note also ends by itself when the speaker stops (speech, then
+ * user's. Nothing is recorded yet: the answer waits in `review` (VoiceConfirmBar at the bottom) for
+ * `confirm()`, which records it as an everyday expense or income (recordSmsExpense), or `correct()`,
+ * which listens again for the same message; `dismiss()` drops it. `cancel()` drops the recording. The note also ends by itself when the speaker stops (speech, then
  * a pause: voiceActivity.js), and is dropped when nothing is said. One message at a time. Only Whisper listens
  * (no language model); an admin (`cheque_scan_debug`) sees how long it took and what it heard.
  */
@@ -27,12 +28,14 @@ import { recordSmsExpense, recordSmsIncome } from './smsRecord.js';
  *   the message made when needed (the page's withMessageAccounts); `offer`: what else the note may ask for (a transfer,
  *   a project…); `onAction`: opens that flow for the message, where the user confirms it
  * @returns {{ voice: { item: object, stage: 'starting'|'recording'|'processing' }|null,
+ *   review: { item: object, answer: object }|null, confirm: () => Promise<void>, correct: () => void, dismiss: () => void,
  *   start: (item: object) => Promise<void>, stop: () => Promise<void>, cancel: () => void, level: () => number }}
  */
 export function useSmsVoice({ prepareAccounts, offer, onAction }) {
   const { toast } = useFeedback();
   const canPickEngine = useFeature('cheque_scan_debug');
   const [voice, setVoice] = useState(null);
+  const [review, setReview] = useState(null); // { item, answer, saving }: understood, waiting to be confirmed
   const session = useRef(null); // { item, recorder, stopping }
   const startCancelled = useRef(false);
   const prepare = useRef(prepareAccounts);
@@ -40,6 +43,7 @@ export function useSmsVoice({ prepareAccounts, offer, onAction }) {
   const actionRef = useRef(onAction);
   const stopRef = useRef(null);
   const cancelRef = useRef(null);
+  const startRef = useRef(null);
 
   useEffect(() => { prepare.current = prepareAccounts; offerRef.current = offer; actionRef.current = onAction; });
 
@@ -64,9 +68,26 @@ export function useSmsVoice({ prepareAccounts, offer, onAction }) {
         actionRef.current(s.item, answer);
         return;
       }
-      const deposit = s.item.tx.direction === 'credit';
-      const options = { accounts: await prepare.current(s.item), category: answer.category, title: answer.title };
-      await (deposit ? recordSmsIncome : recordSmsExpense)(s.item, options);
+      setReview({ item: s.item, answer, saving: false });
+    } catch (err) {
+      toast.error(err?.message || t('ثبت با صدا ممکن نشد.'));
+    } finally {
+      session.current = null;
+      setVoice(null);
+    }
+  }, [toast]);
+  useEffect(() => { stopRef.current = stop; }, [stop]);
+
+
+  /** Record what was understood, with the title and category shown in the bar */
+  const confirm = useCallback(async () => {
+    if (!review || review.saving) return;
+    const { item, answer } = review;
+    setReview({ ...review, saving: true });
+    try {
+      const deposit = item.tx.direction === 'credit';
+      const options = { accounts: await prepare.current(item), category: answer.category, title: answer.title };
+      await (deposit ? recordSmsIncome : recordSmsExpense)(item, options);
       bumpVaultEpoch();
       const done = deposit
         ? t('درآمد «{title}» در «{category}» ثبت شد.', { title: answer.title, category: getIncomeCategory(answer.category).label })
@@ -76,17 +97,26 @@ export function useSmsVoice({ prepareAccounts, offer, onAction }) {
         ? ` (${voiceEngineById(answer.engine)?.label || answer.engine} · ${((answer.durationMs || 0) / 1000).toFixed(1)}s${answer.heard ? ` · «${answer.heard}»` : ''})`
         : '';
       toast.success(done + detail, detail ? { duration: 10000 } : undefined);
+      setReview(null);
     } catch (err) {
       toast.error(err?.message || t('ثبت با صدا ممکن نشد.'));
-    } finally {
-      session.current = null;
-      setVoice(null);
+      setReview({ item, answer, saving: false });
     }
-  }, [toast, canPickEngine]);
-  useEffect(() => { stopRef.current = stop; }, [stop]);
+  }, [review, toast, canPickEngine]);
+
+  /** Not what was meant: drop the answer and listen again for the same message */
+  const correct = useCallback(() => {
+    if (!review || review.saving) return;
+    const { item } = review;
+    setReview(null);
+    startRef.current?.(item);
+  }, [review]);
+
+  const dismiss = useCallback(() => { if (!review?.saving) setReview(null); }, [review]);
 
   const start = useCallback(async (item) => {
     if (session.current || voice) return;
+    setReview(null);
     startCancelled.current = false;
     setVoice({ item, stage: 'starting' });
     try {
@@ -111,6 +141,8 @@ export function useSmsVoice({ prepareAccounts, offer, onAction }) {
     }
   }, [toast, voice]);
 
+  useEffect(() => { startRef.current = start; }, [start]);
+
   const cancel = useCallback(() => {
     if (session.current?.stopping) return; // already sending
     startCancelled.current = true;
@@ -123,5 +155,5 @@ export function useSmsVoice({ prepareAccounts, offer, onAction }) {
 
   const level = useCallback(() => session.current?.recorder.level() ?? 0, []);
 
-  return { voice, start, stop, cancel, level };
+  return { voice, review, confirm, correct, dismiss, start, stop, cancel, level };
 }

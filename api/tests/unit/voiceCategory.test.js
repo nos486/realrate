@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { normalizeVoiceText, matchVoiceCategory, matchVoiceAction, cleanVoiceTitle, parseSmsVoice } from '../../src/domain/voiceCategory.js';
+import { isForeignScript, normalizeVoiceText, matchVoiceCategory, matchVoiceAction, cleanVoiceTitle, parseSmsVoice } from '../../src/domain/voiceCategory.js';
 import { BUILTIN_CATEGORIES } from '../../src/domain/categoryDocument.js';
 import { EXPENSE_WORDS, INCOME_WORDS, ACTION_WORDS } from '../../src/config/voiceCategoryWords.js';
 
@@ -104,6 +104,20 @@ describe('parseSmsVoice', () => {
   it('is not understood with no words', () => {
     expect(parseSmsVoice('  . ', EXPENSE).understood).toBe(false);
     expect(cleanVoiceTitle('x'.repeat(300))).toHaveLength(120);
+  });
+});
+
+describe('a wrong guess of the language', () => {
+  it('spots another script or Urdu-only letters', () => {
+    expect(isForeignScript('پیتزا')).toBe(false);
+    expect(isForeignScript('Pizza Hut پیتزا')).toBe(false);
+    expect(isForeignScript('пицца')).toBe(true);
+    expect(isForeignScript('ٹیکسی')).toBe(true);
+    expect(isForeignScript('披萨')).toBe(true);
+  });
+  it('is not understood, so nothing is recorded', () => {
+    expect(parseSmsVoice('пицца', EXPENSE).understood).toBe(false);
+    expect(parseSmsVoice('ٹیکسی ہے', EXPENSE).understood).toBe(false);
   });
 });
 
