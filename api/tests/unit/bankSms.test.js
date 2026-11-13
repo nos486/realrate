@@ -110,6 +110,13 @@ const SAMPLES = [
     text: 'حساب1848394556\nواریز31,500,000\nمانده31,894,014\n05/06/28-13:57',
     expect: { templateId: 'mellat-balance', direction: 'credit', amount: 3150000, balance: 3189401.4, accountLast4: '4556', date: '2026-09-19', time: '13:57' },
   },
+  {
+    // A loan installment paid from the account: no balance, blank lines as delivered
+    bank: 'mellat',
+    options: { today: new Date(2026, 10, 13) },
+    text: 'بانک ملت\nمشتری گرامی، پرداخت بدهی ش.ق 1402243881821 بمبلغ 31,250,000 ریال از محل حساب بشماره 1848394556 انجام شد.\n1405/08/22 05:58\n\n\n',
+    expect: { templateId: 'mellat-loan-payment', direction: 'debit', amount: 3125000, balance: null, accountLast4: '4556', date: '2026-11-13', time: '05:58', description: 'بدهی ش.ق 1402243881821' },
+  },
   // The samples below were read on 1405/07/12 (LATER); the sender tells Resalat from Pasargad
   {
     bank: 'resalat',
