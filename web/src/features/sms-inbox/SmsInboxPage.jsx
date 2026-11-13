@@ -37,6 +37,7 @@ import { useFeature } from '../../shared/features/index.js';
 import * as expensesApi from '../../shared/vault/vaultExpenses.js';
 import { useSmsVoice } from './useSmsVoice.js';
 import VoiceExpenseModal from './VoiceExpenseModal.jsx';
+import VoiceConfirmBar from './VoiceConfirmBar.jsx';
 import { canRecordVoice } from '../../shared/native/voiceRecorder.js';
 import { createIncome } from '../incomes/api/incomeApi.js';
 import ExpenseForm from '../expenses/components/ExpenseForm.jsx';
@@ -204,7 +205,7 @@ export default function SmsInboxPage() {
       setProjectDraft({ project: group, draft: { ...smsProjectExpenseDraft(item.tx, active), ...(answer.title ? { title: answer.title } : {}) } });
     }
   };
-  const { voice, start: startVoice, stop: stopVoice, cancel: cancelVoice, level: voiceLevel } = useSmsVoice({ prepareAccounts: withMessageAccounts, offer: voiceOffer, onAction: voiceAction });
+  const { voice, start: startVoice, stop: stopVoice, cancel: cancelVoice, level: voiceLevel, review: voiceReview, confirm: confirmVoice, correct: correctVoice, dismiss: dismissVoice } = useSmsVoice({ prepareAccounts: withMessageAccounts, offer: voiceOffer, onAction: voiceAction });
 
   const handleRecord = async (item) => {
     const active = await withMessageAccounts(item);
@@ -469,6 +470,7 @@ export default function SmsInboxPage() {
         />
       )}
       <VoiceExpenseModal voice={voice} level={voiceLevel} onStop={stopVoice} onCancel={cancelVoice} />
+      <VoiceConfirmBar review={voiceReview} onConfirm={confirmVoice} onCorrect={correctVoice} onDismiss={dismissVoice} />
       {loanItem && <LoanDepositSheet item={loanItem} onClose={() => setLoanItem(null)} />}
       {projectItem && (
         <ProjectPickSheet

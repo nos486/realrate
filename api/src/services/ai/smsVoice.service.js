@@ -67,7 +67,7 @@ async function runWorkers(env, engine, { audioBuffer, systemPrompt, transcribeOn
   try {
     const audio = engine.input === 'bytes' ? [...new Uint8Array(audioBuffer)] : toBase64(audioBuffer);
     // The language is told when the model takes it: left to guess, Whisper often hears Persian as Arabic or Urdu
-    const stt = await env.AI.run(engine.stt, { audio, ...(engine.language ? { language: engine.language } : {}) });
+    const stt = await env.AI.run(engine.stt, { audio, ...(engine.language ? { language: engine.language } : {}), ...(engine.task ? { task: engine.task } : {}) });
     const heard = String(stt?.text ?? '').trim();
     if (!heard) return { answer: null, heard: '', model: engine.stt };
     if (transcribeOnly) return { answer: null, heard, model: engine.stt };
