@@ -6,8 +6,9 @@
  * user's. Nothing is recorded yet: the answer waits in `review` (VoiceConfirmBar at the bottom) for
  * `confirm()`, which records it as an everyday expense or income (recordSmsExpense), or `correct()`,
  * which listens again for the same message; `dismiss()` drops it. `cancel()` drops the recording. The note also ends by itself when the speaker stops (speech, then
- * a pause: voiceActivity.js), and is dropped when nothing is said. One message at a time. Only Whisper listens
- * (no language model); an admin (`cheque_scan_debug`) sees how long it took and what it heard.
+ * a pause: voiceActivity.js), and is dropped when nothing is said. One message at a time. The engine that listens is the admin's
+ * choice in the site settings; an admin (`cheque_scan_debug`) sees which engine answered, how long it
+ * took and what it heard.
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
