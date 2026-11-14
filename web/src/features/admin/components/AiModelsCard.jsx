@@ -47,7 +47,7 @@ export default function AiModelsCard() {
   return (
     <AdminCard as="form" icon={<Cpu size={18} />} title="مدل‌های هوش مصنوعی" subtitle="موتور تشخیص صدا و مدل اخبار؛ برای همه‌ی کاربران اعمال می‌شود" onSubmit={handleSubmit}>
       <div className="ui-input-group">
-        <label htmlFor="aiVoiceEngine" className="ui-input-label">موتور تشخیص صدا (دکمه‌ی «+» و نوشتن با صدا؛ ثبت پیامکی همیشه فقط Whisper است)</label>
+        <label htmlFor="aiVoiceEngine" className="ui-input-label">موتور تشخیص صدا (پیامک، دکمه‌ی «+»، نوشتن با صدا)</label>
         <select id="aiVoiceEngine" className="ui-input-control" value={form.voiceEngine} onChange={set('voiceEngine')} disabled={!data}>
           {(data?.voiceEngines || []).map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
         </select>
