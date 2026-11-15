@@ -106,6 +106,16 @@
 .dash-widget.is-height-3 { height: 450px; }
 .dash-widget.is-height-4 { height: 600px; }
 
+/* «یادآورها» is as tall as its alerts: a due date is never hidden below the edge of a short
+   widget (while the page is being arranged it keeps its height class, like the others) */
+.dash-widget[data-widget="alerts"]:not(.is-editing) {
+  height: auto;
+}
+
+.dash-widget[data-widget="alerts"]:not(.is-editing) .dash-scroll {
+  overflow-y: visible;
+}
+
 /* A widget with nothing to show (no loans, no goals, ...) takes no room */
 .dash-widget:not(.is-editing):has(> .dash-widget-body:empty),
 .dash-widget:not(.is-editing):has(> .dash-widget-body > .dash-scroll:empty) {
@@ -373,7 +383,7 @@
   font-size: 44px;
   font-weight: 700;
   line-height: 1.1;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: var(--numeric-tabular);
   unicode-bidi: isolate;
 }
 
@@ -395,6 +405,20 @@
 .dash-clock-sub {
   font-size: var(--fs-sm);
   color: var(--text-muted);
+}
+
+/* The shortest clock: the time a step smaller, so the three lines under it stay inside the card */
+.dash-widget.is-height-1 .dash-clock {
+  gap: 2px;
+}
+
+.dash-widget.is-height-1 .dash-clock-time {
+  font-size: var(--fs-3xl);
+  line-height: 1;
+}
+
+.dash-widget.is-height-1 .dash-clock-dates {
+  gap: 0;
 }
 
 .dash-clock-face {
@@ -427,7 +451,7 @@
 .dash-clock-caption {
   font-size: var(--fs-lg);
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: var(--numeric-tabular);
   unicode-bidi: isolate;
 }
 
@@ -538,7 +562,7 @@
 .dash-rate-price b {
   font-size: var(--fs-xl);
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: var(--numeric-tabular);
   color: var(--text-heading);
 }
 
@@ -555,7 +579,7 @@
   border-radius: var(--radius-full);
   font-size: var(--fs-sm);
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: var(--numeric-tabular);
 }
 
 .dash-rate-change.is-up { background: var(--color-positive-soft); color: var(--color-positive-text); }
@@ -592,7 +616,7 @@
   justify-content: space-between;
   font-size: var(--fs-xs);
   color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: var(--numeric-tabular);
 }
 
 /* A short widget has no room for the range */
@@ -656,6 +680,23 @@ button.dash-rate-tile:focus-visible {
   flex-direction: column;
   min-height: 0;
   gap: 12px;
+}
+
+/* The whole calendar (month, the day's line, legend, totals and the events under them) is taller
+   than the widget in a narrow column: it scrolls as one, so the events are never squeezed to
+   nothing and nothing spills out of the card */
+.dash-cal:not(.is-cozy) {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.dash-cal:not(.is-cozy) > .dash-cal-agenda {
+  flex: none;
+}
+
+.dash-cal:not(.is-cozy) > .dash-cal-agenda .dash-cal-list {
+  flex: none;
+  overflow-y: visible;
 }
 
 .dash-cal-grid-side {
@@ -779,7 +820,7 @@ button.dash-rate-tile:focus-visible {
   padding: 3px 0;
   font-family: inherit;
   font-size: var(--fs-base);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: var(--numeric-tabular);
   color: var(--text-primary);
   background: transparent;
   border: 1px solid transparent;
@@ -1002,7 +1043,7 @@ button.dash-rate-tile:focus-visible {
   flex: none;
   font-size: var(--fs-sm);
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: var(--numeric-tabular);
 }
 
 .dash-cal-tip li b.is-out,
@@ -1066,7 +1107,7 @@ button.dash-rate-tile:focus-visible {
 
 .dash-cal-totals b {
   font-size: var(--fs-md);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: var(--numeric-tabular);
 }
 
 .dash-cal-totals .is-out b { color: var(--color-negative-text); }

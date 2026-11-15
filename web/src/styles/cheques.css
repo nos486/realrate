@@ -210,7 +210,7 @@
 }
 
 .cheque-sayad {
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: var(--numeric-tabular);
   letter-spacing: 0.5px;
 }
 

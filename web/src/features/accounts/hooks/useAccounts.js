@@ -8,7 +8,7 @@
  * download and decryption instead of one per component. Outside one, the hook keeps its own.
  */
 
-import { useState, useEffect, useCallback, useContext } from 'react';
+import { useState, useEffect, useCallback, useContext, useRef } from 'react';
 import { AccountsContext } from '../context/accountsContextValue.js';
 import { useRefreshHandler } from '../../../shared/refresh/pageRefresh.js';
 import { useAuth } from '../../auth/index.js';
@@ -36,20 +36,25 @@ export function useAccountsState(active = true) {
   const vaultLocked = vaultStatus === 'locked';
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const loadedRef = useRef(false); // read once already: a refresh keeps the list on the screen
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [error, setError] = useState(null);
 
   const fetchAccounts = useCallback(async () => {
     if (!active || !user || !enabled || vaultLocked) {
+      loadedRef.current = false;
       setAccounts([]);
       setLoading(false);
       return;
     }
     try {
-      setLoading(true);
+      // A refresh (header button, window focus) keeps what is shown on the screen: only a first
+      // load shows the placeholder
+      if (!loadedRef.current) setLoading(true);
       setError(null);
       setAccounts((await api.getAccounts()).accounts);
+      loadedRef.current = true;
     } catch (err) {
       setError(err.message || t('خطا در بارگذاری حساب‌ها'));
     } finally {

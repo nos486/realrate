@@ -168,7 +168,7 @@
   font-weight: 700;
   white-space: nowrap;
   pointer-events: none;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: var(--numeric-tabular);
 }
 .flow-bar-pct.is-up { color: var(--color-positive); }
 .flow-bar-pct.is-down { color: var(--color-negative); }
@@ -208,7 +208,7 @@
   font-weight: 600;
   font-size: var(--fs-sm);
 }
-.flow-month-grid td.num { font-variant-numeric: tabular-nums; }
+.flow-month-grid td.num { font-variant-numeric: var(--numeric-tabular); }
 .flow-month-grid tr.is-clickable { cursor: pointer; }
 .flow-month-grid tr.is-clickable:hover td { background: var(--bg-surface-elevated); }
 

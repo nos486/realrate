@@ -5,7 +5,7 @@
  * vault is open and again on the tab's refresh (shared/refresh).
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { t } from '../../../utils/i18n.js';
 import { useRefreshHandler } from '../../../shared/refresh/pageRefresh.js';
 import { useAuth } from '../../auth/index.js';
@@ -21,20 +21,25 @@ export function useGoals({ enabled = true } = {}) {
   const vaultLocked = vaultStatus === 'locked';
   const [goals, setGoals] = useState([]);
   const [loading, setLoading] = useState(true);
+  const loadedRef = useRef(false); // read once already: a refresh keeps the list on the screen
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
   const fetchGoals = useCallback(async () => {
     // Encrypted records only: readable once the vault is unlocked
     if (!enabled || !user || vaultStatus !== 'unlocked') {
+      loadedRef.current = false;
       setGoals([]);
       setLoading(false);
       return;
     }
     try {
-      setLoading(true);
+      // A refresh (header button, window focus) keeps what is shown on the screen: only a first
+      // load shows the placeholder
+      if (!loadedRef.current) setLoading(true);
       setError(null);
       setGoals((await api.getGoals()).goals);
+      loadedRef.current = true;
     } catch (err) {
       setError(err.message || t('خطا در بارگذاری اهداف'));
     } finally {

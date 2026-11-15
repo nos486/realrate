@@ -53,6 +53,12 @@ describe('design tokens', () => {
     expect(over).toEqual([]);
   });
 
+  it('asks for same-width digits only through --numeric-tabular (off in Persian)', () => {
+    // Vazirmatn's tabular set spaces the Persian digits out and swaps ۰ and ٬ for other forms
+    const found = appFiles.flatMap((f) => declarations(f, 'font-variant-numeric')).filter((d) => /tabular-nums/.test(d.value));
+    expect(found).toEqual([]);
+  });
+
   it('sets every font-size from the type scale', () => {
     // em sizes follow their parent; emoji / icon glyphs of 40px and more are pictures, not text
     const ok = (v) => /^var\(--fs-[\w-]+\)(\s*!important)?$/.test(v) || /em$/.test(v) || /^(inherit|max\(|clamp\()/.test(v) || (/^\d+px$/.test(v) && parseFloat(v) >= 40);

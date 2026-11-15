@@ -2,6 +2,9 @@
 :root {
   color-scheme: dark;
 
+  /* Same-width digits, only where the digits are Latin (English): see base.css */
+  --numeric-tabular: normal;
+
   /* ── Surfaces: four opaque steps of even lightness (docs/en/DESIGN.md) ─────
      s0 the page, s1 a card, s2 a card inside a card / a menu, s3 hover and the
      selected row. Layers are told apart by these steps and a border, never a shadow. */
@@ -169,4 +172,8 @@
   /* Transitions */
   --transition-fast: 0.16s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-smooth: 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:root:lang(en) {
+  --numeric-tabular: tabular-nums;
 }

@@ -853,7 +853,7 @@
   color: var(--text-heading);
   font-size: var(--fs-xl);
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: var(--numeric-tabular);
 }
 
 .admin-news-totals small {
@@ -873,7 +873,7 @@
   width: 100%;
   border-collapse: collapse;
   font-size: var(--fs-base);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: var(--numeric-tabular);
 }
 
 .admin-news-table caption {
@@ -996,7 +996,7 @@
   margin-inline-start: auto;
   color: var(--text-muted);
   font-size: var(--fs-sm);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: var(--numeric-tabular);
 }
 
 .admin-news-ailog-reason,

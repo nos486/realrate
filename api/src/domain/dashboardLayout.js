@@ -447,10 +447,11 @@ const preset = (type, extra = {}) => ({ type, ...extra });
  * some are not shown to the user (no news in English, no bank messages on the website)
  */
 const EVERYTHING = [
-  preset("clock"), preset("month", { height: 2 }), preset("rate_list", { height: 2, config: { assetIds: ["USD", "USDT", "ons_gold", "oil_brent"] } }),
+  // What is due comes first: it is the one thing on the page that asks for something today
+  preset("alerts", { height: 1 }), preset("month", { height: 2 }), preset("rate_list", { height: 2, config: { assetIds: ["USD", "USDT", "ons_gold", "oil_brent"] } }),
   preset("ai_analysis", { height: 4 }), preset("calendar", { height: 4 }), preset("expenses_latest", { height: 3 }),
   preset("goals", { height: 1 }), preset("shortcuts", { height: 2 }), preset("news", { height: 3 }),
-  preset("alerts", { height: 1 }), preset("loans", { height: 2 }),
+  preset("clock"), preset("loans", { height: 2 }),
   preset("rates", { height: 1 }), preset("plan", { height: 1 }), preset("sms", { height: 1 }),
 ];
 
