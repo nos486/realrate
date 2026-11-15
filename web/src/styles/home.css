@@ -373,7 +373,7 @@
 .metric-val {
   font-weight: 700;
   color: var(--text-heading);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: var(--numeric-tabular);
   white-space: nowrap;
 }
 

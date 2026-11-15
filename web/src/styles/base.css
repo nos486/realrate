@@ -28,9 +28,11 @@ body {
 }
 
 /* Latin digits the same width, so amounts line up in columns and don't jump when they update.
-   Vazirmatn's Persian digits already are; its tabular set would swap ۰ and ٬ for Latin-looking forms. */
+   Vazirmatn's Persian digits already are; its tabular set would swap ۰ and ٬ for Latin-looking forms
+   and space the digits out. A rule that wants same-width digits asks for `var(--numeric-tabular)`
+   (tokens.css), never `tabular-nums` itself, so it stays off in Persian. */
 body:lang(en) {
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: var(--numeric-tabular);
 }
 
 button,

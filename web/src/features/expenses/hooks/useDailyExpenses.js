@@ -46,6 +46,8 @@ export function useDailyExpenses(month, { enabled = true, year = false, years = 
   const [error, setError] = useState(null);
   // Only the latest request's answer counts (months switched quickly answer out of order)
   const requestRef = useRef(0);
+  // The window whose expenses are on the screen: reading it again (a refresh) shows no placeholder
+  const loadedWindowRef = useRef('');
   const expensesRef = useRef([]);
   expensesRef.current = expenses;
   const projectItemsRef = useRef([]);
@@ -65,18 +67,21 @@ export function useDailyExpenses(month, { enabled = true, year = false, years = 
     const request = ++requestRef.current;
     const isLatest = () => request === requestRef.current;
     if (!user || vaultLocked || !enabled) {
+      loadedWindowRef.current = '';
       setExpenses([]);
       setLoading(false);
       return;
     }
+    const windowKey = `${loadWindow.from}|${loadWindow.to}`;
     try {
-      setLoading(true);
+      if (loadedWindowRef.current !== windowKey) setLoading(true);
       setError(null);
       const { groups } = await api.getExpenseGroups();
       const group = groups.find((g) => g.type === 'daily') || null;
       // Every section's expenses in the window: the everyday ones, and the projects' (counted apart)
       const res = await api.getExpenses({ from: loadWindow.from, to: loadWindow.to });
       if (!isLatest()) return;
+      loadedWindowRef.current = windowKey;
       setDailyGroup(group);
       setProjects(groups.filter((g) => g.type !== 'daily'));
       setExpenses(res.expenses.filter((e) => group && e.groupId === group.id));

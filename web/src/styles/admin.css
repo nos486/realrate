@@ -789,7 +789,7 @@
 .history-preview-table {
   width: 100%;
   border-collapse: collapse;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: var(--numeric-tabular);
 }
 .history-preview-table th,
 .history-preview-table td {
@@ -1402,7 +1402,7 @@
 .ps-summary strong {
   color: var(--text-heading);
   font-size: var(--fs-xl);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: var(--numeric-tabular);
 }
 
 .ps-summary small {
@@ -1556,7 +1556,7 @@
 .ps-value > strong {
   color: var(--text-heading);
   font-size: var(--fs-lg);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: var(--numeric-tabular);
 }
 
 .ps-held {
@@ -1632,7 +1632,7 @@
   width: 100%;
   border-collapse: collapse;
   font-size: var(--fs-base);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: var(--numeric-tabular);
 }
 
 .ps-items th,

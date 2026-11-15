@@ -25,6 +25,7 @@ export function useExpenses() {
   const expensesRef = useRef([]);
   expensesRef.current = expenses;
   const [loading, setLoading] = useState(true);
+  const loadedRef = useRef(false); // read once already: a refresh keeps the list on the screen
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [error, setError] = useState(null);
@@ -32,18 +33,22 @@ export function useExpenses() {
   const fetchAll = useCallback(async () => {
     if (!user || vaultLocked) {
       setGroups([]);
+      loadedRef.current = false;
       setExpenses([]);
       setLoading(false);
       return;
     }
     try {
-      setLoading(true);
+      // A refresh (header button, window focus) keeps what is shown on the screen: only a first
+      // load shows the placeholder
+      if (!loadedRef.current) setLoading(true);
       setError(null);
       const { groups: all } = await api.getExpenseGroups();
       const projects = all.filter((g) => g.type !== 'daily');
       const lists = await Promise.all(projects.map((g) => api.getExpenses({ parent: g.id })));
       setGroups(projects);
       setExpenses(lists.flatMap((res) => res.expenses).sort(compareExpensesByDate));
+      loadedRef.current = true;
     } catch (err) {
       setError(err.message || t('خطا در بارگذاری هزینه‌ها'));
     } finally {

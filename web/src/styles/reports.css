@@ -219,7 +219,7 @@
 }
 
 .report-month-grid td {
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: var(--numeric-tabular);
 }
 
 /* MonthBarChart: bars from a zero line (below it for a negative value), one slot per series */
@@ -535,7 +535,7 @@ tr.is-selected td,
 
 .ask-answer-value {
   font-size: var(--fs-2xl);
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: var(--numeric-tabular);
 }
 
 .ask-answer-unit,
@@ -569,7 +569,7 @@ tr.is-selected td,
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  font-variant-numeric: tabular-nums;
+  font-variant-numeric: var(--numeric-tabular);
 }
 
 @media print {

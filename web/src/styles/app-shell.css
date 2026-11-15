@@ -950,7 +950,8 @@ button.app-home-card {
 .app-home-row-amount {
   font-size: var(--fs-md);
   font-weight: 700;
-  color: var(--color-negative-text);
+  /* Neutral, as in the expenses' own list: red is for a loss or something overdue, not for money spent or owed */
+  color: var(--text-primary);
   white-space: nowrap;
 }
 

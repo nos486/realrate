@@ -11,7 +11,7 @@
  * so a payment is never recorded a second time under its new day.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { t } from '../../../utils/i18n.js';
 import { useRefreshHandler } from '../../../shared/refresh/pageRefresh.js';
 import { useAuth } from '../../auth/index.js';
@@ -30,6 +30,7 @@ export function useSubscriptions() {
   const vaultLocked = vaultStatus === 'locked';
   const [subscriptions, setSubscriptions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const loadedRef = useRef(false); // read once already: a refresh keeps the list on the screen
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   // Their payments go into the expenses (not without the expenses, nor in the read-only demo)
@@ -59,15 +60,19 @@ export function useSubscriptions() {
   const fetchSubscriptions = useCallback(async () => {
     // Encrypted records only: readable once the vault is unlocked
     if (!user || vaultStatus !== 'unlocked') {
+      loadedRef.current = false;
       setSubscriptions([]);
       setLoading(false);
       return;
     }
     try {
-      setLoading(true);
+      // A refresh (header button, window focus) keeps what is shown on the screen: only a first
+      // load shows the placeholder
+      if (!loadedRef.current) setLoading(true);
       setError(null);
       const { subscriptions: list } = await api.getSubscriptions();
       setSubscriptions(list);
+      loadedRef.current = true;
       const current = await recordDue(list);
       if (current.some((sub, i) => sub !== list[i])) setSubscriptions(current);
     } catch (err) {
