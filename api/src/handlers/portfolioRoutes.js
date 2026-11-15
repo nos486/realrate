@@ -28,7 +28,7 @@ import {
   dbListVaultRecords,
   isCipherText,
 } from "../repositories/index.js";
-import { jsonResponse, getClientIp } from "../lib/helpers.js";
+import { jsonResponse, getClientIp, readJsonObject } from "../lib/helpers.js";
 import {
   verifySharePassword,
   hashSharePassword,
@@ -93,7 +93,7 @@ export async function handleCreatePortfolio(request, env) {
   }
   await requirePortfolioFeature(env, user);
 
-  const body = await request.json().catch(() => ({}));
+  const body = await readJsonObject(request);
   const name = String(body.name || "").trim();
   if (!name) {
     throw AppError.badRequest("نام پورتفو نمی‌تواند خالی باشد.");
@@ -124,7 +124,7 @@ export async function handleUpdatePortfolio(request, env) {
   }
   await requirePortfolioFeature(env, user);
 
-  const body = await request.json().catch(() => ({}));
+  const body = await readJsonObject(request);
   const portfolioId = body.id || body.portfolioId;
   if (!portfolioId) {
     throw AppError.badRequest("شناسه پورتفو جهت ویرایش الزامی است.");
@@ -168,7 +168,7 @@ export async function handleDeletePortfolioGroup(request, env) {
   const url = new URL(request.url);
   let portfolioId = url.searchParams.get("id") || url.searchParams.get("portfolioId");
   if (!portfolioId) {
-    const body = await request.json().catch(() => ({}));
+    const body = await readJsonObject(request);
     portfolioId = body.id || body.portfolioId;
   }
   if (!portfolioId) {
@@ -223,7 +223,7 @@ export async function handleUpdateUserSettings(request, env) {
     throw AppError.unauthorized("جهت تغییر تنظیمات، ابتدا وارد حساب کاربری خود شوید.");
   }
 
-  const body = await request.json().catch(() => ({}));
+  const body = await readJsonObject(request);
   const userId = user.userId || user.id || user.email;
   const updatedUser = await dbUpdateUserSettings(env, userId, {
     customName: body.customName,
@@ -257,7 +257,7 @@ export async function handleGetSharedPortfolio(request, env) {
   let password = "";
 
   if (request.method === "POST") {
-    const body = await request.json().catch(() => ({}));
+    const body = await readJsonObject(request);
     if (body.slug) slug = body.slug;
     if (body.password !== undefined && body.password !== null) password = String(body.password);
   }

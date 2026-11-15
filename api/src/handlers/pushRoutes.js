@@ -25,6 +25,7 @@ import { isWebPushConfigured, sendWebPush } from '../lib/webPush.js';
 import { getRateLimitState, recordRateLimitHit } from '../lib/security.js';
 import { jsonResponse } from '../lib/helpers.js';
 import { AppError } from '../lib/AppError.js';
+import { readJsonObject } from "../lib/helpers.js";
 
 const SUB_LIMIT = { limit: 30, windowSec: 60 };
 const REMINDERS_LIMIT = { limit: 60, windowSec: 60 };
@@ -56,7 +57,7 @@ export async function handleSavePushSubscription(request, env) {
   if (limited) throw new AppError('تعداد درخواست‌ها بیش از حد مجاز است. لطفاً بعداً تلاش کنید.', 429, 'TOO_MANY_REQUESTS');
   await recordRateLimitHit(env, key, SUB_LIMIT);
 
-  const body = await request.json().catch(() => ({}));
+  const body = await readJsonObject(request);
   const { value, error } = validatePushSubscriptionInput(body);
   if (error) throw AppError.badRequest(error);
 
@@ -82,7 +83,7 @@ export async function handlePutPushReminders(request, env) {
   if (limited) throw new AppError('تعداد درخواست‌ها بیش از حد مجاز است. لطفاً بعداً تلاش کنید.', 429, 'TOO_MANY_REQUESTS');
   await recordRateLimitHit(env, key, REMINDERS_LIMIT);
 
-  const body = await request.json().catch(() => ({}));
+  const body = await readJsonObject(request);
   const { value, error } = validatePushRemindersInput(body);
   if (error) throw AppError.badRequest(error);
 
@@ -107,7 +108,7 @@ export async function handleSendTestPush(request, env) {
   if (limited) throw new AppError('حداکثر ۵ اعلان آزمایشی در هر ساعت مجاز است. لطفاً بعداً تلاش کنید.', 429, 'TOO_MANY_REQUESTS');
   await recordRateLimitHit(env, key, TEST_LIMIT);
 
-  const body = await request.json().catch(() => ({}));
+  const body = await readJsonObject(request);
   const deviceId = String(body.deviceId || '').trim();
   const sealed = String(body.sealed || '').trim();
 
@@ -149,7 +150,7 @@ export async function handleGetNewsAlerts(request, env) {
 
 export async function handleSetNewsAlerts(request, env) {
   const user = await requireUser(request, env);
-  const body = await request.json().catch(() => ({}));
+  const body = await readJsonObject(request);
   if (!validDeviceId(body?.deviceId)) throw AppError.badRequest('شناسه‌ی دستگاه نامعتبر است.');
   const found = await dbSetNewsAlerts(env, userIdOf(user), body.deviceId, body.enabled !== false);
   if (!found) throw AppError.badRequest('این مرورگر هنوز برای اعلان ثبت نشده است.');

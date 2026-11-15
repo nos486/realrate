@@ -50,6 +50,10 @@ function SortIcon({ active, dir }) {
  *   canSelect?(row) (a row it returns false for has no checkbox),
  *   onToggleAll(checked) for the rows shown, label(row) for the checkbox's name }. A checkbox
  *   starts each desktop row (and the header picks every row shown) and each mobile card.
+ * @param {boolean} [mobileCompact] - a mobile card in two lines for a list of many short records
+ *   (expenses, incomes): the title with the figure at its end, then the meta chips with the
+ *   actions at their end — about half as tall, so twice as many records fit the screen. For a
+ *   table with one `stat` column.
  */
 export default function ResponsiveDataTable({
   columns,
@@ -64,6 +68,7 @@ export default function ResponsiveDataTable({
   onSortChange = null,
   renderExpanded = null,
   selection = null,
+  mobileCompact = false,
 }) {
   const isMobile = useIsMobile(mobileBreakpoint);
   const [openKeys, setOpenKeys] = useState(() => new Set());
@@ -114,30 +119,33 @@ export default function ResponsiveDataTable({
     const statCols = columns.filter((c) => c.mobile === 'stat');
     const secondaryStatCols = columns.filter((c) => c.mobile === 'stat-secondary');
     const actionsCol = columns.find((c) => c.mobile === 'actions');
+    const compact = mobileCompact && statCols.length === 1 && secondaryStatCols.length === 0;
 
     return (
       <div className={`rdt-mobile-list ${wrapperClassName}`}>
         {rows.map((row) => (
           <div
             key={rowKey(row)}
-            className={`rdt-mobile-card ${rowClassName ? rowClassName(row) : ''} ${expandable ? 'is-expandable' : ''} ${isOpen(row) ? 'is-open' : ''} ${selectedClass(row)}`}
+            className={`rdt-mobile-card ${rowClassName ? rowClassName(row) : ''} ${compact ? 'is-compact' : ''} ${expandable ? 'is-expandable' : ''} ${isOpen(row) ? 'is-open' : ''} ${selectedClass(row)}`}
             {...rowProps(row)}
           >
             <div className="rdt-mobile-card-row rdt-mobile-card-top">
               {selection && checkbox(row)}
               {titleCol && <div className="rdt-mobile-card-title">{titleCol.render(row)}</div>}
-              {actionsCol && <div className="rdt-mobile-card-actions">{actionsCol.render(row)}</div>}
+              {compact && <div className="rdt-mobile-stat rdt-mobile-card-figure">{statCols[0].render(row)}</div>}
+              {!compact && actionsCol && <div className="rdt-mobile-card-actions">{actionsCol.render(row)}</div>}
             </div>
 
-            {metaCols.length > 0 && (
+            {(metaCols.length > 0 || (compact && actionsCol)) && (
               <div className="rdt-mobile-card-row rdt-mobile-card-meta">
                 {metaCols.map((c) => (
                   <React.Fragment key={c.key}>{c.render(row)}</React.Fragment>
                 ))}
+                {compact && actionsCol && <div className="rdt-mobile-card-actions">{actionsCol.render(row)}</div>}
               </div>
             )}
 
-            {(statCols.length > 0 || secondaryStatCols.length > 0) && (
+            {!compact && (statCols.length > 0 || secondaryStatCols.length > 0) && (
               <div className="rdt-mobile-card-row rdt-mobile-card-stats">
                 {statCols.map((c) => (
                   <div key={c.key} className="rdt-mobile-stat">

@@ -42,7 +42,7 @@ import { verifyPassword, getRateLimitState, recordRateLimitHit, clearRateLimit }
 import { logger } from "../lib/logger.js";
 import { loadFeatureRules, withUserGroups } from "../lib/features.js";
 import { isFeatureEnabled } from "../config/features.js";
-import { jsonResponse } from "../lib/helpers.js";
+import { jsonResponse, readJsonObject } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
 import { withRecordLimit } from "../lib/planLimits.js";
 
@@ -81,7 +81,7 @@ export async function handleGetVault(request, env) {
 
 export async function handleSaveVault(request, env) {
   const userId = await requireUserId(request, env);
-  const body = await request.json().catch(() => ({}));
+  const body = await readJsonObject(request);
   const vault = await dbSaveUserVault(env, userId, {
     salt: body.salt,
     wrappedKey: body.wrappedKey,
@@ -106,7 +106,7 @@ export async function handleResetVault(request, env) {
     throw new AppError("بازنشانی رمزنگاری در حساب دمو مجاز نیست.", 403, "DEMO_EDIT_FORBIDDEN");
   }
   const userId = userIdOf(user);
-  const body = await request.json().catch(() => ({}));
+  const body = await readJsonObject(request);
   if (body.confirm !== VAULT_RESET_CONFIRM) {
     throw AppError.badRequest("برای بازنشانی، عبارت تأیید را وارد کنید.", "CONFIRM_REQUIRED");
   }
@@ -149,7 +149,7 @@ export async function handleListVaultRecords(request, env, { kind }) {
 export async function handlePutVaultRecord(request, env, { kind, id }) {
   const user = await requireKindUser(request, env, kind);
   const userId = userIdOf(user);
-  const body = await request.json().catch(() => ({}));
+  const body = await readJsonObject(request);
   const input = {
     payload: body.payload,
     recordDate: body.recordDate,
@@ -164,7 +164,7 @@ export async function handlePutVaultRecord(request, env, { kind, id }) {
 export async function handlePutVaultRecords(request, env, { kind }) {
   const user = await requireKindUser(request, env, kind);
   const userId = userIdOf(user);
-  const body = await request.json().catch(() => ({}));
+  const body = await readJsonObject(request);
   const ids = Array.isArray(body.records) ? [...new Set(body.records.map((r) => r?.id).filter((x) => typeof x === "string"))] : [];
   const records = await withRecordLimit(env, user, kind, ids, () => dbPutVaultRecords(env, userId, kind, body.records, {
     vaultEpoch: typeof body.vaultEpoch === "string" ? body.vaultEpoch : "",
@@ -181,7 +181,7 @@ export async function handleDeleteVaultRecord(request, env, { kind, id }) {
 
 export async function handleDeleteVaultRecords(request, env, { kind }) {
   const userId = await requireUserId(request, env, kind);
-  const body = await request.json().catch(() => ({}));
+  const body = await readJsonObject(request);
   const deleted = await dbDeleteVaultRecords(env, userId, kind, body.ids);
   return jsonResponse({ success: true, deleted }, 200, request);
 }

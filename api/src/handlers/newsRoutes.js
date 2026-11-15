@@ -19,7 +19,7 @@ import { resolveNewsModel } from "../services/news/newsModel.js";
 import { loadAiSettings } from "../services/ai/aiSettings.service.js";
 import { getAuthenticatedUser } from "../lib/auth.js";
 import { requireFeature } from "../lib/features.js";
-import { jsonResponse } from "../lib/helpers.js";
+import { jsonResponse, readJsonObject } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
 import { edgeCachedJson } from "../lib/edgeCache.js";
 import { dbListNews, dbListNewsAiLog, dbSetNewsHidden, dbTopNewsSince } from "../repositories/news.repository.js";
@@ -154,7 +154,7 @@ export async function handleAdminRunNews(request, env) {
 
 export async function handleAdminSetNewsHidden(request, env, { id }) {
   await requireAdmin(request, env);
-  const body = await request.json().catch(() => ({}));
+  const body = await readJsonObject(request);
   const found = await dbSetNewsHidden(env, id, body?.hidden !== false);
   if (!found) throw AppError.notFound("خبر پیدا نشد.");
   return jsonResponse({ success: true }, 200, request);
