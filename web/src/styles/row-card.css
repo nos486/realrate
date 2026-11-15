@@ -275,14 +275,32 @@
 }
 
 @media (max-width: 480px) {
-  .row-card-block,
+  /* The figures stay two to a line (a lone last one takes the line); only the bar needs the
+     whole width — a card is then about a third shorter and more of the list fits the screen */
+  .row-card {
+    column-gap: 12px;
+  }
+
+  .row-card-block {
+    flex: 1 1 40%;
+    min-width: 0;
+  }
+
+  /* In half the width a long figure wraps instead of being cut */
+  .row-card-value,
+  .row-card-sub {
+    white-space: normal;
+  }
+
+  /* The bar comes after the figures, so they pair up whatever their order in the row */
   .row-card-progress {
+    order: 1;
     flex: 1 1 100%;
   }
 
   /* The title keeps the whole first line; the actions close the card */
   .row-card-actions {
-    order: 1;
+    order: 2;
     flex: 1 1 100%;
     justify-content: flex-end;
   }

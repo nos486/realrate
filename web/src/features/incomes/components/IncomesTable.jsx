@@ -138,6 +138,7 @@ export default function IncomesTable({ incomes, onEdit, onDelete, deletingId = n
 
   return (
     <ResponsiveDataTable
+      mobileCompact
       columns={columns}
       rows={incomes}
       wrapperClassName="portfolio-table-responsive"

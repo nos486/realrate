@@ -1441,6 +1441,49 @@ input.search-bar-input:focus-visible {
   color: var(--text-muted);
 }
 
+/* A compact card (`mobileCompact`): the title and its figure, then the chips and the actions */
+.rdt-mobile-card.is-compact {
+  gap: 4px;
+  padding: 10px 12px;
+}
+
+.rdt-mobile-card.is-compact .rdt-mobile-card-top {
+  align-items: flex-start;
+}
+
+.rdt-mobile-card-figure {
+  flex: 0 1 auto;
+  max-width: 60%;
+  text-align: end;
+}
+
+.rdt-mobile-card-figure .cell-currency-wrap {
+  align-items: flex-end;
+}
+
+.rdt-mobile-card.is-compact .rdt-mobile-card-meta {
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+
+/* One line: the first two chips (category, day) keep their width, what follows (the account)
+   is cut with an ellipsis before the actions are pushed to a line of their own */
+.rdt-mobile-card.is-compact .rdt-mobile-card-meta > * {
+  flex: none;
+}
+
+.rdt-mobile-card.is-compact .rdt-mobile-card-meta > :nth-child(n + 3):not(.rdt-mobile-card-actions) {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rdt-mobile-card.is-compact .rdt-mobile-card-actions {
+  margin-inline-start: auto;
+}
+
 .rdt-mobile-card-stats {
   flex-wrap: wrap;
   align-items: flex-start;

@@ -156,3 +156,14 @@ export function safeWaitUntil(ctx, promise) {
   if (ctx && typeof ctx.waitUntil === "function") ctx.waitUntil(settled);
 }
 
+/**
+ * The request's JSON body as an object. A body that is missing, not JSON, or JSON that is not an
+ * object (`null`, a number, a string, a list) reads as `{}`, so a handler's `body.field` is
+ * answered with its own validation error (400) instead of a TypeError (500).
+ * @param {Request} request
+ * @returns {Promise<Record<string, any>>}
+ */
+export async function readJsonObject(request) {
+  const body = await request.json().catch(() => null);
+  return body && typeof body === "object" && !Array.isArray(body) ? body : {};
+}

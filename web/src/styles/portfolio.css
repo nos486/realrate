@@ -1248,9 +1248,15 @@
   min-width: 74px;
 }
 
-/* A secondary column (e.g. notes) only shows where the table has room: below this width the
-   table would overflow its card and hide the actions column behind a scroll */
-@media (max-width: 1279px) {
+/* A secondary column (e.g. notes) only shows where the table itself has room — measured on the
+   table's own box, not the window: a page with a column beside the table (the expenses' summary)
+   is narrower than the window, and the table would overflow its card and hide the actions column
+   behind a scroll */
+.portfolio-table-responsive {
+  container-type: inline-size;
+}
+
+@container (max-width: 1040px) {
   .portfolio-data-table .col-wide-only {
     display: none;
   }

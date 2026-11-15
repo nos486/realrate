@@ -17,6 +17,7 @@ import { getRateLimitState, recordRateLimitHit } from '../lib/security.js';
 import { jsonResponse } from '../lib/helpers.js';
 import { AppError } from '../lib/AppError.js';
 import { hasFeature } from '../lib/features.js';
+import { readJsonObject } from "../lib/helpers.js";
 
 const PUT_LIMIT = { limit: 30, windowSec: 60 };
 const TEST_LIMIT = { limit: 3, windowSec: 3600 };
@@ -66,7 +67,7 @@ export async function handlePutAlertEmailPrefs(request, env) {
   if (limited) throw new AppError('تعداد درخواست‌ها بیش از حد مجاز است. لطفاً بعداً تلاش کنید.', 429, 'TOO_MANY_REQUESTS');
   await recordRateLimitHit(env, key, PUT_LIMIT);
 
-  const body = await request.json().catch(() => ({}));
+  const body = await readJsonObject(request);
   const { value, error } = validateAlertEmailPrefs(body);
   if (error) throw AppError.badRequest(error);
 

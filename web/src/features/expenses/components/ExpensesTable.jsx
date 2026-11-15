@@ -281,6 +281,7 @@ export default function ExpensesTable({
 
   return (
     <ResponsiveDataTable
+      mobileCompact
       columns={columns}
       rows={expenses}
       wrapperClassName="portfolio-table-responsive"

@@ -17,7 +17,7 @@ import { getAdminStats } from "../lib/analytics.js";
 import { testPriceSource, refreshPriceBook } from "../services/market/priceAggregator.service.js";
 import { listPriceSourcesForAdmin, priceSourceItemsForAdmin, syncPriceSourceNow } from "../services/market/priceSourcesAdmin.service.js";
 import { syncAllSources } from "../services/market/sourceSync.service.js";
-import { jsonResponse, errorResponse, forbiddenResponse } from "../lib/helpers.js";
+import { jsonResponse, errorResponse, forbiddenResponse, readJsonObject } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
 
 /**
@@ -181,7 +181,7 @@ export async function handleAdminSetPrimarySource(request, env) {
 export async function handleAdminTestPriceSource(request, env) {
   const denied = await requireAdmin(request, env);
   if (denied) return denied;
-  const { id } = await request.json().catch(() => ({}));
+  const { id } = await readJsonObject(request);
   return jsonResponse(await testPriceSource(env, id), 200, request);
 }
 
@@ -192,7 +192,7 @@ export async function handleAdminTestPriceSource(request, env) {
 export async function handleAdminSyncPriceSource(request, env) {
   const denied = await requireAdmin(request, env);
   if (denied) return denied;
-  const { id } = await request.json().catch(() => ({}));
+  const { id } = await readJsonObject(request);
   return jsonResponse(await syncPriceSourceNow(env, id), 200, request);
 }
 

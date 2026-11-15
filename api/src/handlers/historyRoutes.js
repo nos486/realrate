@@ -12,7 +12,7 @@
  */
 
 import { getAuthenticatedUser } from "../lib/auth.js";
-import { jsonResponse, forbiddenResponse } from "../lib/helpers.js";
+import { jsonResponse, forbiddenResponse, readJsonObject } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
 import { getPriceBookCache } from "../repositories/priceBookStore.repository.js";
 import { TGJU_CATALOG } from "../config/tgjuCatalog.js";
@@ -49,7 +49,7 @@ export async function handleAdminHistory(request, env) {
     return ok({ catalog: TGJU_CATALOG, mappings, items: bookItems(book), history, maxDays: MAX_BACKFILL_DAYS });
   }
   if (request.method !== "POST") throw AppError.notFound("مسیر پیدا نشد");
-  const body = await request.json().catch(() => ({}));
+  const body = await readJsonObject(request);
 
   if (path === "/mappings") return ok({ mappings: await saveMappings(env, body.mappings) });
 

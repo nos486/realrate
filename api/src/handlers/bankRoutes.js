@@ -12,7 +12,7 @@
 
 import { getAuthenticatedUser } from "../lib/auth.js";
 import { dbListCustomBanks, dbCreateCustomBank, dbDeleteCustomBank } from "../repositories/index.js";
-import { jsonResponse } from "../lib/helpers.js";
+import { jsonResponse, readJsonObject } from "../lib/helpers.js";
 import { AppError } from "../lib/AppError.js";
 
 async function requireUserId(request, env) {
@@ -29,7 +29,7 @@ export async function handleListCustomBanks(request, env) {
 
 export async function handleCreateCustomBank(request, env) {
   const userId = await requireUserId(request, env);
-  const body = await request.json().catch(() => ({}));
+  const body = await readJsonObject(request);
   const bank = await dbCreateCustomBank(env, userId, body.name);
   return jsonResponse({ success: true, bank }, 201, request);
 }
