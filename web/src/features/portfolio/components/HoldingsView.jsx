@@ -419,6 +419,7 @@ const HoldingsView = forwardRef(function HoldingsView(
             dollarPnl={dollarTotal}
             reservedToman={reservedToman}
             historyAssets={portfolioMetrics.items.length > 0 ? ledger.assets : []}
+            empty={!isVaultLocked && !loadingPortfolios && !loadingHoldings && portfolioMetrics.items.length === 0}
           />
         }
       >
