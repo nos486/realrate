@@ -1322,6 +1322,34 @@
   margin-top: auto;
   min-height: 22px;
 }
+/* On a phone the cards are one to a line: a figure's label and value share a line, and a foot
+   that only holds the chart hint sits beside the figures instead of on a line of its own, so a
+   card is about a third shorter */
+@media (max-width: 640px) {
+  .pro-card-face.is-front .pro-metric {
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .pro-card-face.is-front .pro-metric small {
+    margin-top: 0;
+  }
+
+  .pro-card-face.is-front .pro-card-foot:not(:has(> :not(.pro-card-hint))) {
+    position: absolute;
+    inset-block-end: 14px;
+    inset-inline-end: 14px;
+    min-height: 0;
+  }
+
+  /* Room for that hint beside the figures */
+  .home-pro-card.can-flip .pro-card-face.is-front .pro-metrics {
+    margin-inline-end: 44px;
+  }
+}
+
 .pro-card-note {
   font-size: var(--fs-xs);
   color: var(--text-muted);

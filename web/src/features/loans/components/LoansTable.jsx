@@ -40,7 +40,6 @@ export default function LoansTable({
           <RowCard
             key={loan.id}
             tone={dueTone}
-            className="is-tinted"
             icon={<Landmark size={18} />}
             iconTone={dueTone || 'warning'}
             title={loan.title}

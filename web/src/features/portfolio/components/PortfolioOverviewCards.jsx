@@ -32,6 +32,9 @@ export default function PortfolioOverviewCards({
   reservedToman = 0,
   // The portfolio's asset ledgers (utils/assetLedger.js): the value history under the total value
   historyAssets = [],
+  // A portfolio with nothing in it: the three figures would all read zero, so they are left out
+  // (the page's own «پورتفو خالی است» says it once)
+  empty = false,
 }) {
   const hasData = portfolioMetrics.hasAnyCost;
   const isProfit = (portfolioMetrics.totalPnl || 0) >= 0;
@@ -62,6 +65,7 @@ export default function PortfolioOverviewCards({
 
   return (
     <div className="portfolio-overview-grid">
+      {!empty && (<>
       {/* Card 1: Total Real Value */}
       <div className="portfolio-stat-card main-val">
         <div className="stat-header">
@@ -177,6 +181,7 @@ export default function PortfolioOverviewCards({
           )}
         </div>
       </div>
+      </>)}
 
       {/* Card 4: Asset allocation donut */}
       {categoryGroups.length > 0 && (portfolioMetrics.totalRealValue || 0) > 0 && !isVaultLocked && (
