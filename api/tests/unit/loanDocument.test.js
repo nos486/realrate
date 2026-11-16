@@ -10,6 +10,7 @@ import {
   markInstallmentPaidCascadeDoc,
   addExtraPaymentDoc,
   updateLoanDoc,
+  bulkDistributeInstallmentsDoc,
 } from '../../src/domain/loanDocument.js';
 
 describe('loan document', () => {
@@ -63,5 +64,20 @@ describe('loan document', () => {
     const total = buildLoanView(doc).totalRepaymentAmount;
     expect(buildLoanView(updateLoanDoc(doc, { totalRepaymentAmount: total })).scheduleMode).toBe('formula');
     expect(() => updateLoanDoc(doc, { totalRepaymentAmount: 0 })).toThrow('مبلغ کل بازپرداخت');
+  });
+
+  it('amounts set by hand stay fixed in later bulk edits and cannot be edited again', () => {
+    let doc = createLoanDoc({ id: 'loan_b', title: 'x', principalAmount: 12_000_000, annualInterestRate: 0, installmentCount: 6, startDate: '1404-01-01' });
+    doc = bulkDistributeInstallmentsDoc(doc, { 2: 3_000_000, 3: 1_500_000 });
+    doc = bulkDistributeInstallmentsDoc(doc, { 4: 2_500_000 });
+    const view = buildLoanView(doc);
+    const byNum = (n) => view.installments.find((i) => i.installmentNumber === n);
+    expect(byNum(2).totalAmount).toBe(3_000_000);
+    expect(byNum(3).totalAmount).toBe(1_500_000);
+    expect(byNum(4).totalAmount).toBe(2_500_000);
+    expect(byNum(2).isFixed && byNum(3).isFixed && byNum(4).isFixed).toBe(true);
+    expect(byNum(1).isFixed).toBe(false);
+    expect(view.totalRepaymentAmount).toBe(12_000_000);
+    expect(() => bulkDistributeInstallmentsDoc(doc, { 2: 1_000_000 })).toThrow('قابل ویرایش نیست');
   });
 });

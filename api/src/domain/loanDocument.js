@@ -87,6 +87,7 @@ function makeState(fields) {
     paidDate: fields.paidDate || "",
     paidAmount: Number(fields.paidAmount) || 0,
     isManualOverride: Boolean(fields.isManualOverride),
+    isFixed: Boolean(fields.isFixed),
     createdAt: fields.createdAt,
     updatedAt: fields.updatedAt,
   };
@@ -587,6 +588,16 @@ export function bulkDistributeInstallmentsDoc(doc, knownAmounts = {}, totalRepay
     }
     cleanKnownAmounts[n] = a;
   }
+  // An amount set by hand in an earlier plan stays fixed for good: it is carried into every
+  // re-plan and cannot be changed again, so only the untouched installments are re-split.
+  for (const inst of view.installments) {
+    if (inst.isPaid || !inst.isFixed) continue;
+    const typed = cleanKnownAmounts[inst.installmentNumber];
+    if (typed !== undefined && typed !== Number(inst.totalAmount)) {
+      throw badRequest(t('قسط {n} قبلاً دستی تنظیم شده و دیگر قابل ویرایش نیست.', { n: inst.installmentNumber }));
+    }
+    cleanKnownAmounts[inst.installmentNumber] = Number(inst.totalAmount);
+  }
 
   let distributedSchedule;
   try {
@@ -615,6 +626,7 @@ export function bulkDistributeInstallmentsDoc(doc, knownAmounts = {}, totalRepay
       totalAmount: inst.totalAmount,
       remainingBalanceAfter: inst.remainingBalanceAfter,
       isManualOverride: true,
+      isFixed: Boolean(inst.isFixed),
       createdAt: now,
       updatedAt: now,
     }));

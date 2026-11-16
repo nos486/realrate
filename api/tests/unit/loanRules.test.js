@@ -867,7 +867,7 @@ describe('Loan rules', () => {
       ).rejects.toThrow(/قبلاً پرداخت شده/);
     });
 
-    it('a later bulk-edit call fully replaces the prior plan', async () => {
+    it('a later bulk-edit call keeps the amounts set by hand earlier', async () => {
       const loan = await createLoan(store, 'user_1', {
         title: 'وام با دو بار ویرایش گروهی',
         principalAmount: 12000000,
@@ -878,8 +878,8 @@ describe('Loan rules', () => {
       await bulkDistributeInstallments(store, 'user_1', loan.id, { 1: 2000000 });
       const second = await bulkDistributeInstallments(store, 'user_1', loan.id, { 6: 500000 });
 
-      // The first plan's touch on #1 is gone; #1 now follows the new equal-split baseline
-      expect(second.installments[0].totalAmount).not.toBe(2000000);
+      // The first plan's touch on #1 stays fixed; only untouched installments are re-split
+      expect(second.installments[0].totalAmount).toBe(2000000);
       expect(second.installments[5].totalAmount).toBe(500000);
       const sumPrincipal = second.installments.reduce((sum, i) => sum + i.principalPortion, 0);
       expect(sumPrincipal).toBe(12000000);

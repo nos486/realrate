@@ -789,6 +789,7 @@ export function computeEffectiveSchedule({
           paidDate: state.paidDate || state.paid_date || '',
           paidAmount: Number(state.paidAmount ?? state.paid_amount ?? 0),
           isManualOverride: Boolean(state.isManualOverride ?? state.is_manual_override),
+          isFixed: Boolean(state.isFixed ?? state.is_fixed),
         });
       } else if (baseItem) {
         // Defensive fallback only — a well-formed distributed loan always has a stored row for
@@ -1230,6 +1231,7 @@ export function distributeInstallmentAmounts({ loan, paidInstallments = [], know
         paidDate: p.paidDate || p.paid_date || '',
         paidAmount: Number(p.paidAmount ?? p.paid_amount ?? p.totalAmount ?? 0),
         isManualOverride: Boolean(p.isManualOverride ?? p.is_manual_override),
+        isFixed: Boolean(p.isFixed ?? p.is_fixed),
       });
       continue;
     }
@@ -1256,6 +1258,8 @@ export function distributeInstallmentAmounts({ loan, paidInstallments = [], know
       paidDate: '',
       paidAmount: 0,
       isManualOverride: true,
+      // An amount the user typed (not an even-split result): kept as is by every later re-plan
+      isFixed: knownByNumber.has(num),
     });
     lastPendingIndex = schedule.length - 1;
   }

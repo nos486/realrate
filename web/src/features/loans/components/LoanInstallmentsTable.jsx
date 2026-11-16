@@ -51,8 +51,8 @@ export default function LoanInstallmentsTable({
   const [payAccountId, setPayAccountId] = useState('');
   const [actionLoadingId, setActionLoadingId] = useState(null);
 
-  // Filter tabs (all, pending, paid)
-  const [activeFilter, setActiveFilter] = useState('all');
+  // Filter tabs (all, pending, paid): paid installments start hidden, one tap shows them
+  const [activeFilter, setActiveFilter] = useState('pending');
 
   const filteredInstallments = installments.filter((inst) => {
     if (activeFilter === 'pending') return !inst.isPaid;

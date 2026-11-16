@@ -12,7 +12,7 @@ import React, { useEffect, useState } from 'react';
 import { useRefreshToken } from '../../../shared/refresh/pageRefresh.js';
 import { useUsdAt } from '../../market/dailyHistory.js';
 import { useFxRates } from '../../market/useFxRates.js';
-import { Wallet } from 'lucide-react';
+import { Wallet, ChevronDown } from 'lucide-react';
 import { useFeature } from '../../../shared/features/useFeature.js';
 import { useVault } from '../../../shared/vault/useVault.js';
 import { getExpenses } from '../../../shared/vault/vaultExpenses.js';
@@ -100,6 +100,8 @@ export default function LoanFundingCard({ loan, hideValues = false }) {
   // Read again with the loans tab's refresh (header button, window focus)
   const refreshToken = useRefreshToken('loans');
   const [data, setData] = useState(null);
+  // The usage details start collapsed: the header (with the percent spent) is the toggle
+  const [open, setOpen] = useState(false);
   const from = String(loan?.startDate || '').slice(0, 10);
 
   useEffect(() => {
@@ -132,18 +134,28 @@ export default function LoanFundingCard({ loan, hideValues = false }) {
 
   return (
     <section className="loan-funding-card" aria-label={t('مصرف وام')}>
-      <header className="loan-funding-head">
+      <button
+        type="button"
+        className="loan-funding-head loan-funding-toggle"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
         <span className="loan-funding-title">
           <Wallet size={15} />
           {t('مصرف وام')}
         </span>
-        <span className="loan-funding-pct">{t('{pct}٪ خرج شده', { pct: formatNum(pct) })}</span>
-      </header>
+        <span className="loan-funding-pct">
+          {t('{pct}٪ خرج شده', { pct: formatNum(pct) })}
+          <ChevronDown size={16} aria-hidden="true" className={`loan-funding-chevron${open ? ' is-open' : ''}`} />
+        </span>
+      </button>
 
       <div className="loan-progress-track">
         <div className={`loan-progress-bar ${usage.overspent > 0 ? 'is-over' : ''}`} style={{ width: `${pct}%` }} />
       </div>
 
+      {open && (
+        <>
       <dl className="loan-funding-stats">
         <div>
           <dt>{t('خرج شده')}</dt>
@@ -174,6 +186,8 @@ export default function LoanFundingCard({ loan, hideValues = false }) {
             <li className="loan-funding-more">{t('و {n} مورد دیگر', { n: formatNum(usage.count - LIST_LIMIT) })}</li>
           )}
         </ul>
+      )}
+        </>
       )}
     </section>
   );

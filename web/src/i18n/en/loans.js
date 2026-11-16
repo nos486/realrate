@@ -252,4 +252,7 @@ export default {
   'قسط بعدی: #{n}': 'Next installment: #{n}',
   'قسط بعدی': 'Next installment',
   'سررسید معوقی نیست': 'Nothing due',
+  'قسط {n} قبلاً دستی تنظیم شده و دیگر قابل ویرایش نیست.': 'Installment {n} was set by hand earlier and can no longer be edited.',
+  'این قسط قبلاً دستی تنظیم شده و ثابت است': 'This installment was set by hand and is fixed',
+  '(ثابت)': '(fixed)',
 };

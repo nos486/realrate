@@ -15,7 +15,7 @@
 
 import { t, intlLocale } from '../../../utils/i18n.js';
 import React, { useState, useEffect, useMemo } from 'react';
-import { ListChecks } from 'lucide-react';
+import { ListChecks, Lock } from 'lucide-react';
 import { AlertBanner, Modal, NumericInput } from '../../../shared/ui/index.js';
 import { EntryFormActions } from '../../../shared/form/index.js';
 import { formatShamsiDisplay } from '../../portfolio/components/ShamsiDatePicker.jsx';
@@ -61,6 +61,15 @@ export default function BulkEditInstallmentsModal({
     [loan]
   );
 
+  // Amounts set by hand in an earlier plan: fixed for good, carried into every re-plan, not editable
+  const lockedAmounts = useMemo(() => {
+    const map = {};
+    for (const i of loan?.installments || []) {
+      if (!i.isPaid && i.isFixed) map[i.installmentNumber] = Number(i.totalAmount);
+    }
+    return map;
+  }, [loan]);
+
   const hasTouched = Object.keys(customAmounts).length > 0;
 
   const result = useMemo(() => {
@@ -69,7 +78,7 @@ export default function BulkEditInstallmentsModal({
       const amt = Number(String(val || '').replace(/,/g, '').trim());
       if (amt > 0) map[num] = amt;
       return map;
-    }, {});
+    }, { ...lockedAmounts });
     try {
       return {
         schedule: distributeInstallmentAmounts({
@@ -84,7 +93,7 @@ export default function BulkEditInstallmentsModal({
     } catch (err) {
       return { schedule: [], error: err.message || t('محاسبه ممکن نشد.') };
     }
-  }, [loan, paidInstallments, customAmounts, currentTotalPool, currentPrincipalPool]);
+  }, [loan, paidInstallments, customAmounts, lockedAmounts, currentTotalPool, currentPrincipalPool]);
 
   const pendingRows = result.schedule.filter((i) => !i.isPaid);
 
@@ -182,6 +191,12 @@ export default function BulkEditInstallmentsModal({
                   <td>{formatNum(inst.installmentNumber)}</td>
                   <td className="is-date">{formatShamsiDisplay(inst.dueDate)}</td>
                   <td className="is-input">
+                    {lockedAmounts[inst.installmentNumber] !== undefined ? (
+                      <span className="is-muted" title={t('این قسط قبلاً دستی تنظیم شده و ثابت است')}>
+                        <Lock size={12} aria-hidden="true" /> {formatNum(lockedAmounts[inst.installmentNumber])}{' '}
+                        <small>{t('(ثابت)')}</small>
+                      </span>
+                    ) : (
                     <NumericInput
                       aria-label={t('مبلغ قسط {n}', { n: formatNum(inst.installmentNumber) })}
                       value={customAmounts[inst.installmentNumber] ?? String(inst.totalAmount)}
@@ -195,6 +210,7 @@ export default function BulkEditInstallmentsModal({
                       }
                       className={`form-input${customAmounts[inst.installmentNumber] !== undefined ? ' input-touched' : ''}`}
                     />
+                    )}
                   </td>
                 </tr>
               ))}

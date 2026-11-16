@@ -504,6 +504,30 @@
   gap: 8px;
 }
 
+.loan-funding-toggle {
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.loan-funding-pct {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.loan-funding-chevron {
+  transition: transform 0.15s ease;
+}
+
+.loan-funding-chevron.is-open {
+  transform: rotate(180deg);
+}
+
 .loan-funding-title {
   display: inline-flex;
   align-items: center;
