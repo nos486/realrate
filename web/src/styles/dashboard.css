@@ -106,20 +106,26 @@
 .dash-widget.is-height-3 { height: 450px; }
 .dash-widget.is-height-4 { height: 600px; }
 
-/* A widget whose content is a list or a few figures is only as tall as that content: its height
-   class is the most it may take (more than that scrolls inside the card), so a short list leaves
-   no half-empty card. The widgets that draw to their height (clock, calendar, the rate tiles, the
-   analysis) keep it, and so does every widget while the page is being arranged. */
-.dash:not(.is-app) .dash-widget:not(.is-editing):is([data-widget="month"], [data-widget="loans"], [data-widget="goals"], [data-widget="expenses_latest"], [data-widget="rates"], [data-widget="news"], [data-widget="plan"], [data-widget="sms"], [data-widget="shortcuts"]) {
-  height: auto;
+/* A widget whose content is a list or a few figures is only as tall as that content, and its
+   height class is where a longer one stops and scrolls, so a short list leaves no half-empty
+   card. That is the flex item's automatic minimum: the smaller of its content and its `height`.
+   The widgets that draw to their height (clock, the rate tiles, the analysis) keep it, and so
+   does every widget while the page is being arranged.
+
+   The columns end together. Room left in a column goes first to the widgets that have more to
+   show than their height class (a long list, the calendar's events), each up to its full
+   content; what is still left goes to the last widget shown, so no column stops short with a
+   hole under it. A widget with nothing to show is hidden and does not count as the last. */
+.dash:not(.is-app) .dash-widget:not(.is-editing):is([data-widget="month"], [data-widget="loans"], [data-widget="goals"], [data-widget="expenses_latest"], [data-widget="rates"], [data-widget="news"], [data-widget="plan"], [data-widget="sms"], [data-widget="shortcuts"], [data-widget="calendar"]) {
+  flex: 1000 1 0px;
+  min-height: auto;
+  max-height: max-content;
 }
 
-.dash:not(.is-app) .dash-widget.is-height-1:not(.is-editing) { max-height: 150px; }
-.dash:not(.is-app) .dash-widget.is-height-2:not(.is-editing) { max-height: 300px; }
-.dash:not(.is-app) .dash-widget.is-height-3:not(.is-editing) { max-height: 450px; }
-.dash:not(.is-app) .dash-widget.is-height-4:not(.is-editing) { max-height: 600px; }
-
-.dash:not(.is-app) .dash-widget[data-widget="alerts"]:not(.is-editing) {
+.dash:not(.is-app):not(.is-editing) .dash-col > .dash-widget:last-child,
+.dash:not(.is-app):not(.is-editing) .dash-col > .dash-widget:nth-last-child(1 of :not(:has(> .dash-widget-body:empty), :has(> .dash-widget-body > .dash-scroll:empty))) {
+  flex-grow: 1;
+  flex-shrink: 0;
   max-height: none;
 }
 
