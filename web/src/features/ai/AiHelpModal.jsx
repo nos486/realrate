@@ -6,12 +6,12 @@
  */
 
 import React from 'react';
-import { Sparkles, HandCoins, MessageCircleQuestion, Pencil, FilePlus, MessageSquareText, Type } from 'lucide-react';
+import { Sparkles, HandCoins, MessageCircleQuestion, Pencil, FilePlus, MessageSquareText } from 'lucide-react';
 import { Button, Modal } from '../../shared/ui/index.js';
 import { t } from '../../utils/i18n.js';
 import { AI_HOW_TO, aiCapabilities } from './aiHelp.js';
 
-const ICONS = { records: HandCoins, question: MessageCircleQuestion, edit: Pencil, create: FilePlus, sms: MessageSquareText, dictate: Type };
+const ICONS = { records: HandCoins, question: MessageCircleQuestion, edit: Pencil, create: FilePlus, sms: MessageSquareText };
 
 /** @param {{ open: boolean, onClose: () => void }} props */
 export default function AiHelpModal({ open, onClose }) {

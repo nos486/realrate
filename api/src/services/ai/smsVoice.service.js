@@ -87,10 +87,9 @@ async function runGemini(env, models, request, { startTime, audioBytes, debug })
 }
 
 /**
- * Cloudflare: a speech model writes what was said, then GLM reads that text. `transcribeOnly` (dictation)
- * stops after the first step: the words are the answer, so no second model is asked.
+ * Cloudflare: a speech model writes what was said, then GLM reads that text.
  */
-async function runWorkers(env, engine, { audioBuffer, systemPrompt, transcribeOnly }, { debug }) {
+async function runWorkers(env, engine, { audioBuffer, systemPrompt }, { debug }) {
   if (!hasWorkersAi(env)) throw new AppError('Workers AI در این محیط تنظیم نشده است.', 503, 'VOICE_NOT_CONFIGURED');
   try {
     const audio = engine.input === 'bytes' ? [...new Uint8Array(audioBuffer)] : toBase64(audioBuffer);
@@ -98,7 +97,6 @@ async function runWorkers(env, engine, { audioBuffer, systemPrompt, transcribeOn
     const stt = await env.AI.run(engine.stt, { audio, ...(engine.language ? { language: engine.language } : {}), ...(engine.task ? { task: engine.task } : {}) });
     const heard = String(stt?.text ?? '').trim();
     if (!heard) return { answer: null, heard: '', model: engine.stt };
-    if (transcribeOnly) return { answer: null, heard, model: engine.stt };
     const model = { id: NEWS_AI_MODEL.id, options: { response_format: { type: 'json_object' }, reasoning_effort: 'low' } };
     const answer = await askWorkersAi(env, model, [
       { role: 'system', content: systemPrompt },
@@ -118,11 +116,10 @@ async function runWorkers(env, engine, { audioBuffer, systemPrompt, transcribeOn
  * Let the chosen engine hear a clip and answer under a system prompt (shared by every voice feature)
  * @param {object} env
  * @param {{ audioBuffer: ArrayBuffer, mimeType: string, systemPrompt: string, userText?: string, debug?: boolean,
- *   transcribeOnly?: boolean }} params the engine is the admin's choice (aiSettings.service.js); `transcribeOnly`: only the words said are
- *   wanted (dictation), so a Cloudflare engine skips its second model and answers `heard`
+ * }} params the engine is the admin's choice (aiSettings.service.js)
  * @returns {Promise<{ answer: string|object|null, model: string, engineId: string, durationMs: number, audioBytes: number, heard?: string }>}
  */
-export async function listenToVoice(env, { audioBuffer, mimeType, systemPrompt, userText = 'این پیام صوتی را طبق دستورالعمل به JSON تبدیل کن.', debug = false, transcribeOnly = false }) {
+export async function listenToVoice(env, { audioBuffer, mimeType, systemPrompt, userText = 'این پیام صوتی را طبق دستورالعمل به JSON تبدیل کن.', debug = false }) {
   const chosen = voiceEngineById((await loadAiSettings(env)).voiceEngine) || voiceEngineById(DEFAULT_VOICE_ENGINE);
   if (chosen.kind === 'workers') {
     if (!hasWorkersAi(env)) throw new AppError('Workers AI در این محیط تنظیم نشده است.', 503, 'VOICE_NOT_CONFIGURED');
@@ -134,7 +131,7 @@ export async function listenToVoice(env, { audioBuffer, mimeType, systemPrompt, 
 
   let run;
   if (chosen.kind === 'workers') {
-    run = await runWorkers(env, chosen, { audioBuffer, systemPrompt, transcribeOnly }, { debug });
+    run = await runWorkers(env, chosen, { audioBuffer, systemPrompt }, { debug });
   } else {
     const request = { systemPrompt, userText, audioBase64: toBase64(audioBuffer), mimeType, timeoutMs: SMS_VOICE_TIMEOUT_MS };
     const models = chosen.kind === 'gemini' ? [{ id: chosen.model }] : SMS_VOICE_MODELS;
