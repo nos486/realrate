@@ -1326,11 +1326,30 @@
    that only holds the chart hint sits beside the figures instead of on a line of its own, so a
    card is about a third shorter */
 @media (max-width: 640px) {
+  /* One figure per line: three squeezed columns cut the labels and values to «…» */
+  .pro-card-face.is-front .pro-metrics {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
   .pro-card-face.is-front .pro-metric {
     flex-direction: row;
     align-items: baseline;
     justify-content: space-between;
     gap: 8px;
+  }
+
+  /* The label may wrap before the value is ever cut */
+  .pro-card-face.is-front .pro-metric span,
+  .pro-card-face.is-front .pro-metric small {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .pro-card-face.is-front .pro-metric strong {
+    flex: 0 0 auto;
+    max-width: 100%;
+    overflow: visible;
   }
 
   .pro-card-face.is-front .pro-metric small {
