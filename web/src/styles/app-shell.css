@@ -751,6 +751,10 @@ html.is-app-layout .site-footer {
   border-radius: 50%;
 }
 
+.app-home-leftout-dot.is-project {
+  background: var(--text-muted);
+}
+
 .app-home-hero-leftout strong {
   font-weight: 700;
   color: var(--text-primary);
