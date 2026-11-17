@@ -1,6 +1,6 @@
 /**
  * AiModelsCard.jsx — Which AI model does what: the engine that hears every voice feature (the SMS
- * microphone, the «+» assistant, dictation) and the model of the news section (screening, summarizing
+ * microphone, the «+» assistant) and the model of the news section (screening, summarizing
  * and the daily analysis)
  *
  * Both lists come from the server (config/voiceEngines.js, config/aiModels.js). The choice is stored

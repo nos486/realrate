@@ -9,7 +9,7 @@ A condensed checklist adapted from [vercel-labs/web-interface-guidelines](https:
 - Focus is always visible. The global `:focus-visible` ring in `styles/base.css` covers links, buttons and roles; a text field may drop `outline` only if it shows its own focus border.
 
 ## Forms
-- Use the shared fields (`shared/ui/Input.jsx`, `TextField.jsx`, `NumericInput.jsx`): they default to `autocomplete="off"`, skip spellcheck for email/url/tel/number, and honour `autoFocus` only with a fine pointer (`fieldDefaults.js`), so a phone keyboard never pops up unasked.
+- Use the shared fields (`shared/ui/Input.jsx`, `TextField.jsx`, `NumericInput.jsx`): they honour `autoFocus` only with a fine pointer (`fieldDefaults.js`), so a phone keyboard never pops up unasked. They do not force `autocomplete`/`spellcheck` hints: on Android those make the keyboard show a word only once it is finished.
 - Correct `type` and `inputMode`; never block paste; placeholders end with `…` and show an example.
 - Errors sit inline next to the field.
 

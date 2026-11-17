@@ -95,7 +95,6 @@ import {
 } from "./handlers/portfolioRoutes.js";
 import { handleChequeScanRoute, handleChequeScanQuotaRoute } from "./handlers/chequeScanRoutes.js";
 import { handleSmsVoiceRoute } from "./handlers/smsVoiceRoutes.js";
-import { handleAiDictateRoute } from "./handlers/aiDictateRoutes.js";
 import { handleAiVoiceRoute } from "./handlers/aiAssistantRoutes.js";
 import {
   handleRegister,
@@ -510,11 +509,6 @@ async function handleRequest(request, env, ctx) {
   // ── Voice assistant: spoken expenses and incomes (AI audio; stores nothing) ──
   if (normalizedPath === "/api/ai/voice" && request.method === "POST") {
     return wrap(handleAiVoiceRoute)(request, env);
-  }
-
-  // ── Dictation: a clip of speech turned into text for a text field (stores nothing) ──
-  if (normalizedPath === "/api/ai/dictate" && request.method === "POST") {
-    return wrap(handleAiDictateRoute)(request, env);
   }
 
   // ── Custom Banks API Routes ─────────────────────────────────────────────

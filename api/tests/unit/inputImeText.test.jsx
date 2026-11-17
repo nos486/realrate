@@ -74,4 +74,11 @@ describe('Input: text from a phone keyboard', () => {
     fireEvent.blur(field);
     expect([onInput, onCompositionEnd, onBlur].map((f) => f.mock.calls.length)).toEqual([1, 1, 1]);
   });
+
+  it('does not force autocomplete or spellcheck hints (they make Android keyboards hold back typed words)', () => {
+    const { container } = render(<Input value="" onChange={() => {}} />);
+    const field = container.querySelector('input');
+    expect(field.hasAttribute('autocomplete')).toBe(false);
+    expect(field.hasAttribute('spellcheck')).toBe(false);
+  });
 });
