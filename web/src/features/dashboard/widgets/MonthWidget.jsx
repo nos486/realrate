@@ -1,6 +1,6 @@
 /**
  * MonthWidget.jsx — «خلاصه‌ی ماه»: the month's spending (against the same days of last month) and
- * income, with the categories left out of the totals listed apart under the spending; ‹ › browse earlier months (the widget opens on the current one again).
+ * income, with the categories left out of the totals and each project's spending listed apart under the spending; ‹ › browse earlier months (the widget opens on the current one again).
  * Decrypted in the browser; nothing shows while the vault is locked.
  */
 
@@ -51,7 +51,7 @@ export default function MonthWidget({ widget }) {
   const canGoNext = month.jy < currentMonth.jy || (month.jy === currentMonth.jy && month.jm < currentMonth.jm);
   const range = useMemo(() => salaryMonthRange(month.jy, month.jm, starts), [month, starts]);
 
-  const { expenses, previousExpenses, loading: expensesLoading } = useDailyExpenses(month, { enabled: hasExpenses && unlocked, salaryStarts: starts });
+  const { expenses, previousExpenses, projectExpenses, projects, loading: expensesLoading } = useDailyExpenses(month, { enabled: hasExpenses && unlocked, salaryStarts: starts });
   const monthIncomes = useMonthIncomes(range, unlocked);
   const split = useMemo(() => splitCounted('expense', expenses), [expenses, exclusionKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const counted = useMemo(
@@ -60,7 +60,7 @@ export default function MonthWidget({ widget }) {
     [split, previousExpenses, exclusionKey],
   );
   // The rates of the currencies the month's records are in: today's, and on each one's day
-  const monthRecords = useMemo(() => [...(expenses || []), ...(previousExpenses || []), ...(monthIncomes.incomes || [])], [expenses, previousExpenses, monthIncomes.incomes]);
+  const monthRecords = useMemo(() => [...(expenses || []), ...(previousExpenses || []), ...(projectExpenses || []), ...(monthIncomes.incomes || [])], [expenses, previousExpenses, projectExpenses, monthIncomes.incomes]);
   const usdAt = useUsdAt(monthRecords.some((r) => r.currency === 'USD'));
   const fx = useFxRates(monthRecords);
   const dollarRates = useMemo(() => ({ usdToman, usdAt, ...fx }), [usdToman, usdAt, fx]);
@@ -88,6 +88,16 @@ export default function MonthWidget({ widget }) {
       return { value, label: category.label, color: category.color, total: summarizeExpenses(list, dollarRates).totalToman };
     }).filter((c) => c.total > 0).sort((a, b) => b.total - a.total);
   }, [split, dollarRates]);
+  // What each project spent this month (all its expenses, whatever the category), biggest first
+  const projectTotals = useMemo(() => {
+    const byProject = new Map();
+    for (const e of projectExpenses || []) byProject.set(e.groupId, [...(byProject.get(e.groupId) || []), e]);
+    return [...byProject].map(([id, list]) => ({
+      id,
+      name: (projects || []).find((p) => p.id === id)?.name || t('پروژه'),
+      total: summarizeExpenses(list, dollarRates).totalToman,
+    })).filter((p) => p.total > 0).sort((a, b) => b.total - a.total);
+  }, [projectExpenses, projects, dollarRates]);
   // The current month against the same number of days of last month; a past month against the
   // whole month before it
   const change = useMemo(() => {
@@ -144,13 +154,20 @@ export default function MonthWidget({ widget }) {
           <span><small>{t('اقساط وام')}</small> <strong>{money(loanSpent)}</strong></span>
         </div>
       )}
-      {showBreakdown && !loading && leftOut.length > 0 && (
-        <ul className="app-home-hero-leftout" aria-label={t('خارج از جمع خرج')}>
+      {showBreakdown && !loading && (leftOut.length > 0 || projectTotals.length > 0) && (
+        <ul className="app-home-hero-leftout" aria-label={t('خارج از جمع خرج و پروژه‌ها')}>
           {leftOut.map((c) => (
             <li key={c.value}>
               <span className="app-home-leftout-dot" style={{ background: c.color }} aria-hidden="true" />
               <small>{t(c.label)}</small>
               <strong>{money(c.total)}</strong>
+            </li>
+          ))}
+          {projectTotals.map((p) => (
+            <li key={`project-${p.id}`}>
+              <span className="app-home-leftout-dot is-project" aria-hidden="true" />
+              <small>{t('پروژه «{name}»', { name: p.name })}</small>
+              <strong>{money(p.total)}</strong>
             </li>
           ))}
         </ul>
