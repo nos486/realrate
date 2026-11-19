@@ -2,7 +2,7 @@ import { hasNews as localeHasNews, t } from '../utils/i18n.js';
 import React, { useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import ErrorBoundary from '../shared/ui/ErrorBoundary.jsx';
-import { TrendingUp, Briefcase, ShieldCheck, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards, Smartphone, MessageSquareText, FolderKanban, Newspaper, ChartColumn, CalendarSync, Crown, Compass, Target, Home } from 'lucide-react';
+import { TrendingUp, Briefcase, ShieldCheck, Settings, Landmark, Wallet, ReceiptText, Wrench, HandCoins, WalletCards, Smartphone, MessageSquareText, FolderKanban, Newspaper, ChartColumn, CalendarSync, Crown, Compass, Target, Home, Calculator } from 'lucide-react';
 import { AppLayout, AlertBanner, Button } from '../shared/ui/index.js';
 import { PriceRefreshStatus } from '../features/market/components/index.js';
 import HomeDashboard from '../features/home/HomeDashboard.jsx';
@@ -53,6 +53,7 @@ const SmsInboxPage = lazy(() => import('../features/sms-inbox/SmsInboxPage.jsx')
 const NewsPage = lazy(() => import('../features/news/NewsPage.jsx'));
 const ReportsPage = lazy(() => import('../features/reports/ReportsPage.jsx'));
 const ExplorePage = lazy(() => import('../features/explore/ExplorePage.jsx'));
+const ToolsPage = lazy(() => import('../features/tools/ToolsPage.jsx'));
 const ProPage = lazy(() => import('../features/pro/ProPage.jsx'));
 // The Android app's home (its own month at a glance); the website's home is the market
 const Dashboard = lazy(() => import('../features/dashboard/Dashboard.jsx'));
@@ -121,6 +122,7 @@ export default function MainPage() {
   const hasHome = useFeature('home');
   const hasPortfolio = useFeature('portfolio');
   const hasExplore = useFeature('explore');
+  const hasTools = useFeature('calculators');
   const hasIncomes = useFeature('incomes');
   const hasLoans = useFeature('loans');
   const hasCheques = useFeature('cheques');
@@ -250,6 +252,7 @@ export default function MainPage() {
 
   // The market explorer: search any asset, see its price, info and chart (nothing is saved)
   const isExplore = !isSettings && subPath.startsWith('/explore');
+  const isTools = !isSettings && subPath.startsWith('/tools');
 
   // Free and Pro side by side: the «Pro» button and every free-plan limit lead here
   const isProPage = Boolean(user) && subPath.startsWith(PRO_PATH);
@@ -281,6 +284,7 @@ export default function MainPage() {
     ['news', isNews],
     ['reports', isReports],
     ['explore', isExplore],
+    ['tools', isTools],
     ['pro', isProPage],
   ].find(([, matches]) => matches)?.[0] || 'market';
 
@@ -323,6 +327,8 @@ export default function MainPage() {
         return t('گزارش‌ها | RealRate');
       case 'explore':
         return t('کاوش بازار | RealRate');
+      case 'tools':
+        return t('ابزارها | RealRate');
       case 'pro':
         return t('پلن رایگان و Pro | RealRate');
       default:
@@ -366,6 +372,7 @@ export default function MainPage() {
     news: '/news',
     reports: '/reports',
     explore: '/explore',
+    tools: '/tools',
     pro: PRO_PATH,
   };
 
@@ -407,6 +414,7 @@ export default function MainPage() {
       ...(user && listed('subscriptions', hasSubscriptions) ? [{ value: 'subscriptions', label: t('اشتراک‌ها'), icon: <CalendarSync size={16} strokeWidth={2} /> }] : []),
       ...(user && listed('goals', hasGoals) ? [{ value: 'goals', label: t('اهداف'), icon: <Target size={16} strokeWidth={2} /> }] : []),
       ...(user && listed('reports', hasReports) ? [{ value: 'reports', label: t('گزارش‌ها'), icon: <ChartColumn size={16} strokeWidth={2} /> }] : []),
+      ...(listed('calculators', hasTools) ? [{ value: 'tools', label: t('ابزارها'), icon: <Calculator size={16} strokeWidth={2} /> }] : []),
       // Free users: the page comparing the plans, with the button to ask for Pro
       ...(user && !isDemo && !isPro ? [{ value: 'pro', label: 'Pro', icon: <Crown size={16} strokeWidth={2} /> }] : []),
     ];
@@ -424,7 +432,7 @@ export default function MainPage() {
       );
     }
     return options;
-  }, [user, isDemo, isPro, hasExpenses, hasAccounts, hasMarket, hasNewsFeature, hasExplore, hasReports, offered.join(), hasHome, hasPortfolio, hasIncomes, hasLoans, hasCheques, hasSubscriptions, hasGoals]);
+  }, [user, isDemo, isPro, hasExpenses, hasAccounts, hasMarket, hasNewsFeature, hasExplore, hasReports, offered.join(), hasHome, hasPortfolio, hasIncomes, hasLoans, hasCheques, hasSubscriptions, hasGoals, hasTools]);
 
 
   // The sections gathered into groups (shared/app/navGroups.js): the website's tabs, each group
@@ -624,6 +632,8 @@ export default function MainPage() {
             benefits={EXPLORE_BENEFITS}
           />
         ))}
+
+        {activeTab === 'tools' && (hasTools ? <ToolsPage /> : <SectionOffer feature="calculators" name={t('ابزارها')} />)}
 
         {activeTab === 'pro' && <ProPage />}
 

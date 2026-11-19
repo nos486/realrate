@@ -105,6 +105,6 @@ describe('handleGetMe with feature flags', () => {
     expect(body.authenticated).toBe(true);
     expect(body.user.role).toBe('user');
     expect(body.user.isAdmin).toBe(false);
-    expect(body.user.features).toEqual(['home', 'portfolio', 'incomes', 'loans', 'cheques', 'subscriptions', 'goals', 'expenses', 'bank_accounts']);
+    expect(body.user.features).toEqual(['home', 'portfolio', 'calculators', 'incomes', 'loans', 'cheques', 'subscriptions', 'goals', 'expenses', 'bank_accounts']);
   });
 });

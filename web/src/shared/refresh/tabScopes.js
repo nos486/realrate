@@ -27,6 +27,7 @@ export const TAB_REFRESH_SCOPES = {
   // The net worth reads the portfolios, loans and cheques under the one «portfolio» scope
   reports: ['incomes', 'expenses', 'portfolio'],
   explore: ['prices'],
+  tools: ['prices'],
   pro: [],
   sms: ['expenses'],
   settings: [],
@@ -43,6 +44,6 @@ export const TAB_REFRESH_SCOPES = {
 export function refreshScopesOf(tab, { hasMarket = true } = {}) {
   const scopes = TAB_REFRESH_SCOPES[tab] || [];
   // The home shows the dollar to every user (its widgets pick what they show)
-  const showsPrices = tab === 'market' || tab === 'portfolio' || hasMarket;
+  const showsPrices = tab === 'market' || tab === 'portfolio' || tab === 'tools' || hasMarket;
   return showsPrices ? scopes : scopes.filter((s) => s !== 'prices');
 }

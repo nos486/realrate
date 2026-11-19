@@ -256,6 +256,7 @@ export default {
   'ثبت درآمدها و درآمدهای تکرارشونده': 'Recording incomes and recurring incomes',
   'وام‌ها، جدول اقساط و یادآوری سررسید': 'Loans, the installment schedule and due-date reminders',
   'مدیریت چک‌های دریافتی و پرداختی و یادآوری سررسید (اسکن چک جداست: cheque_scan)': 'Managing received and issued cheques and due-date reminders (cheque scanning is separate: cheque_scan)',
+  'ماشین‌حساب‌های وام و سپرده، طلا و سکه، تبدیل ارز، مهریه، حقوق و مالیات، رهن و اجاره (چیزی ذخیره نمی‌شود)': 'Loan and deposit, gold and coin, currency conversion, dowry, salary and tax, and rent calculators (nothing is saved)',
   'اشتراک‌های تکرارشونده، هزینه‌ی ماهانه و یادآوری تمدید': 'Recurring subscriptions, the monthly cost and renewal reminders',
   'اهداف پس‌انداز و واریزهای هر هدف': 'Savings goals and the deposits of each',
   'ویجت صفحه‌ی اصلی گوشی برای قیمت‌ها، خبر و تحلیل': 'Phone home-screen widget for prices, news and analysis',

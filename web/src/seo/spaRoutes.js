@@ -40,6 +40,7 @@ export const SPA_ROUTES = [
   { path: '/news', splat: true },
   { path: '/reports', splat: true },
   { path: '/explore', splat: true },
+  { path: '/tools', splat: true },
   { path: '/pro', splat: true },
   { path: '/admin', splat: true },
   { path: '/admin/sources', splat: true },
