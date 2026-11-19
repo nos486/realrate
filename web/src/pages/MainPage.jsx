@@ -432,7 +432,7 @@ export default function MainPage() {
       );
     }
     return options;
-  }, [user, isDemo, isPro, hasExpenses, hasAccounts, hasMarket, hasNewsFeature, hasExplore, hasReports, offered.join(), hasHome, hasPortfolio, hasIncomes, hasLoans, hasCheques, hasSubscriptions, hasGoals]);
+  }, [user, isDemo, isPro, hasExpenses, hasAccounts, hasMarket, hasNewsFeature, hasExplore, hasReports, offered.join(), hasHome, hasPortfolio, hasIncomes, hasLoans, hasCheques, hasSubscriptions, hasGoals, hasTools]);
 
 
   // The sections gathered into groups (shared/app/navGroups.js): the website's tabs, each group
