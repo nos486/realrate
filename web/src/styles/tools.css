@@ -87,4 +87,4 @@
 .tool-block-title { margin: 0 0 8px; font-size: var(--fs-base); color: var(--text-heading); }
 .tool-table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
 .tool-table th, .tool-table td { padding: 8px 6px; text-align: start; border-bottom: 1px solid var(--border-subtle); }
-.tool-table th { color: var(--text-secondary); font-weight: 500; }
+.tool-table th { color: var(--text-secondary); font-weight: 600; }
