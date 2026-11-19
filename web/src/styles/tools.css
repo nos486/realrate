@@ -1,0 +1,90 @@
+/* ── Calculation tools (features/tools) ─────────────────────────────────────── */
+
+.tools-page { display: flex; flex-direction: column; gap: 14px; }
+
+/* The tool picker: tiles that wrap, two per row on a phone */
+.tool-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 8px;
+}
+
+.tool-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px;
+  border: var(--card-border);
+  border-radius: var(--radius-md);
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  text-align: start;
+  cursor: pointer;
+}
+
+.tool-tile:hover { background: var(--card-bg-hover); }
+.tool-tile.is-active { border-color: var(--color-primary-border-strong); background: var(--color-primary-soft); color: var(--text-heading); }
+.tool-tile.is-active svg { color: var(--color-primary-text); }
+.tool-tile-title { font-weight: 600; color: var(--text-heading); font-size: var(--fs-base); }
+.tool-tile small { font-size: var(--fs-sm); line-height: 1.5; }
+
+@media (max-width: 640px) {
+  .tool-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tool-tile small { display: none; }
+}
+
+.tool-body { display: flex; flex-direction: column; gap: 14px; }
+
+.tool-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.tool-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.tool-field-label { font-size: var(--fs-sm); color: var(--text-secondary); }
+.tool-field-hint { font-size: var(--fs-sm); color: var(--text-secondary); }
+
+.tool-results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: var(--card-inner-border);
+  border-radius: var(--radius-md);
+  background: var(--card-inner-bg);
+}
+
+.tool-results dl { margin: 0; display: flex; flex-direction: column; }
+
+.tool-result-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.tool-result-row:last-child { border-bottom: 0; }
+.tool-result-row dt { color: var(--text-secondary); }
+.tool-result-row dd { margin: 0; font-weight: 600; color: var(--text-heading); text-align: end; }
+.tool-result-row.is-strong dd { font-size: 1.15em; color: var(--color-primary-text); }
+.tool-result-row dd.is-good, .tool-table .is-good { color: var(--color-positive-text); }
+.tool-result-row dd.is-bad, .tool-table .is-bad { color: var(--color-negative-text); }
+
+.tool-note, .tool-empty { margin: 0; font-size: var(--fs-sm); color: var(--text-secondary); line-height: 1.8; }
+.tool-empty { padding: 12px 0; }
+
+.tool-swap {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: var(--card-inner-border);
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.tool-block-title { margin: 0 0 8px; font-size: var(--fs-base); color: var(--text-heading); }
+.tool-table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+.tool-table th, .tool-table td { padding: 8px 6px; text-align: start; border-bottom: 1px solid var(--border-subtle); }
+.tool-table th { color: var(--text-secondary); font-weight: 500; }

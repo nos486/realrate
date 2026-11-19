@@ -58,7 +58,7 @@ describe('Feature Flags Configuration and Logic', () => {
     const user = { role: 'user' };
 
     expect(enabledFeatures(admin)).toEqual(expect.arrayContaining(['cheque_scan', 'cheque_scan_debug']));
-    expect(enabledFeatures(user)).toEqual(['home', 'portfolio', 'incomes', 'loans', 'cheques', 'subscriptions', 'goals', 'expenses', 'bank_accounts']);
+    expect(enabledFeatures(user)).toEqual(['home', 'portfolio', 'calculators', 'incomes', 'loans', 'cheques', 'subscriptions', 'goals', 'expenses', 'bank_accounts']);
     // The Pro group opens the features closed to the free plan
     expect(enabledFeatures({ role: 'user', groups: ['pro'] })).toEqual(
       expect.arrayContaining(['market', 'cheque_scan', 'reports', 'widget', 'email_reminders']),
@@ -106,7 +106,7 @@ describe('requireFeature Server Guard', () => {
 
 describe('Section features', () => {
   it('every section of the app is a feature, open to all by default unless Pro', async () => {
-    for (const key of ['home', 'portfolio', 'incomes', 'loans', 'cheques', 'subscriptions', 'goals']) {
+    for (const key of ['home', 'portfolio', 'calculators', 'incomes', 'loans', 'cheques', 'subscriptions', 'goals']) {
       expect(FEATURES[key]).toBeTruthy();
       expect(isFeatureEnabled(key, { role: 'user', groups: [] })).toBe(true);
     }

@@ -1,7 +1,7 @@
 /**
  * navGroups.js — The app's sections gathered into a few groups
  *
- *   خانه · بازار · پول روزانه · سرمایه و اهداف · تعهدات · گزارش‌ها      (+ حساب کاربری: a menu)
+ *   خانه · بازار · پول روزانه · سرمایه و اهداف · تعهدات · گزارش‌ها      ·  ابزارها  (+ حساب کاربری: a menu)
  *
  * One table for every navigation surface: the website's group tabs with their dropdowns (GroupTabs), the
  * account menu under the avatar (Header), and the app frame's bottom bar and grouped «بیشتر» sheet
@@ -11,7 +11,7 @@
  * a dropdown on the website, a sheet in the app frame).
  */
 
-import { Home, TrendingUp, Wallet, Briefcase, CalendarClock, ChartColumn, UserRound } from 'lucide-react';
+import { Home, TrendingUp, Wallet, Briefcase, CalendarClock, ChartColumn, Calculator, UserRound } from 'lucide-react';
 import { msg } from '../../utils/i18n.js';
 
 /**
@@ -26,6 +26,7 @@ export const NAV_GROUPS = [
   { key: 'wealth', label: msg('سرمایه و اهداف'), short: msg('سرمایه'), Icon: Briefcase, tabs: ['portfolio', 'goals'] },
   { key: 'plans', label: msg('تعهدات'), Icon: CalendarClock, tabs: ['loans', 'cheques', 'subscriptions'] },
   { key: 'reports', label: msg('گزارش‌ها'), Icon: ChartColumn, tabs: ['reports'] },
+  { key: 'tools', label: msg('ابزارها'), Icon: Calculator, tabs: ['tools'] },
   { key: 'account', label: msg('حساب کاربری'), Icon: UserRound, tabs: ['settings', 'app-settings', 'pro', 'admin'], menu: true },
 ];
 
@@ -47,6 +48,7 @@ export const NAV_SECTION_CARDS = {
   loans: { hint: msg('اقساط و سررسیدها'), tone: 'rose' },
   cheques: { hint: msg('چک‌های دریافتی و صادره'), tone: 'amber' },
   subscriptions: { hint: msg('تمدیدهای ماهانه'), tone: 'blue' },
+  tools: { hint: msg('وام، طلا، مهریه، حقوق، رهن'), tone: 'amber' },
 };
 
 /** The groups the app frame's bottom bar prefers, before falling back to the next ones */
