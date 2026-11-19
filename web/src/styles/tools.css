@@ -88,3 +88,7 @@
 .tool-table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
 .tool-table th, .tool-table td { padding: 8px 6px; text-align: start; border-bottom: 1px solid var(--border-subtle); }
 .tool-table th { color: var(--text-secondary); font-weight: 600; }
+
+/* The deposit ⇄ rent slider: all rent at the right end, all deposit at the left */
+.tool-slider { width: 100%; accent-color: var(--color-primary); }
+.tool-slider-ends { display: flex; justify-content: space-between; font-size: var(--fs-sm); color: var(--text-secondary); margin-bottom: 8px; }

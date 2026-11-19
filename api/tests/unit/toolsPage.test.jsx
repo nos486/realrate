@@ -33,6 +33,22 @@ describe('ToolsPage', () => {
     await waitFor(() => expect(screen.getByText('قسط ماهانه')).toBeTruthy());
   });
 
+  it('works out a loan\'s rate from the money received and the installments', async () => {
+    renderAt('/tools');
+    fireEvent.click(await screen.findByRole('tab', { name: 'درصد وام از روی قسط' }));
+    fireEvent.change(await screen.findByLabelText(/مبلغی که گرفتید/), { target: { value: '100000000' } });
+    fireEvent.change(screen.getByLabelText(/^قسط ماهانه/), { target: { value: '10000000' } });
+    await waitFor(() => expect(screen.getByText('درصد سود سالانه (اسمی)').closest('div').textContent).toMatch(/۳۵/));
+  });
+
+  it('slides a rent between all deposit and all rent', async () => {
+    renderAt('/tools?t=rent');
+    fireEvent.change(await screen.findByLabelText(/رهن \(ودیعه\) فعلی/), { target: { value: '1000000000' } });
+    const slider = screen.getByRole('slider');
+    fireEvent.change(slider, { target: { value: '0' } }); // Persian: the right end, all rent
+    await waitFor(() => expect(screen.getByText('اجاره‌ی ماهانه', { selector: 'dt' }).closest('div').textContent).toMatch(/۱۰۰/));
+  });
+
   it('converts through the live rates', async () => {
     renderAt('/tools?t=convert');
     await screen.findByText('نرخ هر دلار');

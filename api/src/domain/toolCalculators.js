@@ -91,6 +91,39 @@ export function loanCost({ principal, annualRatePct, months, feePct = 0, feeFixe
 }
 
 /**
+ * The rate of a loan worked backwards from what it costs: money received, the fixed monthly
+ * installment and the number of months (the bank's quoted rate is nominal: the monthly rate × 12).
+ * A fee or blocked deposit (`upfrontCost`) lowers what is really received, so the effective rate
+ * is also given on that.
+ * @param {{ received: number, payment: number, months: number, upfrontCost?: number }} input
+ */
+export function loanRateFromPayment({ received, payment, months, upfrontCost = 0 }) {
+  const got = pos(received);
+  const pay = pos(payment);
+  const n = Math.floor(pos(months));
+  if (!got || !pay || !n) return null;
+  const totalPaid = pay * n;
+  const rates = (amount) => {
+    const monthly = solveMonthlyRate(amount, pay, n);
+    return { monthlyPct: monthly * 100, nominalAnnualPct: monthly * 1200, effectiveAnnualPct: ((1 + monthly) ** 12 - 1) * 100 };
+  };
+  const net = Math.max(0, got - pos(upfrontCost));
+  const base = rates(got);
+  const withCost = net > 0 ? rates(net) : null;
+  const fix = (v) => Number(v.toFixed(2));
+  return {
+    totalPaid: round(totalPaid),
+    interest: round(totalPaid - got),
+    monthlyPct: fix(base.monthlyPct),
+    nominalAnnualPct: fix(base.nominalAnnualPct),
+    effectiveAnnualPct: fix(base.effectiveAnnualPct),
+    withCost: pos(upfrontCost) > 0 && withCost
+      ? { nominalAnnualPct: fix(withCost.nominalAnnualPct), effectiveAnnualPct: fix(withCost.effectiveAnnualPct), totalCost: round(totalPaid - net) }
+      : null,
+  };
+}
+
+/**
  * A deposit's profit and what it is really worth after inflation
  * @param {{ principal: number, annualRatePct: number, months: number, compounding?: 'simple'|'monthly', inflationPct?: number }} input
  */
@@ -268,6 +301,28 @@ export function rentExchange({ deposit, rent, annualRatePct, newDeposit = null, 
     result = { rent: round(nr), deposit: round(Math.max(0, d + (r - nr) / perToman)) };
   }
   return { allDeposit: round(allDeposit), allRent: round(allRent), result };
+}
+
+/**
+ * The deposit/rent mix on a slider: the whole value (every toman as deposit) split by `rentSharePct`
+ * (0 = all deposit, 100 = all rent); null `rentSharePct` gives the mix of the current deposit and rent
+ * @param {{ deposit: number, rent: number, annualRatePct: number, rentSharePct?: number|null }} input
+ * @returns {{ rentSharePct: number, depositSharePct: number, deposit: number, rent: number }|null}
+ */
+export function rentSplit({ deposit, rent, annualRatePct, rentSharePct = null }) {
+  const d = pos(deposit);
+  const r = pos(rent);
+  const rate = pos(annualRatePct);
+  if (!rate || (!d && !r)) return null;
+  const perToman = rate / 1200;
+  const total = d + r / perToman;
+  const share = rentSharePct === null ? ((r / perToman) / total) * 100 : Math.min(100, Math.max(0, num(rentSharePct)));
+  return {
+    rentSharePct: Number(share.toFixed(1)),
+    depositSharePct: Number((100 - share).toFixed(1)),
+    deposit: round(total * (1 - share / 100)),
+    rent: round(total * (share / 100) * perToman),
+  };
 }
 
 /** The most a rent may be raised to under a cap (percent) */
