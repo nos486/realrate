@@ -145,6 +145,11 @@ export default {
   'معادل کامل رهن': 'Full deposit equivalent',
   'معادل کامل اجاره‌ی ماهانه': 'Full monthly rent equivalent',
   'رهن یا اجاره و نرخ تبدیل را وارد کنید.': 'Enter the deposit or rent and the conversion rate.',
+  'ترکیب رهن و اجاره': 'Deposit and rent mix',
+  'کامل اجاره': 'All rent',
+  'کامل رهن': 'All deposit',
+  'رهن': 'Deposit',
+  'اجاره‌ی ماهانه': 'Monthly rent',
   'سقف افزایش اجاره': 'Rent increase cap',
   'بیشترین اجاره‌ی مجاز در تمدید': 'Highest rent allowed on renewal',
 };

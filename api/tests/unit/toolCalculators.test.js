@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   monthlyPayment, loanCost, loanRateFromPayment, depositReturn, goldPurchase, convertAmount, inflationFactor, mahrToday,
-  mahrCoinsValue, monthlyTax, salaryBreakdown, eidiAndSanavat, rentExchange, cappedRent,
+  mahrCoinsValue, monthlyTax, salaryBreakdown, eidiAndSanavat, rentExchange, rentSplit, cappedRent,
 } from '../../src/domain/toolCalculators.js';
 
 describe('loans', () => {
@@ -138,6 +138,14 @@ describe('rent and deposit', () => {
     const y = rentExchange({ deposit: 500_000_000, rent: 10_000_000, annualRatePct: 24, newRent: 0 });
     expect(y.result.deposit).toBe(1_000_000_000);
     expect(y.allDeposit).toBe(1_000_000_000);
+  });
+
+  it('splits the whole value between deposit and rent', () => {
+    const base = { deposit: 1_000_000_000, rent: 0, annualRatePct: 24 };
+    expect(rentSplit(base)).toMatchObject({ rentSharePct: 0, deposit: 1_000_000_000, rent: 0 });
+    expect(rentSplit({ ...base, rentSharePct: 100 })).toMatchObject({ deposit: 0, rent: 20_000_000 });
+    expect(rentSplit({ ...base, rentSharePct: 50 })).toMatchObject({ deposit: 500_000_000, rent: 10_000_000, depositSharePct: 50 });
+    expect(rentSplit({ deposit: 500_000_000, rent: 10_000_000, annualRatePct: 24 }).rentSharePct).toBe(50);
   });
 
   it('caps a rent raise', () => {

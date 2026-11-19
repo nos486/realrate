@@ -303,6 +303,28 @@ export function rentExchange({ deposit, rent, annualRatePct, newDeposit = null, 
   return { allDeposit: round(allDeposit), allRent: round(allRent), result };
 }
 
+/**
+ * The deposit/rent mix on a slider: the whole value (every toman as deposit) split by `rentSharePct`
+ * (0 = all deposit, 100 = all rent); null `rentSharePct` gives the mix of the current deposit and rent
+ * @param {{ deposit: number, rent: number, annualRatePct: number, rentSharePct?: number|null }} input
+ * @returns {{ rentSharePct: number, depositSharePct: number, deposit: number, rent: number }|null}
+ */
+export function rentSplit({ deposit, rent, annualRatePct, rentSharePct = null }) {
+  const d = pos(deposit);
+  const r = pos(rent);
+  const rate = pos(annualRatePct);
+  if (!rate || (!d && !r)) return null;
+  const perToman = rate / 1200;
+  const total = d + r / perToman;
+  const share = rentSharePct === null ? ((r / perToman) / total) * 100 : Math.min(100, Math.max(0, num(rentSharePct)));
+  return {
+    rentSharePct: Number(share.toFixed(1)),
+    depositSharePct: Number((100 - share).toFixed(1)),
+    deposit: round(total * (1 - share / 100)),
+    rent: round(total * (share / 100) * perToman),
+  };
+}
+
 /** The most a rent may be raised to under a cap (percent) */
 export function cappedRent(rent, maxIncreasePct) {
   return round(pos(rent) * (1 + pos(maxIncreasePct) / 100));
