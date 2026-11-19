@@ -91,6 +91,39 @@ export function loanCost({ principal, annualRatePct, months, feePct = 0, feeFixe
 }
 
 /**
+ * The rate of a loan worked backwards from what it costs: money received, the fixed monthly
+ * installment and the number of months (the bank's quoted rate is nominal: the monthly rate × 12).
+ * A fee or blocked deposit (`upfrontCost`) lowers what is really received, so the effective rate
+ * is also given on that.
+ * @param {{ received: number, payment: number, months: number, upfrontCost?: number }} input
+ */
+export function loanRateFromPayment({ received, payment, months, upfrontCost = 0 }) {
+  const got = pos(received);
+  const pay = pos(payment);
+  const n = Math.floor(pos(months));
+  if (!got || !pay || !n) return null;
+  const totalPaid = pay * n;
+  const rates = (amount) => {
+    const monthly = solveMonthlyRate(amount, pay, n);
+    return { monthlyPct: monthly * 100, nominalAnnualPct: monthly * 1200, effectiveAnnualPct: ((1 + monthly) ** 12 - 1) * 100 };
+  };
+  const net = Math.max(0, got - pos(upfrontCost));
+  const base = rates(got);
+  const withCost = net > 0 ? rates(net) : null;
+  const fix = (v) => Number(v.toFixed(2));
+  return {
+    totalPaid: round(totalPaid),
+    interest: round(totalPaid - got),
+    monthlyPct: fix(base.monthlyPct),
+    nominalAnnualPct: fix(base.nominalAnnualPct),
+    effectiveAnnualPct: fix(base.effectiveAnnualPct),
+    withCost: pos(upfrontCost) > 0 && withCost
+      ? { nominalAnnualPct: fix(withCost.nominalAnnualPct), effectiveAnnualPct: fix(withCost.effectiveAnnualPct), totalCost: round(totalPaid - net) }
+      : null,
+  };
+}
+
+/**
  * A deposit's profit and what it is really worth after inflation
  * @param {{ principal: number, annualRatePct: number, months: number, compounding?: 'simple'|'monthly', inflationPct?: number }} input
  */

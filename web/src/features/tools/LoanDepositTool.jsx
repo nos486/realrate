@@ -1,17 +1,19 @@
 /**
  * LoanDepositTool.jsx — «وام و سود سپرده»: a loan's installment, total cost, fees and real price
  * after inflation, or a deposit's profit and what it is really worth after inflation
- * (domain/toolCalculators.js loanCost, depositReturn)
+ * (domain/toolCalculators.js loanCost, depositReturn), or the rate of a loan worked out from the money
+ * received and the installments paid (loanRateFromPayment)
  */
 
 import React, { useMemo, useState } from 'react';
 import { t } from '../../utils/i18n.js';
 import { FilterPills } from '../../shared/ui/index.js';
-import { loanCost, depositReturn } from '../../utils/toolCalculators.js';
+import { loanCost, loanRateFromPayment, depositReturn } from '../../utils/toolCalculators.js';
 import { Fields, NumberField, Results, ToolEmpty, Field, parseNum, toman, pct } from './toolParts.jsx';
 
 const MODES = [
   { value: 'loan', label: t('وام') },
+  { value: 'rate', label: t('درصد وام از روی قسط') },
   { value: 'deposit', label: t('سپرده') },
 ];
 
@@ -49,6 +51,39 @@ function LoanPart() {
             : t('نرخ مؤثر شامل کارمزد است؛ هزینه‌ی واقعی، اقساط را به ارزش پول امروز برمی‌گرداند.')}
         />
       ) : <ToolEmpty>{t('مبلغ و تعداد اقساط را وارد کنید.')}</ToolEmpty>}
+    </>
+  );
+}
+
+function RatePart() {
+  const [v, setV] = useState({ received: '', payment: '', months: '12', cost: '' });
+  const set = (key) => (value) => setV((s) => ({ ...s, [key]: value }));
+  const r = useMemo(() => loanRateFromPayment({
+    received: parseNum(v.received), payment: parseNum(v.payment), months: parseNum(v.months), upfrontCost: parseNum(v.cost),
+  }), [v]);
+  return (
+    <>
+      <Fields>
+        <NumberField label={t('مبلغی که گرفتید')} affix={t('تومان')} value={v.received} onChange={set('received')} />
+        <NumberField label={t('قسط ماهانه')} affix={t('تومان')} value={v.payment} onChange={set('payment')} />
+        <NumberField label={t('تعداد اقساط (ماه)')} value={v.months} onChange={set('months')} />
+        <NumberField label={t('کارمزد یا سپرده‌ی بلوکه‌شده')} affix={t('تومان')} value={v.cost} onChange={set('cost')} hint={t('اختیاری؛ از مبلغ دریافتی کم می‌شود')} />
+      </Fields>
+      {r ? (
+        <Results
+          rows={[
+            { label: t('درصد سود سالانه (اسمی)'), value: pct(r.nominalAnnualPct), strong: true },
+            { label: t('درصد سود ماهانه'), value: pct(r.monthlyPct) },
+            { label: t('نرخ مؤثر سالانه'), value: pct(r.effectiveAnnualPct) },
+            { label: t('مجموع بازپرداخت'), value: toman(r.totalPaid) },
+            { label: t('سود پرداختی'), value: toman(r.interest) },
+            r.withCost && { label: t('درصد سود با احتساب کارمزد (اسمی)'), value: pct(r.withCost.nominalAnnualPct), tone: 'bad' },
+            r.withCost && { label: t('نرخ مؤثر سالانه با کارمزد'), value: pct(r.withCost.effectiveAnnualPct) },
+            r.withCost && { label: t('هزینه‌ی کل با کارمزد'), value: toman(r.withCost.totalCost) },
+          ]}
+          note={t('درصد اسمی همان عددی است که بانک اعلام می‌کند (نرخ ماهانه × ۱۲)؛ نرخ مؤثر اثر سود مرکب را هم نشان می‌دهد.')}
+        />
+      ) : <ToolEmpty>{t('مبلغ دریافتی، قسط و تعداد اقساط را وارد کنید.')}</ToolEmpty>}
     </>
   );
 }
@@ -97,7 +132,7 @@ export default function LoanDepositTool() {
   return (
     <>
       <FilterPills variant="segmented" options={MODES} activeValue={mode} onChange={setMode} />
-      {mode === 'loan' ? <LoanPart /> : <DepositPart />}
+      {mode === 'loan' ? <LoanPart /> : mode === 'rate' ? <RatePart /> : <DepositPart />}
     </>
   );
 }

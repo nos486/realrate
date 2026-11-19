@@ -4,7 +4,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  monthlyPayment, loanCost, depositReturn, goldPurchase, convertAmount, inflationFactor, mahrToday,
+  monthlyPayment, loanCost, loanRateFromPayment, depositReturn, goldPurchase, convertAmount, inflationFactor, mahrToday,
   mahrCoinsValue, monthlyTax, salaryBreakdown, eidiAndSanavat, rentExchange, cappedRent,
 } from '../../src/domain/toolCalculators.js';
 
@@ -29,6 +29,33 @@ describe('loans', () => {
 
   it('gives nothing for empty input', () => {
     expect(loanCost({ principal: 0, annualRatePct: 20, months: 12 })).toBeNull();
+  });
+});
+
+describe('loan rate from the installment', () => {
+  it('finds the rate of 100M paid back as 10M a month for 12 months', () => {
+    const r = loanRateFromPayment({ received: 100_000_000, payment: 10_000_000, months: 12 });
+    expect(r.totalPaid).toBe(120_000_000);
+    expect(r.interest).toBe(20_000_000);
+    expect(r.monthlyPct).toBeCloseTo(2.92, 1);
+    expect(r.nominalAnnualPct).toBeCloseTo(35.0, 0);
+    expect(r.effectiveAnnualPct).toBeGreaterThan(r.nominalAnnualPct);
+    expect(r.withCost).toBeNull();
+  });
+
+  it('round-trips with the installment formula', () => {
+    const pay = monthlyPayment(200_000_000, 24, 36);
+    expect(loanRateFromPayment({ received: 200_000_000, payment: pay, months: 36 }).nominalAnnualPct).toBeCloseTo(24, 1);
+  });
+
+  it('a blocked deposit or fee raises the rate', () => {
+    const r = loanRateFromPayment({ received: 100_000_000, payment: 10_000_000, months: 12, upfrontCost: 5_000_000 });
+    expect(r.withCost.nominalAnnualPct).toBeGreaterThan(r.nominalAnnualPct);
+    expect(r.withCost.totalCost).toBe(25_000_000);
+  });
+
+  it('gives nothing for empty input', () => {
+    expect(loanRateFromPayment({ received: 0, payment: 1, months: 12 })).toBeNull();
   });
 });
 
