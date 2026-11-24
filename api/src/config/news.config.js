@@ -149,17 +149,18 @@ export const NEWS_LIMITS = {
  */
 export const NEWS_AI_LOG_REASONS = ["error", "unreadable", "missed", "rejected", "foreign", "gaveUp"];
 
-/** The news section's model, on Workers AI (the `AI` binding in wrangler.toml): GLM 5.3 Flash */
-const GLM_FLASH = { id: "@cf/zai-org/glm-5.3-flash", label: "GLM 5.3 Flash" };
+/** The news section's default model, on Workers AI (the `AI` binding in wrangler.toml): GLM 5.3 */
+const GLM = { id: "@cf/zai-org/glm-5.3", label: "GLM 5.3" };
 
 /**
- * The model screening and summarizing posts, and only it: when it fails no other model is tried
- * and nothing is published; the posts wait for the next run, and the error is logged and shown in
- * the admin's panel. GLM 5.3 Flash always reasons (it can't be turned off: `enable_thinking` must
+ * The model screening and summarizing posts (the admin's choice, config/aiModels.js; this is the
+ * default's own options): when it fails the other models are tried in turn, and only when all fail
+ * nothing is published; the posts wait for the next run, and the error is logged and shown in
+ * the admin's panel. GLM 5.3 always reasons (it can't be turned off: `enable_thinking` must
  * stay true, and is not sent); the least of it is asked, and `reasoningTokens` more output tokens
  * are allowed for it on top of the answer's. The answer is a JSON array, so no `json_object` here.
  */
-export const NEWS_AI_MODEL = { ...GLM_FLASH, options: { reasoning_effort: "low" }, reasoningTokens: 4000 };
+export const NEWS_AI_MODEL = { ...GLM, options: { reasoning_effort: "low" }, reasoningTokens: 4000 };
 
 /** What a news item is about (the page's filters) */
 export const NEWS_CATEGORIES = {
@@ -257,10 +258,10 @@ export const NEWS_PROFANITY = [
  */
 export const NEWS_ANALYSIS = {
   /**
-   * The model, and only it (no other is tried when it fails): a little reasoning (the method is in
+   * The model (the others are tried when it fails): a little reasoning (the method is in
    * the prompt) and a JSON object as the answer
    */
-  model: { ...GLM_FLASH, options: { response_format: { type: "json_object" }, reasoning_effort: "low" } },
+  model: { ...GLM, options: { response_format: { type: "json_object" }, reasoning_effort: "low" } },
   /** 0: the same news gives the same view (as far as the model allows) */
   temperature: 0,
   minIntervalMinutes: 30,

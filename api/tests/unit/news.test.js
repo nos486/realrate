@@ -283,7 +283,7 @@ describe('runNewsPolling', () => {
     const result = await runNewsPolling(env, { now: NOW, fetchPage });
     expect(result.checked).toBe(NEWS_LIMITS.firstReadPosts + 1); // chan_two's one post too
     // The model is asked with temperature 0 (the same post, the same verdict), the least reasoning
-    // (GLM 5.3 Flash can't turn it off: enable_thinking false is refused) and room for it
+    // (GLM 5.3 can't turn it off: enable_thinking false is refused) and room for it
     const request = run.mock.calls[0][1];
     expect(request.temperature).toBe(0);
     expect(request.reasoning_effort).toBe('low');
@@ -296,7 +296,7 @@ describe('runNewsPolling', () => {
     expect(report.today).toMatchObject({ checked: result.checked, published: result.published });
     expect(report.runs).toHaveLength(1);
     expect(run).toHaveBeenCalled();
-    expect(run.mock.calls[0][0]).toBe('@cf/zai-org/glm-5.3-flash');
+    expect(run.mock.calls[0][0]).toBe('@cf/zai-org/glm-5.3');
     const { items } = await dbListNews(env);
     expect(items.length).toBe(result.published);
     expect(items[0]).toMatchObject({ channel: 'chan_one', channelTitle: 'کانال یک', category: 'currency', importance: 2, ai: true });
@@ -339,17 +339,19 @@ describe('runNewsPolling', () => {
     error.mockRestore();
   });
 
-  it('the model fails: no other model, nothing published, the posts wait for the next run; logged and shown', async () => {
+  it('every model fails: nothing published, the posts wait for the next run; logged and shown', async () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
     pages.chan_one = page('chan_one', [post('chan_one', 1, 'دلار و طلا و سکه بعد از تصمیم بانک مرکزی و فدرال رزرو جهش کرد', at(0))]);
     env.AI = { run: vi.fn(async () => { throw new Error('3040: capacity'); }) };
     await runNewsPolling(env, { now: NOW, fetchPage });
-    expect(env.AI.run).toHaveBeenCalledTimes(1); // GLM 5.3 Flash only: no other model
+    // The chosen model first, then the other Workers AI ones (no Gemini key here)
     expect(env.AI.run.mock.calls[0][0]).toBe(NEWS_AI_MODEL.id);
-    expect(NEWS_AI_MODEL.id).toBe('@cf/zai-org/glm-5.3-flash');
+    expect(new Set(env.AI.run.mock.calls.map((c) => c[0])).size).toBe(env.AI.run.mock.calls.length);
+    expect(env.AI.run.mock.calls.length).toBeGreaterThan(1);
+    expect(NEWS_AI_MODEL.id).toBe('@cf/zai-org/glm-5.3');
     expect((await dbListNews(env)).items).toHaveLength(0);
     const status = await getNewsStatus(env);
-    expect(status).toMatchObject({ aiModel: 'GLM 5.3 Flash', aiError: expect.stringMatching(/capacity/) });
+    expect(status).toMatchObject({ aiModel: 'GLM 5.3 (Workers AI)', aiError: expect.stringMatching(/capacity/) });
     expect(status.channels.chan_two).toMatchObject({ ok: false, error: 'HTTP 404' });
     expect(error.mock.calls.flat().join(' ')).toMatch(/model failed/);
 
