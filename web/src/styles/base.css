@@ -1419,12 +1419,15 @@ input.search-bar-input:focus-visible {
 
 .rdt-mobile-card-top {
   justify-content: space-between;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 4px 10px;
 }
 
+/* The title always keeps a readable width; when the figure beside it is too wide the figure
+   drops to a line of its own instead of squeezing the title into a letter-wide column */
 .rdt-mobile-card-title {
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 7rem;
+  min-width: min(7rem, 100%);
   font-size: var(--fs-base);
   font-weight: 700;
   color: var(--text-heading);
@@ -1453,7 +1456,8 @@ input.search-bar-input:focus-visible {
 
 .rdt-mobile-card-figure {
   flex: 0 1 auto;
-  max-width: 60%;
+  max-width: 100%;
+  margin-inline-start: auto;
   text-align: end;
 }
 
