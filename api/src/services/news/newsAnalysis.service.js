@@ -12,8 +12,8 @@
  * NEWS_ANALYSIS.minIntervalMinutes and NEWS_ANALYSIS.perDay times a day; the day's first one waits
  * for NEWS_ANALYSIS.minNews items. Stored in the state store (`news:analysis`).
  *
- * The model is NEWS_ANALYSIS.model, and only it: when it fails or its answer isn't usable, no other
- * model is tried — the last analysis stays and the failure is kept for the admin's panel
+ * The model is the admin's choice and the others are tried when it fails; when all fail or the
+ * answer isn't usable the last analysis stays and the failure is kept for the admin's panel
  * (`news:analysis:status`).
  */
 
@@ -96,8 +96,8 @@ export async function maybeUpdateNewsAnalysis(env, { now = Date.now(), force = f
 
   const input = await buildAnalysisInput(env, { now });
   await store.increment(countKey(dayStart), 1, { expirationTtl: 2 * 86400 });
-  // The chosen model only; a failure is kept for the panel and the last analysis stays
-  const model = newsModel.id;
+  // The chosen model, else the others; a failure is kept for the panel and the last analysis stays
+  let model = newsModel.id;
   let analysis = null;
   let error = "";
   try {
@@ -105,6 +105,7 @@ export async function maybeUpdateNewsAnalysis(env, { now = Date.now(), force = f
       maxTokens: NEWS_ANALYSIS.maxTokens,
       temperature: NEWS_ANALYSIS.temperature,
     });
+    model = newsModel.used();
     analysis = parseAnalysis(answer, input.news);
     if (!analysis) error = unusableReason(answer);
   } catch (err) {

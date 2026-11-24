@@ -482,7 +482,7 @@ async function pollChannels(env, store, now, fetchPage, fetchFeed) {
         throw new Error(`unreadable answer (no JSON verdicts): «${text.replace(/\s+/g, " ").trim().slice(0, 100)}»`);
       }
     } catch (err) {
-      // The model failed: no other model and no keyword-only publishing; these posts and the rest
+      // Every model failed (the others were tried): no keyword-only publishing; these posts and the rest
       // wait for the next run, and the error is logged and shown in the admin's panel
       status.aiError = String(err?.message || err).slice(0, 240);
       logger.error("[News] model failed — nothing published, posts kept for the next run", {

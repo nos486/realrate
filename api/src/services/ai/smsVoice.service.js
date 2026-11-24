@@ -101,7 +101,7 @@ async function runWorkers(env, engine, { audioBuffer, systemPrompt }, { debug })
     const answer = await askWorkersAi(env, model, [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: heardMessage(heard) },
-    // GLM always reasons first (see NEWS_AI_MODEL): the reasoning's tokens come on top of the answer's, or the
+    // GLM always reasons first (see NEWS_AI_MODEL; the id is the catalog's current one): the reasoning's tokens come on top of the answer's, or the
     // limit runs out before any answer is written
     ], { maxTokens: 2000 + NEWS_AI_MODEL.reasoningTokens, temperature: 0 });
     return { answer, heard, model: `${engine.stt} + ${NEWS_AI_MODEL.id}` };

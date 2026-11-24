@@ -24,7 +24,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe('AI settings', () => {
   it('defaults to automatic voice and GLM news', async () => {
-    expect(await loadAiSettings(makeEnv())).toEqual({ voiceEngine: 'auto', newsModel: 'glm-5.3-flash', newsDailyCalls: 600 });
+    expect(await loadAiSettings(makeEnv())).toEqual({ voiceEngine: 'auto', newsModel: 'glm-5.3', newsDailyCalls: 600 });
   });
 
   it('saves only the fields given and refuses unknown ids', async () => {
@@ -56,6 +56,19 @@ describe('the news model', () => {
     expect(env.AI.run).toHaveBeenCalledTimes(1);
   });
 
+  it('falls back to the next model when the chosen one is retired', async () => {
+    const env = makeEnv();
+    env.AI.run = vi.fn(async (id) => {
+      if (id === '@cf/zai-org/glm-5.3') throw new Error('5028: deprecated');
+      return { response: 'gemma' };
+    });
+    const model = await resolveNewsModel(env, NEWS_AI_MODEL);
+    expect(await model.ask(messages, { maxTokens: 100 })).toBe('gemma');
+    expect(model.used()).toBe('@cf/google/gemma-4-26b-a4b-it');
+    // Models that don't reason are not sent reasoning_effort
+    expect(env.AI.run.mock.calls[1][1].reasoning_effort).toBeUndefined();
+  });
+
   it('asks the Gemini model the admin chose, with the system and user text', async () => {
     const env = makeEnv();
     await saveAiSettings(env, { newsModel: 'gemini-3.5-flash-lite' });
@@ -72,9 +85,16 @@ describe('the news model', () => {
     expect(env.AI.run).not.toHaveBeenCalled();
   });
 
-  it('is unavailable without the Gemini key', async () => {
+  it('skips Gemini without its key and uses Workers AI instead', async () => {
     const env = { ...makeEnv(), GEMINI_API_KEY: '' };
     await saveAiSettings(env, { newsModel: 'gemini-3.5-flash' });
+    const model = await resolveNewsModel(env, NEWS_AI_MODEL);
+    expect(model.available).toBe(true);
+    expect(model.id).toBe('@cf/zai-org/glm-5.3');
+  });
+
+  it('is unavailable with neither Gemini nor Workers AI', async () => {
+    const env = { DB: memoryStateDb(), GEMINI_API_KEY: '' };
     expect((await resolveNewsModel(env, NEWS_AI_MODEL)).available).toBe(false);
   });
 });
@@ -95,6 +115,6 @@ describe('/api/admin/ai-settings', () => {
     const got = await (await handleAdminGetAiSettings(new Request('https://x/api/admin/ai-settings'), env)).json();
     expect(got.newsModel).toBe('gemini-3.6-flash');
     expect(got.voiceEngines.length).toBeGreaterThan(1);
-    expect(got.newsModels[0].id).toBe('glm-5.3-flash');
+    expect(got.newsModels[0].id).toBe('glm-5.3');
   });
 });

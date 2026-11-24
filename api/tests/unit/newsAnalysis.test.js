@@ -123,7 +123,7 @@ describe('maybeUpdateNewsAnalysis', () => {
     expect((await maybeUpdateNewsAnalysis({ DB: env.DB }, opts({ now: NOW, force: true }))).reason).toBe('no-model');
   });
 
-  it('the model fails or answers unusably: no other model, the last analysis stays, the panel is told', async () => {
+  it('the model fails or answers unusably: an unusable answer or all models failing: the last analysis stays, the panel is told', async () => {
     await dbInsertNews(env, [item(1, 30)]);
     expect((await maybeUpdateNewsAnalysis(env, opts({ now: NOW, force: true }))).updated).toBe(true);
     expect(await getNewsAnalysisStatus(env)).toEqual({ at: NOW, model: DEFAULT, ok: true });
@@ -138,9 +138,10 @@ describe('maybeUpdateNewsAnalysis', () => {
     env.AI.run.mockResolvedValueOnce({ choices: [{ message: { content: foreign } }] });
     expect((await maybeUpdateNewsAnalysis(env, opts({ now: NOW + 2, force: true }))).error).toBe('foreign-text');
 
-    env.AI.run.mockRejectedValueOnce(new Error('3040: capacity'));
+    // Every model failing: the first error is kept
+    env.AI.run.mockRejectedValueOnce(new Error('3040: capacity')).mockRejectedValueOnce(new Error('x')).mockRejectedValueOnce(new Error('y'));
     expect((await maybeUpdateNewsAnalysis(env, opts({ now: NOW + 3, force: true }))).error).toBe('3040: capacity');
-    expect(env.AI.run).toHaveBeenCalledTimes(3);
+    expect(env.AI.run).toHaveBeenCalledTimes(5); // 1 + 1 + the chosen model and the two others
     expect(await getNewsAnalysisStatus(env)).toMatchObject({ ok: false, error: '3040: capacity' });
     // The last good analysis is still there
     expect(await getNewsAnalysis(env)).toMatchObject({ at: NOW, title: expect.stringMatching(/^فشار/) });
