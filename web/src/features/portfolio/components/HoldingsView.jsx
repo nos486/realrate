@@ -54,6 +54,7 @@ import { useAccountCash } from '../hooks/useAccountCash.js';
 import { useAssetGoalShares } from '../../goals/hooks/useAssetGoalShares.js';
 import {
   buildCustomCategoryGroups,
+  buildClosedPositionsGroup,
   buildDefaultPortfolioLayout,
   setTargets,
 } from '../portfolioLayoutModel.js';
@@ -178,7 +179,7 @@ const HoldingsView = forwardRef(function HoldingsView(
     [ledger, dollarByAsset]
   );
 
-  // What is held, by category (a fully sold asset leaves the list; its realized P&L stays in the totals)
+  // What is held, by category (a fully sold asset leaves it for the closed group below; its realized P&L stays in the totals)
   const portfolioMetrics = useMemo(() => {
     const items = ledger.assets
       .filter((a) => a.amount > 0)
@@ -247,6 +248,13 @@ const HoldingsView = forwardRef(function HoldingsView(
   const categoryGroups = useMemo(() => {
     return buildCategoryGroups(portfolioMetrics.items, holdingsFilterQuery);
   }, [buildCategoryGroups, portfolioMetrics.items, holdingsFilterQuery]);
+
+  // The fully sold assets: out of the holdings and their totals, listed (folded) after them so
+  // their buy and sell history stays reachable
+  const closedGroup = useMemo(
+    () => buildClosedPositionsGroup(ledger.assets, holdingsFilterQuery),
+    [ledger, holdingsFilterQuery]
+  );
 
   // The sell form's balance: what each asset holds, manual records included
   const currentHoldingsMap = useMemo(
@@ -335,6 +343,24 @@ const HoldingsView = forwardRef(function HoldingsView(
     const ok = await deletePortfolio(portfolioId || activePortfolio?.id);
     if (ok) setSettingsModalOpen(false);
   };
+
+  // An asset's row opens into everything recorded for it
+  const renderAssetDetails = (asset) => (
+    <AssetLedgerDetails
+      asset={asset}
+      hideValues={hideValues}
+      readOnly={readOnly}
+      priceMap={realPriceMap}
+      itemMap={liveItemMap}
+      onBuy={(a) => openManualForm(null, { assetId: a.assetId, assetName: a.assetName, unit: a.unit })}
+      onSell={(a) => setTxForm({ preset: presetOf(a, 'sell') })}
+      onEditEntry={handleEditEntry}
+      onDeleteEntry={handleDeleteEntry}
+      dollarPnl={dollarByAsset.get(asset.id) || null}
+      goalShares={goalShares.get(asset.assetId) || []}
+      goalReserved={goalReserved.get(asset.assetId) || null}
+    />
+  );
 
   const toolbar = (
     <div className="portfolio-toolbar">
@@ -442,6 +468,7 @@ const HoldingsView = forwardRef(function HoldingsView(
                 description={accountManaged ? t('این پورتفو با رمزنگاری سرتاسری حساب محافظت می‌شود. رمز عبور رمزنگاری حساب را وارد کنید — همه پورتفوها، وام‌ها و درآمدها با هم باز می‌شوند.') : null}
               />
             ) : portfolioMetrics.items.length === 0 ? (
+              <>
               <div className="portfolio-empty-state">
                 <AlertStack sources={['portfolio']} scope={activePortfolio?.id} className="portfolio-alerts" />
                 <div className="empty-icon">
@@ -455,6 +482,16 @@ const HoldingsView = forwardRef(function HoldingsView(
                   {t('ثبت دارایی')}
                 </Button>
               </div>
+              {/* Everything sold: the history is still there */}
+              {closedGroup && (
+                <HoldingsTable
+                  categoryGroups={[closedGroup]}
+                  hideValues={hideValues}
+                  itemMap={pricing?.itemMap}
+                  renderDetails={renderAssetDetails}
+                />
+              )}
+              </>
             ) : isCustomizing ? (
               <HoldingsCustomizeEditor
                 layout={hasCustomGroups ? customLayout : buildDefaultPortfolioLayout(portfolioMetrics.items, customLayout?.targets)}
@@ -469,25 +506,10 @@ const HoldingsView = forwardRef(function HoldingsView(
                 {/* Drift from the targets, more sold than held (shared/alerts) */}
                 <AlertStack sources={['portfolio']} scope={activePortfolio?.id} className="portfolio-alerts" />
                 <HoldingsTable
-                  categoryGroups={categoryGroups}
+                  categoryGroups={closedGroup ? [...categoryGroups, closedGroup] : categoryGroups}
                   hideValues={hideValues}
                   itemMap={pricing?.itemMap}
-                  renderDetails={(asset) => (
-                    <AssetLedgerDetails
-                      asset={asset}
-                      hideValues={hideValues}
-                      readOnly={readOnly}
-                      priceMap={realPriceMap}
-                      itemMap={liveItemMap}
-                      onBuy={(a) => openManualForm(null, { assetId: a.assetId, assetName: a.assetName, unit: a.unit })}
-                      onSell={(a) => setTxForm({ preset: presetOf(a, 'sell') })}
-                      onEditEntry={handleEditEntry}
-                      onDeleteEntry={handleDeleteEntry}
-                      dollarPnl={dollarByAsset.get(asset.id) || null}
-                      goalShares={goalShares.get(asset.assetId) || []}
-                      goalReserved={goalReserved.get(asset.assetId) || null}
-                    />
-                  )}
+                  renderDetails={renderAssetDetails}
                 />
               </div>
             )}

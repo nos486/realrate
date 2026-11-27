@@ -8,6 +8,7 @@ import { render, cleanup, screen, fireEvent } from '@testing-library/react';
 import HoldingsTable from '../../../web/src/features/portfolio/components/HoldingsTable.jsx';
 import AssetLedgerDetails from '../../../web/src/features/portfolio/components/AssetLedgerDetails.jsx';
 import { buildAssetLedgers } from '../../../web/src/features/portfolio/utils/assetLedger.js';
+import { buildClosedPositionsGroup } from '../../../web/src/features/portfolio/portfolioLayoutModel.js';
 
 afterEach(cleanup);
 
@@ -141,5 +142,40 @@ describe('an account balance in the ledger', () => {
     expect(row.textContent).toContain('از حساب‌ها');
     expect(row.querySelector('.btn-table-action')).toBeNull();
     expect(document.querySelectorAll('.btn-table-action.edit')).toHaveLength(1); // only the portfolio's own record
+  });
+});
+
+describe('a fully sold asset (closed positions)', () => {
+  const ledger = buildAssetLedgers({
+    priceMap: { usd: 100_000, eur: 110_000 },
+    transactions: [
+      { id: 't1', assetId: 'usd', transactionType: 'buy', quantity: 10, unitPrice: 70_000, transactionDate: '1405/02/01' },
+      { id: 't2', assetId: 'usd', transactionType: 'sell', quantity: 10, unitPrice: 90_000, transactionDate: '1405/03/01' },
+      { id: 't3', assetId: 'eur', transactionType: 'buy', quantity: 5, unitPrice: 100_000, transactionDate: '1405/02/01' },
+    ],
+  });
+
+  it('leaves the holdings for a group of its own, with its realized P&L', () => {
+    const group = buildClosedPositionsGroup(ledger.assets);
+    expect(group.items.map((a) => a.assetId)).toEqual(['usd']);
+    expect(group.closed).toBe(true);
+    expect(group.totalRealizedPnl).toBe(200_000); // 10 × (90,000 − 70,000)
+    expect(buildClosedPositionsGroup(ledger.assets, 'eur')).toBeNull(); // the search applies
+    expect(buildClosedPositionsGroup(ledger.assets.filter((a) => a.assetId === 'eur'))).toBeNull();
+  });
+
+  it('starts folded and opens into the buy and sell history', () => {
+    const group = buildClosedPositionsGroup(ledger.assets);
+    render(<HoldingsTable categoryGroups={[group]} renderDetails={(asset) => <AssetLedgerDetails asset={asset} />} />);
+    const toggle = screen.getByRole('button', { name: /معاملات بسته‌شده/ });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByText('۲ ثبت')).toBeNull();
+
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByText(/تحقق‌یافته: \+/, { selector: '.pnl-amount' })).toBeTruthy();
+    fireEvent.click(screen.getByText('۲ ثبت').closest('[role="button"]'));
+    expect(screen.getByText('خرید', { selector: 'strong' })).toBeTruthy();
+    expect(screen.getByText('فروش', { selector: 'strong' })).toBeTruthy();
   });
 });

@@ -198,6 +198,8 @@ export default {
   '{count} قلم‌ها': '{count} items',
   'ارزش:': 'Value:',
   'سود/زیان:': 'Profit/loss:',
+  'تحقق‌یافته:': 'Realized:',
+  'معاملات بسته‌شده': 'Closed positions',
   '**** تومان': '**** toman',
   'حذف تراکنش': 'Delete transaction',
   'این تراکنش حذف شود؟': 'Delete this transaction?',

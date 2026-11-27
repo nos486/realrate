@@ -12,6 +12,7 @@ import {
   Wallet,
   Fuel,
   Gauge,
+  History,
 } from 'lucide-react';
 import {
   resolveItemCategory,
@@ -253,6 +254,7 @@ const ICON_COMPONENT_MAP = {
   bubble: Gauge,
   custom: Wallet,
   sparkles: Sparkles,
+  closed: History, // the fully sold assets (buildClosedPositionsGroup)
 };
 
 export function CategoryIcon({ category, size = 18, className = '', style = {} }) {
