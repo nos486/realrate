@@ -1,11 +1,12 @@
 /**
  * HoldingsTable.jsx — The portfolio's assets by category: one row per asset (its whole ledger,
  * utils/assetLedger.js) — quantity, average buy price of what is left, today's value, P&L —
- * that opens into everything recorded for it (`renderDetails`, AssetLedgerDetails)
+ * that opens into everything recorded for it (`renderDetails`, AssetLedgerDetails). A `closed`
+ * group (the fully sold assets, buildClosedPositionsGroup) starts folded and sums realized P&L.
  */
 
 import { intlLocale, t, plural } from '../../../utils/i18n.js';
-import React from 'react';
+import React, { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { CategoryIcon, formatAssetName, formatNum, getItemBrand } from '../utils/holdingHelpers.js';
 import { formatPct, toPersianDigits } from '../../../shared/utils/formatters.js';
@@ -19,7 +20,15 @@ export default function HoldingsTable({
   itemMap = null,
   renderDetails = null,
 }) {
+  // The closed groups opened by the user (folded by default: they are history, not holdings)
+  const [openClosed, setOpenClosed] = useState(() => new Set());
   if (!categoryGroups || categoryGroups.length === 0) return null;
+  const toggleClosed = (key) => setOpenClosed((prev) => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    return next;
+  });
   // The dollar price of a dollar-priced asset (the book's own, today)
   const usdPriceOf = (item) => {
     const asset = assetOf(itemMap, item.assetId || item.id);
@@ -150,6 +159,13 @@ export default function HoldingsTable({
               </span>
             )}
           </div>
+        ) : item.realizedPnl !== null && item.realizedPnl !== undefined ? (
+          // Nothing left (a fully sold asset): what its sales made
+          <div className={`table-pnl-cell ${item.realizedPnl >= 0 ? 'profit' : 'loss'}`}>
+            <span className={`pnl-amount ${hideValues ? 'is-masked' : ''}`}>
+              {hideValues ? '****' : t('تحقق‌یافته: {sign}{amount} تومان', { sign: item.realizedPnl >= 0 ? '+' : '−', amount: formatNum(Math.abs(item.realizedPnl)) })}
+            </span>
+          </div>
         ) : (
           <span className="table-notes-text" title={t('بدون قیمت خرید در سود و زیان محاسبه نمی‌شود')}>—</span>
         );
@@ -181,19 +197,47 @@ export default function HoldingsTable({
 
   return (
     <div className="portfolio-categories-container">
-      {categoryGroups.map((group) => (
-        <div key={group.key} className="category-group-card">
-          {/* Category Subtotal Header */}
-          <div className="category-group-header">
+      {categoryGroups.map((group) => {
+        const folded = group.closed && !openClosed.has(group.key);
+        // Inside the closed group's toggle button the name is plain text, not a heading
+        const NameTag = group.closed ? 'span' : 'h4';
+        const identity = (
             <div className="cat-header-identity">
               <span className="cat-group-icon">
                 <CategoryIcon category={group.icon || group.key} size={20} />
               </span>
               <div className="cat-group-titles">
-                <h4 className="cat-group-name">{group.name}</h4>
+                <NameTag className="cat-group-name">{group.name}</NameTag>
                 <span className="cat-group-count">{plural(group.items.length, t('{count} قلم', { count: group.items.length.toLocaleString(intlLocale()) }), t('{count} قلم‌ها', { count: group.items.length.toLocaleString(intlLocale()) }))}</span>
               </div>
             </div>
+        );
+        return (
+        <div key={group.key} className={`category-group-card ${group.closed ? 'is-closed-group' : ''}`}>
+          {group.closed ? (
+            // Folded history: the header is the toggle, with what the sales made
+            <button
+              type="button"
+              className="category-group-header closed-group-toggle"
+              aria-expanded={!folded}
+              onClick={() => toggleClosed(group.key)}
+            >
+              {identity}
+              <div className="cat-header-subtotals">
+                {group.totalRealizedPnl !== null && group.totalRealizedPnl !== undefined && (
+                  <div className={`cat-subtotal-pnl ${group.totalRealizedPnl >= 0 ? 'profit' : 'loss'}`}>
+                    <span className="subtotal-pnl-label">{t('تحقق‌یافته:')}</span>
+                    <strong>
+                      {hideValues ? t('**** تومان') : t('{sign}{amount} تومان', { sign: group.totalRealizedPnl >= 0 ? '+' : '−', amount: formatNum(Math.abs(group.totalRealizedPnl)) })}
+                    </strong>
+                  </div>
+                )}
+                <ChevronDown size={16} className={`closed-group-chevron ${folded ? '' : 'is-open'}`} aria-hidden="true" />
+              </div>
+            </button>
+          ) : (
+          <div className="category-group-header">
+            {identity}
 
             <div className="cat-header-subtotals">
               <div className="cat-subtotal-val">
@@ -217,18 +261,22 @@ export default function HoldingsTable({
               )}
             </div>
           </div>
+          )}
 
           {/* High-density Data Table for this category — compact cards below 768px */}
-          <ResponsiveDataTable
-            columns={columns}
-            rows={group.items}
-            wrapperClassName="portfolio-table-responsive"
-            tableClassName="portfolio-data-table"
-            rowClassName={(item) => `portfolio-table-row ${item.amount > 0 ? '' : 'is-closed'}`}
-            renderExpanded={renderDetails}
-          />
+          {!folded && (
+            <ResponsiveDataTable
+              columns={columns}
+              rows={group.items}
+              wrapperClassName="portfolio-table-responsive"
+              tableClassName="portfolio-data-table"
+              rowClassName={(item) => `portfolio-table-row ${item.amount > 0 ? '' : 'is-closed'}`}
+              renderExpanded={renderDetails}
+            />
+          )}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

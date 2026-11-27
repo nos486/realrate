@@ -15,6 +15,7 @@ import {
 import { toPriceId, isCustomAssetId } from '../../utils/priceIds.js';
 import { CATEGORY_DEFINITIONS } from './utils/holdingHelpers.js';
 import { t } from '../../utils/i18n.js';
+import { sortableDate } from './utils/assetLedger.js';
 
 export function newGroupId() {
   return `g_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -123,6 +124,48 @@ export function buildDefaultPortfolioLayout(items = [], targets = undefined) {
   return layoutOf(groups, targets);
 }
 
+/** The items whose name, id or notes hold the search query (all of them for an empty query) */
+function filterItems(itemsList, filterQuery) {
+  const items = itemsList || [];
+  if (!filterQuery || !filterQuery.trim()) return items;
+  const q = filterQuery.trim().toLowerCase();
+  return items.filter((it) => {
+    const name = (it.assetName || it.name || '').toLowerCase();
+    const id = (it.assetId || it.id || '').toLowerCase();
+    const notes = (it.notes || '').toLowerCase();
+    return name.includes(q) || id.includes(q) || notes.includes(q);
+  });
+}
+
+/**
+ * The fully sold assets as one group of their own ("closed positions"): out of the holdings and
+ * their totals, but still listed so their buy and sell history stays reachable
+ * @param {Array<object>} assets - Every asset of the ledger (utils/assetLedger.js)
+ * @param {string} filterQuery - Search query
+ * @returns {object|null} A group shaped like buildCustomCategoryGroups' (`closed: true`,
+ *   `totalRealizedPnl` the sum of the assets' realized P&L), or null when nothing is closed
+ */
+export function buildClosedPositionsGroup(assets = [], filterQuery = '') {
+  const items = filterItems((assets || []).filter((a) => !(a.amount > 0) && a.entryCount > 0), filterQuery)
+    .slice()
+    .sort((a, b) => sortableDate(b.lastDate).localeCompare(sortableDate(a.lastDate)));
+  if (items.length === 0) return null;
+  const realized = items.filter((a) => a.realizedPnl !== null && a.realizedPnl !== undefined);
+  return {
+    key: 'closed',
+    id: 'g_closed',
+    name: t('معاملات بسته‌شده'),
+    title: t('معاملات بسته‌شده'),
+    icon: 'closed',
+    items,
+    closed: true,
+    totalRealValue: 0,
+    totalPnl: null,
+    hasCostedItems: false,
+    totalRealizedPnl: realized.length ? realized.reduce((sum, a) => sum + a.realizedPnl, 0) : null,
+  };
+}
+
 /**
  * Group portfolio items by custom layout or fall back to standard CATEGORY_DEFINITIONS
  *
@@ -133,16 +176,7 @@ export function buildDefaultPortfolioLayout(items = [], targets = undefined) {
  * @returns {Array<object>}
  */
 export function buildCustomCategoryGroups(itemsList = [], layout = null, filterQuery = '', options = {}) {
-  let itemsToGroup = itemsList || [];
-  if (filterQuery && filterQuery.trim()) {
-    const q = filterQuery.trim().toLowerCase();
-    itemsToGroup = itemsToGroup.filter((it) => {
-      const name = (it.assetName || it.name || '').toLowerCase();
-      const id = (it.assetId || it.id || '').toLowerCase();
-      const notes = (it.notes || '').toLowerCase();
-      return name.includes(q) || id.includes(q) || notes.includes(q);
-    });
-  }
+  const itemsToGroup = filterItems(itemsList, filterQuery);
 
   // If no custom layout is active, use standard fixed categories
   if (!layout || !Array.isArray(layout.groups) || layout.groups.length === 0) {
