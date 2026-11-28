@@ -7,7 +7,7 @@
  */
 
 import { GEMINI_API_KEY_SECRET } from "../../config/ai.config.js";
-import { NEWS_MODEL_CHOICES, newsModelChoiceById, DEFAULT_NEWS_MODEL_CHOICE } from "../../config/aiModels.js";
+import { newsModelChoiceById, newsModelFallbackOrder, DEFAULT_NEWS_MODEL_CHOICE } from "../../config/aiModels.js";
 import { loadAiSettings } from "../ai/aiSettings.service.js";
 import { geminiAskText } from "../ai/gemini.js";
 import { logger } from "../../lib/logger.js";
@@ -20,8 +20,8 @@ function workersOptions(choice, base) {
 }
 
 /**
- * The models to use now, the admin's choice first and then every other available one, so a model that
- * fails (retired: 5028, over capacity, an unreadable request) never stops the run
+ * The models to use now, the admin's choice first and then every other available one, cheapest first
+ * (config/aiModels.js), so a model that fails (retired: 5028, over capacity, an unreadable request) never stops the run
  * @param {object} env
  * @param {{ id: string, label: string, options?: object }} base the feature's Workers AI options
  * @returns {Promise<{ id: string, label: string, kind: string, available: boolean, used: () => string, ask: (messages: object[], opts: { maxTokens: number, temperature?: number }) => Promise<string|object> }>}
@@ -30,7 +30,7 @@ export async function resolveNewsModel(env, base) {
   const { newsModel } = await loadAiSettings(env);
   const first = newsModelChoiceById(newsModel) || newsModelChoiceById(DEFAULT_NEWS_MODEL_CHOICE);
   const key = env?.[GEMINI_API_KEY_SECRET];
-  const chain = [first, ...NEWS_MODEL_CHOICES.filter((c) => c.id !== first.id)]
+  const chain = newsModelFallbackOrder(first.id)
     .filter((c) => (c.kind === "gemini" ? Boolean(key) : hasWorkersAi(env)))
     .map((c) => c.kind === "gemini"
       ? {

@@ -113,6 +113,12 @@ export const NEWS_LIMITS = {
   /** Posts sent to the model in one request (one prompt for several posts) */
   aiBatchSize: 8,
   /**
+   * A batch short of aiBatchSize waits for more posts until its oldest has waited this long: every
+   * request repeats the whole instructions (most of a small batch's tokens), so a few full requests
+   * cost much less than one per post each minute
+   */
+  aiBatchWaitMinutes: 5,
+  /**
    * A post whose request failed is tried again on its own (so it never holds others back), at most
    * this many times in all; then it is set aside and logged, so one post the model can't take
    * never blocks the queue
@@ -120,8 +126,11 @@ export const NEWS_LIMITS = {
   aiMaxTries: 3,
   /** Model requests in one run (posts beyond this wait for the next minute) */
   aiCallsPerRun: 3,
-  /** A post's text sent to the model, in characters (the rest rarely changes the verdict) */
-  aiTextChars: 1500,
+  /**
+   * A post's text sent to the model, in characters: the opening carries the news (the headline and
+   * the facts), the rest rarely changes the verdict or the summary, and input tokens are most of the cost
+   */
+  aiTextChars: 900,
   /** A post's text kept, in characters */
   storedTextChars: 3000,
   /** News older than this is deleted (hourly) */
