@@ -216,7 +216,7 @@ async function mapLimited(items, limit, fn) {
  * One run over every channel
  * @param {object} env - env.DB, env.AI (Workers AI; optional), env.KV not used
  * @param {{ now?: number, force?: boolean, fetchPage?: Function, fetchFeed?: Function }} [opts] - force: run even
- *   while another run holds the lock (admin); fetchPage / fetchFeed: read a channel's page / a feed (tests)
+ *   while another run holds the lock, and send a short batch without waiting for more posts (admin); fetchPage / fetchFeed: read a channel's page / a feed (tests)
  * @returns {Promise<{ skipped?: boolean, checked: number, candidates: number, published: number, waiting?: number, aiCalls: number }>}
  */
 export async function runNewsPolling(env, { now = Date.now(), force = false, fetchPage = fetchChannelPage, fetchFeed = fetchFeedXml, readPrices } = {}) {
@@ -228,7 +228,7 @@ export async function runNewsPolling(env, { now = Date.now(), force = false, fet
   if (holders > 1 && !force) return { skipped: true, checked: 0, candidates: 0, published: 0, aiCalls: 0 };
 
   try {
-    const result = await pollChannels(env, store, now, fetchPage, fetchFeed);
+    const result = await pollChannels(env, store, now, fetchPage, fetchFeed, force);
     // The analyst's card, when new news came in (at most every NEWS_ANALYSIS.minIntervalMinutes)
     result.analysis = await maybeUpdateNewsAnalysis(env, { now, readPrices }).catch((err) => {
       logger.warn("[News] analysis failed:", { error: err?.message });
@@ -258,8 +258,8 @@ function readPending(raw, now) {
 
 /** The queue to store: what the posts need to be decided later, at most NEWS_LIMITS.pendingMax (the oldest go first) */
 function writePendingList(posts) {
-  const list = posts.map(({ channel, postId, url, text, image, publishedAt, source, tries }) => ({
-    channel, postId, url, text, image, publishedAt, ...(source === "world" ? { source } : {}), ...(tries ? { tries } : {}),
+  const list = posts.map(({ channel, postId, url, text, image, publishedAt, source, tries, seenAt }) => ({
+    channel, postId, url, text, image, publishedAt, ...(source === "world" ? { source } : {}), ...(tries ? { tries } : {}), ...(seenAt ? { seenAt } : {}),
   }));
   if (list.length > NEWS_LIMITS.pendingMax) {
     logger.warn("[News] the queue is full — the oldest waiting posts are dropped", { dropped: list.length - NEWS_LIMITS.pendingMax });
@@ -339,7 +339,7 @@ async function readFeeds(feeds, cursors, previous, status, now, fetchFeed) {
   return { fresh, seenWrites, titles };
 }
 
-async function pollChannels(env, store, now, fetchPage, fetchFeed) {
+async function pollChannels(env, store, now, fetchPage, fetchFeed, force = false) {
   const listed = (await getNewsChannels(env)).filter((c) => c.enabled !== false);
   const channels = listed.map((c) => c.username);
   // An English channel's posts go the international way: translated, under «بین‌الملل»
@@ -397,7 +397,8 @@ async function pollChannels(env, store, now, fetchPage, fetchFeed) {
   for (const post of fresh) {
     if (pendingIds.has(postKey(post))) continue;
     if (hasProfanity(post.text) || !(post.source === "world" ? isWorldCandidate(post.text) : isNewsCandidate(post.text))) notMarket++;
-    else screened.push(post);
+    // When it was first read: a short batch waits for more posts until its oldest has waited enough
+    else screened.push({ ...post, seenAt: now });
   }
 
   // 3. Repeats of published news (and of each other); recent news is read only when there is a
@@ -454,6 +455,13 @@ async function pollChannels(env, store, now, fetchPage, fetchFeed) {
   const retried = candidates.filter((p) => p.tries > 0 && p.tries < NEWS_LIMITS.aiMaxTries);
   const batches = [];
   for (let i = 0; i < firstTry.length; i += NEWS_LIMITS.aiBatchSize) batches.push(firstTry.slice(i, i + NEWS_LIMITS.aiBatchSize));
+  // A short last batch whose posts are all fresh waits for more (every request repeats the
+  // instructions); it goes once its oldest has waited NEWS_LIMITS.aiBatchWaitMinutes. A post queued
+  // before seenAt existed counts as old.
+  const short = batches.at(-1);
+  const holding = Boolean(short) && !force && short.length < NEWS_LIMITS.aiBatchSize
+    && Math.min(...short.map((p) => p.seenAt || 0)) > now - NEWS_LIMITS.aiBatchWaitMinutes * 60_000;
+  const held = holding ? batches.pop() : [];
   for (const post of retried) batches.push([post]);
 
   const published = [];
@@ -544,6 +552,8 @@ async function pollChannels(env, store, now, fetchPage, fetchFeed) {
       });
     });
   }
+  // The held batch (the newest posts) waits in the queue for more
+  deferred.push(...held);
   if (status.aiCalls) await store.increment(aiDayKey(now), status.aiCalls, { expirationTtl: 2 * 86400 });
 
   // The undecided wait in the queue (the cursors move on regardless)

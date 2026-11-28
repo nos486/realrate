@@ -3,7 +3,7 @@
  * prompt and answer, and a whole run on real SQLite (D1) with a fake channel and a fake model
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   parseTelegramPosts,
   postHtmlToText,
@@ -36,6 +36,9 @@ const post = (channel, id, text, time = '2026-10-05T08:00:00+00:00', extra = '')
 
 const page = (channel, posts, title = 'خبر فوری') =>
   `<html><head><meta property="og:title" content="${title}"></head><body>${posts.join('\n')}</body></html>`;
+
+/** The real wait for a short batch (the runs below send at once unless a test says otherwise) */
+const BATCH_WAIT = NEWS_LIMITS.aiBatchWaitMinutes;
 
 describe('the feed list and the defaults', () => {
   let env;
@@ -264,6 +267,26 @@ describe('runNewsPolling', () => {
     await saveNewsChannels(env, ['@chan_one', 'chan_two']);
     // The international feeds have tests of their own (below)
     await saveNewsFeeds(env, []);
+    // A short batch is sent at once here; waiting for more posts has a test of its own
+    NEWS_LIMITS.aiBatchWaitMinutes = 0;
+  });
+  afterEach(() => {
+    NEWS_LIMITS.aiBatchWaitMinutes = BATCH_WAIT;
+  });
+
+  it('a short batch of fresh posts waits for more, then goes once its oldest has waited enough (or the admin forces a run)', async () => {
+    NEWS_LIMITS.aiBatchWaitMinutes = 5;
+    pages.chan_one = page('chan_one', [post('chan_one', 1, 'قیمت دلار و طلا امروز بالا رفت، نرخ ارز بانک مرکزی', at(1))]);
+    env.AI = { run: vi.fn(async () => ({ response: '[{"i":1,"k":0}]' })) };
+    expect(await runNewsPolling(env, { now: NOW, fetchPage })).toMatchObject({ aiCalls: 0, waiting: 1 });
+    expect(await runNewsPolling(env, { now: NOW + 4 * 60000, fetchPage })).toMatchObject({ aiCalls: 0, waiting: 1 });
+    expect(env.AI.run).not.toHaveBeenCalled();
+    expect(await runNewsPolling(env, { now: NOW + 5 * 60000 + 1, fetchPage })).toMatchObject({ aiCalls: 1, waiting: 0 });
+    expect(env.AI.run).toHaveBeenCalledTimes(1);
+
+    // The admin's run sends a short batch without waiting
+    pages.chan_one = page('chan_one', [post('chan_one', 2, 'نرخ ارز و قیمت سکه طلا در بازار امروز، دلار بانک مرکزی', at(2))]);
+    expect(await runNewsPolling(env, { now: NOW + 6 * 60000, fetchPage, force: true })).toMatchObject({ aiCalls: 1, waiting: 0 });
   });
 
   const at = (min) => new Date(Date.parse('2026-10-05T08:00:00Z') + min * 60000).toISOString();
@@ -723,6 +746,10 @@ describe('runNewsPolling with the international feeds', () => {
       { id: 'broken', title: 'Broken', url: 'https://down.example.com/rss' },
     ]);
     env.AI = { run: vi.fn(async (model, { messages }) => answer((messages[1].content.match(/^#\d+$/gm) || []).length)) };
+    NEWS_LIMITS.aiBatchWaitMinutes = 0;
+  });
+  afterEach(() => {
+    NEWS_LIMITS.aiBatchWaitMinutes = BATCH_WAIT;
   });
 
   it('publishes the model\'s Persian with the English original and its link; a seen article is never sent again', async () => {

@@ -16,6 +16,7 @@ import { loadAiSettings, saveAiSettings } from '../../src/services/ai/aiSettings
 import { resolveNewsModel } from '../../src/services/news/newsModel.js';
 import { handleAdminGetAiSettings, handleAdminSaveAiSettings } from '../../src/handlers/aiSettingsRoutes.js';
 import { NEWS_AI_MODEL } from '../../src/config/news.config.js';
+import { newsModelFallbackOrder } from '../../src/config/aiModels.js';
 
 const makeEnv = () => ({ DB: memoryStateDb(), GEMINI_API_KEY: 'gkey', AI: { run: vi.fn(async () => ({ response: 'glm' })) } });
 const messages = [{ role: 'system', content: 'sys' }, { role: 'user', content: 'usr' }];
@@ -90,7 +91,27 @@ describe('the news model', () => {
     await saveAiSettings(env, { newsModel: 'gemini-3.5-flash' });
     const model = await resolveNewsModel(env, NEWS_AI_MODEL);
     expect(model.available).toBe(true);
-    expect(model.id).toBe('@cf/zai-org/glm-5.3');
+    // The cheapest Workers AI model
+    expect(model.id).toBe('@cf/google/gemma-4-26b-a4b-it');
+  });
+
+  it('tries the others cheapest first, the unpriced (Gemini) ones last', () => {
+    expect(newsModelFallbackOrder('glm-5.3').map((c) => c.id)).toEqual([
+      'glm-5.3', 'gemma-4-26b', 'deepseek-v4.1-flash', 'qwen3.8-27b', 'gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.6-flash',
+    ]);
+    expect(newsModelFallbackOrder('gemini-3.6-flash')[1].id).toBe('gemma-4-26b');
+    // An unknown id starts with the default
+    expect(newsModelFallbackOrder('gone')[0].id).toBe('glm-5.3');
+  });
+
+  it('asks DeepSeek V4.1 Flash with the feature\'s reasoning effort', async () => {
+    const env = makeEnv();
+    await saveAiSettings(env, { newsModel: 'deepseek-v4.1-flash' });
+    env.AI.run = vi.fn(async () => ({ response: 'ds' }));
+    const model = await resolveNewsModel(env, NEWS_AI_MODEL);
+    expect(await model.ask(messages, { maxTokens: 100 })).toBe('ds');
+    expect(env.AI.run.mock.calls[0][0]).toBe('@cf/deepseek-ai/deepseek-v4.1-flash-1017');
+    expect(env.AI.run.mock.calls[0][1].reasoning_effort).toBe('low');
   });
 
   it('is unavailable with neither Gemini nor Workers AI', async () => {
